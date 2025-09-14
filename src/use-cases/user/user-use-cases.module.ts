@@ -1,0 +1,11 @@
+import {Module} from "@nestjs/common"; 
+import { DataServicesModule } from "src/service/data-services/data-services.module";
+import { UserFactoryService } from "./user-factory.service";
+import { UserUseCases } from "./user.use-case";
+
+@Module({
+    imports: [DataServicesModule],
+    providers: [UserFactoryService, UserUseCases],
+    exports: [UserUseCases],
+})
+export class UserUseCasesModule {}
