@@ -1,8 +1,7 @@
-import { AnyPgTable } from "drizzle-orm/pg-core";
 import {IGenericRepository} from "../../../core";
 import {db} from "./db";
 
-export class PostgresGenericRepository<T, TTable extends AnyPgTable> implements IGenericRepository<T> {
+export class PostgresGenericRepository<T, TTable> implements IGenericRepository<T> {
     private _table: TTable;
     constructor(table: TTable) {
         this._table = table;
