@@ -5,12 +5,10 @@ import { User } from "../../../core/entities";
 import { IGenericRepository } from "../../../core";
 import { users } from "./model";
 
-
-
 @Injectable()
 export class PostgresDataServices implements IDataServices {
   users: IGenericRepository<User>;
-    constructor() {
-        this.users = new PostgresGenericRepository<User, typeof users>(users);
-    }
+  constructor() {
+    this.users = new PostgresGenericRepository<User, typeof users>(users);
+  }
 }

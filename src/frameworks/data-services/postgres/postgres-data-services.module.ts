@@ -9,6 +9,6 @@ import { PostgresDataServices } from "./postgres-data-services.service";
       useClass: PostgresDataServices,
     },
   ],
-  exports: [IDataServices], 
+  exports: [IDataServices],
 })
 export class PostgresDataServicesModule {}
