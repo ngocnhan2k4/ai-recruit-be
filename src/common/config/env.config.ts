@@ -53,7 +53,6 @@ export const validateConfig = (
     enableImplicitConversion: true,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const errors = validateSync(validatedConfig, {
     skipMissingProperties: false,
   });
@@ -66,5 +65,5 @@ export const validateConfig = (
     throw new Error(`Config validation error: ${errorMessages}`);
   }
 
-  return validatedConfig as EnvironmentVariables;
+  return validatedConfig;
 };
