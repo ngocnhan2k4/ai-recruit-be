@@ -5,7 +5,7 @@ dotenv.config();
 export const db = drizzle({
   connection: {
     connectionString: process.env.DATABASE_URL,
-    ssl: true,
+    //ssl: true,
   },
   casing: "snake_case",
 });
