@@ -1,8 +1,11 @@
 import { Module } from "@nestjs/common";
-import { UserController } from "./interfaces/controllers";
+import { UserController, AuthController } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ConfigModule } from "@nestjs/config";
 import envConfig, { validateConfig } from "./common/config/env.config";
+import { AuthUseCasesModule } from "./use-cases/auth/auth-use-cases.module";
+import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
+import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
 
 @Module({
   imports: [
@@ -13,8 +16,11 @@ import envConfig, { validateConfig } from "./common/config/env.config";
       validate: validateConfig,
     }),
     UserUseCasesModule,
+    AuthUseCasesModule,
+    CasbinModule,
+
   ],
-  controllers: [UserController],
-  providers: [],
+  controllers: [UserController, AuthController],
+  providers: [JwtStrategy],
 })
 export class AppModule {}
