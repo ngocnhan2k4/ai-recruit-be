@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import { IAuthServices } from "@/core";
 import { JwtService } from "@nestjs/jwt";
 import { FIREBASE_ADMIN } from "@/common/constants/constants";
+import { randomBytes } from "crypto";
 
 @Injectable()
 export class FireBaseAuthServices implements IAuthServices {
@@ -18,7 +19,9 @@ export class FireBaseAuthServices implements IAuthServices {
         };
     }
 
-    signJwt(payload: any): string {
-        return this.jwtService.sign(payload);
+    signJwt(payload: any): {accessToken: string, refreshToken: string} {
+        const accessToken = this.jwtService.sign(payload);
+        const refreshToken = randomBytes(48).toString('hex');
+        return { accessToken, refreshToken };
     }
 }

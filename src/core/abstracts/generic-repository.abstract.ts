@@ -5,7 +5,13 @@ export interface IGenericRepository<T> {
 
   getByField(field: Partial<T>): Promise<T | null>;
 
-  create(item: T): Promise<T | null>;
+  create(item: T): Promise<T>;
 
   update(id: number, item: T): Promise<T | null>;
+}
+
+export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
+  revoke(token: string, replacedByToken?: string): Promise<void>;
+  revokeAllForUser(userId: number): Promise<void>;
+  findValidToken(token: string): Promise<T | null>;
 }

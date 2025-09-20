@@ -1,7 +1,6 @@
 import { Body, Controller, Post, UseGuards, Req, Get } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
-import { LoginDto, LoginResponseDto } from "../dtos";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
+import { LoginDto, LoginResponseDto, RefreshTokenDto } from "../dtos";
 
 @Controller("auth")
 export class AuthController {
@@ -12,9 +11,13 @@ export class AuthController {
         return this.authUseCases.logIn(loginDto.idToken);
     }
 
-    @UseGuards(JwtAuthGuard)
-    @Get("profile")
-    getProfile(@Req() req) {
-        return req.user;
+    @Post("refresh")
+    async refresh(@Body() body : RefreshTokenDto): Promise<LoginResponseDto> {
+        return this.authUseCases.refreshToken(body.refreshToken);
+    }
+
+    @Post("logout")
+    async logout(@Body() body: RefreshTokenDto): Promise<void> {
+        return this.authUseCases.logout(body.refreshToken);
     }
 }

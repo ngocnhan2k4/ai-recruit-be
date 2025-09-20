@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { newEnforcer, Enforcer } from "casbin";
 import { FileAdapter } from "casbin-file-adapter";
 import * as path from "path";
+import { RoleEnum } from "@/core/enums/roles";
 
 @Injectable()
 export class CasbinService implements OnModuleInit {
@@ -17,7 +18,7 @@ export class CasbinService implements OnModuleInit {
         return this.enforcer;
     }
 
-    async can(roles: string[], obj: string, act: string): Promise<boolean> {
+    async can(roles: RoleEnum[], obj: string, act: string): Promise<boolean> {
         for (const role of roles) {
             const allowed = await this.enforcer.enforce(role, obj, act);
             if (allowed) {
