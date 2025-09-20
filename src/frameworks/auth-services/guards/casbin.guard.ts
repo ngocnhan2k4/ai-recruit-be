@@ -11,10 +11,8 @@ export class CasbinGuard implements CanActivate {
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        
         const req = context.switchToHttp().getRequest();
         const user = req.user;
-        console.log("User in CasbinGuard:", user);
         const meta = this.reflector.getAllAndOverride<{ obj: string; act: string }>(PERM_KEY, [
             context.getHandler(),
             context.getClass(),

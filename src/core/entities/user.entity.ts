@@ -2,9 +2,9 @@ import  { RoleEnum } from "../enums/roles"
 
 export class User {
   id: number;
-  email: string;
-  name: string;
-  age: number;
+  email?: string;
+  name?: string;
+  age?: number;
   firebaseUid: string;
   roles: RoleEnum[];
   createdAt: Date;
@@ -20,9 +20,9 @@ export class User {
     updatedAt,
     avatar
   }: {
-    email: string;
-    name: string;
-    age: number;
+    email?: string;
+    name?: string;
+    age?: number;
     firebaseUid: string;
     roles: RoleEnum[];
     createdAt: Date;

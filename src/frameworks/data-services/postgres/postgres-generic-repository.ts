@@ -62,14 +62,6 @@ export class AuthPostgresGenericRepository<T, TTable>
       .where(eq((this._table as any).token, token))
       .execute();
   }
-
-  async revokeAllForUser(userId: number): Promise<void> {
-    await db
-      .update(this._table as any)
-      .set({ revoked: true })
-      .where(and(eq((this._table as any).user_id, userId), eq((this._table as any).revoked, false)))
-      .execute();
-  }
   async findValidToken(token: string): Promise<T | null> {
     const result = await db
       .select()

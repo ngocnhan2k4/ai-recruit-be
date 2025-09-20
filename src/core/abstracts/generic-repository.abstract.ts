@@ -11,7 +11,6 @@ export interface IGenericRepository<T> {
 }
 
 export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
-  revoke(token: string, replacedByToken?: string): Promise<void>;
-  revokeAllForUser(userId: number): Promise<void>;
+  revoke(token: string): Promise<void>;
   findValidToken(token: string): Promise<T | null>;
 }

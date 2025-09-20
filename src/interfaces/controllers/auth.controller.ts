@@ -7,7 +7,6 @@ export class AuthController {
     constructor(private readonly authUseCases: AuthUseCases) {}
     @Post("login")
     async logIn(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
-        console.log("idToken", loginDto.idToken);
         return this.authUseCases.logIn(loginDto.idToken);
     }
 

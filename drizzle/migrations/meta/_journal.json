@@ -22,6 +22,13 @@
       "when": 1758343529571,
       "tag": "20250920044529_add-refreshtoken",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758381078692,
+      "tag": "20250920151118_remove_not_null_email_name_age",
+      "breakpoints": true
     }
   ]
 }

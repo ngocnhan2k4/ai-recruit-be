@@ -3,25 +3,22 @@ import * as admin from "firebase-admin";
 import { IAuthServices } from "@/core";
 import { JwtService } from "@nestjs/jwt";
 import { FIREBASE_ADMIN } from "@/common/constants/constants";
-import { randomBytes } from "crypto";
-
 @Injectable()
 export class FireBaseAuthServices implements IAuthServices {
     constructor(@Inject(FIREBASE_ADMIN) private readonly firebaseApp: admin.app.App
                 , private readonly jwtService: JwtService) {}
-    async verifyIdToken(idToken: string): Promise<{ uid: string , email: string, name: string, picture?: string }> {
+    async verifyIdToken(idToken: string): Promise<{ uid: string , email?: string, name?: string, picture?: string }> {
         const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
         return {
             uid: decodedToken.uid,
-            email: decodedToken.email || "",
-            name: decodedToken.name || "",
-            picture: decodedToken.picture || ""
+            email: decodedToken.email,
+            name: decodedToken.name,
+            picture: decodedToken.picture
         };
     }
 
-    signJwt(payload: any): {accessToken: string, refreshToken: string} {
+    signJwt(payload: any): string {
         const accessToken = this.jwtService.sign(payload);
-        const refreshToken = randomBytes(48).toString('hex');
-        return { accessToken, refreshToken };
+        return accessToken;
     }
 }
