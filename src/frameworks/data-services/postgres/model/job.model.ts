@@ -7,8 +7,13 @@ import {
   date,
   timestamp,
   json,
+  uuid,
+  primaryKey,
 } from "drizzle-orm/pg-core";
-import { companyRaws } from "./company.model";
+import { companies, companyRaws } from "./company.model";
+import { skills } from "./skill.model";
+import { timestamps } from "./helpers";
+import { categories } from "./category.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -24,3 +29,48 @@ export const jobRaws = pgTable("job_raws", {
   salary_range: json("salary_range"), // storing as JSON for flexibility
   source: varchar("source", { length: 255 }).notNull(),
 });
+
+export const jobs = pgTable("jobs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  company_id: uuid("company_id")
+    .notNull()
+    .references(() => companies.id),
+  salary_range: json("salary_range"), // storing as JSON for flexibility'
+  ...timestamps,
+});
+
+export const jobSkills = pgTable(
+  "job_skills",
+  {
+    job_id: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    skill_id: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.job_id, table.skill_id],
+    }),
+  ],
+);
+
+export const jobCategories = pgTable(
+  "job_categories",
+  {
+    job_id: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    category_id: uuid("category_id")
+      .notNull()
+      .references(() => categories.id),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.job_id, table.category_id],
+    }),
+  ],
+);

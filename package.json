@@ -23,7 +23,8 @@
     "push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "bun drizzle/seed/index.ts"
   },
   "husky": {
     "hooks": {
@@ -51,6 +52,7 @@
     "cookie-parser": "^1.4.7",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
+    "drizzle-seed": "^0.3.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
