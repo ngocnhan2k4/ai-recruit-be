@@ -3,6 +3,7 @@ export class User {
   email: string;
   name: string;
   age: number;
+
   constructor({
     email,
     name,

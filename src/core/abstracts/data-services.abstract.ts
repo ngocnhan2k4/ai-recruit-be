@@ -1,8 +1,11 @@
 import { User } from "../entities/user.entity";
 import { IGenericRepository } from "./generic-repository.abstract";
+import { PostgresJobRawRepository } from "./job-repository.abstract";
 
 export abstract class IDataServices {
   abstract users: IGenericRepository<User>;
 
-  // other repositories...
+  abstract jobs: PostgresJobRawRepository;
+
+  // other repositories
 }
