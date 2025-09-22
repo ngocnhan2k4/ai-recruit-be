@@ -1,10 +1,12 @@
-import csv
 import time
 from urllib.parse import urlparse, urljoin
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+from datetime import datetime, timezone
 
 import cloudscraper
 from bs4 import BeautifulSoup
+
+from helpers import parse_posted_date, safe_text, get_date_posted
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -16,113 +18,113 @@ def clean_job_url(url: str) -> str:
     return f"{p.scheme}://{p.netloc}/{'/'.join(parts)}"
 
 
-def safe_text(el):
-    if not el:
-        return "N/A"
-    txt = el.get_text(strip=True)
-    return txt if txt else "N/A"
-
-
-def scrape_job_detail(scraper, base_url, link):
+def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
     job_url = urljoin(base_url, link)
-    try:
-        resp = scraper.get(clean_job_url(job_url))
-    except Exception as e:
-        print(f"Error fetching job detail {job_url}: {e}")
-        return None
-
+    resp = scraper.get(clean_job_url(job_url))
     soup = BeautifulSoup(resp.text, "html.parser")
 
     job_title = safe_text(soup.find("h1"))
-    employer_name = safe_text(soup.select_one(".employer-name"))
+    company_name = safe_text(soup.select_one(".employer-name"))
 
-    # Logo
     logo_tag = soup.find("img", class_="employer-logo")
-    logo = "N/A"
-    if logo_tag:
-        logo = (logo_tag.get("src") or logo_tag.get("data-src") or "").strip() or "N/A"
+    logo = (logo_tag.get("src") or logo_tag.get("data-src") or "").strip() if logo_tag else None
 
-    # Location
-    location = "N/A"
-    loc_wrap = soup.find("div", class_="imb-3")
-    if loc_wrap:
-        loc_a = loc_wrap.find("a")
-        if loc_a and loc_a.get("href"):
-            location = loc_a.get("href").strip() or "N/A"
+    # date posted
+    imb_3_wrap = soup.find("div", class_="imb-3")
+    date_posted = None
+    if imb_3_wrap:
+        span_text = get_date_posted(imb_3_wrap.find_all("span"))
+        if span_text:
+            date_posted = parse_posted_date(span_text)
 
-    # Skills
+    # skills
     skills = []
-    skill_wrap = loc_wrap.find("div", class_="igap-2") if loc_wrap else None
-    if skill_wrap:
-        skills = [safe_text(a) for a in skill_wrap.find_all("a")]
+    if imb_3_wrap:
+        skill_wrap = imb_3_wrap.find("div", class_="igap-2")
+        if skill_wrap:
+            skills = [safe_text(a) for a in skill_wrap.find_all("a")]
 
-    # Description sections
+    # description
     description_parts = []
-    for paragraph in soup.find_all("div", class_="paragraph"):
-        title = safe_text(paragraph.find("h2"))
-        body_items = [li.get_text(strip=True) for li in paragraph.find_all("li")]
+    for p in soup.find_all("div", class_="paragraph"):
+        title = safe_text(p.find("h2"))
+        body_items = [li.get_text(strip=True) for li in p.find_all("li")]
         body_text = ", ".join(b for b in body_items if b) or "N/A"
-        description_parts.append(f"[title]: {title} [body]: {body_text}")
+        description_parts.append(f"title: {title} body: {body_text}")
     description = "; ".join(description_parts) if description_parts else "N/A"
 
-    return {
-        "job_title": job_title,
-        "employer_name": employer_name,
-        "logo": logo,
-        "location": location,
-        "skills": ", ".join(skills) if skills else "N/A",
+    # --- Company page ---
+    print(clean_job_url(job_url))
+    company_url_tag = soup.find("section", class_="job-show-employer-info").find("a")
+    company_size, locations = None, []
+    if company_url_tag:
+        company_url = urljoin(base_url, company_url_tag.get("href"))
+        comp_resp = scraper.get(clean_job_url(company_url))
+        comp_soup = BeautifulSoup(comp_resp.text, "html.parser")
+
+        size_wrap = comp_soup.select_one("div.ipt-xl-4")
+        if size_wrap:
+            for div in size_wrap.find_all("div", class_="normal-text"):
+                text = safe_text(div)
+                if re.search(r"\d", text):
+                    company_size = text.replace("\nemployees", "").strip()
+
+        for span in comp_soup.select("div.locations span.text-break"):
+            locations.append(safe_text(span))
+    
+        company_description_wrap = comp_soup.find("div", class_="paragraph")
+
+    if company_name not in companies:
+        companies[company_name] = {
+            "logo": logo,
+            "locations": locations,
+            "description": safe_text(company_description_wrap, is_strip=False),
+            "company_size": company_size,
+            "website_url": company_url,
+            "crawled_at": datetime.now(timezone.utc),
+            "source": "itviec",
+            "jobs": {}
+        }
+
+    companies[company_name]["jobs"][job_title] = {
         "description": description,
+        "job_url": clean_job_url(job_url),
+        "date_posted": date_posted,
+        "skills": skills,
+        "crawled_at": datetime.now(timezone.utc),
+        "source": "itviec"
     }
 
 
-def scrape_page(scraper, page_num: int, max_workers=8):
+def scrape_page(scraper, page_num):
     base_url = "https://itviec.com/it-jobs"
     listing_url = f"{base_url}?page={page_num}"
+
     print(f"--- Scraping listing page {page_num} ---")
-    jobs = []
 
-    try:
-        html = scraper.get(listing_url).text
-    except Exception as e:
-        print(f"Error fetching listing page {page_num}: {e}")
-        return jobs
-
+    html = scraper.get(listing_url).text
     soup = BeautifulSoup(html, "html.parser")
-    job_cards = soup.find_all("div", class_="job-card")
-    links = [card["data-search--job-selection-job-url-value"] for card in job_cards]
+    links = [card["data-search--job-selection-job-url-value"]
+             for card in soup.find_all("div", class_="job-card")]
 
+    companies = {}
     for link in links:
-        job = scrape_job_detail(scraper, base_url, link)
-        if job:
-            jobs.append(job)
+        scrape_job_detail(scraper, base_url, link, companies)
 
-    return jobs
+    return companies
 
 
-def main():
+def crawl_jobs():
     scraper = cloudscraper.create_scraper()
-    all_jobs = []
+    all_companies = {}
+    for page_num in range(1, 51):
+        page_companies = scrape_page(scraper, page_num)
 
-    for page_num in range(1, 50):
-        all_jobs.extend(scrape_page(scraper, page_num))
+        for name, data in page_companies.items():
+            if name not in all_companies:
+                all_companies[name] = data
+            else:
+                all_companies[name]["jobs"].update(data["jobs"])
         time.sleep(2)
 
-    with open("jobs.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["no", "job_title", "employer_name",
-                         "logo", "location", "skills", "description"])
-        for idx, job in enumerate(all_jobs, start=1):
-            writer.writerow([
-                idx,
-                job["job_title"],
-                job["employer_name"],
-                job["logo"],
-                job["location"],
-                job["skills"],
-                job["description"]
-            ])
-    print(f"Saved {len(all_jobs)} jobs to jobs.csv")
-
-
-if __name__ == "__main__":
-    main()
+    return all_companies
