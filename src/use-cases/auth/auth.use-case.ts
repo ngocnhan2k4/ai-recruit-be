@@ -16,14 +16,13 @@ export class AuthUseCases {
         let user = await this.dataServices.users.getByField({ firebaseUid: decode.uid });
         if (!user) {
             user = await this.dataServices.users.create(new User({
+                username: decode.name!,
                 email: decode.email,
-                name: decode.name,
-                avatar: decode.picture,
+                avatarUrl: decode.picture,
                 firebaseUid: decode.uid,
                 roles: [RoleEnum.USER],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                age: 0
+                name: decode.name!,
+
             }));
         } else{
             // Update user info if necessary

@@ -2,40 +2,45 @@ import  { RoleEnum } from "../enums/roles"
 
 export class User {
   id: number;
+  username: string;
   email?: string;
-  name?: string;
-  age?: number;
-  firebaseUid: string;
-  roles: RoleEnum[];
+  phone?: string;
+  firebaseUid?: string;
+  avatarUrl?: string;
+  name: string;
+  dob?: Date;
   createdAt: Date;
-  updatedAt: Date;
-  avatar?: string;
+  updatedAt?: Date;
+  deletedAt?: Date;
+  roles: RoleEnum[]
+
   constructor({
+    username,
     email,
-    name,
-    age,
+    phone,
     firebaseUid,
+    avatarUrl,
+    name,
+    dob,
     roles,
-    createdAt,
-    updatedAt,
-    avatar
+
   }: {
+    username: string;
     email?: string;
-    name?: string;
-    age?: number;
-    firebaseUid: string;
-    roles: RoleEnum[];
-    createdAt: Date;
-    updatedAt: Date;
-    avatar?: string;
+    phone?: string;
+    firebaseUid?: string;
+    avatarUrl?: string;
+    name: string;
+    dob?: Date;
+    roles: RoleEnum[]
   }) {
+    this.username = username;
     this.email = email;
-    this.name = name;
-    this.age = age;
+    this.phone = phone;
     this.firebaseUid = firebaseUid;
+    this.avatarUrl = avatarUrl;
+    this.name = name;
+    this.dob = dob;
     this.roles = roles;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-    this.avatar = avatar;
   }
 }
