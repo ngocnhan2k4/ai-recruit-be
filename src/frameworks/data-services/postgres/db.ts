@@ -31,5 +31,10 @@ pool.on("error", (err) => {
 
 // Force an initial connection at app startup so logs appear immediately
 export const ensureDatabaseConnection = async (): Promise<void> => {
-  await pool.query("SELECT 1");
+  try {
+    await pool.query("SELECT 1");
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
 };
