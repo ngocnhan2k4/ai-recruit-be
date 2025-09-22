@@ -1,20 +1,21 @@
 import { eq, and, gt } from "drizzle-orm";
 import { IGenericRepository, IAuthGenericRepository } from "../../../core";
-import { db } from "./db";
+//import { db } from "./db";
+import { Inject } from "@nestjs/common";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
 {
   protected _table: TTable;
-  constructor(table: TTable) {
+  constructor(@Inject("DRIZZLE") protected db, table: TTable) {
     this._table = table;
   }
 
   async getAll(): Promise<T[]> {
-    return (await db.select().from(this._table as any)) as T[];
+    return (await this.db.select().from(this._table as any)) as T[];
   }
   async get(id: number): Promise<T | null> {
-    const result = await db
+    const result = await this.db
       .select()
       .from(this._table as any)
       .where(eq((this._table as any).id, id));
@@ -26,14 +27,14 @@ export class PostgresGenericRepository<T, TTable>
       return null;
     }
     const conditions = keys.map((key) => eq((this._table as any)[key as string], field[key]!));
-    let query = db.select().from(this._table as any).where(and(...conditions));
+    let query = this.db.select().from(this._table as any).where(and(...conditions));
     
     const result = await query;
     return (result[0] as T) || null;
   }
 
   async create(item: T): Promise<T> {
-    const result = await db
+    const result = await this.db
       .insert(this._table as any)
       .values(item as any)
       .returning();
@@ -41,7 +42,7 @@ export class PostgresGenericRepository<T, TTable>
   }
 
   async update(id: number, item: T): Promise<T | null> {
-    const result = await db
+    const result = await this.db
       .update(this._table as any)
       .set(item as any)
       .where(eq((this._table as any).id, id))
@@ -56,14 +57,14 @@ export class AuthPostgresGenericRepository<T, TTable>
   implements IAuthGenericRepository<T>
 {
   async revoke(token: string): Promise<void> {
-    await db
+    await this.db
       .update(this._table as any)
       .set({ revoked: true})
       .where(eq((this._table as any).token, token))
       .execute();
   }
   async findValidToken(token: string): Promise<T | null> {
-    const result = await db
+    const result = await this.db
       .select()
       .from(this._table as any)
       .where(and(

@@ -4,10 +4,12 @@ import { IDataServices } from "@/core/abstracts/data-services.abstract";
 import { LoginResponseDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/core/enums/roles";
 import { randomBytes } from "crypto";
+import { ConfigService } from "@nestjs/config";
 @Injectable()
 export class AuthUseCases {
     constructor(private readonly authService: IAuthServices,
-        private readonly dataServices: IDataServices
+        private readonly dataServices: IDataServices,
+        private readonly configService: ConfigService
     ) { }
     async logIn(idToken: string): Promise<LoginResponseDto> {
         const decode = await this.authService.verifyIdToken(idToken);
@@ -39,7 +41,8 @@ export class AuthUseCases {
         const refreshToken = randomBytes(48).toString('hex');
 
         const newDate = new Date();
-        const refreshTokenExpries = new Date(newDate.getTime() + Number(process.env.REFRESH_EXPIRES_IN) * 24 * 60 * 60 * 1000); // 7 days
+        const refreshExpiresIn = this.configService.get<number>('REFRESH_EXPIRES_IN') || 7;
+        const refreshTokenExpries = new Date(newDate.getTime() + refreshExpiresIn * 24 * 60 * 60 * 1000); // 7 days
         await this.dataServices.refreshTokens.create(new RefreshToken({
             userId: user.id,
             token: refreshToken,

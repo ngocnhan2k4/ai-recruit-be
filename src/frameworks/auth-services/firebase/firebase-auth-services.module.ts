@@ -4,20 +4,26 @@ import {FireBaseAuthServices} from "./firebase-auth-services.service";
 import { IAuthServices } from "@/core";
 import { JwtModule } from "@nestjs/jwt";
 import { FIREBASE_ADMIN } from "@/common/constants/constants";
+import { ConfigService } from "@nestjs/config";
+
 
 @Module({
-    imports:[JwtModule.register({
-        secret: process.env.JWT_SECRET,
-        signOptions: {expiresIn: process.env.JWT_EXPIRES_IN},
+    imports:[JwtModule.registerAsync({
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+            secret: configService.get<string>('JWT_SECRET'),
+            signOptions: {expiresIn: configService.get<string>('JWT_EXPIRES_IN')}
+        }),
     })],
     providers:[{
         provide: FIREBASE_ADMIN,
-        useFactory: () =>{
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) =>{
             return admin.initializeApp({
                 credential: admin.credential.cert({
-                    projectId: process.env.FIREBASE_PROJECT_ID,
-                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+                    projectId: configService.get<string>('FIREBASE_PROJECT_ID'),
+                    clientEmail: configService.get<string>('FIREBASE_CLIENT_EMAIL'),
+                    privateKey: configService.get<string>('FIREBASE_PRIVATE_KEY'),
                 })
             });
         }
