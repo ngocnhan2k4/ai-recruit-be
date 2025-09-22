@@ -31,7 +31,7 @@ export const users = pgTable(
     username: varchar("username", { length: 255 }).notNull().unique(),
     email: varchar("email", { length: 255 }),
     phone: varchar("phone", { length: 20 }),
-    firebase_id: varchar("firebase_id", { length: 255 }),
+    firebase_uid: varchar("firebase_uid", { length: 255 }),
     avatar_url: varchar("avatar_url", { length: 500 }),
     name: varchar("name", { length: 255 }).notNull(),
     dob: date("dob"),
@@ -40,7 +40,7 @@ export const users = pgTable(
   },
   (table) => [
     uniqueIndex("idx_users_email").on(table.email),
-    uniqueIndex("idx_users_firebase_id").on(table.firebase_id),
+    uniqueIndex("idx_users_firebase_uid").on(table.firebase_uid),
     uniqueIndex("idx_users_phone").on(table.phone),
   ],
 );
