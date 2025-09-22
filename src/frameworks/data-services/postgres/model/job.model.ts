@@ -9,6 +9,7 @@ import {
   json,
   uuid,
   primaryKey,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { companies, companyRaws } from "./company.model";
 import { skills } from "./skill.model";
@@ -37,7 +38,8 @@ export const jobs = pgTable("jobs", {
   company_id: uuid("company_id")
     .notNull()
     .references(() => companies.id),
-  salary_range: json("salary_range"), // storing as JSON for flexibility'
+  salary_min: numeric("salary_min", { precision: 12, scale: 2 }),
+  salary_max: numeric("salary_max", { precision: 12, scale: 2 }),
   ...timestamps,
 });
 
