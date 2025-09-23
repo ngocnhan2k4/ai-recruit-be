@@ -1,20 +1,31 @@
 export class Job {
   id: number;
   title: string;
-  description: string;
+  description: string | null;
   company_id: string;
+  salary_min: number | null;
+  salary_max: number | null;
+  created_at: Date;
+  updated_at: Date | null;
+  deleted_at: Date | null;
 
   constructor({
     title,
     description,
-    company,
+    company_id,
+    salary_min,
+    salary_max,
   }: {
-    email: string;
-    name: string;
-    age: number;
+    title: string;
+    description: string | null;
+    company_id: string;
+    salary_min: number | null;
+    salary_max: number | null;
   }) {
-    this.email = email;
-    this.name = name;
-    this.age = age;
+    this.title = title;
+    this.description = description;
+    this.company_id = company_id;
+    this.salary_min = salary_min;
+    this.salary_max = salary_max;
   }
 }

@@ -12,12 +12,11 @@ import { ConfigService } from "@nestjs/config";
 export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
 
-  // Register Fastify CORS plugin with permissive settings for development
   app.register(fastifyCors, {
-    origin: ["http://127.0.0.1:3000", "http://127.0.0.1:8000"], // Allow all origins in development
-    credentials: true, // Disable credentials for simpler CORS
+    origin: ["http://127.0.0.1:3000", "http://127.0.0.1:8000"],
+    credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["*"], // Allow all headers
+    allowedHeaders: ["*"],
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
