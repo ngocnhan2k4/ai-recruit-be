@@ -8,7 +8,7 @@ import { Logger } from "@nestjs/common";
 import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
-import { ensureDatabaseConnection } from "./frameworks/data-services/postgres/db";
+// import { ensureDatabaseConnection } from "./frameworks/data-services/postgres/db";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -22,7 +22,7 @@ async function bootstrap() {
   enableAppMiddleware(app);
 
   // Ensure DB connection on startup for immediate connection logs
-  await ensureDatabaseConnection();
+  // await ensureDatabaseConnection();
 
   await app.listen(port, () => {
     app.getUrl().then((url) => {
