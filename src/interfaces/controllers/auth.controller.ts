@@ -1,22 +1,23 @@
-import { Body, Controller, Post, UseGuards, Req, Get } from "@nestjs/common";
+import { Body, Controller, Post, HttpCode } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
-import { LoginDto, LoginResponseDto, RefreshTokenDto } from "../dtos";
+import { LoginDto, ApiResponse, RefreshTokenDto } from "../dtos";
 
 @Controller("auth")
 export class AuthController {
     constructor(private readonly authUseCases: AuthUseCases) {}
     @Post("login")
-    async logIn(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
+    async logIn(@Body() loginDto: LoginDto): Promise<ApiResponse<any>> {
         return this.authUseCases.logIn(loginDto.idToken);
     }
 
     @Post("refresh")
-    async refresh(@Body() body : RefreshTokenDto): Promise<LoginResponseDto> {
+    async refresh(@Body() body : RefreshTokenDto): Promise<ApiResponse<any>> {
         return this.authUseCases.refreshToken(body.refreshToken);
     }
 
     @Post("logout")
-    async logout(@Body() body: RefreshTokenDto): Promise<void> {
+    @HttpCode(200)
+    async logout(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
         return this.authUseCases.logout(body.refreshToken);
     }
 }
