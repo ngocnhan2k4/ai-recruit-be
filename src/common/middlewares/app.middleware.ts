@@ -13,7 +13,11 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
 
   app.register(fastifyCors, {
-    origin: ["http://127.0.0.1:3000", "http://127.0.0.1:8000"],
+    origin: [
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:8000",
+      "http://127.0.0.1:3001",
+    ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["*"],
