@@ -6,14 +6,14 @@ import { RoleEnum } from "@/core/enums/roles";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(private configService: ConfigService) {
-        super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            ignoreExpiration: false,
-            secretOrKey: configService.get<string>('JWT_SECRET'),
-        });
-    }
-    async validate(payload: any) {
-        return { roles: [RoleEnum.USER] }; // placeholder
-    }
+  constructor(private configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: configService.get<string>("JWT_SECRET"),
+    });
+  }
+  async validate(payload: any) {
+    return { roles: [RoleEnum.USER] }; // placeholder
+  }
 }
