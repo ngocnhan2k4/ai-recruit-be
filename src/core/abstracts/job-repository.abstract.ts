@@ -7,10 +7,6 @@ export abstract class PostgresJobRawRepository extends PostgresGenericRepository
   JobRaw,
   typeof jobRaws
 > {
-  constructor() {
-    super(jobRaws);
-  }
-
   abstract getAllJobs(
     limit?: number,
   ): Promise<{ job: JobRaw; company: CompanyRaw }[]>;

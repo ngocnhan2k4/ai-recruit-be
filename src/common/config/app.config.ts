@@ -6,6 +6,13 @@ export interface AppConfigProps {
   port: number;
   globalPrefix: string;
   nodeEnv: string;
+  databaseUrl: string;
+  jwtSecret: string;
+  firebaseProjectId: string;
+  firebaseClientEmail: string;
+  firebasePrivateKey: string;
+  jwtExpiresIn: string;
+  refreshExpiresIn: number;
 }
 
 export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
@@ -15,5 +22,12 @@ export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
     port: configService.get<number>("PORT")!,
     globalPrefix: configService.get<string>("GLOBAL_PREFIX")!,
     nodeEnv: configService.get<string>("NODE_ENV")!,
+    databaseUrl: configService.get<string>("DATABASE_URL")!,
+    jwtSecret: configService.get<string>("JWT_SECRET")!,
+    firebaseProjectId: configService.get<string>("FIREBASE_PROJECT_ID")!,
+    firebaseClientEmail: configService.get<string>("FIREBASE_CLIENT_EMAIL")!,
+    firebasePrivateKey: configService.get<string>("FIREBASE_PRIVATE_KEY")!,
+    jwtExpiresIn: configService.get<string>("JWT_EXPIRES_IN")!,
+    refreshExpiresIn: configService.get<number>("REFRESH_EXPIRES_IN")!,
   };
 };

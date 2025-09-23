@@ -1,8 +1,9 @@
 import { JobRawUseCases } from "@/use-cases/jobRaw/jobRaw.use-case";
 import { Controller, Get, ParseIntPipe, Query } from "@nestjs/common";
-import { ApiQuery } from "@nestjs/swagger";
+import { ApiQuery, ApiTags } from "@nestjs/swagger";
 
-@Controller("jobs")
+@ApiTags("Job Raws")
+@Controller("jobRaws")
 export class JobRawController {
   constructor(private readonly jobUseCases: JobRawUseCases) {}
 
