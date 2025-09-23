@@ -1,14 +1,22 @@
-import { eq, and, gt } from "drizzle-orm";
-import { IGenericRepository, IAuthGenericRepository } from "../../../core";
+import { eq, and, gt, getTableColumns } from "drizzle-orm";
+import {
+  IGenericRepository,
+  IAuthGenericRepository,
+  IJobGenericRepository,
+} from "../../../core";
 //import { db } from "./db";
 import { Inject } from "@nestjs/common";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { jobRaws, companyRaws } from "./model";
+import { ApiResponse } from "@/interfaces/dtos";
+import { type DBDrizzle } from "@/common/types/db";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
 {
   protected _table: TTable;
   constructor(
-    @Inject("DRIZZLE") protected db,
+    @Inject("DRIZZLE") protected db: DBDrizzle,
     table: TTable,
   ) {
     this._table = table;
@@ -30,9 +38,9 @@ export class PostgresGenericRepository<T, TTable>
       return null;
     }
     const conditions = keys.map((key) =>
-      eq((this._table as any)[key as string], field[key]!),
+      eq((this._table as any)[key as string], field[key]),
     );
-    let query = this.db
+    const query = this.db
       .select()
       .from(this._table as any)
       .where(and(...conditions));
@@ -44,7 +52,11 @@ export class PostgresGenericRepository<T, TTable>
   async create(item: T): Promise<T> {
     const result = await this.db
       .insert(this._table as any)
-      .values(item as any)
+      .values(
+        item as {
+          [key: string]: any;
+        },
+      )
       .returning();
     return result[0] as T;
   }
@@ -52,7 +64,11 @@ export class PostgresGenericRepository<T, TTable>
   async update(id: number, item: T): Promise<T | null> {
     const result = await this.db
       .update(this._table as any)
-      .set(item as any)
+      .set(
+        item as {
+          [key: string]: any;
+        },
+      )
       .where(eq((this._table as any).id, id))
       .returning();
     return (result[0] as T) || null;
@@ -82,5 +98,36 @@ export class AuthPostgresGenericRepository<T, TTable>
         ),
       );
     return (result[0] as T) || null;
+  }
+}
+
+export class JobPostgresGenericRepository<TJob, TCompany, TTable>
+  extends PostgresGenericRepository<TJob, TTable>
+  implements IJobGenericRepository<TJob, TCompany>
+{
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+    super(db, jobRaws as TTable);
+  }
+
+  async getAllJobs(
+    limit = 50,
+  ): Promise<ApiResponse<{ job: TJob; company: TCompany }[]>> {
+    const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
+    const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
+
+    const result = (await this.db
+      .select({
+        job: { ...restJob },
+        company: { ...restCompany },
+      })
+      .from(jobRaws)
+      .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
+      .limit(limit)) as { job: TJob; company: TCompany }[];
+
+    return new ApiResponse(
+      RESPONSE_MESSAGE.SUCCESS,
+      RESPONSE_CODE.SUCCESS,
+      result,
+    );
   }
 }
