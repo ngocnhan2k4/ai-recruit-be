@@ -7,7 +7,10 @@ export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
 {
   protected _table: TTable;
-  constructor(@Inject("DRIZZLE") protected db, table: TTable) {
+  constructor(
+    @Inject("DRIZZLE") protected db,
+    table: TTable,
+  ) {
     this._table = table;
   }
 
@@ -26,9 +29,14 @@ export class PostgresGenericRepository<T, TTable>
     if (keys.length === 0) {
       return null;
     }
-    const conditions = keys.map((key) => eq((this._table as any)[key as string], field[key]!));
-    let query = this.db.select().from(this._table as any).where(and(...conditions));
-    
+    const conditions = keys.map((key) =>
+      eq((this._table as any)[key as string], field[key]!),
+    );
+    let query = this.db
+      .select()
+      .from(this._table as any)
+      .where(and(...conditions));
+
     const result = await query;
     return (result[0] as T) || null;
   }
@@ -38,7 +46,7 @@ export class PostgresGenericRepository<T, TTable>
       .insert(this._table as any)
       .values(item as any)
       .returning();
-    return (result[0] as T);
+    return result[0] as T;
   }
 
   async update(id: number, item: T): Promise<T | null> {
@@ -49,7 +57,6 @@ export class PostgresGenericRepository<T, TTable>
       .returning();
     return (result[0] as T) || null;
   }
-
 }
 
 export class AuthPostgresGenericRepository<T, TTable>
@@ -59,7 +66,7 @@ export class AuthPostgresGenericRepository<T, TTable>
   async revoke(token: string): Promise<void> {
     await this.db
       .update(this._table as any)
-      .set({ revoked: true})
+      .set({ revoked: true })
       .where(eq((this._table as any).token, token))
       .execute();
   }
@@ -67,10 +74,12 @@ export class AuthPostgresGenericRepository<T, TTable>
     const result = await this.db
       .select()
       .from(this._table as any)
-      .where(and(
-        eq((this._table as any).token, token),
-        eq((this._table as any).revoked, false),
-        gt((this._table as any).expiresAt, new Date()))
+      .where(
+        and(
+          eq((this._table as any).token, token),
+          eq((this._table as any).revoked, false),
+          gt((this._table as any).expiresAt, new Date()),
+        ),
       );
     return (result[0] as T) || null;
   }
