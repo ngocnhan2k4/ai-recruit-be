@@ -1,10 +1,10 @@
-import { JobUseCases } from "@/use-cases/job/job.use-case";
+import { JobRawUseCases } from "@/use-cases/jobRaw/jobRaw.use-case";
 import { Controller, Get, ParseIntPipe, Query } from "@nestjs/common";
 import { ApiQuery } from "@nestjs/swagger";
 
 @Controller("jobs")
-export class JobController {
-  constructor(private readonly jobUseCases: JobUseCases) {}
+export class JobRawController {
+  constructor(private readonly jobUseCases: JobRawUseCases) {}
 
   @Get()
   @ApiQuery({

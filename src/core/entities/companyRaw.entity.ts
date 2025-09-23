@@ -1,4 +1,4 @@
-export class Company {
+export class CompanyRaw {
   id: bigint;
   name: string;
   logo_url: string | null;

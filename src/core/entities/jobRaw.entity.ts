@@ -1,4 +1,4 @@
-export class Job {
+export class JobRaw {
   id: number;
   title: string;
   description: string | null;

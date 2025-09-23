@@ -3,8 +3,8 @@ import { UserController } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ConfigModule } from "@nestjs/config";
 import envConfig, { validateConfig } from "./common/config/env.config";
-import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
-import { JobController } from "./interfaces/controllers/job.controller";
+import { JobRawController } from "./interfaces/controllers/jobRaw.controller";
+import { JobRawUseCasesModule } from "./use-cases/jobRaw/jobRaw-use-cases.module";
 
 @Module({
   imports: [
@@ -15,9 +15,9 @@ import { JobController } from "./interfaces/controllers/job.controller";
       validate: validateConfig,
     }),
     UserUseCasesModule,
-    JobUseCasesModule,
+    JobRawUseCasesModule,
   ],
-  controllers: [UserController, JobController],
+  controllers: [UserController, JobRawController],
   providers: [],
 })
 export class AppModule {}

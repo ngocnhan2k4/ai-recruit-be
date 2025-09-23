@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
 import { DataServicesModule } from "@/services/data-services/data-services.module";
-import { JobUseCases } from "./job.use-case";
+import { JobRawUseCases } from "./jobRaw.use-case";
 
 @Module({
   imports: [DataServicesModule],
-  providers: [JobUseCases],
-  exports: [JobUseCases],
+  providers: [JobRawUseCases],
+  exports: [JobRawUseCases],
 })
-export class JobUseCasesModule {}
+export class JobRawUseCasesModule {}
