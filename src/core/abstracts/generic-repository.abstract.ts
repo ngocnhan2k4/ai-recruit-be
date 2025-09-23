@@ -1,3 +1,5 @@
+import { ApiResponse } from "@/interfaces/dtos";
+
 export interface IGenericRepository<T> {
   getAll(): Promise<T[]>;
 
@@ -13,4 +15,11 @@ export interface IGenericRepository<T> {
 export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
   revoke(token: string): Promise<void>;
   findValidToken(token: string): Promise<T | null>;
+}
+
+export interface IJobGenericRepository<TJob, TCompany>
+  extends IGenericRepository<TJob> {
+  getAllJobs(
+    limit?: number,
+  ): Promise<ApiResponse<{ job: TJob; company: TCompany }[]>>;
 }

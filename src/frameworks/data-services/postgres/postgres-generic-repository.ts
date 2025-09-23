@@ -1,7 +1,14 @@
-import { eq, and, gt } from "drizzle-orm";
-import { IGenericRepository, IAuthGenericRepository } from "../../../core";
+import { eq, and, gt, getTableColumns } from "drizzle-orm";
+import {
+  IGenericRepository,
+  IAuthGenericRepository,
+  IJobGenericRepository,
+} from "../../../core";
 //import { db } from "./db";
 import { Inject } from "@nestjs/common";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { jobRaws, companyRaws } from "./model";
+import { ApiResponse } from "@/interfaces/dtos";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
@@ -82,5 +89,36 @@ export class AuthPostgresGenericRepository<T, TTable>
         ),
       );
     return (result[0] as T) || null;
+  }
+}
+
+export class JobPostgresGenericRepository<TJob, TCompany, TTable>
+  extends PostgresGenericRepository<TJob, TTable>
+  implements IJobGenericRepository<TJob, TCompany>
+{
+  constructor(@Inject("DRIZZLE") protected db) {
+    super(db, jobRaws as TTable);
+  }
+
+  async getAllJobs(
+    limit = 50,
+  ): Promise<ApiResponse<{ job: TJob; company: TCompany }[]>> {
+    const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
+    const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
+
+    const result = (await this.db
+      .select({
+        job: { ...restJob },
+        company: { ...restCompany },
+      })
+      .from(jobRaws)
+      .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
+      .limit(limit)) as { job: TJob; company: TCompany }[];
+
+    return new ApiResponse(
+      RESPONSE_MESSAGE.SUCCESS,
+      RESPONSE_CODE.SUCCESS,
+      result,
+    );
   }
 }
