@@ -18,7 +18,6 @@ import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy"
     UserUseCasesModule,
     AuthUseCasesModule,
     CasbinModule,
-
   ],
   controllers: [UserController, AuthController],
   providers: [JwtStrategy],

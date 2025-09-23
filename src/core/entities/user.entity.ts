@@ -1,4 +1,4 @@
-import  { RoleEnum } from "../enums/roles"
+import { RoleEnum } from "../enums/roles";
 
 export class User {
   id: number;
@@ -12,7 +12,7 @@ export class User {
   createdAt: Date;
   updatedAt?: Date;
   deletedAt?: Date;
-  roles: RoleEnum[]
+  roles: RoleEnum[];
 
   constructor({
     username,
@@ -23,7 +23,6 @@ export class User {
     name,
     dob,
     roles,
-
   }: {
     username: string;
     email?: string;
@@ -32,7 +31,7 @@ export class User {
     avatarUrl?: string;
     name: string;
     dob?: Date;
-    roles: RoleEnum[]
+    roles: RoleEnum[];
   }) {
     this.username = username;
     this.email = email;

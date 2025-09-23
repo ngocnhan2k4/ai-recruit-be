@@ -30,9 +30,9 @@ export class PostgresGenericRepository<T, TTable>
       return null;
     }
     const conditions = keys.map((key) =>
-      eq((this._table as any)[key as string], field[key]!),
+      eq((this._table as any)[key as string], field[key]),
     );
-    let query = this.db
+    const query = this.db
       .select()
       .from(this._table as any)
       .where(and(...conditions));
