@@ -6,9 +6,9 @@ import {
 } from "../../../core";
 //import { db } from "./db";
 import { Inject } from "@nestjs/common";
-import { JobRaw } from "@/core/entities/jobRaw.entity";
-import { CompanyRaw } from "@/core/entities/companyRaw.entity";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
 import { jobRaws, companyRaws } from "./model";
+import { ApiResponse } from "@/interfaces/dtos";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
@@ -100,11 +100,13 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
     super(db, jobRaws as TTable);
   }
 
-  async getAllJobs(limit = 50): Promise<{ job: TJob; company: TCompany }[]> {
+  async getAllJobs(
+    limit = 50,
+  ): Promise<ApiResponse<{ job: TJob; company: TCompany }[]>> {
     const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
     const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
 
-    return (await this.db
+    const result = (await this.db
       .select({
         job: { ...restJob },
         company: { ...restCompany },
@@ -112,5 +114,11 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
       .from(jobRaws)
       .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
       .limit(limit)) as { job: TJob; company: TCompany }[];
+
+    return new ApiResponse(
+      RESPONSE_MESSAGE.SUCCESS,
+      RESPONSE_CODE.SUCCESS,
+      result,
+    );
   }
 }

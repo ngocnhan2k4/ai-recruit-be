@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { JobRaw } from "@/core/entities/jobRaw.entity";
 import { CompanyRaw } from "@/core/entities/companyRaw.entity";
 import { IDataServices } from "@/core";
+import { ApiResponse } from "@/interfaces/dtos";
 
 @Injectable()
 export class JobRawUseCases {
@@ -9,7 +10,7 @@ export class JobRawUseCases {
 
   async getAllJobs(
     limit?: number,
-  ): Promise<{ job: JobRaw; company: CompanyRaw }[]> {
+  ): Promise<ApiResponse<{ job: JobRaw; company: CompanyRaw }[]>> {
     return this.dataServices.jobRaws.getAllJobs(limit);
   }
 }

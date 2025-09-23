@@ -13,6 +13,7 @@ export class JobRawController {
     required: false,
     type: Number,
     description: "Maximum number of jobs to return",
+    schema: { default: 50 },
   })
   async getAll(
     @Query("limit", new ParseIntPipe({ optional: true })) limit: number,
