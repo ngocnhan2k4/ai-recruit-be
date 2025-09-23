@@ -1,11 +1,11 @@
 import { IsString } from "class-validator";
 
 export class LoginDto {
-    @IsString()
-    idToken: string;
+  @IsString()
+  idToken: string;
 }
 
 export class RefreshTokenDto {
-    @IsString()
-    refreshToken: string;
+  @IsString()
+  refreshToken: string;
 }
