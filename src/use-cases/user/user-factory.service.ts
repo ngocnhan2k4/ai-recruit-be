@@ -4,7 +4,7 @@ import { User } from "../../core/entities";
 
 @Injectable()
 export class UserFactoryService {
-  createNewUser(createUserDto: CreateUserDto): User | null {
+  createNewUser(_createUserDto: CreateUserDto): User | null {
     // const user = new User({
     //   email: createUserDto.email,
     //   name: createUserDto.name,

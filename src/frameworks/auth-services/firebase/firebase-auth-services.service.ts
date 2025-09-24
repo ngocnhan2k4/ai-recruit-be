@@ -22,7 +22,7 @@ export class FireBaseAuthServices implements IAuthServices {
   }
 
   signJwt(payload: any): string {
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(payload as object);
     return accessToken;
   }
 }

@@ -7,6 +7,8 @@ import {
 import { Reflector } from "@nestjs/core";
 import { PERM_KEY } from "@/common/constants/constants";
 import { CasbinService } from "../casbin/casbin.service";
+import { FastifyRequest } from "fastify";
+import { TokenPayload } from "@/common/types/token";
 
 @Injectable()
 export class CasbinGuard implements CanActivate {
@@ -16,7 +18,9 @@ export class CasbinGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest();
+    const req: FastifyRequest & { user: TokenPayload } = context
+      .switchToHttp()
+      .getRequest();
     const user = req.user;
     const meta = this.reflector.getAllAndOverride<{ obj: string; act: string }>(
       PERM_KEY,

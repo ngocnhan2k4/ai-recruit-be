@@ -4,15 +4,18 @@ import { PostgresDataServices } from "./postgres-data-services.service";
 import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { Logger } from "@nestjs/common";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 @Module({
   providers: [
     {
       provide: "DRIZZLE",
-      useFactory: async (configService: ConfigService) => {
+      useFactory: async (configService: ConfigService): Promise<DBDrizzle> => {
+        const logger = new Logger("PostgresDataServicesModule");
         try {
           const pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
+            connectionString: configService.get<string>("DATABASE_URL"),
             ssl:
               process.env.NODE_ENV === "production"
                 ? { rejectUnauthorized: false }
@@ -23,11 +26,11 @@ import { Pool } from "pg";
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
           await pool.query("SELECT 1");
-          console.log("Database connection established successfully.");
+          logger.log("Database connection established successfully.");
           const db = drizzle(pool, { casing: "snake_case" });
           return db;
         } catch (err) {
-          console.error("Error setting up Drizzle ORM:", err);
+          logger.error("Error setting up Drizzle ORM:", err);
           throw err;
         }
       },

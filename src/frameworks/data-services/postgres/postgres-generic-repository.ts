@@ -9,13 +9,14 @@ import { Inject } from "@nestjs/common";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
 import { jobRaws, companyRaws } from "./model";
 import { ApiResponse } from "@/interfaces/dtos";
+import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
 {
   protected _table: TTable;
   constructor(
-    @Inject("DRIZZLE") protected db,
+    @Inject("DRIZZLE") protected db: DBDrizzle,
     table: TTable,
   ) {
     this._table = table;
@@ -51,7 +52,11 @@ export class PostgresGenericRepository<T, TTable>
   async create(item: T): Promise<T> {
     const result = await this.db
       .insert(this._table as any)
-      .values(item as any)
+      .values(
+        item as {
+          [key: string]: any;
+        },
+      )
       .returning();
     return result[0] as T;
   }
@@ -59,7 +64,11 @@ export class PostgresGenericRepository<T, TTable>
   async update(id: number, item: T): Promise<T | null> {
     const result = await this.db
       .update(this._table as any)
-      .set(item as any)
+      .set(
+        item as {
+          [key: string]: any;
+        },
+      )
       .where(eq((this._table as any).id, id))
       .returning();
     return (result[0] as T) || null;
@@ -96,7 +105,7 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
   extends PostgresGenericRepository<TJob, TTable>
   implements IJobGenericRepository<TJob, TCompany>
 {
-  constructor(@Inject("DRIZZLE") protected db) {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, jobRaws as TTable);
   }
 
