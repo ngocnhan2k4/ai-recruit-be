@@ -14,7 +14,9 @@ export class AuthUseCases {
     private readonly dataServices: IDataServices,
     private readonly configService: ConfigService,
   ) {}
-  async logIn(idToken: string): Promise<ApiResponse<any>> {
+  async logIn(
+    idToken: string,
+  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     const decode = await this.authService.verifyIdToken(idToken);
     let user = await this.dataServices.users.getByField({
       firebaseUid: decode.uid,
@@ -67,7 +69,9 @@ export class AuthUseCases {
     return { accessToken, refreshToken };
   }
 
-  async refreshToken(oldRefreshToken: string): Promise<ApiResponse<any>> {
+  async refreshToken(
+    oldRefreshToken: string,
+  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(oldRefreshToken);
     if (!storedToken) {
@@ -90,7 +94,9 @@ export class AuthUseCases {
       refreshToken,
     });
   }
-  async logout(refreshToken: string): Promise<ApiResponse<any>> {
+  async logout(
+    refreshToken: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(refreshToken);
     if (!storedToken) {

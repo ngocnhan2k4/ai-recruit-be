@@ -4,11 +4,8 @@ import {
   IAuthGenericRepository,
   IJobGenericRepository,
 } from "../../../core";
-//import { db } from "./db";
 import { Inject } from "@nestjs/common";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
 import { jobRaws, companyRaws } from "./model";
-import { ApiResponse } from "@/interfaces/dtos";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 export class PostgresGenericRepository<T, TTable>
@@ -109,9 +106,7 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
     super(db, jobRaws as TTable);
   }
 
-  async getAllJobs(
-    limit = 50,
-  ): Promise<ApiResponse<{ job: TJob; company: TCompany }[]>> {
+  async getAllJobs(limit = 50): Promise<{ job: TJob; company: TCompany }[]> {
     const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
     const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
 
@@ -124,10 +119,6 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
       .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
       .limit(limit)) as { job: TJob; company: TCompany }[];
 
-    return new ApiResponse(
-      RESPONSE_MESSAGE.SUCCESS,
-      RESPONSE_CODE.SUCCESS,
-      result,
-    );
+    return result;
   }
 }

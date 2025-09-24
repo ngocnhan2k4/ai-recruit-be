@@ -3,6 +3,7 @@ import { JobRaw } from "@/core/entities/jobRaw.entity";
 import { CompanyRaw } from "@/core/entities/companyRaw.entity";
 import { IDataServices } from "@/core";
 import { ApiResponse } from "@/interfaces/dtos";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
 
 @Injectable()
 export class JobRawUseCases {
@@ -11,6 +12,11 @@ export class JobRawUseCases {
   async getAllJobs(
     limit?: number,
   ): Promise<ApiResponse<{ job: JobRaw; company: CompanyRaw }[]>> {
-    return this.dataServices.jobRaws.getAllJobs(limit);
+    const result = await this.dataServices.jobRaws.getAllJobs(limit);
+    return new ApiResponse(
+      RESPONSE_MESSAGE.SUCCESS,
+      RESPONSE_CODE.SUCCESS,
+      result,
+    );
   }
 }

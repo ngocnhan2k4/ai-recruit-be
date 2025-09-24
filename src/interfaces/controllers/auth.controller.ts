@@ -10,18 +10,24 @@ export class AuthController {
 
   @ApiOperation({ summary: "User login" })
   @Post("login")
-  async logIn(@Body() loginDto: LoginDto): Promise<ApiResponse<any>> {
+  async logIn(
+    @Body() loginDto: LoginDto,
+  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     return this.authUseCases.logIn(loginDto.idToken);
   }
 
   @Post("refresh")
-  async refresh(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
+  async refresh(
+    @Body() body: RefreshTokenDto,
+  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     return this.authUseCases.refreshToken(body.refreshToken);
   }
 
   @Post("logout")
   @HttpCode(200)
-  async logout(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
+  async logout(
+    @Body() body: RefreshTokenDto,
+  ): Promise<ApiResponse<{ message: string }>> {
     return this.authUseCases.logout(body.refreshToken);
   }
 }
