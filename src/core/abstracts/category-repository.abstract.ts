@@ -5,6 +5,4 @@ import { Category } from "../entities/category.entity";
 export abstract class PostgresCategoryRepository extends PostgresGenericRepository<
   Category,
   typeof categories
-> {
-  abstract getCategories(): Promise<Category[]>;
-}
+> {}

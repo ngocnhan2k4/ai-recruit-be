@@ -1,12 +1,7 @@
-import { Category } from "@/core";
 import { CategoryUseCases } from "@/use-cases/category/category.use-case";
 import { Controller, Get } from "@nestjs/common";
-import {
-  ApiOperation,
-  ApiTags,
-  ApiResponse as SwaggerApiResponse,
-} from "@nestjs/swagger";
-import { ApiResponse } from "../dtos";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiResponseDto, ApiResponse } from "../dtos";
 
 @ApiTags("Categories")
 @Controller("categories")
@@ -16,9 +11,9 @@ export class CategoryController {
   @ApiOperation({
     summary: "Get all categories",
   })
-  @SwaggerApiResponse({ type: ApiResponse<Category[]> })
+  @ApiResponseDto("string", { isArray: true })
   @Get()
-  async getCategories(): Promise<ApiResponse<Category[]>> {
+  async getCategories(): Promise<ApiResponse<string[]>> {
     return this.categoryUseCases.getCategories();
   }
 }

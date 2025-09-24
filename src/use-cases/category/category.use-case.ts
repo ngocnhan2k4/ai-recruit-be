@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
-import { Category } from "@/core/entities/category.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/constants";
 
@@ -8,12 +7,12 @@ import { RESPONSE_CODE } from "@/common/constants/constants";
 export class CategoryUseCases {
   constructor(private readonly dataServices: IDataServices) {}
 
-  async getCategories(): Promise<ApiResponse<Category[]>> {
+  async getCategories(): Promise<ApiResponse<string[]>> {
     const data = await this.dataServices.categories.getAll();
-    return new ApiResponse<Category[]>({
+    return new ApiResponse<string[]>({
       message: "Categories fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data,
+      data: data.map((category) => category.name),
     });
   }
 }
