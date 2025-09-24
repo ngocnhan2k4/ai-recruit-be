@@ -19,3 +19,8 @@ export interface IJobGenericRepository<TJob, TCompany>
   extends IGenericRepository<TJob> {
   getAllJobs(limit?: number): Promise<{ job: TJob; company: TCompany }[]>;
 }
+
+export interface ICategoryGenericRepository<TCategory>
+  extends IGenericRepository<TCategory> {
+  getCategories(): Promise<TCategory[]>;
+}

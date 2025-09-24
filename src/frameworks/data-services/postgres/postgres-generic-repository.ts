@@ -3,9 +3,10 @@ import {
   IGenericRepository,
   IAuthGenericRepository,
   IJobGenericRepository,
+  ICategoryGenericRepository,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
-import { jobRaws, companyRaws } from "./model";
+import { jobRaws, companyRaws, categories } from "./model";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 export class PostgresGenericRepository<T, TTable>
@@ -118,6 +119,21 @@ export class JobPostgresGenericRepository<TJob, TCompany, TTable>
       .from(jobRaws)
       .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
       .limit(limit)) as { job: TJob; company: TCompany }[];
+
+    return result;
+  }
+}
+
+export class CategoryPostgresGenericRepository<TCategory, TTable>
+  extends PostgresGenericRepository<TCategory, TTable>
+  implements ICategoryGenericRepository<TCategory>
+{
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+    super(db, categories as TTable);
+  }
+
+  async getCategories(): Promise<TCategory[]> {
+    const result = (await this.db.select().from(categories)) as TCategory[];
 
     return result;
   }

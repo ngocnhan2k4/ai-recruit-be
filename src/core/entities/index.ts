@@ -3,3 +3,4 @@ export * from "./job.entity";
 export * from "./refresh-token.entity";
 export * from "./companyRaw.entity";
 export * from "./jobRaw.entity";
+export * from "./category.entity";
