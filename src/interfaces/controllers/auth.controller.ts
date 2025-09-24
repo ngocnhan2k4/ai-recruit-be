@@ -1,10 +1,14 @@
 import { Body, Controller, Post, HttpCode } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import { LoginDto, ApiResponse, RefreshTokenDto } from "../dtos";
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
 
+@ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authUseCases: AuthUseCases) {}
+
+  @ApiOperation({ summary: "User login" })
   @Post("login")
   async logIn(@Body() loginDto: LoginDto): Promise<ApiResponse<any>> {
     return this.authUseCases.logIn(loginDto.idToken);

@@ -24,7 +24,8 @@
     "db:pull": "drizzle-kit pull",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun drizzle/seed/index.ts"
+    "db:seed": "bun drizzle/seed/index.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "husky": {
     "hooks": {

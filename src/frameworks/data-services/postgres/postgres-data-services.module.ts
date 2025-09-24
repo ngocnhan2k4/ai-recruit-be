@@ -5,7 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { Logger } from "@nestjs/common";
-import { DBDrizzle } from "@/common/types/db";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 @Module({
   providers: [

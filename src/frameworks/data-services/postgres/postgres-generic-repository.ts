@@ -9,7 +9,7 @@ import { Inject } from "@nestjs/common";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
 import { jobRaws, companyRaws } from "./model";
 import { ApiResponse } from "@/interfaces/dtos";
-import { type DBDrizzle } from "@/common/types/db";
+import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>

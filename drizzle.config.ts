@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   dialect: "postgresql",
-  migrations:{
+  migrations: {
     prefix: "timestamp",
   },
   schema: "./src/frameworks/data-services/postgres/schema.ts",
