@@ -3,7 +3,7 @@ import { JobRaw } from "@/core/entities/jobRaw.entity";
 import { CompanyRaw } from "@/core/entities/companyRaw.entity";
 import { IDataServices } from "@/core";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 
 @Injectable()
 export class JobRawUseCases {

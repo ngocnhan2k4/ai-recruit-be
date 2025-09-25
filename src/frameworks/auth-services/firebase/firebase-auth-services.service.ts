@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import * as admin from "firebase-admin";
 import { IAuthServices } from "@/core";
 import { JwtService } from "@nestjs/jwt";
-import { FIREBASE_ADMIN } from "@/common/constants/constants";
+import { FIREBASE_ADMIN } from "@/common/constants/response";
 @Injectable()
 export class FireBaseAuthServices implements IAuthServices {
   constructor(
