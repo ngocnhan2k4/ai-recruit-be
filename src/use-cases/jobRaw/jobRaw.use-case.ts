@@ -13,10 +13,10 @@ export class JobRawUseCases {
     limit?: number,
   ): Promise<ApiResponse<{ job: JobRaw; company: CompanyRaw }[]>> {
     const result = await this.dataServices.jobRaws.getAllJobs(limit);
-    return new ApiResponse(
-      RESPONSE_MESSAGE.SUCCESS,
-      RESPONSE_CODE.SUCCESS,
-      result,
-    );
+    return new ApiResponse({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    });
   }
 }

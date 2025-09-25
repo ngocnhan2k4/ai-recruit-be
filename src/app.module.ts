@@ -8,6 +8,8 @@ import { JobRawUseCasesModule } from "./use-cases/jobRaw/jobRaw-use-cases.module
 import { AuthUseCasesModule } from "./use-cases/auth/auth-use-cases.module";
 import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
 import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
+import { CategoryController } from "./interfaces/controllers/category.controller";
+import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 
 @Module({
   imports: [
@@ -21,8 +23,14 @@ import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy"
     JobRawUseCasesModule,
     AuthUseCasesModule,
     CasbinModule,
+    CategoryUseCasesModule,
   ],
-  controllers: [UserController, AuthController, JobRawController],
+  controllers: [
+    UserController,
+    AuthController,
+    JobRawController,
+    CategoryController,
+  ],
   providers: [JwtStrategy],
 })
 export class AppModule {}

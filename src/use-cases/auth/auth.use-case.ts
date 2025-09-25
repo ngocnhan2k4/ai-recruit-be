@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, RefreshToken, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
 import { ApiResponse, TokenPairDto, MessageDto } from "@/interfaces/dtos";
@@ -17,7 +17,24 @@ export class AuthUseCases {
   async logIn(
     idToken: string,
   ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    const decode = await this.authService.verifyIdToken(idToken);
+    console.log("ID Token:", idToken); // Debug log
+    let decode: {
+      uid: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+    };
+    try {
+      decode = await this.authService.verifyIdToken(idToken);
+    } catch {
+      throw new UnauthorizedException(
+        new ApiResponse({
+          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+          code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        }),
+      );
+    }
+
     let user = await this.dataServices.users.getByField({
       firebaseUid: decode.uid,
     });
@@ -36,11 +53,11 @@ export class AuthUseCases {
       // Update user info if necessary
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    return new ApiResponse(
-      RESPONSE_MESSAGE.SUCCESS,
-      RESPONSE_CODE.SUCCESS,
-      new TokenPairDto(accessToken, refreshToken),
-    );
+    return new ApiResponse({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: new TokenPairDto(accessToken, refreshToken),
+    });
   }
   private async issueNewTokens(
     user: User,
@@ -76,23 +93,20 @@ export class AuthUseCases {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(oldRefreshToken);
     if (!storedToken) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-        RESPONSE_CODE.INVALID_CREDENTIALS,
+      throw new UnauthorizedException(
+        new ApiResponse({
+          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+          code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        }),
       );
     }
     const user = await this.dataServices.users.get(storedToken.userId);
-    if (!user) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.USER_NOT_FOUND,
-        RESPONSE_CODE.USER_NOT_FOUND,
-      );
-    }
-    const { accessToken, refreshToken } = await this.issueNewTokens(user);
+    const { accessToken, refreshToken } = await this.issueNewTokens(user!);
     await this.dataServices.refreshTokens.revoke(oldRefreshToken);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      accessToken,
-      refreshToken,
+    return new ApiResponse({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { accessToken, refreshToken },
     });
   }
   async logout(
@@ -101,21 +115,17 @@ export class AuthUseCases {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(refreshToken);
     if (!storedToken) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-        RESPONSE_CODE.INVALID_CREDENTIALS,
-      );
-    }
-    const user = await this.dataServices.users.get(storedToken.userId);
-    if (!user) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.USER_NOT_FOUND,
-        RESPONSE_CODE.USER_NOT_FOUND,
+      throw new UnauthorizedException(
+        new ApiResponse({
+          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+          code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        }),
       );
     }
     await this.dataServices.refreshTokens.revoke(refreshToken);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      message: new MessageDto("Logged out successfully"),
+    return new ApiResponse({
+      message: "Logged out successfully",
+      code: RESPONSE_CODE.SUCCESS,
     });
   }
 }

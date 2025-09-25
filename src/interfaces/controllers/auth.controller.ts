@@ -17,7 +17,6 @@ import {
   ApiConsumes,
   ApiExtraModels,
   getSchemaPath,
-  ApiNotFoundResponse,
 } from "@nestjs/swagger";
 
 @ApiTags("Authentication")
@@ -61,15 +60,30 @@ export class AuthController {
       ],
     },
   })
+  @ApiUnauthorizedResponse({
+    description: "Invalid Firebase ID Token",
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(ApiResponse) },
+        {
+          example: {
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid credentials.",
+          },
+        },
+      ],
+    },
+  })
   @ApiBadRequestResponse({
     description: "Invalid request body",
     example: {
-      statusCode: 400,
+      code: 400,
       message: ["idToken must be a string"],
-      error: "Bad Request",
+      stack: "...",
     },
   })
   @Post("login")
+  @HttpCode(200)
   async logIn(
     @Body() loginDto: LoginDto,
   ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
@@ -109,8 +123,8 @@ export class AuthController {
     description: "Invalid request body",
     example: {
       statusCode: 400,
-      message: ["idToken must be a string"],
-      error: "Bad Request",
+      message: ["refreshToken must be a string"],
+      stack: "...",
     },
   })
   @ApiUnauthorizedResponse({
@@ -127,21 +141,8 @@ export class AuthController {
       ],
     },
   })
-  @ApiNotFoundResponse({
-    description: "User not found",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "USER_NOT_FOUND",
-            message: "User not found.",
-          },
-        },
-      ],
-    },
-  })
   @Post("refresh")
+  @HttpCode(200)
   async refresh(
     @Body() body: RefreshTokenDto,
   ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
@@ -169,8 +170,9 @@ export class AuthController {
       allOf: [
         { $ref: getSchemaPath(ApiResponse) },
         {
-          properties: {
-            data: { $ref: getSchemaPath(MessageDto) },
+          example: {
+            code: "SUCCESS",
+            message: "Logged out successfully.",
           },
         },
       ],
@@ -180,8 +182,8 @@ export class AuthController {
     description: "Invalid request body",
     example: {
       statusCode: 400,
-      message: ["idToken must be a string"],
-      error: "Bad Request",
+      message: ["refreshToken must be a string"],
+      stack: "...",
     },
   })
   @ApiUnauthorizedResponse({
@@ -193,20 +195,6 @@ export class AuthController {
           example: {
             code: "INVALID_CREDENTIALS",
             message: "Invalid credentials.",
-          },
-        },
-      ],
-    },
-  })
-  @ApiNotFoundResponse({
-    description: "User not found",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "USER_NOT_FOUND",
-            message: "User not found.",
           },
         },
       ],
