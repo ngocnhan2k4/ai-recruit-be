@@ -36,9 +36,10 @@ export class AuthUseCases {
       // Update user info if necessary
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      accessToken,
-      refreshToken,
+    return new ApiResponse({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { accessToken, refreshToken },
     });
   }
   private async issueNewTokens(
@@ -75,23 +76,24 @@ export class AuthUseCases {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(oldRefreshToken);
     if (!storedToken) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-        RESPONSE_CODE.INVALID_CREDENTIALS,
-      );
+      return new ApiResponse({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
     }
     const user = await this.dataServices.users.get(storedToken.userId);
     if (!user) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.USER_NOT_FOUND,
-        RESPONSE_CODE.USER_NOT_FOUND,
-      );
+      return new ApiResponse({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     await this.dataServices.refreshTokens.revoke(oldRefreshToken);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      accessToken,
-      refreshToken,
+    return new ApiResponse({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { accessToken, refreshToken },
     });
   }
   async logout(
@@ -100,21 +102,22 @@ export class AuthUseCases {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(refreshToken);
     if (!storedToken) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-        RESPONSE_CODE.INVALID_CREDENTIALS,
-      );
+      return new ApiResponse({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
     }
     const user = await this.dataServices.users.get(storedToken.userId);
     if (!user) {
-      return new ApiResponse(
-        RESPONSE_MESSAGE.USER_NOT_FOUND,
-        RESPONSE_CODE.USER_NOT_FOUND,
-      );
+      return new ApiResponse({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
     await this.dataServices.refreshTokens.revoke(refreshToken);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
+    return new ApiResponse({
       message: "Logged out successfully",
+      code: RESPONSE_CODE.SUCCESS,
     });
   }
 }

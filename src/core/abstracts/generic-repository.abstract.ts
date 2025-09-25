@@ -19,3 +19,7 @@ export interface IJobGenericRepository<TJob, TCompany>
   extends IGenericRepository<TJob> {
   getAllJobs(limit?: number): Promise<{ job: TJob; company: TCompany }[]>;
 }
+
+//  eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ICategoryGenericRepository<TCategory>
+  extends IGenericRepository<TCategory> {}
