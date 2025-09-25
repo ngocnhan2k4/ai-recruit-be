@@ -4,13 +4,13 @@ import { applyDecorators, Type } from "@nestjs/common";
 import { ApiExtraModels, ApiOkResponse, getSchemaPath } from "@nestjs/swagger";
 
 export class ApiResponse<T> {
-  @ApiProperty()
+  @ApiProperty({ example: "SUCCESS" })
   code: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: "Request was successful." })
   message: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   data?: T;
 
   constructor({
