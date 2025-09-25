@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { IAuthServices, RefreshToken, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, TokenPairDto, MessageDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/core/enums/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
@@ -36,10 +36,11 @@ export class AuthUseCases {
       // Update user info if necessary
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      accessToken,
-      refreshToken,
-    });
+    return new ApiResponse(
+      RESPONSE_MESSAGE.SUCCESS,
+      RESPONSE_CODE.SUCCESS,
+      new TokenPairDto(accessToken, refreshToken),
+    );
   }
   private async issueNewTokens(
     user: User,
@@ -96,7 +97,7 @@ export class AuthUseCases {
   }
   async logout(
     refreshToken: string,
-  ): Promise<ApiResponse<{ message: string }>> {
+  ): Promise<ApiResponse<{ message: MessageDto }>> {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(refreshToken);
     if (!storedToken) {
@@ -114,7 +115,7 @@ export class AuthUseCases {
     }
     await this.dataServices.refreshTokens.revoke(refreshToken);
     return new ApiResponse(RESPONSE_MESSAGE.SUCCESS, RESPONSE_CODE.SUCCESS, {
-      message: "Logged out successfully",
+      message: new MessageDto("Logged out successfully"),
     });
   }
 }
