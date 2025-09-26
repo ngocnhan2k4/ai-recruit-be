@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 import cloudscraper
 from bs4 import BeautifulSoup
 
-from helpers import parse_posted_date, safe_text, get_date_posted
+from helpers import parse_posted_date, safe_text, get_date_posted, extract_employees
+from config import CONFIG
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -50,8 +51,11 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
         title = safe_text(p.find("h2"))
         body_items = [li.get_text(strip=True) for li in p.find_all("li")]
         body_text = ", ".join(b for b in body_items if b) or "N/A"
-        description_parts.append(f"title: {title} body: {body_text}")
-    description = "; ".join(description_parts) if description_parts else "N/A"
+        description_parts.append({
+            "title": title,
+            "body": body_text
+        })
+    description = description_parts if description_parts else []
 
     # --- Company page ---
     print(clean_job_url(job_url))
@@ -75,13 +79,17 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
         company_description_wrap = comp_soup.find("div", class_="paragraph")
 
     if company_name not in companies:
+        min, max = extract_employees(company_size)
+
         companies[company_name] = {
             "logo": logo,
             "locations": locations,
-            "description": safe_text(company_description_wrap, is_strip=False),
-            "company_size": company_size,
+            "description": safe_text(company_description_wrap, is_strip=False)\
+                .replace("\n", "", 1).replace("\n", ". ", -1).replace("\xa0", " ", -1),
+            "employees_min": min,
+            "employees_max": max,
             "website_url": company_url,
-            "crawled_at": datetime.now(timezone.utc),
+            "crawled_at": datetime.now(),
             "source": "itviec",
             "jobs": {}
         }
@@ -108,6 +116,7 @@ def scrape_page(scraper, page_num):
              for card in soup.find_all("div", class_="job-card")]
 
     companies = {}
+
     for link in links:
         scrape_job_detail(scraper, base_url, link, companies)
 
@@ -116,15 +125,32 @@ def scrape_page(scraper, page_num):
 
 def crawl_jobs():
     scraper = cloudscraper.create_scraper()
+
     all_companies = {}
-    for page_num in range(1, 51):
-        page_companies = scrape_page(scraper, page_num)
+    pages = 52
+
+    for page_num in range(1, pages):
+        attempts = 0
+        while True:
+            try:
+                attempts += 1
+                print(f"Scraping page {page_num} (attempt {attempts})")
+                page_companies = scrape_page(scraper, page_num)
+                break
+            except Exception as e:
+                print(f"Error on page {page_num}: {e}")
+                if attempts >= 3:
+                    print(f"Skipping page {page_num} after 3 failures.")
+                    page_companies = {}
+                    break
+                time.sleep(2)
 
         for name, data in page_companies.items():
             if name not in all_companies:
                 all_companies[name] = data
             else:
                 all_companies[name]["jobs"].update(data["jobs"])
+
         time.sleep(2)
 
     return all_companies

@@ -13,8 +13,8 @@ import {
 } from "./postgres-generic-repository";
 import { User, RefreshToken } from "../../../core/entities";
 import { IGenericRepository } from "../../../core";
-import { users, refreshTokens, jobRaws, categories } from "./model";
-import { JobRaw, CompanyRaw } from "@/core/index";
+import { users, refreshTokens, jobs, categories } from "./model";
+import { Job, Company } from "@/core/index";
 import { type DBDrizzle } from "./helpers";
 import { Category } from "@/core/entities/category.entity";
 
@@ -22,7 +22,7 @@ import { Category } from "@/core/entities/category.entity";
 export class PostgresDataServices implements IDataServices {
   users: IGenericRepository<User>;
   refreshTokens: IAuthGenericRepository<RefreshToken>;
-  jobRaws: IJobGenericRepository<JobRaw, CompanyRaw>;
+  jobs: IJobGenericRepository<Job, Company, string>;
   categories: ICategoryGenericRepository<Category>;
 
   constructor(@Inject("DRIZZLE") private db: DBDrizzle) {
@@ -33,10 +33,11 @@ export class PostgresDataServices implements IDataServices {
       typeof refreshTokens
     >(db, refreshTokens);
 
-    this.jobRaws = new JobPostgresGenericRepository<
-      JobRaw,
-      CompanyRaw,
-      typeof jobRaws
+    this.jobs = new JobPostgresGenericRepository<
+      Job,
+      Company,
+      string,
+      typeof jobs
     >(db);
 
     this.categories = new CategoryPostgresGenericRepository<
