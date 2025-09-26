@@ -1,6 +1,5 @@
 import psycopg2
 from psycopg2.extras import Json
-from datetime import datetime, timezone
 
 def insert_to_db(db_url: str, companies: dict):
     """
@@ -12,26 +11,21 @@ def insert_to_db(db_url: str, companies: dict):
         cur = conn.cursor()
 
         for name, cdata in companies.items():
-            # ensure Python list or None for address
             addresses = cdata.get("locations") or []
 
             # --- Check if company exists ---
-            cur.execute("SELECT id FROM company_raws WHERE name = %s LIMIT 1", (name,))
+            cur.execute("SELECT id FROM companies WHERE name = %s LIMIT 1", (name,))
             row = cur.fetchone()
 
             if row:
                 company_id = row[0]
-                cur.execute(
-                    "UPDATE company_raws SET crawled_at = %s WHERE id = %s",
-                    (cdata.get("crawled_at", datetime.now(timezone.utc)), company_id),
-                )
             else:
                 cur.execute(
                     """
-                    INSERT INTO company_raws
+                    INSERT INTO companies
                         (name, logo_url, description, address,
-                         employees, website_url, source, crawled_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                         employees_min, employees_max)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     (
@@ -39,10 +33,8 @@ def insert_to_db(db_url: str, companies: dict):
                         cdata.get("logo"),
                         cdata.get("description"),
                         addresses,
-                        cdata.get("company_size"),
-                        cdata.get("website_url"),
-                        cdata.get("source", "itviec"),
-                        cdata.get("crawled_at", datetime.now(timezone.utc)),
+                        cdata.get("employees_min"),
+                        cdata.get("employees_max"),
                     ),
                 )
                 inserted = cur.fetchone()
@@ -52,31 +44,49 @@ def insert_to_db(db_url: str, companies: dict):
 
             # --- Insert each job ---
             for title, jdata in cdata.get("jobs", {}).items():
-                job_url = jdata.get("job_url")
-                cur.execute("SELECT 1 FROM job_raws WHERE url = %s LIMIT 1", (job_url,))
+                cur.execute("SELECT 1 FROM jobs WHERE title = %s AND company_id = %s", (title, company_id))
                 if cur.fetchone():
+                    print(f"Job '{title}' already exists for company '{name}', skipping.")
                     continue
 
                 cur.execute(
                     """
-                    INSERT INTO job_raws
-                        (title, description, url, date_posted,
-                         skills, crawled_at, company_id,
-                         salary_range, source)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO jobs
+                        (title, description, created_at, company_id)
+                    VALUES (%s, %s, %s, %s) RETURNING id
                     """,
                     (
                         title,
-                        jdata.get("description"),
-                        job_url,
+                        Json(jdata.get("description")),
                         jdata.get("date_posted"),
-                        jdata.get("skills") or [],
-                        jdata.get("crawled_at", datetime.now(timezone.utc)),
-                        company_id,
-                        None,
-                        jdata.get("source", "itviec"),
+                        company_id
                     ),
                 )
+
+                job_id = cur.fetchone()[0]
+
+                # Check if skills exist in skills table
+                for skill in jdata.get("skills", []):
+                    # Try to find existing skill
+                    cur.execute(
+                        "SELECT id FROM skills WHERE LOWER(name) = LOWER(%s) LIMIT 1",
+                        (skill,),
+                    )
+                    result = cur.fetchone()
+                    if result:
+                        skill_id = result[0]
+                    else:
+                        # Insert new skill and get id
+                        cur.execute(
+                            "INSERT INTO skills (name) VALUES (%s) RETURNING id",
+                            (skill,),
+                        )
+                        skill_id = cur.fetchone()[0]
+
+                    cur.execute(
+                        "INSERT INTO job_skills (job_id, skill_id) VALUES (%s, %s)",
+                        (job_id, skill_id),
+                    )
 
         conn.commit()
         cur.close()

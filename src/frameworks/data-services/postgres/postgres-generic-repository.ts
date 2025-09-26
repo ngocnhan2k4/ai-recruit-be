@@ -1,4 +1,4 @@
-import { eq, and, gt, getTableColumns } from "drizzle-orm";
+import { eq, and, gt, getTableColumns, asc, sql, ilike } from "drizzle-orm";
 import {
   IGenericRepository,
   IAuthGenericRepository,
@@ -6,7 +6,7 @@ import {
   ICategoryGenericRepository,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
-import { jobRaws, companyRaws, categories } from "./model";
+import { categories, jobs, companies, skills, jobSkills } from "./model";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 
 export class PostgresGenericRepository<T, TTable>
@@ -99,26 +99,41 @@ export class AuthPostgresGenericRepository<T, TTable>
   }
 }
 
-export class JobPostgresGenericRepository<TJob, TCompany, TTable>
-  extends PostgresGenericRepository<TJob, TTable>
-  implements IJobGenericRepository<TJob, TCompany>
+export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
+  extends PostgresGenericRepository<TJob, JobTable>
+  implements IJobGenericRepository<TJob, TCompany, TSkill>
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, jobRaws as TTable);
+    super(db, jobs as JobTable);
   }
 
-  async getAllJobs(limit = 50): Promise<{ job: TJob; company: TCompany }[]> {
-    const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
-    const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
+  async getAllJobs(
+    limit = 50,
+    offset = 0,
+    keyword = "",
+  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]> {
+    const {
+      id: _jobId,
+      company_id: _company_id,
+      ...restJob
+    } = getTableColumns(jobs);
+    const { id: _companyId, ...restCompany } = getTableColumns(companies);
 
     const result = (await this.db
       .select({
         job: { ...restJob },
         company: { ...restCompany },
+        skills: sql`coalesce(json_agg(distinct ${skills.name}) filter (where ${skills.name} is not null), '[]')`,
       })
-      .from(jobRaws)
-      .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
-      .limit(limit)) as { job: TJob; company: TCompany }[];
+      .from(jobs)
+      .innerJoin(companies, eq(jobs.company_id, companies.id))
+      .leftJoin(jobSkills, eq(jobs.id, jobSkills.job_id))
+      .leftJoin(skills, eq(jobSkills.skill_id, skills.id))
+      .where(ilike(jobs.title, `%${keyword}%`))
+      .groupBy(jobs.id, companies.id)
+      .orderBy(asc(jobs.id))
+      .limit(limit)
+      .offset(offset)) as { job: TJob; company: TCompany; skills: TSkill[] }[];
 
     return result;
   }

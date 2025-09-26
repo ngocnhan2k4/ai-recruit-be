@@ -37,3 +37,13 @@ def parse_posted_date(text: str) -> datetime:
         return now - timedelta(days=value)
     else:
         raise ValueError(f"Unknown unit in date string: {text!r}")
+    
+
+def extract_employees(company_size: str):
+    if "-" in company_size:
+        fields = company_size.split("-")
+        return int(fields[0]), int(fields[1])
+    elif "+" in company_size:
+        fields = company_size.split("+")
+        return int(fields[0]), None
+        

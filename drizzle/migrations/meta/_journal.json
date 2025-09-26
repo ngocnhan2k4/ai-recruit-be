@@ -3,38 +3,10 @@
   "dialect": "postgresql",
   "entries": [
     {
-      "idx": 0,
-      "version": "7",
-      "when": 1758466990206,
-      "tag": "0000_mean_inertia",
-      "breakpoints": true
-    },
-    {
       "idx": 1,
       "version": "7",
-      "when": 1758474424326,
-      "tag": "0001_curious_snowbird",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1758474687364,
-      "tag": "0002_uneven_garia",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1758555126431,
-      "tag": "0003_tidy_black_bird",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1758555126432,
-      "tag": "20250920044529_add-refreshtoken",
+      "when": 1758811501968,
+      "tag": "20250925144501_alter_job_table",
       "breakpoints": true
     },
     {
