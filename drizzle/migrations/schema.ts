@@ -190,7 +190,7 @@ export const jobs = pgTable(
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
     title: varchar({ length: 255 }).notNull(),
-    description: text(),
+    description: json("description"),
     companyId: uuid("company_id").notNull(),
     createdAt: timestamp("created_at", { mode: "string" })
       .defaultNow()

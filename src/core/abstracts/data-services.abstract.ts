@@ -1,4 +1,4 @@
-import { User, RefreshToken, JobRaw, CompanyRaw, Category } from "../entities";
+import { User, RefreshToken, Company, Category, Job } from "../entities";
 import {
   IGenericRepository,
   IAuthGenericRepository,
@@ -9,7 +9,7 @@ import {
 export abstract class IDataServices {
   abstract users: IGenericRepository<User>;
   abstract refreshTokens: IAuthGenericRepository<RefreshToken>;
-  abstract jobRaws: IJobGenericRepository<JobRaw, CompanyRaw>;
+  abstract jobs: IJobGenericRepository<Job, Company, string>;
   abstract categories: ICategoryGenericRepository<Category>;
 
   // other repositories
