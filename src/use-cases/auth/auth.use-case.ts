@@ -1,7 +1,13 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, RefreshToken, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
-import { ApiResponse, TokenPairDto, MessageDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  TokenPairDto,
+  MessageDto,
+  LoginResponseDto,
+  GetUserDto,
+} from "@/interfaces/dtos";
 import { RoleEnum } from "@/core/enums/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
@@ -14,9 +20,7 @@ export class AuthUseCases {
     private readonly dataServices: IDataServices,
     private readonly configService: ConfigService,
   ) {}
-  async logIn(
-    idToken: string,
-  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
+  async logIn(idToken: string): Promise<ApiResponse<LoginResponseDto>> {
     console.log("ID Token:", idToken); // Debug log
     let decode: {
       uid: string;
@@ -56,7 +60,10 @@ export class AuthUseCases {
     return new ApiResponse({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: new TokenPairDto(accessToken, refreshToken),
+      data: new LoginResponseDto(
+        new TokenPairDto(accessToken, refreshToken),
+        GetUserDto.from(user),
+      ),
     });
   }
   private async issueNewTokens(

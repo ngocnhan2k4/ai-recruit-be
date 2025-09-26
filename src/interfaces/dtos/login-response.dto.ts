@@ -1,12 +1,11 @@
-import { User } from "../../core/entities/user.entity";
-export class LoginResponseDto {
-  accessToken: string;
-  refreshToken: string;
-  user: User;
+import { GetUserDto, TokenPairDto } from "./index";
 
-  constructor(accessToken: string, refreshToken: string, user: User) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
+export class LoginResponseDto {
+  tokens: TokenPairDto;
+  user: GetUserDto;
+
+  constructor(tokens: TokenPairDto, user: GetUserDto) {
+    this.tokens = tokens;
     this.user = user;
   }
 }

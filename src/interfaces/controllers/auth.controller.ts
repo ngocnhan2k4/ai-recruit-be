@@ -6,6 +6,7 @@ import {
   RefreshTokenDto,
   TokenPairDto,
   MessageDto,
+  LoginResponseDto,
 } from "../dtos";
 import {
   ApiTags,
@@ -26,6 +27,7 @@ import {
   MessageDto,
   LoginDto,
   RefreshTokenDto,
+  LoginResponseDto,
 )
 @Controller("auth")
 export class AuthController {
@@ -54,10 +56,31 @@ export class AuthController {
         { $ref: getSchemaPath(ApiResponse) },
         {
           properties: {
-            data: { $ref: getSchemaPath(TokenPairDto) },
+            data: { $ref: getSchemaPath(LoginResponseDto) },
           },
         },
       ],
+      example: {
+        code: "SUCCESS",
+        message: "Success",
+        data: {
+          tokens: {
+            accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            refreshToken: "f2f374604e2462c13f441457a68c2644ce...",
+          },
+          user: {
+            id: 1,
+            username: "exampleuser",
+            email: "user@example.com",
+            phone: "1234567890",
+            avatarUrl: "https://cdn.example.com/avatar.png",
+            name: "John Doe",
+            dob: "1990-01-01",
+            gender: "Male",
+            firebaseUid: "lPuOOqhJlsc8J5Va7Jg2cYNMp323",
+          },
+        },
+      },
     },
   })
   @ApiUnauthorizedResponse({
@@ -86,7 +109,7 @@ export class AuthController {
   @HttpCode(200)
   async logIn(
     @Body() loginDto: LoginDto,
-  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
+  ): Promise<ApiResponse<LoginResponseDto>> {
     return this.authUseCases.logIn(loginDto.idToken);
   }
 
