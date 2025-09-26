@@ -129,7 +129,7 @@ def crawl_jobs():
     all_companies = {}
     pages = 52
 
-    for page_num in range(1, pages):
+    for page_num in range(2, pages):
         attempts = 0
         while True:
             try:

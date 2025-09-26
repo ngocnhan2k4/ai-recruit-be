@@ -1,7 +1,7 @@
 export class Job {
   id: number;
   title: string;
-  description: string | null;
+  description: JSON | null;
   company_id: string;
   salary_min: number | null;
   salary_max: number | null;
@@ -17,7 +17,7 @@ export class Job {
     salary_max,
   }: {
     title: string;
-    description: string | null;
+    description: JSON;
     company_id: string;
     salary_min: number | null;
     salary_max: number | null;

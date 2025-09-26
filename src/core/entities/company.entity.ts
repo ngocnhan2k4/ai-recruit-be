@@ -6,8 +6,6 @@ export class Company {
   address: string[] | null;
   employees: string;
   website_url: string | null;
-  source: string;
-  crawled_at: Date;
 
   constructor({
     id,
@@ -17,8 +15,6 @@ export class Company {
     address,
     employees,
     website_url,
-    source,
-    crawled_at,
   }: {
     id: bigint;
     name: string;
@@ -27,8 +23,6 @@ export class Company {
     address?: string[] | null;
     employees: string;
     website_url?: string | null;
-    source: string;
-    crawled_at: Date;
   }) {
     this.id = id;
     this.name = name;
@@ -37,7 +31,5 @@ export class Company {
     this.address = address ?? null;
     this.employees = employees;
     this.website_url = website_url ?? null;
-    this.source = source;
-    this.crawled_at = crawled_at;
   }
 }

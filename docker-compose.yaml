@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: always
@@ -22,6 +23,17 @@ services:
       - db
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+
+  backend:
+    build: .
+    restart: always
+    environment:
+      DATABASE_URL: postgres://postgres:123456@db:5432/mydb
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
   pgadmin_data:
