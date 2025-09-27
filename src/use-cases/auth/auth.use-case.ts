@@ -1,11 +1,11 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, RefreshToken, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
+import { RoleEnum } from "@/common/constants/roles";
 import { ApiResponse, TokenPairDto, MessageDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/core/enums/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
 @Injectable()
 export class AuthUseCases {

@@ -1,17 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
-import { JobFactoryService } from "./job-factory.service";
 import { Job } from "@/core/entities/job.entity";
 import { Company } from "@/core/entities/company.entity";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 
 @Injectable()
 export class JobUseCases {
-  constructor(
-    private readonly dataServices: IDataServices,
-    private readonly jobFactoryService: JobFactoryService,
-  ) {}
+  constructor(private readonly dataServices: IDataServices) {}
 
   async getAllJobs(
     limit?: number,
