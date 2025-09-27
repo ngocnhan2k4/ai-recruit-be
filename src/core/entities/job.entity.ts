@@ -29,3 +29,11 @@ export class Job {
     this.salary_max = salary_max;
   }
 }
+
+export interface StatisticsJobFilter {
+  fromDate?: Date;
+  toDate?: Date;
+  categoryId?: string;
+  provinceId?: string;
+  isOpen?: boolean;
+}

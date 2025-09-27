@@ -36,7 +36,7 @@ export const jobRaws = pgTable("job_raws", {
 export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
+  description: json("description"),
   company_id: uuid("company_id")
     .notNull()
     .references(() => companies.id),

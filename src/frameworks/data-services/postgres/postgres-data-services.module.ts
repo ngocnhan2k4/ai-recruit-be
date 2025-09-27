@@ -27,7 +27,10 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
           });
           await pool.query("SELECT 1");
           logger.log("Database connection established successfully.");
-          const db = drizzle(pool, { casing: "snake_case" });
+          const db = drizzle(pool, {
+            casing: "snake_case",
+            // logger: process.env.NODE_ENV === "development",
+          }) as DBDrizzle;
           return db;
         } catch (err) {
           logger.error("Error setting up Drizzle ORM:", err);
