@@ -8,7 +8,7 @@ import { omit } from "lodash";
 import {
   StatisticsJobFilterDto,
   StatisticsJobResponse,
-} from "@/interfaces/dtos/jobs/statistic-job.dto";
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class JobUseCases {
@@ -18,17 +18,17 @@ export class JobUseCases {
     limit?: number,
     offset?: number,
     keyword?: string,
-  ): Promise<ApiResponse<{ job: Job; company: Company }[]>> {
+  ): Promise<ApiResponse<{ job: Job; company: Company; skills: string[] }[]>> {
     const result = await this.dataServices.jobs.getAllJobs(
       limit,
       offset,
       keyword,
     );
-    return new ApiResponse({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
-    });
+    };
   }
 
   async getStatisticsJobs(
@@ -55,7 +55,7 @@ export class JobUseCases {
       }),
     ]);
 
-    return new ApiResponse({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
@@ -65,6 +65,6 @@ export class JobUseCases {
         totalJobs,
         totalJobByCategoryId,
       },
-    });
+    };
   }
 }

@@ -1,42 +1,30 @@
 import { JobUseCases } from "@/use-cases/job/job.use-case";
-import { Controller, Get, ParseIntPipe, Query } from "@nestjs/common";
-import { ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
-import {
-  StatisticsJobFilterDto,
-  StatisticsJobResponse,
-} from "../dtos/jobs/statistic-job.dto";
+import { Controller, Get, Query } from "@nestjs/common";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../dtos";
+import { JobResponse, QueryJobDto } from "../dtos/jobs/query-job.dto";
+import { StatisticsJobFilterDto, StatisticsJobResponse } from "../dtos";
 
 @ApiTags("Jobs")
 @Controller("jobs")
 export class JobController {
   constructor(private readonly jobUseCases: JobUseCases) {}
 
+  @ApiOperation({
+    summary: "Get all jobs",
+    description:
+      "Retrieve a list of all jobs with optional pagination and keyword filtering.",
+  })
+  @ApiResponseDto(JobResponse, { isArray: true })
   @Get()
-  @ApiQuery({
-    name: "limit",
-    required: false,
-    description: "Maximum number of jobs to return",
-    schema: { type: "integer", default: 50 },
-  })
-  @ApiQuery({
-    name: "offset",
-    required: false,
-    description: "Pagination offset",
-    schema: { type: "integer", default: 0 },
-  })
-  @ApiQuery({
-    name: "keyword",
-    required: false,
-    type: String,
-    description: "Keyword to search in job titles",
-  })
   async getAll(
-    @Query("limit", ParseIntPipe) limit?: number,
-    @Query("offset", ParseIntPipe) offset?: number,
-    @Query("keyword") keyword?: string,
-  ) {
-    return this.jobUseCases.getAllJobs(limit, offset, keyword);
+    @Query() query: QueryJobDto,
+  ): Promise<ApiResponse<JobResponse[]>> {
+    return this.jobUseCases.getAllJobs(
+      query.limit,
+      query.offset,
+      query.keyword,
+    );
   }
 
   @ApiOperation({
