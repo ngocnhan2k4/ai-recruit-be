@@ -11,6 +11,7 @@ export const RESPONSE_CODE = {
   UNAUTHORIZED: "UNAUTHORIZED",
   BAD_REQUEST: "BAD_REQUEST",
   VALIDATION_ERROR: "VALIDATION_ERROR",
+  USER_NOT_UPDATED: "USER_NOT_UPDATED",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -23,4 +24,5 @@ export const RESPONSE_MESSAGE = {
   UNAUTHORIZED: "Unauthorized access.",
   BAD_REQUEST: "Bad request.",
   VALIDATION_ERROR: "Validation error.",
+  USER_NOT_UPDATED: "User not updated.",
 };
