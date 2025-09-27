@@ -1,3 +1,5 @@
+import { StatisticsJobFilter } from "../entities";
+
 export interface IGenericRepository<T> {
   getAll(): Promise<T[]>;
 
@@ -15,9 +17,28 @@ export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
   findValidToken(token: string): Promise<T | null>;
 }
 
-export interface IJobGenericRepository<TJob, TCompany>
+export interface IJobGenericRepository<TJob, TCompany, TSkill>
   extends IGenericRepository<TJob> {
-  getAllJobs(limit?: number): Promise<{ job: TJob; company: TCompany }[]>;
+  getAllJobs(
+    limit?: number,
+    offset?: number,
+    keyword?: string,
+  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]>;
+
+  getFrequentlyJobs(
+    filter: StatisticsJobFilter,
+  ): Promise<{ date: string; count: number }[]>;
+
+  count(filter: StatisticsJobFilter): Promise<number>;
+
+  getSalaryStatisticsByExperience(filter: StatisticsJobFilter): Promise<
+    {
+      expYear: number;
+      avgSalaryMin: number;
+      avgSalaryMax: number;
+      jobCount: number;
+    }[]
+  >;
 }
 
 //  eslint-disable-next-line @typescript-eslint/no-empty-object-type

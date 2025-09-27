@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
-import { RESPONSE_CODE } from "../constants/constants";
+import { RESPONSE_CODE } from "../constants/response";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -28,19 +28,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let resContent: ApiResponse<any>;
 
     if (exception instanceof HttpException) {
-      resContent = new ApiResponse({
+      resContent = {
         message:
           (exception as any).getResponse()?.message ||
           (exception as any).message,
         code:
           (exception as any).getResponse()?.code ||
           (exception as any).getStatus(),
-      });
+      };
     } else {
-      resContent = new ApiResponse({
+      resContent = {
         message: (exception as any).message || "Internal server error",
         code: RESPONSE_CODE.SERVER_ERROR,
-      });
+      };
     }
     this.logger.error(
       `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,

@@ -26,6 +26,7 @@
         "drizzle-orm": "^0.44.5",
         "drizzle-seed": "^0.3.1",
         "firebase-admin": "^13.5.0",
+        "lodash": "^4.17.21",
         "passport-jwt": "^4.0.1",
         "pg": "^8.16.3",
         "reflect-metadata": "^0.2.2",
@@ -41,6 +42,7 @@
         "@types/cookie-parser": "^1.4.9",
         "@types/express": "^5.0.0",
         "@types/jest": "^30.0.0",
+        "@types/lodash": "^4.17.20",
         "@types/node": "^22.10.7",
         "@types/passport-jwt": "^4.0.1",
         "@types/pg": "^8.15.5",
@@ -531,6 +533,8 @@
     "@types/json-schema": ["@types/json-schema@7.0.15", "", {}, "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA=="],
 
     "@types/jsonwebtoken": ["@types/jsonwebtoken@9.0.7", "", { "dependencies": { "@types/node": "*" } }, "sha512-ugo316mmTYBl2g81zDFnZ7cfxlut3o+/EQdaP7J8QN2kY6lJ22hmQYCK5EHcJHbrW+dkCGSCPgbG8JtYj6qSrg=="],
+
+    "@types/lodash": ["@types/lodash@4.17.20", "", {}, "sha512-H3MHACvFUEiujabxhaI/ImO6gUrd8oOurg7LQtS7mbwIXA/cUqWrvBsaeJ23aZEPk1TAYkurjfMbSELfoCXlGA=="],
 
     "@types/long": ["@types/long@4.0.2", "", {}, "sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA=="],
 

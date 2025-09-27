@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { newEnforcer, Enforcer } from "casbin";
 import { FileAdapter } from "casbin-file-adapter";
 import * as path from "path";
-import { RoleEnum } from "@/core/enums/roles";
+import { RoleEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class CasbinService implements OnModuleInit {

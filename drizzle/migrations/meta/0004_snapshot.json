@@ -1,6 +1,6 @@
 {
   "id": "85fa03d1-6fad-4827-b2a8-9ed55efbfb38",
-  "prevId": "a90f5c95-dbcf-4bd2-9aeb-2ab4ee1cb4d2",
+  "prevId": "94c8fb3d-9870-4e37-b372-63343673df45",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -70,16 +70,12 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "users_firebase_uid_unique": {
           "name": "users_firebase_uid_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "firebase_uid"
-          ]
+          "columns": ["firebase_uid"]
         }
       },
       "policies": {},
@@ -135,12 +131,8 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
