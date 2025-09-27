@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { PERM_KEY } from "@/common/constants/constants";
+import { PERM_KEY } from "@/common/constants/response";
 import { CasbinService } from "../casbin/casbin.service";
 import { FastifyRequest } from "fastify";
 import { TokenPayload } from "@/common/types/token";

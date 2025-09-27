@@ -15,9 +15,13 @@ export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
   findValidToken(token: string): Promise<T | null>;
 }
 
-export interface IJobGenericRepository<TJob, TCompany>
+export interface IJobGenericRepository<TJob, TCompany, TSkill>
   extends IGenericRepository<TJob> {
-  getAllJobs(limit?: number): Promise<{ job: TJob; company: TCompany }[]>;
+  getAllJobs(
+    limit?: number,
+    offset?: number,
+    keyword?: string,
+  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]>;
 }
 
 //  eslint-disable-next-line @typescript-eslint/no-empty-object-type

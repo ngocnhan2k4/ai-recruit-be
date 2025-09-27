@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/constants";
+import { RESPONSE_CODE } from "@/common/constants/response";
 
 @Injectable()
 export class CategoryUseCases {

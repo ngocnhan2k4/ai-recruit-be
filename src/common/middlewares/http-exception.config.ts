@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
-import { RESPONSE_CODE } from "../constants/constants";
+import { RESPONSE_CODE } from "../constants/response";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

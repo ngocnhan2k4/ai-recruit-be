@@ -3,7 +3,7 @@ import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { User } from "../../core/entities";
 import { IDataServices } from "../../core/abstracts";
 import { UserFactoryService } from "./user-factory.service";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 
 @Injectable()
 export class UserUseCases {

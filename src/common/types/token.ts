@@ -1,4 +1,4 @@
-import { RoleEnum } from "@/core/enums/roles";
+import { RoleEnum } from "@/common/constants/roles";
 
 export interface TokenPayload {
   sub: number;

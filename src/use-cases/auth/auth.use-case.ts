@@ -8,10 +8,10 @@ import {
   LoginResponseDto,
   GetUserDto,
 } from "@/interfaces/dtos";
-import { RoleEnum } from "@/core/enums/roles";
+import { RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
 @Injectable()
 export class AuthUseCases {

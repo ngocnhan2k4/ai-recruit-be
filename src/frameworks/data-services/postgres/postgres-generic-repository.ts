@@ -1,4 +1,19 @@
-import { eq, and, gt, getTableColumns } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gt,
+  getTableColumns,
+  isNotNull,
+  lte,
+  gte,
+  countDistinct,
+  or,
+  isNull,
+  SQL,
+  sql,
+  ilike,
+  asc,
+} from "drizzle-orm";
 import {
   IGenericRepository,
   IAuthGenericRepository,
@@ -6,8 +21,16 @@ import {
   ICategoryGenericRepository,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
-import { jobRaws, companyRaws, categories } from "./model";
+import {
+  categories,
+  jobs,
+  companies,
+  skills,
+  jobSkills,
+  jobCategories,
+} from "./model";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
+import { convertDateToStr } from "@/common/utils/date";
 
 export class PostgresGenericRepository<T, TTable>
   implements IGenericRepository<T>
@@ -99,28 +122,135 @@ export class AuthPostgresGenericRepository<T, TTable>
   }
 }
 
-export class JobPostgresGenericRepository<TJob, TCompany, TTable>
-  extends PostgresGenericRepository<TJob, TTable>
-  implements IJobGenericRepository<TJob, TCompany>
+export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
+  extends PostgresGenericRepository<TJob, JobTable>
+  implements IJobGenericRepository<TJob, TCompany, TSkill>
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, jobRaws as TTable);
+    super(db, jobs as JobTable);
   }
 
-  async getAllJobs(limit = 50): Promise<{ job: TJob; company: TCompany }[]> {
-    const { id: _jobId, ...restJob } = getTableColumns(jobRaws);
-    const { id: _companyId, ...restCompany } = getTableColumns(companyRaws);
+  async getAllJobs(
+    limit = 50,
+    offset = 0,
+    keyword = "",
+  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]> {
+    const {
+      id: _jobId,
+      company_id: _company_id,
+      ...restJob
+    } = getTableColumns(jobs);
+    const { id: _companyId, ...restCompany } = getTableColumns(companies);
 
     const result = (await this.db
       .select({
         job: { ...restJob },
         company: { ...restCompany },
+        skills: sql`coalesce(json_agg(distinct ${skills.name}) filter (where ${skills.name} is not null), '[]')`,
       })
-      .from(jobRaws)
-      .innerJoin(companyRaws, eq(jobRaws.company_id, companyRaws.id))
-      .limit(limit)) as { job: TJob; company: TCompany }[];
+      .from(jobs)
+      .innerJoin(companies, eq(jobs.company_id, companies.id))
+      .leftJoin(jobSkills, eq(jobs.id, jobSkills.job_id))
+      .leftJoin(skills, eq(jobSkills.skill_id, skills.id))
+      .where(ilike(jobs.title, `%${keyword}%`))
+      .groupBy(jobs.id, companies.id)
+      .orderBy(asc(jobs.id))
+      .limit(limit)
+      .offset(offset)) as { job: TJob; company: TCompany; skills: TSkill[] }[];
 
     return result;
+  }
+
+  async getFrequentlyJobs({
+    fromDate,
+    toDate,
+    categoryId,
+    provinceId,
+  }: {
+    fromDate?: Date;
+    toDate?: Date;
+    categoryId?: string;
+    provinceId?: string;
+  }): Promise<{ date: string; count: number }[]> {
+    const conditions = this.buildJobFilterQuery({
+      fromDate,
+      toDate,
+      categoryId,
+      provinceId,
+    });
+
+    const result = await this.db
+      .select({
+        date: jobs.date_posted,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.job_id))
+      .where(and(...conditions))
+      .groupBy(jobs.date_posted);
+
+    return result as { date: string; count: number }[];
+  }
+
+  async count({
+    fromDate,
+    toDate,
+    categoryId,
+    provinceId,
+    isOpen,
+  }: {
+    fromDate?: Date;
+    toDate?: Date;
+    categoryId?: string;
+    provinceId?: string;
+    isOpen?: boolean;
+  }): Promise<number> {
+    const conditions = this.buildJobFilterQuery({
+      fromDate,
+      toDate,
+      categoryId,
+      provinceId,
+      isOpen,
+    });
+
+    const result = await this.db
+      .select({
+        totalJobs: countDistinct(jobs.id).as("totalJobs"),
+      })
+      .from(jobs)
+      .where(and(...conditions));
+
+    return result[0]?.totalJobs ?? 0;
+  }
+
+  buildJobFilterQuery({
+    fromDate,
+    toDate,
+    categoryId,
+    provinceId,
+    isOpen,
+  }: {
+    fromDate?: Date;
+    toDate?: Date;
+    categoryId?: string;
+    provinceId?: string;
+    isOpen?: boolean;
+  }): (SQL<unknown> | undefined)[] {
+    const conditions: (SQL<unknown> | undefined)[] = [
+      isNotNull(jobs.date_posted),
+      fromDate ? gte(jobs.date_posted, convertDateToStr(fromDate)) : undefined,
+      toDate ? lte(jobs.date_posted, convertDateToStr(toDate)) : undefined,
+      categoryId ? eq(jobCategories.category_id, categoryId) : undefined,
+      provinceId ? eq(jobs.province_id, provinceId) : undefined,
+      isOpen
+        ? or(
+            isNull(jobs.end_date),
+            gt(jobs.end_date, convertDateToStr(new Date())),
+          )
+        : undefined,
+    ];
+
+    return conditions.filter(Boolean) as SQL<unknown>[];
   }
 }
 
