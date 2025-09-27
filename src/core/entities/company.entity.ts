@@ -1,13 +1,12 @@
 export class Company {
-  id: bigint;
+  id: string;
   name: string;
   logo_url: string | null;
   description: string | null;
   address: string[] | null;
-  employees: string;
+  employees_min: number;
+  employees_max: number;
   website_url: string | null;
-  source: string;
-  crawled_at: Date;
 
   constructor({
     id,
@@ -15,29 +14,26 @@ export class Company {
     logo_url,
     description,
     address,
-    employees,
     website_url,
-    source,
-    crawled_at,
+    employees_min,
+    employees_max,
   }: {
-    id: bigint;
+    id: string;
     name: string;
     logo_url?: string | null;
     description?: string | null;
     address?: string[] | null;
-    employees: string;
+    employees_min: number;
+    employees_max: number;
     website_url?: string | null;
-    source: string;
-    crawled_at: Date;
   }) {
     this.id = id;
     this.name = name;
     this.logo_url = logo_url ?? null;
     this.description = description ?? null;
     this.address = address ?? null;
-    this.employees = employees;
     this.website_url = website_url ?? null;
-    this.source = source;
-    this.crawled_at = crawled_at;
+    this.employees_min = employees_min;
+    this.employees_max = employees_max;
   }
 }

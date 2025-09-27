@@ -9,10 +9,10 @@ export class CategoryUseCases {
 
   async getCategories(): Promise<ApiResponse<string[]>> {
     const data = await this.dataServices.categories.getAll();
-    return new ApiResponse<string[]>({
+    return {
       message: "Categories fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: data.map((category) => category.name),
-    });
+    };
   }
 }

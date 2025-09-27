@@ -28,19 +28,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let resContent: ApiResponse<any>;
 
     if (exception instanceof HttpException) {
-      resContent = new ApiResponse({
+      resContent = {
         message:
           (exception as any).getResponse()?.message ||
           (exception as any).message,
         code:
           (exception as any).getResponse()?.code ||
           (exception as any).getStatus(),
-      });
+      };
     } else {
-      resContent = new ApiResponse({
+      resContent = {
         message: (exception as any).message || "Internal server error",
         code: RESPONSE_CODE.SERVER_ERROR,
-      });
+      };
     }
     this.logger.error(
       `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,

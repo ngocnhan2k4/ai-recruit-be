@@ -13,13 +13,14 @@ export class ApiResponse<T> {
   @ApiProperty({ required: false })
   data?: T;
 
+  // maintain this constructor to compatible backward - DELETE LATER
   constructor({
-    message,
     code,
+    message,
     data,
   }: {
-    message: string;
     code: string;
+    message: string;
     data?: T;
   }) {
     this.code = code;
