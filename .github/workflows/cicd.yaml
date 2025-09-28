@@ -51,7 +51,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${{ github.sha }}
 
       - name: Deploy to Development Server
-        if: github.ref == 'refs/heads/dev' && success()
+        if: github.event.pull_request.base.ref == 'dev' && success()
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
