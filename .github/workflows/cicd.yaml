@@ -1,14 +1,11 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - "**"
   pull_request:
     branches: ["dev", "main"]
 
 jobs:
-  CI:
+  CI-CD:
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -39,6 +36,45 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+      - name: Login to Docker Hub
+        if: github.event.pull_request.base.ref == 'dev' && success()
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        if: github.event.pull_request.base.ref == 'dev' && success()
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${{ github.sha }} .
+          docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${{ github.sha }}
+
+      - name: Copy docker-compose to server
+        if: github.event.pull_request.base.ref == 'dev' && success()
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+          source: "./docker-compose-dev.yaml"
+          target: "/var/www/my-app/"
+    
+      - name: Deploy to Development Server
+        if: github.event.pull_request.base.ref == 'dev' && success()
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+          script: |
+            cd /var/www/my-app
+            sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:${{ github.sha }}|g" docker-compose-dev.yaml
+            docker-compose -f docker-compose-dev.yaml pull
+            docker-compose -f docker-compose-dev.yaml up -d
+
 
       - name: Notify Slack on Success
         if: success()
@@ -59,6 +95,8 @@ jobs:
             • ESLint: ✅ Passed
             • Build: ✅ Passed
             • SonarQube: ✅ Passed
+            • Docker: ✅ Built & Pushed
+            • Deploy: ✅ Successful
 
       - name: Notify Slack on Failure
         if: failure()

@@ -1,0 +1,25 @@
+# Node & dependencies
+node_modules
+
+# Build outputs
+dist
+build
+
+# Environment files
+.env.example
+.env
+
+# Git / CI
+.git
+.gitignore
+.gitattributes
+.github/
+.vscode/
+
+# Dockerfiles
+Dockerfile
+.dockerignore
+docker-compose.yaml
+
+.husky
+README.md
