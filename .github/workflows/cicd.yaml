@@ -27,7 +27,7 @@ jobs:
 
       - name: Run ESLint
         id: lint
-        run: bun run lints
+        run: bun run lint
         continue-on-error: false
 
       - name: Run Build
