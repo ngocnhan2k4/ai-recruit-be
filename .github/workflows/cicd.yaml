@@ -60,14 +60,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           source: "./docker-compose-dev.yaml"
           target: "/var/www/my-app/"
-      
-      - name: Update Docker Image Tag
-        run: |
-          sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:${GITHUB_SHA}|g" docker-compose-dev.yaml
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-
-
+    
       - name: Deploy to Development Server
         if: github.event.pull_request.base.ref == 'dev' && success()
         uses: appleboy/ssh-action@v0.1.6
@@ -78,6 +71,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
+            sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:${{ github.sha }}|g" docker-compose-dev.yaml
             docker-compose -f docker-compose-dev.yaml pull
             docker-compose -f docker-compose-dev.yaml up -d
 

@@ -14,4 +14,4 @@ services:
       FIREBASE_STORAGE_BUCKET: "your-project-id.appspot.com"
 
     ports:
-      - "${PORT}:${PORT}"
+      - "3000:3000"
