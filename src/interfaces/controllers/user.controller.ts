@@ -11,10 +11,10 @@ import {
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import { JwtAuthGuard, CasbinGuard } from "@/frameworks/auth-services/guards";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
-import { ApiResponse } from "@/interfaces/dtos/api-response.dto";
+import { ApiResponse } from "@/interfaces/dtos/common/api-response.dto";
 import { UserPublicDto, UpdateUserDto } from "../dtos";
 import { User } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants/constants";
+import { RESPONSE_CODE } from "@/common/constants/response";
 
 @ApiTags("Users")
 @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -70,4 +70,5 @@ export class UserController {
       data: await this.userUseCases.updateUserProfile(userId, updateUserDto),
     });
   }
+  
 }

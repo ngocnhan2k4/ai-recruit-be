@@ -51,6 +51,9 @@ export class EnvironmentVariables {
 
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
+
+  @IsString()
+  FIREBASE_STORAGE_BUCKET: string;
 }
 
 export default (): Record<string, any> => ({
@@ -69,6 +72,7 @@ export default (): Record<string, any> => ({
   FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
   REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
+  FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
 });
 
 export const validateConfig = (

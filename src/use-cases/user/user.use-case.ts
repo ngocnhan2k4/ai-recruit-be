@@ -4,7 +4,7 @@ import { User } from "../../core/entities";
 import { IDataServices } from "../../core/abstracts";
 import { UserFactoryService } from "./user-factory.service";
 import { UserPublicDto, UpdateUserDto } from "@/interfaces/dtos";
-import { RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_MESSAGE } from "@/common/constants/response";
 
 @Injectable()
 export class UserUseCases {
