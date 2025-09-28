@@ -17,12 +17,13 @@ import { users, refreshTokens, jobs, categories } from "./model";
 import { Job, Company } from "@/core/index";
 import { type DBDrizzle } from "./helpers";
 import { Category } from "@/core/entities/category.entity";
+import { Province } from "@/core/entities/province.entity";
 
 @Injectable()
 export class PostgresDataServices implements IDataServices {
   users: IGenericRepository<User>;
   refreshTokens: IAuthGenericRepository<RefreshToken>;
-  jobs: IJobGenericRepository<Job, Company, Skill>;
+  jobs: IJobGenericRepository<Job, Province, Company, Skill>;
   categories: ICategoryGenericRepository<Category>;
 
   constructor(@Inject("DRIZZLE") private db: DBDrizzle) {
@@ -35,6 +36,7 @@ export class PostgresDataServices implements IDataServices {
 
     this.jobs = new JobPostgresGenericRepository<
       Job,
+      Province,
       Company,
       Skill,
       typeof jobs

@@ -1,4 +1,4 @@
-export class Skill {
+export class Province {
   id: bigint;
   name: string;
 }

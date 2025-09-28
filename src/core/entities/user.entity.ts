@@ -1,4 +1,4 @@
-import { RoleEnum } from "../../common/constants/roles";
+import { GenderEnum, RoleEnum } from "../../common/constants/roles";
 
 export class User {
   id: number;
@@ -12,6 +12,7 @@ export class User {
   createdAt: Date;
   updatedAt?: Date;
   deletedAt?: Date;
+  gender?: GenderEnum;
   roles: RoleEnum[];
 
   constructor({
@@ -23,6 +24,7 @@ export class User {
     name,
     dob,
     roles,
+    gender,
   }: {
     username: string;
     email?: string;
@@ -32,6 +34,7 @@ export class User {
     name: string;
     dob?: Date;
     roles: RoleEnum[];
+    gender?: GenderEnum;
   }) {
     this.username = username;
     this.email = email;
@@ -41,5 +44,6 @@ export class User {
     this.name = name;
     this.dob = dob;
     this.roles = roles;
+    this.gender = gender;
   }
 }

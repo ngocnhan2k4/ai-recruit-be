@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   BadRequestException,
@@ -106,7 +105,7 @@ export class FirebaseStorageService implements OnModuleInit {
   async getFileUrl(filePath: string): Promise<string> {
     try {
       const file = this.bucket.file(filePath);
-      const [url] = await file.getSignedUrl({
+      const [url]: [string] = await file.getSignedUrl({
         action: "read",
         expires: "03-09-2491",
       });

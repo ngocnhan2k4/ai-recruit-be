@@ -8,7 +8,7 @@ export class CompanyDto {
   name: string;
 
   @ApiProperty({ type: "string", nullable: true })
-  logo_url: string | null;
+  logoUrl: string | null;
 
   @ApiProperty({ type: "string", nullable: true })
   description: string | null;
@@ -17,11 +17,11 @@ export class CompanyDto {
   address: string[] | null;
 
   @ApiProperty({ type: "number" })
-  employees_min: number;
+  employeesMin: number;
 
   @ApiProperty({ type: "number" })
-  employees_max: number;
+  employeesMax: number;
 
   @ApiProperty({ type: "string", nullable: true })
-  website_url: string | null;
+  websiteUrl: string | null;
 }

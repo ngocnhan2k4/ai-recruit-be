@@ -30,6 +30,7 @@ export const users = pgTable(
     id: bigserial("id", { mode: "number" }).primaryKey(),
     username: varchar("username", { length: 255 }).notNull().unique(),
     email: varchar("email", { length: 255 }),
+    emailVerified: boolean("email_verified").notNull().default(false),
     phone: varchar("phone", { length: 20 }),
     firebaseUid: varchar("firebase_uid", { length: 255 }),
     avatarUrl: varchar("avatar_url", { length: 500 }),

@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { IAuthServices, RefreshToken, User } from "@/core";
+import { IAuthServices, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
+import { ApiResponse, LoginResponseDto, GetUserDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/common/constants/roles";
-import { ApiResponse } from "@/interfaces/dtos";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
@@ -14,10 +14,8 @@ export class AuthUseCases {
     private readonly dataServices: IDataServices,
     private readonly configService: ConfigService,
   ) {}
-  async logIn(
-    idToken: string,
-  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    console.log("ID Token:", idToken); // Debug log
+
+  async logIn(idToken: string): Promise<ApiResponse<LoginResponseDto>> {
     let decode: {
       uid: string;
       email?: string;
@@ -54,7 +52,10 @@ export class AuthUseCases {
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: { accessToken, refreshToken },
+      data: {
+        tokens: { accessToken, refreshToken },
+        user: GetUserDto.from(user),
+      },
     };
   }
   private async issueNewTokens(
@@ -73,15 +74,13 @@ export class AuthUseCases {
     const refreshTokenExpires = new Date(
       newDate.getTime() + refreshExpiresIn * 24 * 60 * 60 * 1000,
     ); // 7 days
-    await this.dataServices.refreshTokens.create(
-      new RefreshToken({
-        userId: user.id,
-        token: refreshToken,
-        createdAt: newDate,
-        expiresAt: new Date(refreshTokenExpires),
-        revoked: false,
-      }),
-    );
+    await this.dataServices.refreshTokens.create({
+      userId: user.id,
+      token: refreshToken,
+      createdAt: newDate,
+      expiresAt: new Date(refreshTokenExpires),
+      revoked: false,
+    });
     return { accessToken, refreshToken };
   }
 

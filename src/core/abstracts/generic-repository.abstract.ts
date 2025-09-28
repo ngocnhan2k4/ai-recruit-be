@@ -7,7 +7,7 @@ export interface IGenericRepository<T> {
 
   getByField(field: Partial<T>): Promise<T | null>;
 
-  create(item: T): Promise<T>;
+  create(item: Omit<T, "id">): Promise<T>;
 
   update(id: number, item: T): Promise<T | null>;
 }
@@ -17,13 +17,17 @@ export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
   findValidToken(token: string): Promise<T | null>;
 }
 
-export interface IJobGenericRepository<TJob, TCompany, TSkill>
+export interface IJobGenericRepository<TJob, TProvince, TCompany, TSkill>
   extends IGenericRepository<TJob> {
   getAllJobs(
     limit?: number,
     offset?: number,
     keyword?: string,
-  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]>;
+    sortBy?: string,
+    sortDirection?: "asc" | "desc",
+  ): Promise<
+    { job: TJob; provinces: TProvince[]; company: TCompany; skills: TSkill[] }[]
+  >;
 
   getFrequentlyJobs(
     filter: StatisticsJobFilter,
