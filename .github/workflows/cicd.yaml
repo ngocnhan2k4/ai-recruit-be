@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches: ["dev", "main"]
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run ESLint
+        id: lint
+        run: bun run lint
+        continue-on-error: false
+
+      - name: Run Build
+        id: build
+        run: bun run build
+        continue-on-error: false
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Snyk Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: test --severity-threshold=high
+
+      - name: Notify Slack on Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: cicd
+          SLACK_COLOR: good
+          SLACK_TITLE: "✅ CI Pipeline Success"
+          SLACK_MESSAGE: |
+            *Repository:* ${{ github.repository }}
+            *Branch:* ${{ github.ref_name }}
+            *Commit:* ${{ github.event.head_commit.message }}
+            *Author:* ${{ github.event.head_commit.author.name }}
+            *Status:* All checks passed ✅
+            
+            **Checks Completed:**
+            • ESLint: ✅ Passed
+            • Build: ✅ Passed
+            • SonarQube: ✅ Passed
+            • Snyk Security: ✅ Passed
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: cicd
+          SLACK_COLOR: danger
+          SLACK_TITLE: "❌ CI Pipeline Failed - Merge Blocked"
+          SLACK_MESSAGE: |
+            *Repository:* ${{ github.repository }}
+            *Branch:* ${{ github.ref_name }}
+            *Commit:* ${{ github.event.head_commit.message }}
+            *Author:* ${{ github.event.head_commit.author.name }}
+            *Status:* Pipeline failed ❌
+            
+            **Failed Checks:**
+            ${{ steps.lint.outcome == 'failure' && '• ESLint: ❌ Failed' || '• ESLint: ✅ Passed' }}
+            ${{ steps.build.outcome == 'failure' && '• Build: ❌ Failed' || '• Build: ✅ Passed' }}
+
+            🚫 **Merge is blocked until all checks pass**
+            
+            Please fix the issues and push again.
+
+  # Prevent merge if CI fails
+  merge-gate:
+    runs-on: ubuntu-latest
+    needs: CI
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Block merge on CI failure
+        if: needs.CI.result == 'failure'
+        run: |
+          echo "❌ CI pipeline failed. Merge blocked."
+          exit 1
+      
+      - name: Allow merge on CI success
+        if: needs.CI.result == 'success'
+        run: |
+          echo "✅ All checks passed. Merge allowed."
