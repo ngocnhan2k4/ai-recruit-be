@@ -51,6 +51,18 @@ export class EnvironmentVariables {
 
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
+
+  @IsString()
+  REDIS_HOST: string;
+
+  @IsNumber()
+  REDIS_PORT: number;
+
+  @IsString()
+  REDIS_PASSWORD: string;
+
+  @IsNumber()
+  REDIS_DB: number;
 }
 
 export default (): Record<string, any> => ({
@@ -69,6 +81,12 @@ export default (): Record<string, any> => ({
   FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
   REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
+
+  // Redis
+  REDIS_HOST: process.env.REDIS_HOST,
+  REDIS_PORT: process.env.REDIS_PORT,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  REDIS_DB: process.env.REDIS_DB,
 });
 
 export const validateConfig = (
