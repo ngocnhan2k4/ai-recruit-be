@@ -1,3 +1,4 @@
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import {
   Controller,
   Get,
@@ -6,18 +7,15 @@ import {
   Param,
   Put,
   Body,
-  //ParseIntPipe,
-  Req,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
-import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
-import { FastifyRequest } from "fastify";
-import { TokenPayload } from "@/common/types/token";
+import { UserPublicDto, UpdateUserDto, UserDto } from "../dtos";
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import { type TokenPayload } from "@/common/types/token";
+import { ApiResponse, ApiResponseDto, GetUserDto } from "@/interfaces/dtos";
 import {
-  ApiTags,
-  ApiOperation,
   ApiOkResponse,
   ApiExtraModels,
   getSchemaPath,
@@ -25,9 +23,6 @@ import {
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
-import { UserPublicDto, UpdateUserDto } from "../dtos";
-import { User } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants/response";
 
 @ApiTags("Users")
 @ApiBearerAuth()
@@ -174,49 +169,27 @@ export class UserController {
     },
   })
   @Get("me")
-  getMe(@Req() req: FastifyRequest & { user: TokenPayload }) {
-    return this.userUseCases.getUserByAccessToken(req.user);
+  getMe(@GetUser() user: TokenPayload): Promise<ApiResponse<GetUserDto>> {
+    return this.userUseCases.getUserByAccessToken(user);
   }
 
   @ApiOperation({ summary: "Get user by username" })
   @CasbinPermission("/", "GET")
   @Get(":username")
+  @ApiResponseDto(UserPublicDto)
   async getUserProfilePublic(
     @Param("username") username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
-    return new ApiResponse<UserPublicDto>({
-      message: "User profile fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: await this.userUseCases.getUserByUsername(username),
-    });
-  }
-
-  @ApiOperation({ summary: "Get user profile" })
-  @CasbinPermission("/", "GET")
-  @Get("profile")
-  async getProfile(@Request() req): Promise<ApiResponse<User>> {
-    const userId: number = req?.user?.id;
-
-    const userProfile = await this.userUseCases.getUserProfile(userId);
-    return new ApiResponse<User>({
-      message: "User profile fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: userProfile,
-    });
+    return await this.userUseCases.getUserByUsername(username);
   }
 
   @ApiOperation({ summary: "Update user profile" })
   @CasbinPermission("/", "PUT")
   @Put("profile")
   async updateProfile(
-    @Request() req,
+    @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<ApiResponse<User>> {
-    const userId: number = req?.user?.id;
-    return new ApiResponse<User>({
-      message: "User profile updated successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: await this.userUseCases.updateUserProfile(userId, updateUserDto),
-    });
+  ): Promise<ApiResponse<UserDto>> {
+    return await this.userUseCases.updateUserProfile(user.sub, updateUserDto);
   }
 }

@@ -16,20 +16,20 @@ import { companies, companyRaws } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { categories } from "./category.model";
-import { provinces } from "./provinces.model";
+import { provinces } from "./province.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   url: varchar("url", { length: 500 }),
-  date_posted: date("date_posted"),
+  datePosted: date("date_posted"),
   skills: text("skills").array(), // storing as array of strings
-  crawled_at: timestamp("crawled_at").notNull().defaultNow(),
-  company_id: bigint("company_id", { mode: "number" })
+  crawledAt: timestamp("crawled_at").notNull().defaultNow(),
+  companyId: bigint("company_id", { mode: "number" })
     .notNull()
     .references(() => companyRaws.id),
-  salary_range: json("salary_range"), // storing as JSON for flexibility
+  salaryRange: json("salary_range"), // storing as JSON for flexibility
   source: varchar("source", { length: 255 }).notNull(),
 });
 
@@ -37,32 +37,32 @@ export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: json("description"),
-  company_id: uuid("company_id")
+  companyId: uuid("company_id")
     .notNull()
     .references(() => companies.id),
-  date_posted: date("date_posted"),
-  salary_min: numeric("salary_min", { precision: 12, scale: 2 }),
-  salary_max: numeric("salary_max", { precision: 12, scale: 2 }),
-  experience_min: integer("experience_min"),
-  experience_max: integer("experience_max"),
-  province_id: uuid("province_id").references(() => provinces.id),
-  end_date: date("end_date"),
+  datePosted: date("date_posted"),
+  salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
+  salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),
+  experienceMin: integer("experience_min"),
+  experienceMax: integer("experience_max"),
+  provinceId: uuid("province_id").references(() => provinces.id),
+  endDate: date("end_date"),
   ...timestamps,
 });
 
 export const jobSkills = pgTable(
   "job_skills",
   {
-    job_id: uuid("job_id")
+    jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id),
-    skill_id: uuid("skill_id")
+    skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id),
   },
   (table) => [
     primaryKey({
-      columns: [table.job_id, table.skill_id],
+      columns: [table.jobId, table.skillId],
     }),
   ],
 );
@@ -70,16 +70,16 @@ export const jobSkills = pgTable(
 export const jobCategories = pgTable(
   "job_categories",
   {
-    job_id: uuid("job_id")
+    jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id),
-    category_id: uuid("category_id")
+    categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id),
   },
   (table) => [
     primaryKey({
-      columns: [table.job_id, table.category_id],
+      columns: [table.jobId, table.categoryId],
     }),
   ],
 );

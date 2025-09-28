@@ -138,7 +138,7 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
   ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]> {
     const {
       id: _jobId,
-      company_id: _company_id,
+      companyId: _company_id,
       ...restJob
     } = getTableColumns(jobs);
     const { id: _companyId, ...restCompany } = getTableColumns(companies);
@@ -150,9 +150,9 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
         skills: sql`coalesce(json_agg(distinct ${skills.name}) filter (where ${skills.name} is not null), '[]')`,
       })
       .from(jobs)
-      .innerJoin(companies, eq(jobs.company_id, companies.id))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.job_id))
-      .leftJoin(skills, eq(jobSkills.skill_id, skills.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
+      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .where(ilike(jobs.title, `%${keyword}%`))
       .groupBy(jobs.id, companies.id)
       .orderBy(asc(jobs.id))
@@ -169,13 +169,13 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
 
     const result = await this.db
       .select({
-        date: jobs.date_posted,
+        date: jobs.datePosted,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.job_id))
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions))
-      .groupBy(jobs.date_posted);
+      .groupBy(jobs.datePosted);
 
     return result as { date: string; count: number }[];
   }
@@ -188,7 +188,7 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
         totalJobs: countDistinct(jobs.id).as("totalJobs"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.job_id))
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions));
 
     return result[0]?.totalJobs ?? 0;
@@ -208,17 +208,17 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
     jobsTable: typeof jobs = jobs,
   ): (SQL<unknown> | undefined)[] {
     const conditions: (SQL<unknown> | undefined)[] = [
-      haveDatePosted ? isNotNull(jobsTable.date_posted) : undefined,
+      haveDatePosted ? isNotNull(jobsTable.datePosted) : undefined,
       fromDate
-        ? gte(jobsTable.date_posted, convertDateToStr(fromDate))
+        ? gte(jobsTable.datePosted, convertDateToStr(fromDate))
         : undefined,
-      toDate ? lte(jobsTable.date_posted, convertDateToStr(toDate)) : undefined,
-      categoryId ? eq(jobCategories.category_id, categoryId) : undefined,
-      provinceId ? eq(jobsTable.province_id, provinceId) : undefined,
+      toDate ? lte(jobsTable.datePosted, convertDateToStr(toDate)) : undefined,
+      categoryId ? eq(jobCategories.categoryId, categoryId) : undefined,
+      provinceId ? eq(jobsTable.provinceId, provinceId) : undefined,
       isOpen
         ? or(
-            isNull(jobsTable.end_date),
-            gt(jobsTable.end_date, convertDateToStr(new Date())),
+            isNull(jobsTable.endDate),
+            gt(jobsTable.endDate, convertDateToStr(new Date())),
           )
         : undefined,
     ];
