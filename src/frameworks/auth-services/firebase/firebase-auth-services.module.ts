@@ -21,12 +21,14 @@ import { ConfigService } from "@nestjs/config";
       provide: FIREBASE_ADMIN,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        console.log(configService.get<string>("FIREBASE_STORAGE_BUCKET"));
         return admin.initializeApp({
           credential: admin.credential.cert({
             projectId: configService.get<string>("FIREBASE_PROJECT_ID"),
             clientEmail: configService.get<string>("FIREBASE_CLIENT_EMAIL"),
             privateKey: configService.get<string>("FIREBASE_PRIVATE_KEY"),
           }),
+          storageBucket: configService.get<string>("FIREBASE_STORAGE_BUCKET"),
         });
       },
     },
