@@ -1,12 +1,6 @@
 import { Body, Controller, Post, HttpCode } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
-import {
-  LoginDto,
-  ApiResponse,
-  RefreshTokenDto,
-  TokenPairDto,
-  MessageDto,
-} from "../dtos";
+import { LoginDto, ApiResponse, RefreshTokenDto, TokenPairDto } from "../dtos";
 import {
   ApiTags,
   ApiOperation,
@@ -20,13 +14,7 @@ import {
 } from "@nestjs/swagger";
 
 @ApiTags("Authentication")
-@ApiExtraModels(
-  ApiResponse,
-  TokenPairDto,
-  MessageDto,
-  LoginDto,
-  RefreshTokenDto,
-)
+@ApiExtraModels(ApiResponse, TokenPairDto, LoginDto, RefreshTokenDto)
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authUseCases: AuthUseCases) {}
@@ -202,9 +190,7 @@ export class AuthController {
   })
   @Post("logout")
   @HttpCode(200)
-  async logout(
-    @Body() body: RefreshTokenDto,
-  ): Promise<ApiResponse<{ message: MessageDto }>> {
+  async logout(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
     return this.authUseCases.logout(body.refreshToken);
   }
 }

@@ -24,16 +24,6 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-  backend:
-    build: .
-    restart: always
-    environment:
-      DATABASE_URL: postgres://postgres:123456@db:5432/mydb
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-
 volumes:
   postgres_data:
   pgadmin_data:

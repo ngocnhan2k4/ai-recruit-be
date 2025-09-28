@@ -10,11 +10,13 @@ import {
   uuid,
   primaryKey,
   numeric,
+  integer,
 } from "drizzle-orm/pg-core";
 import { companies, companyRaws } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { categories } from "./category.model";
+import { provinces } from "./provinces.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -34,12 +36,17 @@ export const jobRaws = pgTable("job_raws", {
 export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
+  description: json("description"),
   company_id: uuid("company_id")
     .notNull()
     .references(() => companies.id),
+  date_posted: date("date_posted"),
   salary_min: numeric("salary_min", { precision: 12, scale: 2 }),
   salary_max: numeric("salary_max", { precision: 12, scale: 2 }),
+  experience_min: integer("experience_min"),
+  experience_max: integer("experience_max"),
+  province_id: uuid("province_id").references(() => provinces.id),
+  end_date: date("end_date"),
   ...timestamps,
 });
 

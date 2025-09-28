@@ -1,32 +1,71 @@
 import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
-import { JobFactoryService } from "./job-factory.service";
-import { Job } from "@/core/entities/job.entity";
+import { Job, StatisticsJobFilter } from "@/core/entities/job.entity";
 import { Company } from "@/core/entities/company.entity";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { omit } from "lodash";
+import {
+  StatisticsJobFilterDto,
+  StatisticsJobResponse,
+} from "@/interfaces/dtos";
+import { Skill } from "@/core";
 
 @Injectable()
 export class JobUseCases {
-  constructor(
-    private readonly dataServices: IDataServices,
-    private readonly jobFactoryService: JobFactoryService,
-  ) {}
+  constructor(private readonly dataServices: IDataServices) {}
 
   async getAllJobs(
     limit?: number,
     offset?: number,
     keyword?: string,
-  ): Promise<ApiResponse<{ job: Job; company: Company }[]>> {
+  ): Promise<ApiResponse<{ job: Job; company: Company; skills: Skill[] }[]>> {
     const result = await this.dataServices.jobs.getAllJobs(
       limit,
       offset,
       keyword,
     );
-    return new ApiResponse({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
-    });
+    };
+  }
+
+  async getStatisticsJobs(
+    filter: StatisticsJobFilterDto,
+  ): Promise<ApiResponse<StatisticsJobResponse>> {
+    const [
+      frequentlyJobs,
+      openJobCount,
+      salaryStatistics,
+      totalJobs,
+      totalJobByCategoryId,
+    ] = await Promise.all([
+      this.dataServices.jobs.getFrequentlyJobs(filter),
+      this.dataServices.jobs.count({
+        ...filter,
+        isOpen: true,
+      }),
+      this.dataServices.jobs.getSalaryStatisticsByExperience(filter),
+      this.dataServices.jobs.count({
+        ...(omit(filter, ["categoryId"]) as StatisticsJobFilter),
+      }),
+      this.dataServices.jobs.count({
+        ...filter,
+      }),
+    ]);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        frequentlyJobs,
+        openJobCount,
+        salaryStatistics,
+        totalJobs,
+        totalJobByCategoryId,
+      },
+    };
   }
 }
