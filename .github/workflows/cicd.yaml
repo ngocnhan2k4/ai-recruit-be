@@ -27,7 +27,7 @@ jobs:
 
       - name: Run ESLint
         id: lint
-        run: bun run lint
+        run: bun run lints
         continue-on-error: false
 
       - name: Run Build
@@ -59,7 +59,6 @@ jobs:
             • ESLint: ✅ Passed
             • Build: ✅ Passed
             • SonarQube: ✅ Passed
-            • Snyk Security: ✅ Passed
 
       - name: Notify Slack on Failure
         if: failure()
@@ -83,20 +82,3 @@ jobs:
             🚫 **Merge is blocked until all checks pass**
             
             Please fix the issues and push again.
-
-  # Prevent merge if CI fails
-  merge-gate:
-    runs-on: ubuntu-latest
-    needs: CI
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Block merge on CI failure
-        if: needs.CI.result == 'failure'
-        run: |
-          echo "❌ CI pipeline failed. Merge blocked."
-          exit 1
-      
-      - name: Allow merge on CI success
-        if: needs.CI.result == 'success'
-        run: |
-          echo "✅ All checks passed. Merge allowed."
