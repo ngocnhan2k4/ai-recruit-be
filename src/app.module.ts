@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
-import { UserController, AuthController } from "./interfaces/controllers";
+import {
+  UserController,
+  AuthController,
+  UploadController,
+} from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ConfigModule } from "@nestjs/config";
 import envConfig, { validateConfig } from "./common/config/env.config";
@@ -10,6 +14,7 @@ import { CategoryController } from "./interfaces/controllers/category.controller
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 import { JobController } from "./interfaces/controllers/job.controller";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
+import { StorageModule } from "./frameworks/storage/storage.module";
 
 @Module({
   imports: [
@@ -24,12 +29,14 @@ import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
     AuthUseCasesModule,
     CasbinModule,
     CategoryUseCasesModule,
+    StorageModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
     CategoryController,
+    UploadController,
   ],
   providers: [JwtStrategy],
 })

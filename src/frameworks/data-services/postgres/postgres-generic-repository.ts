@@ -19,6 +19,7 @@ import {
   IAuthGenericRepository,
   IJobGenericRepository,
   ICategoryGenericRepository,
+  StatisticsJobFilter,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
 import {
@@ -161,23 +162,10 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
     return result;
   }
 
-  async getFrequentlyJobs({
-    fromDate,
-    toDate,
-    categoryId,
-    provinceId,
-  }: {
-    fromDate?: Date;
-    toDate?: Date;
-    categoryId?: string;
-    provinceId?: string;
-  }): Promise<{ date: string; count: number }[]> {
-    const conditions = this.buildJobFilterQuery({
-      fromDate,
-      toDate,
-      categoryId,
-      provinceId,
-    });
+  async getFrequentlyJobs(
+    filter: StatisticsJobFilter,
+  ): Promise<{ date: string; count: number }[]> {
+    const conditions = this.buildJobFilterQuery(filter);
 
     const result = await this.db
       .select({
@@ -192,65 +180,108 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
     return result as { date: string; count: number }[];
   }
 
-  async count({
-    fromDate,
-    toDate,
-    categoryId,
-    provinceId,
-    isOpen,
-  }: {
-    fromDate?: Date;
-    toDate?: Date;
-    categoryId?: string;
-    provinceId?: string;
-    isOpen?: boolean;
-  }): Promise<number> {
-    const conditions = this.buildJobFilterQuery({
-      fromDate,
-      toDate,
-      categoryId,
-      provinceId,
-      isOpen,
-    });
+  async count(filter: StatisticsJobFilter): Promise<number> {
+    const conditions = this.buildJobFilterQuery(filter);
 
     const result = await this.db
       .select({
         totalJobs: countDistinct(jobs.id).as("totalJobs"),
       })
       .from(jobs)
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.job_id))
       .where(and(...conditions));
 
     return result[0]?.totalJobs ?? 0;
   }
 
-  buildJobFilterQuery({
-    fromDate,
-    toDate,
-    categoryId,
-    provinceId,
-    isOpen,
-  }: {
-    fromDate?: Date;
-    toDate?: Date;
-    categoryId?: string;
-    provinceId?: string;
-    isOpen?: boolean;
-  }): (SQL<unknown> | undefined)[] {
+  buildJobFilterQuery(
+    {
+      fromDate,
+      toDate,
+      categoryId,
+      provinceId,
+      isOpen,
+      haveDatePosted,
+    }: StatisticsJobFilter & {
+      haveDatePosted?: boolean;
+    },
+    jobsTable: typeof jobs = jobs,
+  ): (SQL<unknown> | undefined)[] {
     const conditions: (SQL<unknown> | undefined)[] = [
-      isNotNull(jobs.date_posted),
-      fromDate ? gte(jobs.date_posted, convertDateToStr(fromDate)) : undefined,
-      toDate ? lte(jobs.date_posted, convertDateToStr(toDate)) : undefined,
+      haveDatePosted ? isNotNull(jobsTable.date_posted) : undefined,
+      fromDate
+        ? gte(jobsTable.date_posted, convertDateToStr(fromDate))
+        : undefined,
+      toDate ? lte(jobsTable.date_posted, convertDateToStr(toDate)) : undefined,
       categoryId ? eq(jobCategories.category_id, categoryId) : undefined,
-      provinceId ? eq(jobs.province_id, provinceId) : undefined,
+      provinceId ? eq(jobsTable.province_id, provinceId) : undefined,
       isOpen
         ? or(
-            isNull(jobs.end_date),
-            gt(jobs.end_date, convertDateToStr(new Date())),
+            isNull(jobsTable.end_date),
+            gt(jobsTable.end_date, convertDateToStr(new Date())),
           )
         : undefined,
     ];
 
     return conditions.filter(Boolean) as SQL<unknown>[];
+  }
+
+  async getSalaryStatisticsByExperience(filter: StatisticsJobFilter) {
+    const { fromDate, toDate, categoryId, provinceId } = filter;
+
+    const sqlChunks: SQL[] = [];
+
+    sqlChunks.push(sql`
+      SELECT 
+        b.exp_year,
+        AVG(j.salary_min) AS "avgSalaryMin",
+        AVG(j.salary_max) AS "avgSalaryMax",
+        COUNT(distinct j.id) AS "jobCount"
+      FROM (
+        SELECT generate_series(
+          (SELECT COALESCE(MIN(experience_min), 0) FROM jobs),
+          (SELECT COALESCE(MAX(experience_max), 20) FROM jobs)
+        ) AS exp_year
+      ) b
+      INNER JOIN jobs j ON
+          (j.experience_min IS NULL AND j.experience_max IS NULL)
+          OR (j.experience_min IS NULL AND b.exp_year < j.experience_max)
+          OR (j.experience_max IS NULL AND b.exp_year >= j.experience_min)
+          OR (b.exp_year BETWEEN j.experience_min AND j.experience_max)
+      LEFT JOIN job_categories jc ON j.id = jc.job_id
+      `);
+
+    const where: SQL[] = [
+      sql`j.salary_min IS NOT NULL`,
+      sql`j.salary_max IS NOT NULL`,
+    ];
+    console.log("fromDDate", fromDate, toDate);
+    if (fromDate) {
+      where.push(sql`j.date_posted >= ${convertDateToStr(fromDate)}`);
+    }
+    if (toDate) {
+      where.push(sql`j.date_posted <= ${convertDateToStr(toDate)}`);
+    }
+    if (categoryId) {
+      where.push(sql`jc.category_id = ${categoryId}`);
+    }
+    if (provinceId) {
+      where.push(sql`j.province_id = ${provinceId}`);
+    }
+
+    sqlChunks.push(sql`
+      WHERE ${sql.join(where, sql` AND `)}
+      GROUP BY b.exp_year
+      ORDER BY b.exp_year DESC
+    `);
+    const result = await this.db.execute(sql.join(sqlChunks, sql` `));
+
+    return result.rows.map((r: any) => ({
+      expYear: Number(r.exp_year),
+      avgSalaryMin: Number(r.avgSalaryMin),
+      avgSalaryMax: Number(r.avgSalaryMax),
+      jobCount: Number(r.jobCount),
+    }));
   }
 }
 

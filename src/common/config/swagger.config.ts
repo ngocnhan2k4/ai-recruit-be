@@ -2,7 +2,7 @@ import { AppConfigProps, getAppConfigs } from "@/common/config/app.config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
-const tags: string[] = ["Users"];
+const tags: string[] = ["Users", "File Upload"];
 const developmentUrls: string[] = ["localhost"];
 const productionUrls: string[] = [];
 

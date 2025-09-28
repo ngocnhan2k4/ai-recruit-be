@@ -5,7 +5,6 @@ import {
   ApiResponse,
   RefreshTokenDto,
   TokenPairDto,
-  MessageDto,
   LoginResponseDto,
 } from "../dtos";
 import {
@@ -24,7 +23,6 @@ import {
 @ApiExtraModels(
   ApiResponse,
   TokenPairDto,
-  MessageDto,
   LoginDto,
   RefreshTokenDto,
   LoginResponseDto,
@@ -225,9 +223,7 @@ export class AuthController {
   })
   @Post("logout")
   @HttpCode(200)
-  async logout(
-    @Body() body: RefreshTokenDto,
-  ): Promise<ApiResponse<{ message: MessageDto }>> {
+  async logout(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
     return this.authUseCases.logout(body.refreshToken);
   }
 }

@@ -13,6 +13,7 @@ export interface AppConfigProps {
   firebasePrivateKey: string;
   jwtExpiresIn: string;
   refreshExpiresIn: number;
+  firebaseStorageBucket: string;
 }
 
 export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
@@ -29,5 +30,8 @@ export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
     firebasePrivateKey: configService.get<string>("FIREBASE_PRIVATE_KEY")!,
     jwtExpiresIn: configService.get<string>("JWT_EXPIRES_IN")!,
     refreshExpiresIn: configService.get<number>("REFRESH_EXPIRES_IN")!,
+    firebaseStorageBucket: configService.get<string>(
+      "FIREBASE_STORAGE_BUCKET",
+    )!,
   };
 };

@@ -1,13 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, RefreshToken, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
-import {
-  ApiResponse,
-  TokenPairDto,
-  MessageDto,
-  LoginResponseDto,
-  GetUserDto,
-} from "@/interfaces/dtos";
+import { ApiResponse, LoginResponseDto, GetUserDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
@@ -31,12 +25,10 @@ export class AuthUseCases {
     try {
       decode = await this.authService.verifyIdToken(idToken);
     } catch {
-      throw new UnauthorizedException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-          code: RESPONSE_CODE.INVALID_CREDENTIALS,
-        }),
-      );
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
     }
 
     let user = await this.dataServices.users.getByField({
@@ -57,14 +49,14 @@ export class AuthUseCases {
       // Update user info if necessary
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    return new ApiResponse({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: new LoginResponseDto(
-        new TokenPairDto(accessToken, refreshToken),
-        GetUserDto.from(user),
-      ),
-    });
+      data: {
+        tokens: { accessToken, refreshToken },
+        user: GetUserDto.from(user),
+      },
+    };
   }
   private async issueNewTokens(
     user: User,
@@ -100,39 +92,33 @@ export class AuthUseCases {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(oldRefreshToken);
     if (!storedToken) {
-      throw new UnauthorizedException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-          code: RESPONSE_CODE.INVALID_CREDENTIALS,
-        }),
-      );
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
     }
     const user = await this.dataServices.users.get(storedToken.userId);
     const { accessToken, refreshToken } = await this.issueNewTokens(user!);
     await this.dataServices.refreshTokens.revoke(oldRefreshToken);
-    return new ApiResponse({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: { accessToken, refreshToken },
-    });
+    };
   }
-  async logout(
-    refreshToken: string,
-  ): Promise<ApiResponse<{ message: MessageDto }>> {
+  async logout(refreshToken: string): Promise<ApiResponse<any>> {
     const storedToken =
       await this.dataServices.refreshTokens.findValidToken(refreshToken);
     if (!storedToken) {
-      throw new UnauthorizedException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
-          code: RESPONSE_CODE.INVALID_CREDENTIALS,
-        }),
-      );
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
     }
     await this.dataServices.refreshTokens.revoke(refreshToken);
-    return new ApiResponse({
+    return {
       message: "Logged out successfully",
       code: RESPONSE_CODE.SUCCESS,
-    });
+    };
   }
 }
