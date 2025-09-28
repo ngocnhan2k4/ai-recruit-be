@@ -22,7 +22,10 @@ export class TokenPairDto {
 }
 
 export class LoginResponseDto {
+  @ApiProperty({ type: () => TokenPairDto })
   tokens: TokenPairDto;
+
+  @ApiProperty({ type: () => GetUserDto })
   user: GetUserDto;
 
   constructor(tokens: TokenPairDto, user: GetUserDto) {

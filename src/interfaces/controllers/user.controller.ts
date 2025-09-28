@@ -7,8 +7,6 @@ import {
   Param,
   Put,
   Body,
-  //ParseIntPipe,
-  Req,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
@@ -17,7 +15,6 @@ import { UserPublicDto, UpdateUserDto, UserDto } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { ApiResponse, ApiResponseDto, GetUserDto } from "@/interfaces/dtos";
-import { FastifyRequest } from "fastify";
 import {
   ApiOkResponse,
   ApiExtraModels,
@@ -172,8 +169,8 @@ export class UserController {
     },
   })
   @Get("me")
-  getMe(@Req() req: FastifyRequest & { user: TokenPayload }) {
-    return this.userUseCases.getUserByAccessToken(req.user);
+  getMe(@GetUser() user: TokenPayload): Promise<ApiResponse<GetUserDto>> {
+    return this.userUseCases.getUserByAccessToken(user);
   }
 
   @ApiOperation({ summary: "Get user by username" })
@@ -184,17 +181,6 @@ export class UserController {
     @Param("username") username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
     return await this.userUseCases.getUserByUsername(username);
-  }
-
-  @ApiOperation({ summary: "Get user profile" })
-  @CasbinPermission("/", "GET")
-  @Get("profile")
-  @ApiResponseDto(UserDto)
-  async getProfile(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserDto>> {
-    const userProfile = await this.userUseCases.getUserProfile(user.sub);
-    return userProfile;
   }
 
   @ApiOperation({ summary: "Update user profile" })

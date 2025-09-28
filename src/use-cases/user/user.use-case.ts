@@ -57,22 +57,6 @@ export class UserUseCases {
     });
   }
 
-  async getUserProfile(userId: number): Promise<ApiResponse<User>> {
-    const user = await this.dataServices.users.get(userId);
-    if (!user) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
-      });
-    }
-
-    return {
-      message: "User profile fetched successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: user,
-    };
-  }
-
   async getUserByUsername(
     username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
