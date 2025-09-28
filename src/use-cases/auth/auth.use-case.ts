@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { IAuthServices, RefreshToken, User } from "@/core";
+import { IAuthServices, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
 import { RoleEnum } from "@/common/constants/roles";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -17,7 +17,6 @@ export class AuthUseCases {
   async logIn(
     idToken: string,
   ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    console.log("ID Token:", idToken); // Debug log
     let decode: {
       uid: string;
       email?: string;
@@ -73,15 +72,13 @@ export class AuthUseCases {
     const refreshTokenExpires = new Date(
       newDate.getTime() + refreshExpiresIn * 24 * 60 * 60 * 1000,
     ); // 7 days
-    await this.dataServices.refreshTokens.create(
-      new RefreshToken({
-        userId: user.id,
-        token: refreshToken,
-        createdAt: newDate,
-        expiresAt: new Date(refreshTokenExpires),
-        revoked: false,
-      }),
-    );
+    await this.dataServices.refreshTokens.create({
+      userId: user.id,
+      token: refreshToken,
+      createdAt: newDate,
+      expiresAt: new Date(refreshTokenExpires),
+      revoked: false,
+    });
     return { accessToken, refreshToken };
   }
 

@@ -1,20 +1,15 @@
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Request,
-  Param,
-  Put,
-  Body,
-} from "@nestjs/common";
+import { Controller, Get, UseGuards, Param, Put, Body } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import { JwtAuthGuard, CasbinGuard } from "@/frameworks/auth-services/guards";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
-import { ApiResponse } from "@/interfaces/dtos/common/api-response.dto";
-import { UserPublicDto, UpdateUserDto } from "../dtos";
-import { User } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import {
+  ApiResponse,
+  ApiResponseDto,
+} from "@/interfaces/dtos/common/api-response.dto";
+import { UserPublicDto, UpdateUserDto, UserDto } from "../dtos";
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import { type TokenPayload } from "@/common/types/token";
 
 @ApiTags("Users")
 @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -32,43 +27,31 @@ export class UserController {
   @ApiOperation({ summary: "Get user by username" })
   @CasbinPermission("/", "GET")
   @Get(":username")
+  @ApiResponseDto(UserPublicDto)
   async getUserProfilePublic(
     @Param("username") username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
-    return new ApiResponse<UserPublicDto>({
-      message: "User profile fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: await this.userUseCases.getUserByUsername(username),
-    });
+    return await this.userUseCases.getUserByUsername(username);
   }
 
   @ApiOperation({ summary: "Get user profile" })
   @CasbinPermission("/", "GET")
   @Get("profile")
-  async getProfile(@Request() req): Promise<ApiResponse<User>> {
-    const userId = req?.user?.id;
-
-    const userProfile = await this.userUseCases.getUserProfile(userId);
-    return new ApiResponse<User>({
-      message: "User profile fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: userProfile,
-    });
+  @ApiResponseDto(UserDto)
+  async getProfile(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserDto>> {
+    const userProfile = await this.userUseCases.getUserProfile(user.sub);
+    return userProfile;
   }
 
   @ApiOperation({ summary: "Update user profile" })
   @CasbinPermission("/", "PUT")
   @Put("profile")
   async updateProfile(
-    @Request() req,
+    @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<ApiResponse<User>> {
-    const userId = req?.user?.id;
-    return new ApiResponse<User>({
-      message: "User profile updated successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: await this.userUseCases.updateUserProfile(userId, updateUserDto),
-    });
+  ): Promise<ApiResponse<UserDto>> {
+    return await this.userUseCases.updateUserProfile(user.sub, updateUserDto);
   }
-  
 }

@@ -15,20 +15,20 @@ export class JobDto {
   description: Record<string, unknown> | null;
 
   @ApiProperty({ type: "string" })
-  company_id: string;
+  companyId: string;
 
   @ApiProperty({ type: "number", nullable: true })
-  salary_min: number | null;
+  salaryMin: number | null;
 
   @ApiProperty({ type: "number", nullable: true })
-  salary_max: number | null;
+  salaryMax: number | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  created_at: Date;
+  createdAt: Date;
 
   @ApiProperty({ type: "string", format: "date-time", nullable: true })
-  updated_at: Date | null;
+  updatedAt: Date | null;
 
   @ApiProperty({ type: "string", format: "date-time", nullable: true })
-  deleted_at: Date | null;
+  deletedAt: Date | null;
 }

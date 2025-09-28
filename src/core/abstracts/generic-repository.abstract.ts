@@ -7,7 +7,7 @@ export interface IGenericRepository<T> {
 
   getByField(field: Partial<T>): Promise<T | null>;
 
-  create(item: T): Promise<T>;
+  create(item: Omit<T, "id">): Promise<T>;
 
   update(id: number, item: T): Promise<T | null>;
 }

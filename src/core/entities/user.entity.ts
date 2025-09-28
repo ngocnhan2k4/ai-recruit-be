@@ -1,4 +1,4 @@
-import { RoleEnum } from "../../common/constants/roles";
+import { GenderEnum, RoleEnum } from "../../common/constants/roles";
 
 export class User {
   id: number;
@@ -12,6 +12,7 @@ export class User {
   createdAt: Date;
   updatedAt?: Date;
   deletedAt?: Date;
+  gender: GenderEnum;
   roles: RoleEnum[];
 
   constructor({

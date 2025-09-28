@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-//import { CreateUserDto, UpdateUserDto } from "../../intefaces/dtos";
 import { User } from "../../core/entities";
 import { IDataServices } from "../../core/abstracts";
 import { UserFactoryService } from "./user-factory.service";
-import { UserPublicDto, UpdateUserDto } from "@/interfaces/dtos";
+import { UserPublicDto, UpdateUserDto, ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_MESSAGE } from "@/common/constants/response";
 
 @Injectable()
@@ -16,56 +15,69 @@ export class UserUseCases {
   async getAllUsers(): Promise<User[]> {
     return this.dataServices.users.getAll();
   }
-  // async getUserById(id: number): Promise<User> {
-  //     return this.dataServices.users.get(id);
-  // }
 
-  // async createUser(createUserDto: CreateUserDto): Promise<User> {
-  //     const newUser = this.userFactoryService.createNewUser(createUserDto);
-  //     return this.dataServices.users.create(newUser);
-  // }
-
-  // async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-  //     const existingUser = await this.dataServices.users.get(id);
-  //     const updatedUser = this.userFactoryService.updateUser(existingUser, updateUserDto);
-  //     return this.dataServices.users.update(id, updatedUser);
-  // }
-
-  async getUserProfile(userId: number): Promise<User> {
+  async getUserProfile(userId: number): Promise<ApiResponse<User>> {
     const user = await this.dataServices.users.get(userId);
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
     }
 
-    return user;
+    return {
+      message: "User profile fetched successfully",
+      code: RESPONSE_MESSAGE.SUCCESS,
+      data: user,
+    };
   }
 
-  async getUserByUsername(username: string): Promise<UserPublicDto> {
+  async getUserByUsername(
+    username: string,
+  ): Promise<ApiResponse<UserPublicDto>> {
     const user = await this.dataServices.users.getByField({ username });
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
     }
     return {
-      username: user.username,
-      name: user.name,
-      avatarUrl: user.avatarUrl || "",
+      message: "User profile fetched successfully",
+      code: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        username: user.username,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        gender: user.gender,
+      },
     };
   }
 
   async updateUserProfile(
     userId: number,
     updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+  ): Promise<ApiResponse<User>> {
     const user = await this.dataServices.users.get(userId);
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
     }
 
     const updatedUser = this.userFactoryService.updateUser(user, updateUserDto);
     const result = await this.dataServices.users.update(userId, updatedUser);
     if (!result) {
-      throw new NotFoundException(RESPONSE_MESSAGE.USER_NOT_UPDATED);
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+      });
     }
-    return result;
+    return {
+      message: "User profile updated successfully",
+      code: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
+    };
   }
 }
