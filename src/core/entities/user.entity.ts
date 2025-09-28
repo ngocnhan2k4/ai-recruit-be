@@ -9,6 +9,7 @@ export class User {
   avatarUrl?: string;
   name: string;
   dob?: Date;
+  gender?: string;
   createdAt: Date;
   updatedAt?: Date;
   deletedAt?: Date;
@@ -23,6 +24,7 @@ export class User {
     name,
     dob,
     roles,
+    gender,
   }: {
     username: string;
     email?: string;
@@ -32,6 +34,7 @@ export class User {
     name: string;
     dob?: Date;
     roles: RoleEnum[];
+    gender?: string;
   }) {
     this.username = username;
     this.email = email;
@@ -41,5 +44,6 @@ export class User {
     this.name = name;
     this.dob = dob;
     this.roles = roles;
+    this.gender = gender;
   }
 }

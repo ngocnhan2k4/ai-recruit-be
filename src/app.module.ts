@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
-import { UserController, AuthController, UploadController } from "./interfaces/controllers";
+import {
+  UserController,
+  AuthController,
+  UploadController,
+} from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ConfigModule } from "@nestjs/config";
 import envConfig, { validateConfig } from "./common/config/env.config";

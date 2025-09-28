@@ -7,6 +7,7 @@ import {
 } from "class-validator";
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
+import { Expose, plainToInstance } from "class-transformer";
 
 export class CreateUserDto {
   @IsEmail()
@@ -85,4 +86,34 @@ export class UserPublicDto {
   @IsOptional()
   @IsString()
   location?: string;
+}
+
+export class GetUserDto {
+  @Expose()
+  id: number;
+
+  @Expose()
+  username: string;
+
+  @Expose()
+  email?: string;
+  @Expose()
+  phone?: string;
+  @Expose()
+  avatarUrl?: string;
+  @Expose()
+  name: string;
+  @Expose()
+  dob?: Date;
+  @Expose()
+  gender?: string;
+  @Expose()
+  firebaseUid?: string;
+
+  //Use this instead of Object.assign to drop non-exposed fields
+  static from(partial: Partial<GetUserDto>) {
+    return plainToInstance(GetUserDto, partial, {
+      excludeExtraneousValues: true,
+    });
+  }
 }

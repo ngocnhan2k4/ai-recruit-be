@@ -1,6 +1,12 @@
 import { Body, Controller, Post, HttpCode } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
-import { LoginDto, ApiResponse, RefreshTokenDto, TokenPairDto } from "../dtos";
+import {
+  LoginDto,
+  ApiResponse,
+  RefreshTokenDto,
+  TokenPairDto,
+  LoginResponseDto,
+} from "../dtos";
 import {
   ApiTags,
   ApiOperation,
@@ -14,7 +20,13 @@ import {
 } from "@nestjs/swagger";
 
 @ApiTags("Authentication")
-@ApiExtraModels(ApiResponse, TokenPairDto, LoginDto, RefreshTokenDto)
+@ApiExtraModels(
+  ApiResponse,
+  TokenPairDto,
+  LoginDto,
+  RefreshTokenDto,
+  LoginResponseDto,
+)
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authUseCases: AuthUseCases) {}
@@ -42,10 +54,31 @@ export class AuthController {
         { $ref: getSchemaPath(ApiResponse) },
         {
           properties: {
-            data: { $ref: getSchemaPath(TokenPairDto) },
+            data: { $ref: getSchemaPath(LoginResponseDto) },
           },
         },
       ],
+      example: {
+        code: "SUCCESS",
+        message: "Success",
+        data: {
+          tokens: {
+            accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            refreshToken: "f2f374604e2462c13f441457a68c2644ce...",
+          },
+          user: {
+            id: 1,
+            username: "exampleuser",
+            email: "user@example.com",
+            phone: "1234567890",
+            avatarUrl: "https://cdn.example.com/avatar.png",
+            name: "John Doe",
+            dob: "1990-01-01",
+            gender: "Male",
+            firebaseUid: "lPuOOqhJlsc8J5Va7Jg2cYNMp323",
+          },
+        },
+      },
     },
   })
   @ApiUnauthorizedResponse({
@@ -74,7 +107,7 @@ export class AuthController {
   @HttpCode(200)
   async logIn(
     @Body() loginDto: LoginDto,
-  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
+  ): Promise<ApiResponse<LoginResponseDto>> {
     return this.authUseCases.logIn(loginDto.idToken);
   }
 
