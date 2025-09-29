@@ -75,6 +75,61 @@ jobs:
             docker-compose -f docker-compose-dev.yaml pull
             docker-compose -f docker-compose-dev.yaml up -d
 
+      - name: Health Check After Deployment
+        id: healthcheck
+        if: github.event.pull_request.base.ref == 'dev' && success()
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+          script: |
+            echo "🔍 Waiting for application to start..."
+            sleep 30
+            
+            echo "🏥 Running health check..."
+            
+            # Check if container is running
+            if ! docker-compose -f /var/www/my-app/docker-compose-dev.yaml ps | grep "Up"; then
+              echo "❌ Container is not running"
+              docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs backend
+              exit 1
+            fi
+            
+            # Health check with retries
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
+              
+              # Test simple health endpoint
+              if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
+                echo "✅ Health check passed!"
+                
+                # Get health check response
+                HEALTH_RESPONSE=$(curl -s http://localhost:3000/health/simple)
+                echo "📊 Health Status: $HEALTH_RESPONSE"
+            
+                exit 0
+              else
+                echo "❌ Health check failed (attempt $((RETRY_COUNT + 1)))"
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "⏳ Waiting 15 seconds before retry..."
+                  sleep 15
+                fi
+              fi
+            done
+            
+            echo "❌ Health check failed after $MAX_RETRIES attempts"
+            echo "📋 Container logs:"
+            docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs --tail=20 backend
+            echo "🔍 Container status:"
+            docker-compose -f /var/www/my-app/docker-compose-dev.yaml ps
+            exit 1
 
       - name: Notify Slack on Success
         if: success()
