@@ -1,5 +1,5 @@
 import { categories } from "@/frameworks/data-services/postgres/model/category.model";
-import { provinces } from "@/frameworks/data-services/postgres/model/provinces.model";
+import { provinces } from "@/frameworks/data-services/postgres/model/province.model";
 import { skills } from "@/frameworks/data-services/postgres/model/skill.model";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";

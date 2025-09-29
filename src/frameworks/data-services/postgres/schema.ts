@@ -4,4 +4,4 @@ export * from "./model/skill.model";
 export * from "./model/job.model";
 export * from "./model/category.model";
 export * from "./model/refresh-token.model";
-export * from "./model/provinces.model";
+export * from "./model/province.model";

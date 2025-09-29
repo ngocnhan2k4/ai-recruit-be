@@ -1,8 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
-import { Job, StatisticsJobFilter } from "@/core/entities/job.entity";
-import { Company } from "@/core/entities/company.entity";
-import { ApiResponse } from "@/interfaces/dtos";
+import { StatisticsJobFilter } from "@/core/entities/job.entity";
+import { ApiResponse, JobResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -18,7 +17,7 @@ export class JobUseCases {
     limit?: number,
     offset?: number,
     keyword?: string,
-  ): Promise<ApiResponse<{ job: Job; company: Company; skills: string[] }[]>> {
+  ): Promise<ApiResponse<JobResponse[]>> {
     const result = await this.dataServices.jobs.getAllJobs(
       limit,
       offset,
