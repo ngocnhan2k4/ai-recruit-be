@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: always
@@ -22,6 +23,7 @@ services:
       - db
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+
 volumes:
   postgres_data:
   pgadmin_data:

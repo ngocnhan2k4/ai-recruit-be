@@ -19,7 +19,7 @@ def clean_job_url(url: str) -> str:
     return f"{p.scheme}://{p.netloc}/{'/'.join(parts)}"
 
 
-def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
+def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locations: list):
     job_url = urljoin(base_url, link)
     resp = scraper.get(clean_job_url(job_url))
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -60,7 +60,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
     # --- Company page ---
     print(clean_job_url(job_url))
     company_url_tag = soup.find("section", class_="job-show-employer-info").find("a")
-    company_size, locations = None, []
+    company_size = None
     if company_url_tag:
         company_url = urljoin(base_url, company_url_tag.get("href"))
         comp_resp = scraper.get(clean_job_url(company_url))
@@ -72,23 +72,26 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
                 text = safe_text(div)
                 if re.search(r"\d", text):
                     company_size = text.replace("\nemployees", "").strip()
-
-        for span in comp_soup.select("div.locations span.text-break"):
-            locations.append(safe_text(span))
     
         company_description_wrap = comp_soup.find("div", class_="paragraph")
+
+        # Company Website
+        website_wrap = comp_soup.find("div", class_="ipe-4")
+        website_url = None
+        if website_wrap:
+            website_url = website_wrap.get("data-redirect-url-url-value")
+
 
     if company_name not in companies:
         min, max = extract_employees(company_size)
 
         companies[company_name] = {
             "logo": logo,
-            "locations": locations,
             "description": safe_text(company_description_wrap, is_strip=False)\
                 .replace("\n", "", 1).replace("\n", ". ", -1).replace("\xa0", " ", -1),
             "employees_min": min,
             "employees_max": max,
-            "website_url": company_url,
+            "website_url": website_url,
             "crawled_at": datetime.now(),
             "source": "itviec",
             "jobs": {}
@@ -96,6 +99,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict):
 
     companies[company_name]["jobs"][job_title] = {
         "description": description,
+        "locations": locations,
         "job_url": clean_job_url(job_url),
         "date_posted": date_posted,
         "skills": skills,
@@ -112,13 +116,16 @@ def scrape_page(scraper, page_num):
 
     html = scraper.get(listing_url).text
     soup = BeautifulSoup(html, "html.parser")
-    links = [card["data-search--job-selection-job-url-value"]
-             for card in soup.find_all("div", class_="job-card")]
 
     companies = {}
 
-    for link in links:
-        scrape_job_detail(scraper, base_url, link, companies)
+    for card in soup.find_all("div", class_="job-card"):
+        link = card["data-search--job-selection-job-url-value"]
+
+        loc_text = safe_text(card.find("div", class_="text-truncate"))
+        locations = [location.strip() for location in loc_text.split("-") if location]
+
+        scrape_job_detail(scraper, base_url, link, companies, locations)
 
     return companies
 
@@ -127,10 +134,11 @@ def crawl_jobs():
     scraper = cloudscraper.create_scraper()
 
     all_companies = {}
-    pages = 52
+    pages = 51
 
-    for page_num in range(1, pages):
+    for page_num in range(2, pages):
         attempts = 0
+
         while True:
             try:
                 attempts += 1

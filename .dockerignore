@@ -23,3 +23,5 @@ docker-compose.yaml
 
 .husky
 README.md
+
+crawl_jobs

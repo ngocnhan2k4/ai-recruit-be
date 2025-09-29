@@ -24,6 +24,8 @@ export class JobController {
       query.limit,
       query.offset,
       query.keyword,
+      query.sortBy,
+      query.sortDirection,
     );
   }
 

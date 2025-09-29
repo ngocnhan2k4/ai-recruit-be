@@ -24,11 +24,11 @@ export class GeneralQueryDto {
   offset?: number = 0;
 
   @ApiProperty({
-    example: "created_at",
+    example: "date_posted",
     required: false,
     description: "Field to sort by",
   })
-  sortBy?: string = "created_at";
+  sortBy?: string = "date_posted";
 
   @ApiProperty({
     example: "asc",
