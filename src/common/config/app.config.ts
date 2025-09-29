@@ -14,6 +14,9 @@ export interface AppConfigProps {
   jwtExpiresIn: string;
   refreshExpiresIn: number;
   firebaseStorageBucket: string;
+  cloudinaryCloudName: string;
+  cloudinaryApiKey: string;
+  cloudinaryApiSecret: string;
 }
 
 export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
@@ -33,5 +36,8 @@ export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
     firebaseStorageBucket: configService.get<string>(
       "FIREBASE_STORAGE_BUCKET",
     )!,
+    cloudinaryCloudName: configService.get<string>("CLOUDINARY_CLOUD_NAME")!,
+    cloudinaryApiKey: configService.get<string>("CLOUDINARY_API_KEY")!,
+    cloudinaryApiSecret: configService.get<string>("CLOUDINARY_API_SECRET")!,
   };
 };

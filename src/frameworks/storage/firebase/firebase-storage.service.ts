@@ -28,7 +28,7 @@ export class FirebaseStorageService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseStorageService.name);
   private bucket: any;
 
-  constructor() {}
+  constructor() { }
 
   onModuleInit() {
     // Initialize Firebase app if not already initialized
@@ -42,7 +42,7 @@ export class FirebaseStorageService implements OnModuleInit {
       .storage()
       .bucket(
         process.env.FIREBASE_STORAGE_BUCKET ||
-          `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
+        `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
       );
     this.logger.log("Firebase Storage service initialized");
   }

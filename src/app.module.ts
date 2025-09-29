@@ -14,7 +14,8 @@ import { CategoryController } from "./interfaces/controllers/category.controller
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 import { JobController } from "./interfaces/controllers/job.controller";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
-import { StorageModule } from "./frameworks/storage/storage.module";
+import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.module";
+import { StorageModule } from "./use-cases/storage/storage.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StorageModule } from "./frameworks/storage/storage.module";
     AuthUseCasesModule,
     CasbinModule,
     CategoryUseCasesModule,
+    CloudinaryModule,
     StorageModule,
   ],
   controllers: [
@@ -40,4 +42,4 @@ import { StorageModule } from "./frameworks/storage/storage.module";
   ],
   providers: [JwtStrategy],
 })
-export class AppModule {}
+export class AppModule { }

@@ -12,6 +12,8 @@ export const RESPONSE_CODE = {
   BAD_REQUEST: "BAD_REQUEST",
   VALIDATION_ERROR: "VALIDATION_ERROR",
   USER_NOT_UPDATED: "USER_NOT_UPDATED",
+  USER_EXPERIENCE_NOT_FOUND: "USER_EXPERIENCE_NOT_FOUND",
+  USER_SKILL_NOT_FOUND: "USER_SKILL_NOT_FOUND",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -25,4 +27,6 @@ export const RESPONSE_MESSAGE = {
   BAD_REQUEST: "Bad request.",
   VALIDATION_ERROR: "Validation error.",
   USER_NOT_UPDATED: "User not updated.",
+  USER_EXPERIENCE_NOT_FOUND: "User experience not found.",
+  USER_SKILL_NOT_FOUND: "User skill not found.",
 };

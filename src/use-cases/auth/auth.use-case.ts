@@ -77,7 +77,6 @@ export class AuthUseCases {
     await this.dataServices.refreshTokens.create({
       userId: user.id,
       token: refreshToken,
-      createdAt: newDate,
       expiresAt: new Date(refreshTokenExpires),
       revoked: false,
     });

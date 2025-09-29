@@ -22,4 +22,5 @@ export class UserFactoryService {
     user = { ...user, ...updateUserDto };
     return user;
   }
+  
 }

@@ -20,6 +20,8 @@ import {
   IJobGenericRepository,
   ICategoryGenericRepository,
   StatisticsJobFilter,
+  IUserExperienceGenericRepository,
+  IUserSkillGenericRepository,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
 import {
@@ -29,13 +31,15 @@ import {
   skills,
   jobSkills,
   jobCategories,
+  users,
+  userSkills,
 } from "./model";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 import { convertDateToStr } from "@/common/utils/date";
+import { UpdateUserExperienceDto } from "@/interfaces/dtos";
 
 export class PostgresGenericRepository<T, TTable>
-  implements IGenericRepository<T>
-{
+  implements IGenericRepository<T> {
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
@@ -95,12 +99,19 @@ export class PostgresGenericRepository<T, TTable>
       .returning();
     return (result[0] as T) || null;
   }
+
+  async delete(id: number | string): Promise<T | null> {
+    const result = await this.db
+      .delete(this._table as any)
+      .where(eq((this._table as any).id, id))
+      .returning();
+    return (result[0] as T) || null;
+  }
 }
 
 export class AuthPostgresGenericRepository<T, TTable>
   extends PostgresGenericRepository<T, TTable>
-  implements IAuthGenericRepository<T>
-{
+  implements IAuthGenericRepository<T> {
   async revoke(token: string): Promise<void> {
     await this.db
       .update(this._table as any)
@@ -125,8 +136,7 @@ export class AuthPostgresGenericRepository<T, TTable>
 
 export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
   extends PostgresGenericRepository<TJob, JobTable>
-  implements IJobGenericRepository<TJob, TCompany, TSkill>
-{
+  implements IJobGenericRepository<TJob, TCompany, TSkill> {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, jobs as JobTable);
   }
@@ -217,9 +227,9 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
       provinceId ? eq(jobsTable.provinceId, provinceId) : undefined,
       isOpen
         ? or(
-            isNull(jobsTable.endDate),
-            gt(jobsTable.endDate, convertDateToStr(new Date())),
-          )
+          isNull(jobsTable.endDate),
+          gt(jobsTable.endDate, convertDateToStr(new Date())),
+        )
         : undefined,
     ];
 
@@ -255,7 +265,6 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
       sql`j.salary_min IS NOT NULL`,
       sql`j.salary_max IS NOT NULL`,
     ];
-    console.log("fromDDate", fromDate, toDate);
     if (fromDate) {
       where.push(sql`j.date_posted >= ${convertDateToStr(fromDate)}`);
     }
@@ -287,8 +296,7 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
 
 export class CategoryPostgresGenericRepository<TCategory, TTable>
   extends PostgresGenericRepository<TCategory, TTable>
-  implements ICategoryGenericRepository<TCategory>
-{
+  implements ICategoryGenericRepository<TCategory> {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, categories as TTable);
   }
@@ -297,5 +305,85 @@ export class CategoryPostgresGenericRepository<TCategory, TTable>
     const result = (await this.db.select().from(categories)) as TCategory[];
 
     return result;
+  }
+}
+
+export class UserExperiencePostgresGenericRepository<TUserExperience, TTable>
+  extends PostgresGenericRepository<TUserExperience, TTable>
+  implements IUserExperienceGenericRepository<TUserExperience> {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+    super(db, users as TTable);
+  }
+
+  async getByUserId(userId: number): Promise<TUserExperience[]> {
+    const result = await this.db
+      .select()
+      .from(this._table as any)
+      .where(eq((this._table as any).user_id, userId));
+    return result as TUserExperience[];
+  }
+
+  async updateUserExperience(userId: number, id: string, item: UpdateUserExperienceDto): Promise<TUserExperience | null> {
+    const result = await this.db
+      .update(this._table as any)
+      .set(item as {
+        [key: string]: any;
+      })
+      .where(and(eq((this._table as any).id, id), eq((this._table as any).user_id, userId)))
+      .returning();
+    return (result[0] as TUserExperience) || null;
+  }
+
+  async deleteUserExperience(userId: number, id: string): Promise<TUserExperience | null> {
+    const result = await this.db
+      .delete(this._table as any)
+      .where(and(eq((this._table as any).id, id), eq((this._table as any).user_id, userId)))
+      .returning();
+    return (result[0] as TUserExperience) || null;
+  }
+
+}
+
+export class UserSkillPostgresGenericRepository<TUserSkill, TTable>
+  extends PostgresGenericRepository<TUserSkill, TTable>
+  implements IUserSkillGenericRepository<TUserSkill> {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+    super(db, userSkills as TTable);
+  }
+
+  async getByUserId(userId: number): Promise<TUserSkill[]> {
+    const result = await this.db
+      .select()
+      .from(this._table as any)
+      .where(eq((this._table as any).user_id, userId));
+    return result as TUserSkill[];
+  }
+
+  async createUserSkill(userId: number, skillId: string): Promise<TUserSkill> {
+    const result = await this.db
+      .insert(this._table as any)
+      .values({ user_id: userId, skill_id: skillId })
+      .returning();
+    return result[0] as TUserSkill;
+  }
+
+  async deleteUserSkill(userId: number, skillId: string): Promise<TUserSkill | null> {
+    const result = await this.db
+      .delete(this._table as any)
+      .where(and(eq((this._table as any).user_id, userId), eq((this._table as any).skill_id, skillId)))
+      .returning();
+    return (result[0] as TUserSkill) || null;
+  }
+
+  async updateUserSkill(userId: number, skillId: string): Promise<TUserSkill | null> {
+    const result = await this.db
+      .update(this._table as any)
+      .set({
+        user_id: userId,
+        skill_id: skillId,
+      })
+      .where(and(eq((this._table as any).user_id, userId), eq((this._table as any).skill_id, skillId)))
+      .returning();
+    return (result[0] as TUserSkill) || null;
   }
 }
