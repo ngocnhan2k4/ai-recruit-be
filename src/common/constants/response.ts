@@ -9,9 +9,10 @@ export const RESPONSE_CODE = {
   SERVER_ERROR: "SERVER_ERROR",
   FORBIDDEN: "FORBIDDEN",
   UNAUTHORIZED: "UNAUTHORIZED",
-  BAD_REQUEST: "BAD_REQUEST",
   VALIDATION_ERROR: "VALIDATION_ERROR",
   USER_NOT_UPDATED: "USER_NOT_UPDATED",
+  TOKEN_EXPIRED: "TOKEN_EXPIRED",
+  TOKEN_NOT_FOUND: "TOKEN_NOT_FOUND",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -22,7 +23,6 @@ export const RESPONSE_MESSAGE = {
   SERVER_ERROR: "Internal server error.",
   FORBIDDEN: "Access denied.",
   UNAUTHORIZED: "Unauthorized access.",
-  BAD_REQUEST: "Bad request.",
   VALIDATION_ERROR: "Validation error.",
   USER_NOT_UPDATED: "User not updated.",
 };

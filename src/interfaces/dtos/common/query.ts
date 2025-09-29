@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsString } from "class-validator";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
 
@@ -46,6 +46,7 @@ export class GeneralQueryDto {
     required: false,
     description: "Cursor for pagination",
   })
+  @IsOptional()
   @IsString()
   cursor?: string;
 
@@ -54,6 +55,7 @@ export class GeneralQueryDto {
     required: false,
     description: "Keyword to search",
   })
+  @IsOptional()
   @IsString()
   keyword?: string;
 }

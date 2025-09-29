@@ -3,17 +3,18 @@ import { GenderEnum, RoleEnum } from "../../common/constants/roles";
 export class User {
   id: number;
   username: string;
-  email?: string;
-  phone?: string;
-  firebaseUid?: string;
-  avatarUrl?: string;
+  email: string | null;
+  phone: string | null;
+  firebaseUid: string | null;
+  avatarUrl: string | null;
   name: string;
-  dob?: Date;
+  dob: Date | null;
   createdAt: Date;
-  updatedAt?: Date;
-  deletedAt?: Date;
-  gender?: GenderEnum;
+  updatedAt: Date | null;
+  deletedAt: Date | null;
+  gender: GenderEnum | null;
   roles: RoleEnum[];
+  emailVerified: boolean;
 
   constructor({
     username,
@@ -25,6 +26,7 @@ export class User {
     dob,
     roles,
     gender,
+    emailVerified,
   }: {
     username: string;
     email?: string;
@@ -35,15 +37,17 @@ export class User {
     dob?: Date;
     roles: RoleEnum[];
     gender?: GenderEnum;
+    emailVerified?: boolean;
   }) {
     this.username = username;
-    this.email = email;
-    this.phone = phone;
-    this.firebaseUid = firebaseUid;
-    this.avatarUrl = avatarUrl;
+    this.email = email ?? null;
+    this.phone = phone ?? null;
+    this.firebaseUid = firebaseUid ?? null;
+    this.avatarUrl = avatarUrl ?? null;
     this.name = name;
-    this.dob = dob;
+    this.dob = dob ?? null;
     this.roles = roles;
-    this.gender = gender;
+    this.gender = gender ?? null;
+    this.emailVerified = !!emailVerified;
   }
 }

@@ -20,11 +20,13 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       "http://127.0.0.1:3001",
       "http://localhost:3001",
       "http://localhost:3000",
+      "http://localhost:4000", // Add common frontend port
       "http://20.255.248.56:3000",
     ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["*"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
