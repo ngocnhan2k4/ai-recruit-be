@@ -3,7 +3,7 @@ import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 const tags: string[] = ["Users", "File Upload"];
-const developmentUrls: string[] = ["localhost"];
+const developmentUrls: string[] = ["localhost", "20.255.248.56"];
 const productionUrls: string[] = [];
 
 const generateTags = (tags: string[]) => {
