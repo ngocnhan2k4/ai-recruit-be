@@ -2,11 +2,12 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
 import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants/roles";
+import { AnonymousId, RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
+import { generateUsername } from "@/common/utils/string";
 @Injectable()
 export class AuthUseCases {
   constructor(
@@ -26,6 +27,7 @@ export class AuthUseCases {
       email?: string;
       name?: string;
       picture?: string;
+      provider_id?: string;
     };
     try {
       decode = await this.authService.verifyIdToken(idToken);
@@ -35,23 +37,42 @@ export class AuthUseCases {
         code: RESPONSE_CODE.INVALID_CREDENTIALS,
       });
     }
-
-    let user = await this.dataServices.users.getByField({
-      firebaseUid: decode.uid,
-    });
-    if (!user) {
-      user = await this.dataServices.users.create(
-        new User({
-          username: decode.name!,
-          email: decode.email,
-          avatarUrl: decode.picture,
-          firebaseUid: decode.uid,
-          roles: [RoleEnum.USER],
-          name: decode.name!,
-        }),
-      );
+    let user: User | null = null;
+    if (decode.provider_id !== "anonymous") {
+      user = await this.dataServices.users.getByField({
+        firebaseUid: decode.uid,
+      });
+      if (!user) {
+        user = await this.dataServices.users.create(
+          new User({
+            username: generateUsername(decode.name!), // [TODO]: check exist username here
+            email: decode.email,
+            avatarUrl: decode.picture,
+            firebaseUid: decode.uid,
+            roles: [RoleEnum.USER],
+            name: decode.name!,
+          }),
+        );
+      } else {
+        // Update user info if necessary
+      }
     } else {
-      // Update user info if necessary
+      user = {
+        id: AnonymousId,
+        username: "Anonymous",
+        roles: [RoleEnum.ANONYMOUS],
+        firebaseUid: decode.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: "Anonymous",
+        email: null,
+        avatarUrl: null,
+        phone: null,
+        dob: null,
+        deletedAt: null,
+        gender: null,
+        emailVerified: false,
+      };
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     return {

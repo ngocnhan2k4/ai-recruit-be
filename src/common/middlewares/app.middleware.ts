@@ -20,6 +20,7 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       "http://127.0.0.1:3001",
       "http://localhost:3001",
       "http://localhost:3000",
+      "http://localhost:4000", // Add common frontend port
     ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],

@@ -1,5 +1,4 @@
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { AnonymousId } from "@/common/constants/roles";
 import {
   Injectable,
   ExecutionContext,
@@ -8,16 +7,17 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 
+// Allow guest users, but still validate JWT if provided
 @Injectable()
-export class JwtAuthGuard extends AuthGuard("jwt") {
-  private readonly logger = new Logger(JwtAuthGuard.name);
+export class GuestGuard extends AuthGuard("jwt") {
+  private readonly logger = new Logger(GuestGuard.name);
   handleRequest<TokenPayload>(
     err: any,
     user: any,
     info: any,
     _context: ExecutionContext,
   ): TokenPayload {
-    if (err || !user || user.sub === AnonymousId) {
+    if (err || !user) {
       this.logger.error("[JwtAuthGuard] [handleRequest] JWT Info:", info, err);
       throw new UnauthorizedException({
         message: info?.message || "Unauthorized",

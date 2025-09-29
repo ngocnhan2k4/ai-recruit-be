@@ -25,8 +25,30 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
-          await pool.query("SELECT 1");
-          logger.log("Database connection established successfully.");
+          const maxRetries = 3;
+          let attempt = 0;
+          let connected = false;
+
+          while (!connected && attempt < maxRetries) {
+            attempt++;
+            try {
+              await pool.query("SELECT 1");
+              connected = true;
+              logger.log(
+                `Database connection established successfully (attempt ${attempt}).`,
+              );
+            } catch (err) {
+              logger.error(
+                `Database connection attempt ${attempt} failed:`,
+                err,
+              );
+              if (attempt < maxRetries) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              } else {
+                throw err; // hết retry thì throw
+              }
+            }
+          }
           const db = drizzle(pool, {
             casing: "snake_case",
             // logger: process.env.NODE_ENV === "development",

@@ -1,4 +1,11 @@
-import { Body, Controller, Post, HttpCode, Res, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  Res,
+  Req,
+  BadRequestException,
+} from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import {
   LoginDto,
@@ -8,13 +15,7 @@ import {
   ApiResponseDto,
   AccessTokenDto,
 } from "../dtos";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiOkResponse,
-  ApiBody,
-  getSchemaPath,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN } from "@/common/constants/token";
 import { RESPONSE_CODE } from "@/common/constants/response";
@@ -35,7 +36,6 @@ export class AuthController {
   })
   @ApiResponseDto(LoginResponseDto)
   @Post("login")
-  @HttpCode(200)
   async logIn(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: FastifyReply,
@@ -49,8 +49,7 @@ export class AuthController {
       secure: false, // Set to true in production with HTTPS
       sameSite: "lax", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: undefined, // Let browser set automatically
+      domain: undefined, // Let browser set automatically in dev
     });
 
     return {
@@ -80,17 +79,16 @@ export class AuthController {
   })
   @ApiResponseDto(AccessTokenDto)
   @Post("refresh")
-  @HttpCode(200)
   async refresh(
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
   ): Promise<ApiResponse<AccessTokenDto>> {
     const token = req.cookies[REFRESH_TOKEN];
     if (!token) {
-      return {
-        message: "Refresh token not provided",
+      throw new BadRequestException({
         code: RESPONSE_CODE.TOKEN_NOT_FOUND,
-      };
+        message: "Refresh token not provided",
+      });
     }
     const result = await this.authUseCases.refreshToken(token);
 
@@ -101,7 +99,6 @@ export class AuthController {
       secure: false, // Set to true in production with HTTPS
       sameSite: "lax", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       domain: undefined, // Let browser set automatically
     });
 
@@ -122,22 +119,8 @@ export class AuthController {
     description: "Refresh token",
     type: RefreshTokenDto,
   })
-  @ApiOkResponse({
-    description: "Logout success",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "SUCCESS",
-            message: "Logged out successfully.",
-          },
-        },
-      ],
-    },
-  })
+  @ApiResponseDto("string")
   @Post("logout")
-  @HttpCode(200)
   async logout(
     @Res({ passthrough: true }) res: FastifyReply,
     @Req() req: FastifyRequest,
@@ -145,7 +128,10 @@ export class AuthController {
     const token = req.cookies[REFRESH_TOKEN];
     console.log("token", token);
     if (!token) {
-      throw new Error("Refresh token not provided");
+      throw new BadRequestException({
+        code: RESPONSE_CODE.TOKEN_NOT_FOUND,
+        message: "Refresh token not provided",
+      });
     }
     res.clearCookie(REFRESH_TOKEN, {
       httpOnly: true,
