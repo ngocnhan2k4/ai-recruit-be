@@ -45,7 +45,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     this.logger.error(
       `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,
     );
-
     if (this.appConfigs.nodeEnv === "development") {
       assign(resContent, { stack: (exception as any).stack });
     }

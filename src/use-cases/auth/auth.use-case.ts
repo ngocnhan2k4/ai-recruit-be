@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthServices, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
-import { ApiResponse, LoginResponseDto, GetUserDto } from "@/interfaces/dtos";
+import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
@@ -15,7 +15,12 @@ export class AuthUseCases {
     private readonly configService: ConfigService,
   ) {}
 
-  async logIn(idToken: string): Promise<ApiResponse<LoginResponseDto>> {
+  async logIn(idToken: string): Promise<
+    ApiResponse<{
+      tokens: { accessToken: string; refreshToken: string };
+      user: GetUserDto;
+    }>
+  > {
     let decode: {
       uid: string;
       email?: string;
@@ -70,7 +75,7 @@ export class AuthUseCases {
 
     const newDate = new Date();
     const refreshExpiresIn =
-      this.configService.get<number>("REFRESH_EXPIRES_IN") || 7;
+      this.configService.get<number>("REFRESH_EXPIRES_IN")!;
     const refreshTokenExpires = new Date(
       newDate.getTime() + refreshExpiresIn * 24 * 60 * 60 * 1000,
     ); // 7 days
