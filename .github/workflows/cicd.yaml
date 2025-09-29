@@ -72,7 +72,8 @@ jobs:
           script: |
             cd /var/www/my-app
             sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:${{ github.sha }}|g" docker-compose-dev.yaml
-            docker-compose -f docker-compose-dev.yaml pull
+            docker-compose -f docker-compose-dev.yaml down
+            docker rmi -f $(docker images -aq)
             docker-compose -f docker-compose-dev.yaml up -d
 
       - name: Health Check After Deployment
