@@ -106,11 +106,11 @@ jobs:
               echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
               
               # Test simple health endpoint
-              if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
+              if curl -f -s http://20.255.248.56:3000/api/v1/health > /dev/null 2>&1; then
                 echo "✅ Health check passed!"
                 
                 # Get health check response
-                HEALTH_RESPONSE=$(curl -s http://localhost:3000/health/simple)
+                HEALTH_RESPONSE=$(curl -s http://20.255.248.56:3000/api/v1/health)
                 echo "📊 Health Status: $HEALTH_RESPONSE"
             
                 exit 0
@@ -152,7 +152,9 @@ jobs:
             • Build: ✅ Passed
             • SonarQube: ✅ Passed
             • Docker: ✅ Built & Pushed
-            • Deploy: ✅ Successful
+            • Deploy: ✅ Successful) 
+            • Health Check: ✅ Passed
+      
 
       - name: Notify Slack on Failure
         if: failure()
