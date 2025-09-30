@@ -49,7 +49,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
-            sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:$SHORT_SHA|g" docker-compose-dev.yaml
+            sed -i "s|\(image: .*/ai-recruit:\).*|\1$SHORT_SHA|g" docker-compose-dev.yaml
             docker-compose -f docker-compose-dev.yaml down
             docker rmi -f $(docker images -aq)
             docker-compose -f docker-compose-dev.yaml up -d
