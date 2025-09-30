@@ -5,7 +5,7 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
-import { HttpExceptionFilter } from "./http-exception.config";
+
 import { FastifyRequest, FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
@@ -20,10 +20,13 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       "http://127.0.0.1:3001",
       "http://localhost:3001",
       "http://localhost:3000",
+      "http://localhost:4000", // Add common frontend port
+      "https://airecruit.software",
     ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["*"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
@@ -52,5 +55,5 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       whitelist: true,
     }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter(appConfigs));
+  // HttpExceptionFilter is now handled by APP_FILTER provider in app.module.ts
 };

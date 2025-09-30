@@ -28,10 +28,13 @@ export class UserPublicDto {
   name: string;
 
   @ApiProperty()
-  avatarUrl?: string;
+  avatarUrl: string | null;
 
   @ApiProperty()
-  gender?: GenderEnum;
+  gender: GenderEnum | null;
+
+  @ApiProperty()
+  dob: Date | null;
 }
 
 export class UserDto {
@@ -42,34 +45,34 @@ export class UserDto {
   username: string;
 
   @ApiProperty({ required: false })
-  email?: string;
+  email: string | null;
 
   @ApiProperty({ required: false })
-  phone?: string;
+  phone: string | null;
 
   @ApiProperty({ required: false })
-  avatarUrl?: string;
+  avatarUrl: string | null;
 
   @ApiProperty()
   name: string;
 
   @ApiProperty({ required: false })
-  dob?: Date;
+  dob: Date | null;
 
   @ApiProperty()
   createdAt: Date;
 
   @ApiProperty({ required: false })
-  updatedAt?: Date;
+  updatedAt: Date | null;
 
   @ApiProperty({ required: false })
-  firebaseUid?: string;
+  firebaseUid: string | null;
 
   @ApiProperty({ required: false, enum: GenderEnum })
-  gender?: GenderEnum;
+  gender: GenderEnum | null;
 
   @ApiProperty({ required: false, type: "boolean" })
-  emailVerified?: boolean;
+  emailVerified: boolean | null;
 }
 
 export class GetUserDto {
@@ -80,19 +83,21 @@ export class GetUserDto {
   username: string;
 
   @Expose()
-  email?: string;
+  email: string | null;
   @Expose()
-  phone?: string;
+  phone: string | null;
   @Expose()
-  avatarUrl?: string;
+  avatarUrl: string | null;
   @Expose()
   name: string;
   @Expose()
-  dob?: Date;
+  dob: Date | null;
   @Expose()
-  gender?: string;
+  gender: string | null;
   @Expose()
-  firebaseUid?: string;
+  firebaseUid: string | null;
+  @Expose()
+  emailVerified: boolean;
 
   //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserDto>) {

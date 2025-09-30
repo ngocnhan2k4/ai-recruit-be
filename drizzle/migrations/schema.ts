@@ -7,7 +7,6 @@ import {
   date,
   varchar,
   text,
-  boolean,
   timestamp,
   integer,
   unique,

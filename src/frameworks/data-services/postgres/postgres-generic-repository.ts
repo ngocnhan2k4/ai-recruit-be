@@ -2,7 +2,6 @@ import {
   eq,
   and,
   gt,
-  getTableColumns,
   isNotNull,
   lte,
   gte,
@@ -13,6 +12,8 @@ import {
   sql,
   ilike,
   asc,
+  desc,
+  SQLWrapper,
 } from "drizzle-orm";
 import {
   IGenericRepository,
@@ -33,6 +34,7 @@ import {
   jobCategories,
   users,
   userSkills,
+  provinces,
 } from "./model";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
 import { convertDateToStr } from "@/common/utils/date";
@@ -136,9 +138,15 @@ export class AuthPostgresGenericRepository<T, TTable>
   }
 }
 
-export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
+export class JobPostgresGenericRepository<
+    TJob,
+    TProvince,
+    TCompany,
+    TSkill,
+    JobTable,
+  >
   extends PostgresGenericRepository<TJob, JobTable>
-  implements IJobGenericRepository<TJob, TCompany, TSkill>
+  implements IJobGenericRepository<TJob, TProvince, TCompany, TSkill>
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, jobs as JobTable);
@@ -148,29 +156,44 @@ export class JobPostgresGenericRepository<TJob, TCompany, TSkill, JobTable>
     limit = 50,
     offset = 0,
     keyword = "",
-  ): Promise<{ job: TJob; company: TCompany; skills: TSkill[] }[]> {
-    const {
-      id: _jobId,
-      companyId: _company_id,
-      ...restJob
-    } = getTableColumns(jobs);
-    const { id: _companyId, ...restCompany } = getTableColumns(companies);
+    sortBy = "datePosted",
+    sortDirection: "asc" | "desc" = "asc",
+  ): Promise<
+    { job: TJob; provinces: TProvince[]; company: TCompany; skills: TSkill[] }[]
+  > {
+    const sortColumn: SQLWrapper = jobs[sortBy];
+
+    const orderExpr =
+      sortDirection === "asc" ? asc(sortColumn) : desc(sortColumn);
 
     const result = (await this.db
       .select({
-        job: { ...restJob },
-        company: { ...restCompany },
-        skills: sql`coalesce(json_agg(distinct ${skills.name}) filter (where ${skills.name} is not null), '[]')`,
+        job: jobs,
+        provinces:
+          sql`COALESCE(json_agg(${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
+            "provinces",
+          ),
+        company: companies,
+        skills:
+          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
+            "skills",
+          ),
       })
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .where(ilike(jobs.title, `%${keyword}%`))
       .groupBy(jobs.id, companies.id)
-      .orderBy(asc(jobs.id))
+      .orderBy(orderExpr)
       .limit(limit)
-      .offset(offset)) as { job: TJob; company: TCompany; skills: TSkill[] }[];
+      .offset(offset)) as {
+      job: TJob;
+      provinces: TProvince[];
+      company: TCompany;
+      skills: TSkill[];
+    }[];
 
     return result;
   }

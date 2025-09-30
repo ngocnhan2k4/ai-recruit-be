@@ -87,6 +87,7 @@ export class UserUseCases {
         name: user.name,
         avatarUrl: user.avatarUrl,
         gender: user.gender,
+        dob: user.dob,
       },
     };
   }

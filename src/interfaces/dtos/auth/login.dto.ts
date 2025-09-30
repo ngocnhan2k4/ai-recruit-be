@@ -13,23 +13,15 @@ export class RefreshTokenDto {
   refreshToken: string;
 }
 
-export class TokenPairDto {
+export class AccessTokenDto {
   @ApiProperty({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ..." })
   accessToken: string;
-
-  @ApiProperty({ example: "f2f374604e2462c13f441457a68c2644ce..." })
-  refreshToken: string;
 }
 
 export class LoginResponseDto {
-  @ApiProperty({ type: () => TokenPairDto })
-  tokens: TokenPairDto;
+  @ApiProperty({ example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ..." })
+  accessToken: string;
 
   @ApiProperty({ type: () => GetUserDto })
   user: GetUserDto;
-
-  constructor(tokens: TokenPairDto, user: GetUserDto) {
-    this.tokens = tokens;
-    this.user = user;
-  }
 }

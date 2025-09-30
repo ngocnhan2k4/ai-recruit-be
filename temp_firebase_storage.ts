@@ -45,7 +45,6 @@ export class FirebaseStorageService implements OnModuleInit {
           `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
       );
     this.logger.log("Firebase Storage service initialized");
-    console.log(this.bucket);
   }
 
   async uploadFile(
@@ -114,7 +113,7 @@ export class FirebaseStorageService implements OnModuleInit {
         action: "read",
         expires: "03-09-2491",
       });
-      return url;
+      return url as string;
     } catch (error) {
       this.logger.error("Error getting file URL from Firebase Storage:", error);
       throw new BadRequestException("Failed to get file URL");
