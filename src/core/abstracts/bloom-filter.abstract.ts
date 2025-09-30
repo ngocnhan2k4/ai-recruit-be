@@ -5,8 +5,8 @@ export abstract class IBloomFilterService {
   abstract getSize(): number;
   abstract serialize(): string;
   abstract deserialize(data: string): void;
-  abstract initialize(items: string[]): Promise<void>;
-  abstract addAndPersist(item: string): Promise<void>;
-  abstract getLastUpdateTime(): Promise<Date | null>;
-  abstract isStale(maxAgeHours?: number): Promise<boolean>;
+  abstract initialize(items: string[]): void;
+  abstract addAndPersist(item: string): void;
+  abstract mightContainAny(items: string[]): boolean;
+  abstract mightContainAll(items: string[]): boolean;
 }

@@ -52,17 +52,17 @@ export class EnvironmentVariables {
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
 
-  @IsString()
-  REDIS_HOST: string;
+  // @IsString()
+  // REDIS_HOST: string;
 
-  @IsNumber()
-  REDIS_PORT: number;
+  // @IsNumber()
+  // REDIS_PORT: number;
 
-  @IsString()
-  REDIS_PASSWORD: string;
+  // @IsString()
+  // REDIS_PASSWORD: string;
 
-  @IsNumber()
-  REDIS_DB: number;
+  // @IsNumber()
+  // REDIS_DB: number;
 }
 
 export default (): Record<string, any> => ({

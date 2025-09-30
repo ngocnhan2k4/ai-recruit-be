@@ -15,50 +15,33 @@ export class UserUseCases implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Check if bloom filter was loaded from Redis
-    const lastUpdate = await this.bloomFilterService.getLastUpdateTime();
-
-    if (!lastUpdate) {
-      this.logger.log(
-        "No Bloom filter found in Redis, building from database...",
-      );
-      await this.initializeBloomFilter();
-    } else {
-      this.logger.log(
-        `Bloom filter loaded from Redis. Last updated: ${lastUpdate.toISOString()}`,
-      );
-    }
+    await this.initializeBloomFilter();
   }
 
   @Cron(CronExpression.EVERY_HOUR)
   async refreshBloomFilterScheduled() {
-    this.logger.log("Starting scheduled Bloom filter refresh...");
+    this.logger.log(
+      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
+    );
     await this.initializeBloomFilter();
-    this.logger.log("Scheduled Bloom filter refresh completed");
   }
 
   private async initializeBloomFilter() {
     try {
-      // Check if bloom filter is stale
-      const isStale = await this.bloomFilterService.isStale(1); // 1 hour
-
-      if (!isStale) {
-        this.logger.log("Bloom filter is still fresh, skipping refresh");
-        return;
-      }
-
       // Get all usernames from database
       const users = await this.dataServices.users.getAll();
       const usernames = users.map((user) => user.username);
 
-      // Initialize bloom filter with usernames and save to Redis
-      await this.bloomFilterService.initialize(usernames);
+      this.bloomFilterService.initialize(usernames);
 
       this.logger.log(
-        `Bloom filter refreshed with ${usernames.length} usernames`,
+        `[UserUseCases] [initializeBloomFilter] Bloom filter refreshed with ${usernames.length} usernames`,
       );
     } catch (error) {
-      this.logger.error("Failed to initialize bloom filter:", error);
+      this.logger.error(
+        "[UserUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
+        error,
+      );
       throw error;
     }
   }

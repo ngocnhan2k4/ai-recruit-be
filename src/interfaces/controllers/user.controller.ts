@@ -1,13 +1,9 @@
-import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiOkResponse,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiParam } from "@nestjs/swagger";
 import { Controller, Get, Param, UseGuards } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import { JwtAuthGuard, CasbinGuard } from "@/frameworks/auth-services/guards";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
+import { ApiResponseDto } from "../dtos";
 
 @ApiTags("Users")
 @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -33,23 +29,7 @@ export class UserController {
     description: "Username to check",
     example: "john_doe",
   })
-  @ApiOkResponse({
-    description: "Username check result",
-    schema: {
-      type: "object",
-      properties: {
-        exists: { type: "boolean", example: true },
-        code: {
-          type: "string",
-          example: "SUCCESS",
-        },
-        message: {
-          type: "string",
-          example: "Username check result",
-        },
-      },
-    },
-  })
+  @ApiResponseDto("string")
   async checkUsername(@Param("username") username: string) {
     const result = await this.userUseCases.checkUserByUsername(username);
 

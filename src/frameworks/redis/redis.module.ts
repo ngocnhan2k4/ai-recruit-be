@@ -1,9 +1,8 @@
-import { Module, Global, Logger } from "@nestjs/common";
+import { Module, Logger } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { Redis } from "ioredis";
 import { RedisService } from "./redis.service";
 
-@Global()
 @Module({
   imports: [ConfigModule],
   providers: [
@@ -12,10 +11,10 @@ import { RedisService } from "./redis.service";
       useFactory: async (configService: ConfigService) => {
         const logger = new Logger("RedisModule");
         const redis = new Redis({
-          host: configService.get<string>("REDIS_HOST", "localhost"),
-          port: configService.get<number>("REDIS_PORT", 6379),
+          host: configService.get<string>("REDIS_HOST"),
+          port: configService.get<number>("REDIS_PORT"),
           password: configService.get<string>("REDIS_PASSWORD"),
-          db: configService.get<number>("REDIS_DB", 0),
+          db: configService.get<number>("REDIS_DB"),
           maxRetriesPerRequest: 3,
         });
 
