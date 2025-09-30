@@ -19,10 +19,8 @@ import {
 
 import { UploadFileDto, UploadResultDto } from "@/interfaces/dtos/upload.dto";
 import { ApiResponse as CustomApiResponse } from "@/interfaces/dtos/common/api-response.dto";
-import { Readable } from "stream";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";
-
 @ApiTags("File Upload")
 @Controller("upload")
 export class UploadController {
@@ -58,21 +56,7 @@ export class UploadController {
       throw new BadRequestException("No file uploaded");
     }
 
-    // Convert Fastify multipart file to our interface
-    const file: Express.Multer.File = {
-      originalname: data.filename || "unknown",
-      buffer: await data.toBuffer(),
-      mimetype: data.mimetype || "application/octet-stream",
-      size: data.file?.bytesRead || 0,
-      fieldname: data.fieldname || "unknown",
-      encoding: data.encoding || "unknown",
-      path: "", // Add empty path since Cloudinary doesn't need it
-      destination: "",
-      filename: data.filename || "unknown",
-      stream: Readable.from(await data.toBuffer()),
-    };
-
-    const result = await this.storageService.uploadFile(file);
+    const result = await this.storageService.uploadFile(data);
 
     return result;
   }

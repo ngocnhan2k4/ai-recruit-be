@@ -52,6 +52,18 @@ export class EnvironmentVariables {
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
 
+  // @IsString()
+  // REDIS_HOST: string;
+
+  // @IsNumber()
+  // REDIS_PORT: number;
+
+  // @IsString()
+  // REDIS_PASSWORD: string;
+
+  // @IsNumber()
+  // REDIS_DB: number;
+
   @IsString()
   FIREBASE_STORAGE_BUCKET: string;
 
@@ -63,6 +75,7 @@ export class EnvironmentVariables {
 
   @IsString()
   CLOUDINARY_API_SECRET: string;
+
   SLACK_ERROR_WEBHOOK_URL: string;
 }
 
@@ -82,6 +95,13 @@ export default (): Record<string, any> => ({
   FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
   REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
+
+  // Redis
+  REDIS_HOST: process.env.REDIS_HOST,
+  REDIS_PORT: process.env.REDIS_PORT,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  REDIS_DB: process.env.REDIS_DB,
+
   FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,

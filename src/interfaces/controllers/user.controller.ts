@@ -1,80 +1,69 @@
 import {
-  Controller,
-  Get,
-  UseGuards,
-  Param,
-  Put,
-  Body,
-  Post,
-  Delete,
-  UploadedFile,
-} from "@nestjs/common";
-import { UserUseCases } from "src/use-cases/user/user.use-case";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
-import {
-  UserPublicDto,
-  UpdateUserDto,
-  CreateUserExperienceDto,
-  UpdateUserExperienceDto,
-  UserDto,
-  CreateUserSkillDto,
-  UpdateUserSkillDto,
-} from "../dtos";
-import { UserExperience, UserSkill } from "@/core/entities";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
-import { ApiResponse, ApiResponseDto, GetUserDto } from "@/interfaces/dtos";
-import {
-  ApiOkResponse,
-  ApiExtraModels,
-  getSchemaPath,
   ApiTags,
-  ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse as SwaggerApiResponse,
 } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { UserUseCases } from "src/use-cases/user/user.use-case";
+import { JwtAuthGuard, CasbinGuard } from "@/frameworks/auth-services/guards";
+import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  CreateUserExperienceDto,
+  CreateUserSkillDto,
+  GetUserDto,
+  UpdateUserDto,
+  UpdateUserExperienceDto,
+  UpdateUserSkillDto,
+  UserDto,
+  UserPublicDto,
+} from "../dtos";
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import { type TokenPayload } from "@/common/types/token";
+import { UserExperience, UserSkill } from "@/core";
+import { type FastifyRequest } from "fastify";
 
 @ApiTags("Users")
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@ApiExtraModels(ApiResponse, GetUserDto)
+@UseGuards(JwtAuthGuard, CasbinGuard)
 @Controller("users")
 export class UserController {
   constructor(private readonly userUseCases: UserUseCases) {}
+
+  @Get("check-username/:username")
+  @ApiOperation({
+    summary: "Check if username exists using Bloom Filter",
+    description:
+      "Fast username existence check using Bloom Filter. Returns false if definitely not exists, true if might exist (requires DB verification for accuracy).",
+  })
+  @ApiParam({
+    name: "username",
+    description: "Username to check",
+    example: "john_doe",
+  })
+  @ApiResponseDto("string")
+  async checkUsername(@Param("username") username: string) {
+    const result = await this.userUseCases.checkUserByUsername(username);
+
+    return result;
+  }
 
   @ApiOperation({
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",
   })
-  @ApiOkResponse({
-    description: "Retrieve user success",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(GetUserDto) },
-          },
-        },
-      ],
-      example: {
-        code: "SUCCESS",
-        message: "Success",
-        data: {
-          id: 1,
-          username: "exampleuser",
-          email: "user@example.com",
-          phone: "1234567890",
-          avatarUrl: "https://cdn.example.com/avatar.png",
-          name: "John Doe",
-          dob: "1990-01-01",
-          gender: "Male",
-          firebaseUid: "lPuOOqhJlsc8J5Va7Jg2cYNMp323",
-        },
-      },
-    },
-  })
+  @ApiResponseDto(GetUserDto)
   @Get("me")
   getMe(@GetUser() user: TokenPayload): Promise<ApiResponse<GetUserDto>> {
     return this.userUseCases.getUserByAccessToken(user);
@@ -102,53 +91,39 @@ export class UserController {
   }
 
   @ApiOperation({ summary: "Get user experience" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User experience fetched successfully",
-  })
-  @ApiBearerAuth()
+  @ApiResponseDto(UserExperience, { isArray: true })
   @CasbinPermission("/user-experiences", "GET")
   @Get("user-experiences")
-  async getUserExperience(@GetUser() user: TokenPayload) {
+  async getUserExperience(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserExperience[]>> {
     const userId = user.sub;
     return this.userUseCases.getUserExperience(userId);
   }
 
   @ApiOperation({ summary: "Create user experience" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User experience created successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
   @ApiResponseDto(UserExperience)
   async createUserExperience(
     @GetUser() user: TokenPayload,
     @Body() createUserExperienceDto: CreateUserExperienceDto,
-  ) {
-    const userId = user.sub;
-    createUserExperienceDto.userId = userId;
+  ): Promise<ApiResponse<UserExperience>> {
+    createUserExperienceDto.userId = user.sub;
     return this.userUseCases.createUserExperience(createUserExperienceDto);
   }
 
   @ApiOperation({ summary: "Update user experience" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User experience updated successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
-  @ApiResponseDto(UserDto)
+  @ApiResponseDto(UserExperience)
   async updateUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
     @Body() updateUserExperienceDto: UpdateUserExperienceDto,
-  ) {
-    const userId = user.sub;
+  ): Promise<ApiResponse<UserExperience>> {
     return this.userUseCases.updateUserExperience(
-      userId,
+      user.sub,
       id,
       updateUserExperienceDto,
     );
@@ -159,7 +134,6 @@ export class UserController {
     status: 200,
     description: "User experience deleted successfully",
   })
-  @ApiBearerAuth()
   @CasbinPermission("/user-experiences", "DELETE")
   @Delete("user-experiences/:id")
   @ApiResponseDto(UserDto)
@@ -176,21 +150,17 @@ export class UserController {
     status: 200,
     description: "User skills fetched successfully",
   })
-  @ApiBearerAuth()
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
-  @ApiResponseDto(UserSkill)
-  async getUserSkills(@GetUser() user: TokenPayload) {
+  @ApiResponseDto(UserSkill, { isArray: true })
+  async getUserSkills(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserSkill[]>> {
     const userId = user.sub;
     return this.userUseCases.getUserSkills(userId);
   }
 
   @ApiOperation({ summary: "Create user skill" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User skill created successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
   @ApiResponseDto(UserSkill)
@@ -198,19 +168,13 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Body() createUserSkillDto: CreateUserSkillDto,
   ) {
-    const userId = user.sub;
     return this.userUseCases.createUserSkill(
-      userId,
+      user.sub,
       createUserSkillDto.skillId,
     );
   }
 
   @ApiOperation({ summary: "Delete user skill" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User skill deleted successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-skills", "DELETE")
   @Delete("user-skills/:id")
   @ApiResponseDto(UserSkill)
@@ -218,44 +182,33 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
   ) {
-    const userId = user.sub;
-    return this.userUseCases.deleteUserSkill(userId, id);
+    return this.userUseCases.deleteUserSkill(user.sub, id);
   }
 
   @ApiOperation({ summary: "Update user skill" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User skill updated successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-skills", "PUT")
   @Put("user-skills")
   @ApiResponseDto(UserSkill)
   async updateUserSkill(
     @GetUser() user: TokenPayload,
     @Body() updateUserSkillDto: UpdateUserSkillDto,
-  ) {
-    const userId = user.sub;
+  ): Promise<ApiResponse<UserSkill>> {
     return this.userUseCases.updateUserSkill(
-      userId,
+      user.sub,
       updateUserSkillDto.skillId,
     );
   }
 
   @ApiOperation({ summary: "Upload user avatar" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User avatar uploaded successfully",
-  })
-  @ApiBearerAuth()
   @CasbinPermission("/user-avatar", "POST")
   @Post("user-avatar")
   @ApiResponseDto(UserDto)
   async uploadUserAvatar(
     @GetUser() user: TokenPayload,
-    @UploadedFile() file: Express.Multer.File,
+    @Req() req: FastifyRequest,
   ) {
-    const userId = user.sub;
-    return this.userUseCases.uploadUserAvatar(userId, file);
+    const file = await req.file();
+
+    return this.userUseCases.uploadUserAvatar(user.sub, file);
   }
 }

@@ -2,13 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_MESSAGE } from "@/common/constants/response";
+import { MultipartFile } from "@fastify/multipart";
 
 @Injectable()
 export class StorageUseCase {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   async uploadFile(
-    file: Express.Multer.File,
+    file: MultipartFile,
   ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
     const result = await this.cloudinaryService.uploadFile(file);
     return {
