@@ -5,7 +5,7 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
-import { HttpExceptionFilter } from "./http-exception.config";
+
 import { FastifyRequest, FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
@@ -55,5 +55,5 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       whitelist: true,
     }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter(appConfigs));
+  // HttpExceptionFilter is now handled by APP_FILTER provider in app.module.ts
 };

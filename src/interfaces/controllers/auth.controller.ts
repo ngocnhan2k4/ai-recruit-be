@@ -126,7 +126,6 @@ export class AuthController {
     @Req() req: FastifyRequest,
   ): Promise<ApiResponse<any>> {
     const token = req.cookies[REFRESH_TOKEN];
-    console.log("token", token);
     if (!token) {
       throw new BadRequestException({
         code: RESPONSE_CODE.TOKEN_NOT_FOUND,

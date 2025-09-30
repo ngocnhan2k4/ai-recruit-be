@@ -278,7 +278,6 @@ export class JobPostgresGenericRepository<
       sql`j.salary_min IS NOT NULL`,
       sql`j.salary_max IS NOT NULL`,
     ];
-    console.log("fromDDate", fromDate, toDate);
     if (fromDate) {
       where.push(sql`j.date_posted >= ${convertDateToStr(fromDate)}`);
     }

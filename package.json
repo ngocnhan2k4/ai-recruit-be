@@ -54,6 +54,7 @@
     "@nestjs/platform-fastify": "^11.1.6",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/terminus": "^11.0.0",
+    "axios": "^1.12.2",
     "casbin": "^5.38.0",
     "casbin-file-adapter": "^1.0.1",
     "class-transformer": "^0.5.1",
