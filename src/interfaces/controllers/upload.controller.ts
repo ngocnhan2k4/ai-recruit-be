@@ -5,9 +5,8 @@ import {
   Param,
   BadRequestException,
   Req,
-  Res,
 } from "@nestjs/common";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyRequest } from "fastify";
 import {
   ApiTags,
   ApiOperation,
@@ -20,17 +19,14 @@ import {
 
 import { UploadFileDto, UploadResultDto } from "@/interfaces/dtos/upload.dto";
 import { ApiResponse as CustomApiResponse } from "@/interfaces/dtos/common/api-response.dto";
-import { Readable } from 'stream';
+import { Readable } from "stream";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";
 
 @ApiTags("File Upload")
 @Controller("upload")
 export class UploadController {
-  constructor(
-    private readonly storageService: StorageUseCase,
-
-  ) { }
+  constructor(private readonly storageService: StorageUseCase) {}
 
   @ApiOperation({
     summary: "Upload a file to Cloudinary",
@@ -55,8 +51,7 @@ export class UploadController {
   @Post()
   async uploadFile(
     @Req() req: FastifyRequest,
-    @Res() res: FastifyReply,
-  ): Promise<ApiResponse<{ url: string, public_id: string, format: string }>> {
+  ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
     const data = await req.file();
 
     if (!data) {
@@ -86,7 +81,10 @@ export class UploadController {
     summary: "Delete a file from Cloudinary",
     description: "Delete a file from Cloudinary by its public ID",
   })
-  @ApiParam({ name: "public_id", description: "Public ID of the file to delete" })
+  @ApiParam({
+    name: "public_id",
+    description: "Public ID of the file to delete",
+  })
   @SwaggerApiResponse({
     status: 200,
     description: "File deleted successfully",
@@ -98,7 +96,9 @@ export class UploadController {
   })
   @ApiBearerAuth()
   @Delete(":public_id")
-  async deleteFile(@Param("public_id") public_id: string): Promise<ApiResponse<{ message: string }>> {
+  async deleteFile(
+    @Param("public_id") public_id: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     return this.storageService.deleteFile(public_id);
   }
 }

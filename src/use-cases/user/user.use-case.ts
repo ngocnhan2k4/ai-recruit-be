@@ -3,11 +3,15 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { User, UserExperience, UserSkill } from "../../core/entities";
 import { IDataServices } from "../../core/abstracts";
 import { UserFactoryService } from "./user-factory.service";
-import { UserPublicDto, UpdateUserDto, CreateUserExperienceDto, UpdateUserExperienceDto } from "@/interfaces/dtos";
+import {
+  UserPublicDto,
+  UpdateUserDto,
+  CreateUserExperienceDto,
+  UpdateUserExperienceDto,
+} from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { TokenPayload } from "@/common/types/token";
-import { StorageUseCase } from "../storage/storage.use-case";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 
 @Injectable()
@@ -16,7 +20,7 @@ export class UserUseCases {
     private readonly dataServices: IDataServices,
     private readonly userFactoryService: UserFactoryService,
     private readonly cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
   async getAllUsers(): Promise<User[]> {
     return this.dataServices.users.getAll();
@@ -114,11 +118,15 @@ export class UserUseCases {
     };
   }
 
-  async getUserExperience(userId: number): Promise<ApiResponse<UserExperience[]>> {
-    const userExperiences = await this.dataServices.userExperiences.getByUserId(userId);
+  async getUserExperience(
+    userId: number,
+  ): Promise<ApiResponse<UserExperience[]>> {
+    const userExperiences =
+      await this.dataServices.userExperiences.getByUserId(userId);
     if (!userExperiences) {
       throw new NotFoundException({
-        message: "[getUserExperience] - [getByUserId] User experience not found",
+        message:
+          "[getUserExperience] - [getByUserId] User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
@@ -129,13 +137,15 @@ export class UserUseCases {
     };
   }
 
-
-  async createUserExperience(createUserExperienceDto: CreateUserExperienceDto): Promise<ApiResponse<UserExperience>> {
+  async createUserExperience(
+    createUserExperienceDto: CreateUserExperienceDto,
+  ): Promise<ApiResponse<UserExperience>> {
     const userExperience = {
       ...createUserExperienceDto,
     };
 
-    const result = await this.dataServices.userExperiences.create(userExperience);
+    const result =
+      await this.dataServices.userExperiences.create(userExperience);
     if (!result) {
       throw new NotFoundException({
         message: "[createUserExperience] - [create] User experience not found",
@@ -149,7 +159,11 @@ export class UserUseCases {
     };
   }
 
-  async updateUserExperience(userId: number, id: string, updateUserExperienceDto: UpdateUserExperienceDto): Promise<ApiResponse<UserExperience>> {
+  async updateUserExperience(
+    userId: number,
+    id: string,
+    updateUserExperienceDto: UpdateUserExperienceDto,
+  ): Promise<ApiResponse<UserExperience>> {
     const userExperience = await this.dataServices.userExperiences.get(id);
     if (!userExperience) {
       throw new NotFoundException({
@@ -161,10 +175,15 @@ export class UserUseCases {
       ...userExperience,
       ...updateUserExperienceDto,
     };
-    const result = await this.dataServices.userExperiences.updateUserExperience(userId, id, updatedUserExperience);
+    const result = await this.dataServices.userExperiences.updateUserExperience(
+      userId,
+      id,
+      updatedUserExperience,
+    );
     if (!result) {
       throw new NotFoundException({
-        message: "[updateUserExperience] - [updateUserExperience] User experience not found",
+        message:
+          "[updateUserExperience] - [updateUserExperience] User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
@@ -175,8 +194,14 @@ export class UserUseCases {
     };
   }
 
-  async deleteUserExperience(userId: number, id: string): Promise<ApiResponse<UserExperience>> {
-    const result = await this.dataServices.userExperiences.deleteUserExperience(userId, id);
+  async deleteUserExperience(
+    userId: number,
+    id: string,
+  ): Promise<ApiResponse<UserExperience>> {
+    const result = await this.dataServices.userExperiences.deleteUserExperience(
+      userId,
+      id,
+    );
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
@@ -205,8 +230,14 @@ export class UserUseCases {
     };
   }
 
-  async createUserSkill(userId: number, skillId: string): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.createUserSkill(userId, skillId);
+  async createUserSkill(
+    userId: number,
+    skillId: string,
+  ): Promise<ApiResponse<UserSkill>> {
+    const userSkill = await this.dataServices.userSkills.createUserSkill(
+      userId,
+      skillId,
+    );
     if (!userSkill) {
       throw new NotFoundException({
         message: "[createUserSkill] - [createUserSkill] User skill not found",
@@ -220,8 +251,14 @@ export class UserUseCases {
     };
   }
 
-  async deleteUserSkill(userId: number, skillId: string): Promise<ApiResponse<UserSkill>> {
-    const result = await this.dataServices.userSkills.deleteUserSkill(userId, skillId);
+  async deleteUserSkill(
+    userId: number,
+    skillId: string,
+  ): Promise<ApiResponse<UserSkill>> {
+    const result = await this.dataServices.userSkills.deleteUserSkill(
+      userId,
+      skillId,
+    );
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserSkill] - [deleteUserSkill] User skill not found",
@@ -235,8 +272,14 @@ export class UserUseCases {
     };
   }
 
-  async updateUserSkill(userId: number, skillId: string): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.updateUserSkill(userId, skillId);
+  async updateUserSkill(
+    userId: number,
+    skillId: string,
+  ): Promise<ApiResponse<UserSkill>> {
+    const userSkill = await this.dataServices.userSkills.updateUserSkill(
+      userId,
+      skillId,
+    );
     if (!userSkill) {
       throw new NotFoundException({
         message: "[updateUserSkill] - [updateUserSkill] User skill not found",
@@ -250,7 +293,10 @@ export class UserUseCases {
     };
   }
 
-  async uploadUserAvatar(userId: number, file: Express.Multer.File): Promise<ApiResponse<{ url: string, public_id: string, format: string }>> {
+  async uploadUserAvatar(
+    userId: number,
+    file: Express.Multer.File,
+  ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
     const result = await this.cloudinaryService.uploadFile(file);
     const user = await this.dataServices.users.get(userId);
     if (!user) {
@@ -263,7 +309,10 @@ export class UserUseCases {
       ...user,
       avatarUrl: result.secure_url,
     };
-    const updatedUserResult = await this.dataServices.users.update(userId, updatedUser);
+    const updatedUserResult = await this.dataServices.users.update(
+      userId,
+      updatedUser,
+    );
     if (!updatedUserResult) {
       throw new NotFoundException({
         message: "[uploadUserAvatar] - [update] User not found",
@@ -277,8 +326,8 @@ export class UserUseCases {
       data: {
         url: result.secure_url,
         public_id: result.public_id,
-        format: result.format
-      }
+        format: result.format,
+      },
     };
   }
 }

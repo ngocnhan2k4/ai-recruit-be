@@ -6,4 +6,4 @@ import { FireBaseAuthServicesModule } from "../../auth-services/firebase/firebas
   providers: [FirebaseStorageService],
   exports: [FirebaseStorageService],
 })
-export class StorageModule { }
+export class StorageModule {}

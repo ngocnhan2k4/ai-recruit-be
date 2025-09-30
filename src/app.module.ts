@@ -42,4 +42,4 @@ import { StorageModule } from "./use-cases/storage/storage.module";
   ],
   providers: [JwtStrategy],
 })
-export class AppModule { }
+export class AppModule {}

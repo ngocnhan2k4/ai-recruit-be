@@ -9,4 +9,4 @@ import { CloudinaryModule } from "@/frameworks/storage/cloudinary/cloudinary.mod
   providers: [UserFactoryService, UserUseCases],
   exports: [UserUseCases],
 })
-export class UserUseCasesModule { }
+export class UserUseCasesModule {}

@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class JobUseCases {
-  constructor(private readonly dataServices: IDataServices) { }
+  constructor(private readonly dataServices: IDataServices) {}
 
   async getAllJobs(
     limit?: number,

@@ -1,5 +1,5 @@
 import { StatisticsJobFilter } from "../entities";
-import { UpdateUserExperienceDto, UpdateUserSkillDto } from "@/interfaces/dtos";
+import { UpdateUserExperienceDto } from "@/interfaces/dtos";
 
 export interface IGenericRepository<T> {
   getAll(): Promise<T[]>;
@@ -8,7 +8,9 @@ export interface IGenericRepository<T> {
 
   getByField(field: Partial<T>): Promise<T | null>;
 
-  create(item: Omit<T, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>): Promise<T>;
+  create(
+    item: Omit<T, "id" | "createdAt" | "updatedAt" | "deletedAt">,
+  ): Promise<T>;
 
   update(id: number | string, item: Partial<T>): Promise<T | null>;
 
@@ -46,13 +48,20 @@ export interface IJobGenericRepository<TJob, TCompany, TSkill>
 
 //  eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ICategoryGenericRepository<TCategory>
-  extends IGenericRepository<TCategory> { }
+  extends IGenericRepository<TCategory> {}
 
 export interface IUserExperienceGenericRepository<TUserExperience>
   extends IGenericRepository<TUserExperience> {
   getByUserId(userId: number): Promise<TUserExperience[]>;
-  updateUserExperience(userId: number, id: string, item: UpdateUserExperienceDto): Promise<TUserExperience | null>;
-  deleteUserExperience(userId: number, id: string): Promise<TUserExperience | null>;
+  updateUserExperience(
+    userId: number,
+    id: string,
+    item: UpdateUserExperienceDto,
+  ): Promise<TUserExperience | null>;
+  deleteUserExperience(
+    userId: number,
+    id: string,
+  ): Promise<TUserExperience | null>;
 }
 
 export interface IUserSkillGenericRepository<TUserSkill>

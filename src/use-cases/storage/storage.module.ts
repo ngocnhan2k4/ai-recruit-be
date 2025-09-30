@@ -4,10 +4,12 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { StorageUseCase } from "./storage.use-case";
 
 @Module({
-    imports: [MulterModule.register({
-        dest: "./uploads",
-    })],
-    providers: [CloudinaryService, StorageUseCase],
-    exports: [CloudinaryService, StorageUseCase],
+  imports: [
+    MulterModule.register({
+      dest: "./uploads",
+    }),
+  ],
+  providers: [CloudinaryService, StorageUseCase],
+  exports: [CloudinaryService, StorageUseCase],
 })
-export class StorageModule { }
+export class StorageModule {}

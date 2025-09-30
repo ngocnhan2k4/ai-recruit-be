@@ -18,7 +18,7 @@ export class CreateUserDto {
   age: number;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) { }
+export class UpdateUserDto extends PartialType(CreateUserDto) {}
 
 export class UserPublicDto {
   @ApiProperty()
