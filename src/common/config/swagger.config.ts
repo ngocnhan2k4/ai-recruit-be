@@ -3,7 +3,7 @@ import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 const tags: string[] = ["Users", "File Upload"];
-const developmentUrls: string[] = ["localhost", "20.255.248.56"];
+const developmentUrls: string[] = ["localhost", "airecruit.software"];
 const productionUrls: string[] = [];
 
 const generateTags = (tags: string[]) => {
@@ -34,8 +34,10 @@ export const generateDocumentBuilder = ({
   );
   if (nodeEnv === "development") {
     developmentUrls.forEach((url, index) => {
+      const scheme = url === "localhost" ? "http" : "https";
+      const domain = url === "localhost" ? `${url}:${port}` : url;
       document.addServer(
-        `http://${url}:${port}${globalPrefix}`,
+        `${scheme}://${domain}${globalPrefix}`,
         `Development server ${index + 1}`,
       );
     });
