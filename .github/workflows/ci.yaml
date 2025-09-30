@@ -76,5 +76,4 @@ jobs:
             ${{ steps.build.outcome == 'failure' && '• Build: ❌ Failed' || '• Build: ✅ Passed' }}
 
             🚫 **Merge is blocked until all checks pass**
-
             Please fix the issues and push again.
