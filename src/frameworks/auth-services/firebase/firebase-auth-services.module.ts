@@ -27,6 +27,7 @@ import { ConfigService } from "@nestjs/config";
             clientEmail: configService.get<string>("FIREBASE_CLIENT_EMAIL"),
             privateKey: configService.get<string>("FIREBASE_PRIVATE_KEY"),
           }),
+          storageBucket: configService.get<string>("FIREBASE_STORAGE_BUCKET"),
         });
       },
     },

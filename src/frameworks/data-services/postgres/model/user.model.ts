@@ -30,6 +30,7 @@ export const users = pgTable(
     id: bigserial("id", { mode: "number" }).primaryKey(),
     username: varchar("username", { length: 255 }).notNull().unique(),
     email: varchar("email", { length: 255 }),
+    emailVerified: boolean("email_verified").notNull().default(false),
     phone: varchar("phone", { length: 20 }),
     firebaseUid: varchar("firebase_uid", { length: 255 }),
     avatarUrl: varchar("avatar_url", { length: 500 }),
@@ -53,11 +54,11 @@ export const userExperiences = pgTable("user_experiences", {
   company_id: uuid("company_id")
     .notNull()
     .references(() => companies.id),
+  position: varchar("position", { length: 255 }),
   start_date: date("start_date").notNull(),
   end_date: date("end_date"),
   job_title: varchar("job_title", { length: 255 }).notNull(),
   description: text("description"),
-  is_current: boolean("is_current").notNull().default(false),
   ...timestamps,
 });
 

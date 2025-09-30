@@ -4,9 +4,10 @@ import { BloomFilterModule } from "../../frameworks/bloom-filter/bloom-filter.mo
 import { BloomFilterService } from "../../frameworks/bloom-filter/bloom-filter.service";
 import { IBloomFilterService } from "../../core/abstracts";
 import { UserUseCases } from "./user.use-case";
+import { CloudinaryModule } from "@/frameworks/storage/cloudinary/cloudinary.module";
 
 @Module({
-  imports: [DataServicesModule, BloomFilterModule],
+  imports: [DataServicesModule, BloomFilterModule, CloudinaryModule],
   providers: [
     UserUseCases,
     {

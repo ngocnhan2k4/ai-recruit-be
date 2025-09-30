@@ -5,3 +5,5 @@ export * from "./jobs/job.dto";
 export * from "./jobs/query-job.dto";
 export * from "./jobs/statistic-job.dto";
 export * from "./companies/company.dto";
+export * from "./skills/skill.dto";
+export * from "./provinces/province.dto";

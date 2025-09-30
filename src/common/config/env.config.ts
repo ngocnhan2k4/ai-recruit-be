@@ -7,10 +7,10 @@ import {
   validateSync,
 } from "class-validator";
 
-enum Environment {
+export enum Environment {
+  Local = "local",
   Development = "development",
   Production = "production",
-  Test = "test",
 }
 
 export class EnvironmentVariables {
@@ -25,7 +25,7 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsEnum(Environment)
-  NODE_ENV: Environment = Environment.Development;
+  NODE_ENV: Environment = Environment.Local;
 
   @IsOptional()
   @IsString()
@@ -63,13 +63,27 @@ export class EnvironmentVariables {
 
   // @IsNumber()
   // REDIS_DB: number;
+
+  @IsString()
+  FIREBASE_STORAGE_BUCKET: string;
+
+  @IsString()
+  CLOUDINARY_CLOUD_NAME: string;
+
+  @IsString()
+  CLOUDINARY_API_KEY: string;
+
+  @IsString()
+  CLOUDINARY_API_SECRET: string;
+
+  SLACK_ERROR_WEBHOOK_URL: string;
 }
 
 export default (): Record<string, any> => ({
   // Server
   NAME: process.env.NAME || "AI Recruit",
   PORT: parseInt(process.env.PORT || "3000", 10),
-  NODE_ENV: process.env.NODE_ENV || "development",
+  NODE_ENV: process.env.NODE_ENV || "local",
   GLOBAL_PREFIX: process.env.GLOBAL_PREFIX || "/api/v1",
 
   // PostgreSQL
@@ -87,6 +101,15 @@ export default (): Record<string, any> => ({
   REDIS_PORT: process.env.REDIS_PORT,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
   REDIS_DB: process.env.REDIS_DB,
+
+  FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+
+  // Slack
+  SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
+  SLACK_INFO_WEBHOOK_URL: process.env.SLACK_INFO_WEBHOOK_URL,
 });
 
 export const validateConfig = (

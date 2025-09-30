@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
-import { Job, StatisticsJobFilter } from "@/core/entities/job.entity";
-import { Company } from "@/core/entities/company.entity";
+import { StatisticsJobFilter } from "@/core/entities/job.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
@@ -9,6 +8,8 @@ import {
   StatisticsJobFilterDto,
   StatisticsJobResponse,
 } from "@/interfaces/dtos";
+import { Skill, Job, Company } from "@/core";
+import { Province } from "@/core/entities/province.entity";
 
 @Injectable()
 export class JobUseCases {
@@ -19,11 +20,19 @@ export class JobUseCases {
     limit?: number,
     offset?: number,
     keyword?: string,
-  ): Promise<ApiResponse<{ job: Job; company: Company; skills: string[] }[]>> {
+    sortBy?: string,
+    sortDirection?: "asc" | "desc",
+  ): Promise<
+    ApiResponse<
+      { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
+    >
+  > {
     const result = await this.dataServices.jobs.getAllJobs(
       limit,
       offset,
       keyword,
+      sortBy,
+      sortDirection,
     );
     this.logger.log(`Fetched ${result.length} jobs`);
     return {

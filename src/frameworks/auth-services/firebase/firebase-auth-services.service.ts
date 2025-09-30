@@ -9,15 +9,22 @@ export class FireBaseAuthServices implements IAuthServices {
     @Inject(FIREBASE_ADMIN) private readonly firebaseApp: admin.app.App,
     private readonly jwtService: JwtService,
   ) {}
-  async verifyIdToken(
-    idToken: string,
-  ): Promise<{ uid: string; email?: string; name?: string; picture?: string }> {
+  async verifyIdToken(idToken: string): Promise<{
+    uid: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    provider_id?: string;
+  }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
+
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
       name: decodedToken.name,
       picture: decodedToken.picture,
+      provider_id:
+        decodedToken.provider_id || decodedToken.firebase.sign_in_provider,
     };
   }
 

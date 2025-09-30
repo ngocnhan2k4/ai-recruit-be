@@ -7,7 +7,6 @@ import {
   date,
   varchar,
   text,
-  boolean,
   timestamp,
   integer,
   unique,
@@ -38,7 +37,6 @@ export const userExperiences = pgTable(
     endDate: date("end_date"),
     jobTitle: varchar("job_title", { length: 255 }).notNull(),
     description: text(),
-    isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at", { mode: "string" })
       .defaultNow()
       .notNull(),

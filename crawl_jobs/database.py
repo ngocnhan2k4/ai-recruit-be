@@ -12,6 +12,7 @@ def insert_to_db(db_url: str, companies: dict):
 
         for name, cdata in companies.items():
             addresses = cdata.get("locations") or []
+            province_id = None
 
             # --- Check if company exists ---
             cur.execute("SELECT id FROM companies WHERE name = %s LIMIT 1", (name,))
@@ -23,9 +24,8 @@ def insert_to_db(db_url: str, companies: dict):
                 cur.execute(
                     """
                     INSERT INTO companies
-                        (name, logo_url, description, address,
-                         employees_min, employees_max)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (name, logo_url, description, address, website_url, employees_min, employees_max, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     (
@@ -33,8 +33,10 @@ def insert_to_db(db_url: str, companies: dict):
                         cdata.get("logo"),
                         cdata.get("description"),
                         addresses,
+                        cdata.get("website_url"),
                         cdata.get("employees_min"),
                         cdata.get("employees_max"),
+                        cdata.get("crawled_at")
                     ),
                 )
                 inserted = cur.fetchone()
@@ -44,6 +46,21 @@ def insert_to_db(db_url: str, companies: dict):
 
             # --- Insert each job ---
             for title, jdata in cdata.get("jobs", {}).items():
+
+                # --- Check if province exists ---
+                for province in jdata.get("locations", []):
+                    cur.execute("SELECT id FROM provinces WHERE name ILIKE %s LIMIT 1", (f"%{province}%",))
+                    prov_col = cur.fetchone()
+                    if prov_col:
+                        province_id = prov_col[0]
+                    elif province is not None:
+                        print(f"Inserting new province: {province}")
+                        cur.execute(
+                            "INSERT INTO provinces (name) VALUES (%s) RETURNING id",
+                            (province,)
+                        )
+                        province_id = cur.fetchone()[0]
+
                 cur.execute("SELECT 1 FROM jobs WHERE title = %s AND company_id = %s", (title, company_id))
                 if cur.fetchone():
                     print(f"Job '{title}' already exists for company '{name}', skipping.")
@@ -52,14 +69,15 @@ def insert_to_db(db_url: str, companies: dict):
                 cur.execute(
                     """
                     INSERT INTO jobs
-                        (title, description, created_at, company_id)
-                    VALUES (%s, %s, %s, %s) RETURNING id
+                        (title, description, date_posted, company_id, province_id)
+                    VALUES (%s, %s, %s, %s, %s) RETURNING id
                     """,
                     (
                         title,
                         Json(jdata.get("description")),
                         jdata.get("date_posted"),
-                        company_id
+                        company_id,
+                        province_id
                     ),
                 )
 
