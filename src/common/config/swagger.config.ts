@@ -36,6 +36,7 @@ export const generateDocumentBuilder = ({
     developmentUrls.forEach((url, index) => {
       const scheme = url === "localhost" ? "http" : "https";
       const domain = url === "localhost" ? `${url}:${port}` : url;
+
       document.addServer(
         `${scheme}://${domain}${globalPrefix}`,
         `Development server ${index + 1}`,
