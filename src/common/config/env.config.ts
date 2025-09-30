@@ -7,7 +7,7 @@ import {
   validateSync,
 } from "class-validator";
 
-enum Environment {
+export enum Environment {
   Development = "development",
   Production = "production",
   Test = "test",
@@ -54,6 +54,9 @@ export class EnvironmentVariables {
 
   @IsString()
   FIREBASE_STORAGE_BUCKET: string;
+
+  @IsString()
+  SLACK_ERROR_WEBHOOK_URL: string;
 }
 
 export default (): Record<string, any> => ({
@@ -73,6 +76,10 @@ export default (): Record<string, any> => ({
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
   REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
   FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+
+  // Slack
+  SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
+  SLACK_INFO_WEBHOOK_URL: process.env.SLACK_INFO_WEBHOOK_URL,
 });
 
 export const validateConfig = (
