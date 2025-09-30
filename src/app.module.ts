@@ -18,7 +18,8 @@ import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
 import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
-import { StorageModule } from "./frameworks/storage/storage.module";
+import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.module";
+import { StorageModule } from "./use-cases/storage/storage.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
 import { APP_FILTER } from "@nestjs/core";
@@ -40,6 +41,7 @@ import { AppConfigProps } from "./common/config/app.config";
     AuthUseCasesModule,
     CasbinModule,
     CategoryUseCasesModule,
+    CloudinaryModule,
     StorageModule,
     TerminusModule,
     HttpModule,

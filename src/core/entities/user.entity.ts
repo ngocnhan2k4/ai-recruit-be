@@ -51,3 +51,22 @@ export class User {
     this.emailVerified = !!emailVerified;
   }
 }
+
+export class UserExperience {
+  id: number;
+  userId: number;
+  companyId: string;
+  position: string;
+  jobTitle: string;
+  startDate: Date;
+  endDate?: Date;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+
+export class UserSkill {
+  userId: number;
+  skillId: string;
+}

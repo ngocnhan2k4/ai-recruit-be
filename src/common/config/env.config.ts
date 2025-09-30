@@ -56,6 +56,13 @@ export class EnvironmentVariables {
   FIREBASE_STORAGE_BUCKET: string;
 
   @IsString()
+  CLOUDINARY_CLOUD_NAME: string;
+
+  @IsString()
+  CLOUDINARY_API_KEY: string;
+
+  @IsString()
+  CLOUDINARY_API_SECRET: string;
   SLACK_ERROR_WEBHOOK_URL: string;
 }
 
@@ -76,6 +83,9 @@ export default (): Record<string, any> => ({
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
   REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
   FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 
   // Slack
   SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
