@@ -8,9 +8,9 @@ import {
 } from "class-validator";
 
 export enum Environment {
+  Local = "local",
   Development = "development",
   Production = "production",
-  Test = "test",
 }
 
 export class EnvironmentVariables {
@@ -25,7 +25,7 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsEnum(Environment)
-  NODE_ENV: Environment = Environment.Development;
+  NODE_ENV: Environment = Environment.Local;
 
   @IsOptional()
   @IsString()
@@ -63,7 +63,7 @@ export default (): Record<string, any> => ({
   // Server
   NAME: process.env.NAME || "AI Recruit",
   PORT: parseInt(process.env.PORT || "3000", 10),
-  NODE_ENV: process.env.NODE_ENV || "development",
+  NODE_ENV: process.env.NODE_ENV || "local",
   GLOBAL_PREFIX: process.env.GLOBAL_PREFIX || "/api/v1",
 
   // PostgreSQL

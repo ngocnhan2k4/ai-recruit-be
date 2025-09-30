@@ -12,7 +12,8 @@ export class LoggerService implements ILoggerServices {
 
   async logError(error: Logs) {
     try {
-      if (this.configService.get<string>("NODE_ENV") === "production") {
+      const environment = this.configService.get<string>("NODE_ENV");
+      if (environment === "production" || environment === "development") {
         const discordMessage = {
           text: `🚨 **Error Detected!**\n🔹 **Type:** ${error.type}\n🔹 **Error:** ${error.content}\n🔹 **Note:** ${error.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };
@@ -28,7 +29,8 @@ export class LoggerService implements ILoggerServices {
   }
   async logInfo(info: Logs) {
     try {
-      if (this.configService.get<string>("NODE_ENV") === "production") {
+      const environment = this.configService.get<string>("NODE_ENV");
+      if (environment === "production" || environment === "development") {
         const discordMessage = {
           text: `🔔 **Info Detected!**\n🔹 **Type:** ${info.type}\n🔹 **Info:** ${info.content}\n🔹 **Note:** ${info.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };

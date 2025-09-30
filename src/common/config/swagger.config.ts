@@ -4,7 +4,8 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Environment } from "./env.config";
 
 const tags: string[] = ["Users", "File Upload"];
-const developmentUrls: string[] = ["localhost", "airecruit.software"];
+const localUrls: string[] = ["localhost"];
+const developmentUrls: string[] = ["airecruit.software"];
 const productionUrls: string[] = [];
 
 const generateTags = (tags: string[]) => {
@@ -35,11 +36,16 @@ export const generateDocumentBuilder = ({
   );
   if (nodeEnv === Environment.Development) {
     developmentUrls.forEach((url, index) => {
-      const scheme = url === "localhost" ? "http" : "https";
-      const domain = url === "localhost" ? `${url}:${port}` : url;
       document.addServer(
-        `${scheme}://${domain}${globalPrefix}`,
+        `https://${url}${globalPrefix}`,
         `Development server ${index + 1}`,
+      );
+    });
+  } else if (nodeEnv === Environment.Local) {
+    localUrls.forEach((url, index) => {
+      document.addServer(
+        `http://${url}:${port}${globalPrefix}`,
+        `Local server ${index + 1}`,
       );
     });
   } else {
