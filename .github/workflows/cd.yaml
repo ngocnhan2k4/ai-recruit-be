@@ -63,9 +63,9 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             echo "🔍 Waiting for application to start..."
-            sleep 120
+            sleep 30
 
-            echo "🏥 Running health check at ${APP_URL}..."
+            echo "🏥 Running health check at ${{ env.APP_URL }}..."
 
             # Check if container is running
             if ! docker-compose -f /var/www/my-app/docker-compose-dev.yaml ps | grep "Up"; then
@@ -82,11 +82,11 @@ jobs:
               echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
               
               # Test simple health endpoint
-              if curl -f -s ${APP_URL}/api/v1/health > /dev/null 2>&1; then
+              if curl -f -s ${{ env.APP_URL }}/api/v1/health > /dev/null 2>&1; then
                 echo "✅ Health check passed!"
                 
                 # Get health check response
-                HEALTH_RESPONSE=$(curl -s ${APP_URL}/api/v1/health)
+                HEALTH_RESPONSE=$(curl -s ${{ env.APP_URL }}/api/v1/health)
                 echo "📊 Health Status: $HEALTH_RESPONSE"
             
                 exit 0
