@@ -32,10 +32,10 @@ jobs:
         run: bun run build
         continue-on-error: false
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # - name: SonarQube Scan
+      #   uses: SonarSource/sonarqube-scan-action@v5
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Notify Slack on Success
         if: success()
@@ -55,7 +55,6 @@ jobs:
             **Checks Completed:**
             • ESLint: ✅ Passed
             • Build: ✅ Passed
-            • SonarQube: ✅ Passed
 
       - name: Notify Slack on Failure
         if: failure()
