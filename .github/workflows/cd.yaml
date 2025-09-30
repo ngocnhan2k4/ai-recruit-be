@@ -12,9 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Set SHORT_SHA
-        run: echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-6)" >> $GITHUB_ENV
 
       
       - name: Login to Docker Hub
@@ -27,9 +24,8 @@ jobs:
       - name: Build and Push Docker Image
         if: github.ref == 'refs/heads/dev'
         run: |
-          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-6)
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${SHORT_SHA} .
-          docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${SHORT_SHA}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/ai-recruit:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:latest
 
       - name: Copy docker-compose to server
         if: github.ref == 'refs/heads/dev'
@@ -52,8 +48,6 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
-            echo "Updating docker-compose with image tag ${SHORT_SHA}"
-            sed -i "s|\(image: .*/ai-recruit:\).*|\1${SHORT_SHA}|g" docker-compose-dev.yaml
             docker-compose -f docker-compose-dev.yaml down
             docker rmi -f $(docker images -aq)
             docker-compose -f docker-compose-dev.yaml up -d

@@ -1,6 +1,6 @@
 services:
   backend:
-    image: tnnhan57/ai-recruit:${GITHUB_SHA}
+    image: tnnhan57/ai-recruit:latest
     restart: always
     environment:
       DATABASE_URL: "postgresql://neondb_owner:npg_VFCRk1Q0cTju@ep-tiny-art-a1vu0die-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
