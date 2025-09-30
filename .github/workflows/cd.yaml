@@ -6,7 +6,7 @@ on:
     branches: ["dev", "main"]
 
 jobs:
-  ci:
+  cd:
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -24,8 +24,9 @@ jobs:
       - name: Build and Push Docker Image
         if: github.ref == 'refs/heads/dev'
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${{ github.sha }} .
-          docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:${{ github.sha }}
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-6)
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/ai-recruit:$SHORT_SHA .
+          docker push ${{ secrets.DOCKER_USERNAME }}/ai-recruit:$SHORT_SHA
 
       - name: Copy docker-compose to server
         if: github.ref == 'refs/heads/dev'
@@ -48,7 +49,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
-            sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:${{ github.sha }}|g" docker-compose-dev.yaml
+            sed -i "s|tnnhan57/ai-recruit:.*|tnnhan57/ai-recruit:$SHORT_SHA|g" docker-compose-dev.yaml
             docker-compose -f docker-compose-dev.yaml down
             docker rmi -f $(docker images -aq)
             docker-compose -f docker-compose-dev.yaml up -d
@@ -64,7 +65,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             echo "🔍 Waiting for application to start..."
-            sleep 30
+            sleep 120
             
             echo "🏥 Running health check..."
             
