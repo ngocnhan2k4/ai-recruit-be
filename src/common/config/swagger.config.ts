@@ -1,6 +1,7 @@
 import { AppConfigProps, getAppConfigs } from "@/common/config/app.config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { Environment } from "./env.config";
 
 const tags: string[] = ["Users", "File Upload"];
 const developmentUrls: string[] = ["localhost", "airecruit.software"];
@@ -32,7 +33,7 @@ export const generateDocumentBuilder = ({
   generateTags(tags).forEach((tag) =>
     document.addTag(tag.name, tag.description),
   );
-  if (nodeEnv === "development") {
+  if (nodeEnv === Environment.Development) {
     developmentUrls.forEach((url, index) => {
       const scheme = url === "localhost" ? "http" : "https";
       const domain = url === "localhost" ? `${url}:${port}` : url;
