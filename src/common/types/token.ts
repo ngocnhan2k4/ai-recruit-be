@@ -1,6 +1,6 @@
 import { RoleEnum } from "@/common/constants/roles";
 
 export interface TokenPayload {
-  sub: number;
+  userId: string;
   roles: RoleEnum[];
 }

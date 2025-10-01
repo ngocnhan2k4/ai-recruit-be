@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { IAuthServices, User } from "@/core";
+import { IAuthServices, NewUser, User } from "@/core";
 import { IDataServices } from "@/core/abstracts/data-services.abstract";
 import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { AnonymousId, RoleEnum } from "@/common/constants/roles";
@@ -39,20 +39,25 @@ export class AuthUseCases {
     }
     let user: User | null = null;
     if (decode.provider_id !== "anonymous") {
-      user = await this.dataServices.users.getByField({
-        firebaseUid: decode.uid,
-      });
-      if (!user) {
-        user = await this.dataServices.users.create(
-          new User({
-            username: generateUsername(decode.name!), // [TODO]: check exist username here
-            email: decode.email,
-            avatarUrl: decode.picture,
+      user =
+        (
+          await this.dataServices.users.getByField({
             firebaseUid: decode.uid,
-            roles: [RoleEnum.USER],
-            name: decode.name!,
-          }),
-        );
+          })
+        )[0] || null;
+      if (!user) {
+        const newUser: NewUser = {
+          username: generateUsername(decode.name!), // [TODO]: check exist username here
+          email: decode.email ?? null,
+          avatarUrl: decode.picture ?? null,
+          firebaseUid: decode.uid,
+          // roles: [RoleEnum.USER],
+          name: decode.name!,
+          gender: null,
+          dob: null,
+          phone: null,
+        };
+        user = await this.dataServices.users.create(newUser);
       } else {
         // Update user info if necessary
       }
@@ -60,7 +65,7 @@ export class AuthUseCases {
       user = {
         id: AnonymousId,
         username: "Anonymous",
-        roles: [RoleEnum.ANONYMOUS],
+        // roles: [RoleEnum.ANONYMOUS],
         firebaseUid: decode.uid,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -88,8 +93,8 @@ export class AuthUseCases {
     user: User,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload: TokenPayload = {
-      sub: user.id,
-      roles: user.roles,
+      userId: user.id,
+      roles: [RoleEnum.USER], // [TODO]: get roles from user
     };
     const accessToken = this.authService.signJwt(payload);
     const refreshToken = randomBytes(48).toString("hex");

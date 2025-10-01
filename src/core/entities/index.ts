@@ -6,7 +6,9 @@ import {
   refreshTokens,
   users,
   skills,
-} from "@/frameworks/data-services/postgres/model";
+  userExperiences,
+  userSkills,
+} from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
@@ -25,6 +27,12 @@ export type Province = InferSelectModel<typeof provinces>;
 
 export type NewRefreshToken = InferInsertModel<typeof refreshTokens>;
 export type RefreshToken = InferSelectModel<typeof refreshTokens>;
+
+export type NewUserExperience = InferInsertModel<typeof userExperiences>;
+export type UserExperience = InferSelectModel<typeof userExperiences>;
+
+export type NewUserSkill = InferInsertModel<typeof userSkills>;
+export type UserSkill = InferSelectModel<typeof userSkills>;
 
 export type NewUser = InferInsertModel<typeof users>;
 export type User = InferSelectModel<typeof users>;

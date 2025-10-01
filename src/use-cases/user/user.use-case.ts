@@ -6,10 +6,8 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   ApiResponse,
-  CreateUserExperienceDto,
   GetUserDto,
   UpdateUserDto,
-  UpdateUserExperienceDto,
   UserDto,
   UserPublicDto,
 } from "@/interfaces/dtos";
@@ -17,7 +15,12 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { UserExperience, UserSkill } from "@/core/entities/user.entity";
+import { UserExperience, UserSkill } from "@/core";
+import {
+  CreateUserExperienceDto,
+  UpdateUserExperienceDto,
+} from "@/interfaces/dtos/users/user-experience.dto";
+import { convertDateToStr } from "@/common/utils/date";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -86,7 +89,7 @@ export class UserUseCases implements OnModuleInit {
   async getUserByAccessToken(
     payload: TokenPayload,
   ): Promise<ApiResponse<GetUserDto>> {
-    const id: number = payload.sub;
+    const id: string = payload.userId;
     const user: User | null = await this.dataServices.users.get(id);
     if (!user) {
       throw new NotFoundException(
@@ -107,12 +110,8 @@ export class UserUseCases implements OnModuleInit {
   async getUserByUsername(
     username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
-    const user = await this.dataServices.users.getByField({ username });
+    const user = (await this.dataServices.users.getByField({ username }))[0];
     if (!user) {
-      throw new NotFoundException({
-        message: "User not found",
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
@@ -132,7 +131,7 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async updateUserProfile(
-    userId: number,
+    userId: string,
     updateUserDto: UpdateUserDto,
   ): Promise<ApiResponse<UserDto>> {
     const user = await this.dataServices.users.get(userId);
@@ -148,7 +147,14 @@ export class UserUseCases implements OnModuleInit {
       ...updateUserDto,
     };
 
-    const result = await this.dataServices.users.update(userId, updatedUser);
+    const result = (
+      await this.dataServices.users.update(
+        {
+          id: userId,
+        },
+        updatedUser,
+      )
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
@@ -165,34 +171,36 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserExperience(
-    userId: number,
+  async getUserExperiences(
+    userId: string,
   ): Promise<ApiResponse<UserExperience[]>> {
-    const userExperiences =
-      await this.dataServices.userExperiences.getByUserId(userId);
+    const userExperiences = await this.dataServices.userExperiences.getByField({
+      userId,
+    });
     if (!userExperiences) {
       throw new NotFoundException({
         message:
-          "[getUserExperience] - [getByUserId] User experience not found",
+          "[getUserExperiences] - [getByUserId] User experiences not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
     return {
-      message: "User experience fetched successfully",
+      message: "User experiences fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
       data: userExperiences,
     };
   }
 
   async createUserExperience(
+    userId: string,
     createUserExperienceDto: CreateUserExperienceDto,
   ): Promise<ApiResponse<UserExperience>> {
-    const userExperience = {
+    const result = await this.dataServices.userExperiences.create({
       ...createUserExperienceDto,
-    };
-
-    const result =
-      await this.dataServices.userExperiences.create(userExperience);
+      userId,
+      startDate: convertDateToStr(createUserExperienceDto.startDate),
+      endDate: convertDateToStr(createUserExperienceDto.endDate),
+    });
     if (!result) {
       throw new NotFoundException({
         message: "[createUserExperience] - [create] User experience not found",
@@ -207,11 +215,16 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async updateUserExperience(
-    userId: number,
-    id: string,
+    userId: string,
+    id: number,
     updateUserExperienceDto: UpdateUserExperienceDto,
   ): Promise<ApiResponse<UserExperience>> {
-    const userExperience = await this.dataServices.userExperiences.get(id);
+    const userExperience = (
+      await this.dataServices.userExperiences.getByField({
+        userId,
+        id,
+      })
+    )[0];
     if (!userExperience) {
       throw new NotFoundException({
         message: "[updateUserExperience] - [get] User experience not found",
@@ -222,11 +235,16 @@ export class UserUseCases implements OnModuleInit {
       ...userExperience,
       ...updateUserExperienceDto,
     };
-    const result = await this.dataServices.userExperiences.updateUserExperience(
-      userId,
-      id,
-      updatedUserExperience,
-    );
+    const result = (
+      await this.dataServices.userExperiences.update(
+        { userId, id },
+        {
+          ...updatedUserExperience,
+          startDate: convertDateToStr(updateUserExperienceDto.startDate),
+          endDate: convertDateToStr(updateUserExperienceDto.endDate),
+        },
+      )
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message:
@@ -242,13 +260,15 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserExperience(
-    userId: number,
-    id: string,
+    userId: string,
+    id: number,
   ): Promise<ApiResponse<UserExperience>> {
-    const result = await this.dataServices.userExperiences.deleteUserExperience(
-      userId,
-      id,
-    );
+    const result = (
+      await this.dataServices.userExperiences.delete({
+        userId,
+        id,
+      })
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
@@ -262,8 +282,10 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserSkills(userId: number): Promise<ApiResponse<UserSkill[]>> {
-    const userSkills = await this.dataServices.userSkills.getByUserId(userId);
+  async getUserSkills(userId: string): Promise<ApiResponse<UserSkill[]>> {
+    const userSkills = await this.dataServices.userSkills.getByField({
+      userId,
+    });
     if (!userSkills) {
       throw new NotFoundException({
         message: "[getUserSkills] - [getByUserId] User skills not found",
@@ -278,13 +300,13 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async createUserSkill(
-    userId: number,
+    userId: string,
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.createUserSkill(
+    const userSkill = await this.dataServices.userSkills.create({
       userId,
       skillId,
-    );
+    });
     if (!userSkill) {
       throw new NotFoundException({
         message: "[createUserSkill] - [createUserSkill] User skill not found",
@@ -299,13 +321,15 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserSkill(
-    userId: number,
+    userId: string,
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
-    const result = await this.dataServices.userSkills.deleteUserSkill(
-      userId,
-      skillId,
-    );
+    const result = (
+      await this.dataServices.userSkills.delete({
+        userId,
+        skillId,
+      })
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserSkill] - [deleteUserSkill] User skill not found",
@@ -319,29 +343,8 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async updateUserSkill(
-    userId: number,
-    skillId: string,
-  ): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.updateUserSkill(
-      userId,
-      skillId,
-    );
-    if (!userSkill) {
-      throw new NotFoundException({
-        message: "[updateUserSkill] - [updateUserSkill] User skill not found",
-        code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
-      });
-    }
-    return {
-      message: "User skill updated successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: userSkill,
-    };
-  }
-
   async uploadUserAvatar(
-    userId: number,
+    userId: string,
     file: MultipartFile | undefined,
   ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
     if (!file) {
@@ -363,7 +366,7 @@ export class UserUseCases implements OnModuleInit {
       avatarUrl: result.secure_url,
     };
     const updatedUserResult = await this.dataServices.users.update(
-      userId,
+      { id: userId },
       updatedUser,
     );
     if (!updatedUserResult) {

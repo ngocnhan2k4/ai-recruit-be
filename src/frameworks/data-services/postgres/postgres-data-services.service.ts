@@ -7,15 +7,9 @@ import {
   IGenericRepository,
   IUserExperienceGenericRepository,
   IUserSkillGenericRepository,
+  IProvinceGenericRepository,
 } from "../../../core";
-import {
-  AuthPostgresGenericRepository,
-  CategoryPostgresGenericRepository,
-  JobPostgresGenericRepository,
-  PostgresGenericRepository,
-  UserExperiencePostgresGenericRepository,
-  UserSkillPostgresGenericRepository,
-} from "./postgres-generic-repository";
+import { PostgresGenericRepository } from "./repositories/postgres-generic-repository";
 import {
   users,
   refreshTokens,
@@ -23,7 +17,8 @@ import {
   categories,
   userSkills,
   userExperiences,
-} from "./model";
+  provinces,
+} from "./models";
 import {
   Job,
   Company,
@@ -32,9 +27,16 @@ import {
   Skill,
   Province,
   Category,
+  UserExperience,
+  UserSkill,
 } from "@/core";
-import { type DBDrizzle } from "./helpers";
-import { UserExperience, UserSkill } from "@/core/entities/user.entity";
+import { type DBDrizzle } from "./types";
+import { AuthPostgresGenericRepository } from "./repositories/auth-postgres.repository";
+import { JobPostgresRepository } from "./repositories/job-postgres.repository";
+import { CategoryPostgresRepository } from "./repositories/category-postgres.repository";
+import { UserExperiencePostgresRepository } from "./repositories/user-experience-postgres.repository";
+import { UserSkillPostgresRepository } from "./repositories/user-skill-postgres.repository";
+import { ProvincePostgresGenericRepository } from "./repositories/province-postgres.repository";
 
 @Injectable()
 export class PostgresDataServices implements IDataServices {
@@ -44,6 +46,8 @@ export class PostgresDataServices implements IDataServices {
   categories: ICategoryGenericRepository<Category>;
   userExperiences: IUserExperienceGenericRepository<UserExperience>;
   userSkills: IUserSkillGenericRepository<UserSkill>;
+  provinces: IProvinceGenericRepository<Province>;
+
   constructor(@Inject("DRIZZLE") private db: DBDrizzle) {
     this.users = new PostgresGenericRepository<User, typeof users>(db, users);
 
@@ -52,7 +56,7 @@ export class PostgresDataServices implements IDataServices {
       typeof refreshTokens
     >(db, refreshTokens);
 
-    this.jobs = new JobPostgresGenericRepository<
+    this.jobs = new JobPostgresRepository<
       Job,
       Province,
       Company,
@@ -60,19 +64,24 @@ export class PostgresDataServices implements IDataServices {
       typeof jobs
     >(db);
 
-    this.categories = new CategoryPostgresGenericRepository<
+    this.categories = new CategoryPostgresRepository<
       Category,
       typeof categories
     >(db);
 
-    this.userExperiences = new UserExperiencePostgresGenericRepository<
+    this.userExperiences = new UserExperiencePostgresRepository<
       UserExperience,
       typeof userExperiences
     >(db);
 
-    this.userSkills = new UserSkillPostgresGenericRepository<
+    this.userSkills = new UserSkillPostgresRepository<
       UserSkill,
       typeof userSkills
+    >(db);
+
+    this.provinces = new ProvincePostgresGenericRepository<
+      Province,
+      typeof provinces
     >(db);
   }
 }

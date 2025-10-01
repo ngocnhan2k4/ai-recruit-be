@@ -1,12 +1,13 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 import { IDataServices } from "../../../core";
 import { PostgresDataServices } from "./postgres-data-services.service";
 import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { Logger } from "@nestjs/common";
-import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
+@Global()
 @Module({
   providers: [
     {

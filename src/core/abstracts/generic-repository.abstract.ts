@@ -1,21 +1,21 @@
 import { StatisticsJobFilter } from "../entities";
-import { UpdateUserExperienceDto } from "@/interfaces/dtos";
 
 export interface IGenericRepository<T> {
   getAll(): Promise<T[]>;
 
-  get(id: number | string): Promise<T | null>;
+  get(id: string | number): Promise<T | null>;
 
-  getByField(field: Partial<T>): Promise<T | null>;
+  getByField(field: Partial<T>): Promise<T[]>;
 
-  create(
-    item: Omit<T, "id" | "createdAt" | "updatedAt" | "deletedAt">,
-  ): Promise<T>;
+  create(item: Partial<T>): Promise<T>;
 
-  update(id: number | string, item: Partial<T>): Promise<T | null>;
+  update(where: Partial<T>, item: Partial<T>): Promise<T[]>;
 
-  delete(id: number | string): Promise<T | null>;
+  delete(where: Partial<T>): Promise<T[]>;
 }
+
+//  eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface IUserGenericRepository<T> extends IGenericRepository<T> {}
 
 export interface IAuthGenericRepository<T> extends IGenericRepository<T> {
   revoke(token: string): Promise<void>;
@@ -54,24 +54,14 @@ export interface IJobGenericRepository<TJob, TProvince, TCompany, TSkill>
 export interface ICategoryGenericRepository<TCategory>
   extends IGenericRepository<TCategory> {}
 
+//  eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface IUserExperienceGenericRepository<TUserExperience>
-  extends IGenericRepository<TUserExperience> {
-  getByUserId(userId: number): Promise<TUserExperience[]>;
-  updateUserExperience(
-    userId: number,
-    id: string,
-    item: UpdateUserExperienceDto,
-  ): Promise<TUserExperience | null>;
-  deleteUserExperience(
-    userId: number,
-    id: string,
-  ): Promise<TUserExperience | null>;
-}
+  extends IGenericRepository<TUserExperience> {}
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface IUserSkillGenericRepository<TUserSkill>
-  extends IGenericRepository<TUserSkill> {
-  getByUserId(userId: number): Promise<TUserSkill[]>;
-  createUserSkill(userId: number, skillId: string): Promise<TUserSkill>;
-  deleteUserSkill(userId: number, skillId: string): Promise<TUserSkill | null>;
-  updateUserSkill(userId: number, skillId: string): Promise<TUserSkill | null>;
-}
+  extends IGenericRepository<TUserSkill> {}
+
+//  eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface IProvinceGenericRepository<TProvince>
+  extends IGenericRepository<TProvince> {}

@@ -6,23 +6,26 @@ import {
   Job,
   Skill,
   Province,
+  UserExperience,
+  UserSkill,
 } from "../entities";
-import { UserExperience, UserSkill } from "../entities/user.entity";
 import {
   IAuthGenericRepository,
   IJobGenericRepository,
   ICategoryGenericRepository,
-  IGenericRepository,
+  IUserGenericRepository,
   IUserExperienceGenericRepository,
   IUserSkillGenericRepository,
+  IProvinceGenericRepository,
 } from "./generic-repository.abstract";
 
 export abstract class IDataServices {
-  abstract users: IGenericRepository<User>;
+  abstract users: IUserGenericRepository<User>;
   abstract refreshTokens: IAuthGenericRepository<RefreshToken>;
   abstract jobs: IJobGenericRepository<Job, Province, Company, Skill>;
   abstract categories: ICategoryGenericRepository<Category>;
   abstract userExperiences: IUserExperienceGenericRepository<UserExperience>;
   abstract userSkills: IUserSkillGenericRepository<UserSkill>;
+  abstract provinces: IProvinceGenericRepository<Province>;
   // other repositories
 }

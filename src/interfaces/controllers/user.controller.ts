@@ -10,6 +10,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Req,
@@ -21,19 +22,20 @@ import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decor
 import {
   ApiResponse,
   ApiResponseDto,
-  CreateUserExperienceDto,
-  CreateUserSkillDto,
   GetUserDto,
   UpdateUserDto,
-  UpdateUserExperienceDto,
-  UpdateUserSkillDto,
   UserDto,
   UserPublicDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { UserExperience, UserSkill } from "@/core";
 import { type FastifyRequest } from "fastify";
+import {
+  CreateUserExperienceDto,
+  UpdateUserExperienceDto,
+  UserExperienceDto,
+} from "../dtos/users/user-experience.dto";
+import { CreateUserSkillDto, UserSkillDto } from "../dtos/users/user-skill.dto";
 
 @ApiTags("Users")
 @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -87,43 +89,47 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<ApiResponse<UserDto>> {
-    return await this.userUseCases.updateUserProfile(user.sub, updateUserDto);
+    return await this.userUseCases.updateUserProfile(
+      user.userId,
+      updateUserDto,
+    );
   }
 
   @ApiOperation({ summary: "Get user experience" })
-  @ApiResponseDto(UserExperience, { isArray: true })
+  @ApiResponseDto(UserExperienceDto, { isArray: true })
   @CasbinPermission("/user-experiences", "GET")
   @Get("user-experiences")
   async getUserExperience(
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserExperience[]>> {
-    const userId = user.sub;
-    return this.userUseCases.getUserExperience(userId);
+  ): Promise<ApiResponse<UserExperienceDto[]>> {
+    return this.userUseCases.getUserExperiences(user.userId);
   }
 
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
-  @ApiResponseDto(UserExperience)
+  @ApiResponseDto(UserExperienceDto)
   async createUserExperience(
     @GetUser() user: TokenPayload,
     @Body() createUserExperienceDto: CreateUserExperienceDto,
-  ): Promise<ApiResponse<UserExperience>> {
-    createUserExperienceDto.userId = user.sub;
-    return this.userUseCases.createUserExperience(createUserExperienceDto);
+  ): Promise<ApiResponse<UserExperienceDto>> {
+    return this.userUseCases.createUserExperience(
+      user.userId,
+      createUserExperienceDto,
+    );
   }
 
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
-  @ApiResponseDto(UserExperience)
+  @ApiResponseDto(UserExperienceDto)
   async updateUserExperience(
     @GetUser() user: TokenPayload,
-    @Param("id") id: string,
+    @Param("id", ParseIntPipe) id: number,
     @Body() updateUserExperienceDto: UpdateUserExperienceDto,
-  ): Promise<ApiResponse<UserExperience>> {
+  ): Promise<ApiResponse<UserExperienceDto>> {
     return this.userUseCases.updateUserExperience(
-      user.sub,
+      user.userId,
       id,
       updateUserExperienceDto,
     );
@@ -139,10 +145,9 @@ export class UserController {
   @ApiResponseDto(UserDto)
   async deleteUserExperience(
     @GetUser() user: TokenPayload,
-    @Param("id") id: string,
+    @Param("id", ParseIntPipe) id: number,
   ) {
-    const userId = user.sub;
-    return this.userUseCases.deleteUserExperience(userId, id);
+    return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
   @ApiOperation({ summary: "Get user skills" })
@@ -152,24 +157,23 @@ export class UserController {
   })
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
-  @ApiResponseDto(UserSkill, { isArray: true })
+  @ApiResponseDto(UserSkillDto, { isArray: true })
   async getUserSkills(
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserSkill[]>> {
-    const userId = user.sub;
-    return this.userUseCases.getUserSkills(userId);
+  ): Promise<ApiResponse<UserSkillDto[]>> {
+    return this.userUseCases.getUserSkills(user.userId);
   }
 
   @ApiOperation({ summary: "Create user skill" })
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
-  @ApiResponseDto(UserSkill)
+  @ApiResponseDto(UserSkillDto)
   async createUserSkill(
     @GetUser() user: TokenPayload,
     @Body() createUserSkillDto: CreateUserSkillDto,
   ) {
     return this.userUseCases.createUserSkill(
-      user.sub,
+      user.userId,
       createUserSkillDto.skillId,
     );
   }
@@ -177,27 +181,27 @@ export class UserController {
   @ApiOperation({ summary: "Delete user skill" })
   @CasbinPermission("/user-skills", "DELETE")
   @Delete("user-skills/:id")
-  @ApiResponseDto(UserSkill)
+  @ApiResponseDto(UserSkillDto)
   async deleteUserSkill(
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
   ) {
-    return this.userUseCases.deleteUserSkill(user.sub, id);
+    return this.userUseCases.deleteUserSkill(user.userId, id);
   }
 
-  @ApiOperation({ summary: "Update user skill" })
-  @CasbinPermission("/user-skills", "PUT")
-  @Put("user-skills")
-  @ApiResponseDto(UserSkill)
-  async updateUserSkill(
-    @GetUser() user: TokenPayload,
-    @Body() updateUserSkillDto: UpdateUserSkillDto,
-  ): Promise<ApiResponse<UserSkill>> {
-    return this.userUseCases.updateUserSkill(
-      user.sub,
-      updateUserSkillDto.skillId,
-    );
-  }
+  // @ApiOperation({ summary: "Update user skill" })
+  // @CasbinPermission("/user-skills", "PUT")
+  // @Put("user-skills")
+  // @ApiResponseDto(UserSkillDto)
+  // async updateUserSkill(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() updateUserSkillDto: UpdateUserSkillDto,
+  // ): Promise<ApiResponse<UserSkillDto>> {
+  //   return await this.userUseCases.updateUserSkill(
+  //     user.sub,
+  //     updateUserSkillDto.skillId,
+  //   );
+  // }
 
   @ApiOperation({ summary: "Upload user avatar" })
   @CasbinPermission("/user-avatar", "POST")
@@ -209,6 +213,6 @@ export class UserController {
   ) {
     const file = await req.file();
 
-    return this.userUseCases.uploadUserAvatar(user.sub, file);
+    return this.userUseCases.uploadUserAvatar(user.userId, file);
   }
 }

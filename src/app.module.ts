@@ -6,6 +6,7 @@ import {
   HealthController,
   CategoryController,
   JobController,
+  ProvinceController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -26,9 +27,10 @@ import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
 import { APP_FILTER } from "@nestjs/core";
 import { HttpExceptionFilter } from "./common/middlewares/http-exception.config";
-import { LoggerServiceModule } from "./services/logger-services/logger-services.module";
 import { ILoggerServices } from "./core/abstracts/logger-services.abstract";
 import { AppConfigProps } from "./common/config/app.config";
+import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
+import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { AppConfigProps } from "./common/config/app.config";
     TerminusModule,
     HttpModule,
     LoggerServiceModule,
+    ProvinceUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -58,6 +61,7 @@ import { AppConfigProps } from "./common/config/app.config";
     CategoryController,
     UploadController,
     HealthController,
+    ProvinceController,
   ],
   providers: [
     JwtStrategy,

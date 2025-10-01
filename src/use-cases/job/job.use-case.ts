@@ -8,8 +8,7 @@ import {
   StatisticsJobFilterDto,
   StatisticsJobResponse,
 } from "@/interfaces/dtos";
-import { Skill, Job, Company } from "@/core";
-import { Province } from "@/core/entities/province.entity";
+import { Skill, Job, Company, Province } from "@/core";
 
 @Injectable()
 export class JobUseCases {

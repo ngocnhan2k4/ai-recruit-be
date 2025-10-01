@@ -4,7 +4,6 @@ import {
   varchar,
   date,
   pgEnum,
-  bigint,
   uuid,
   text,
   boolean,
@@ -27,7 +26,7 @@ export const educationLevelEnum = pgEnum("education_level", [
 export const users = pgTable(
   "users",
   {
-    id: bigserial("id", { mode: "number" }).primaryKey(),
+    id: uuid("id").defaultRandom().primaryKey(),
     username: varchar("username", { length: 255 }).notNull().unique(),
     email: varchar("email", { length: 255 }),
     emailVerified: boolean("email_verified").notNull().default(false),
@@ -48,16 +47,16 @@ export const users = pgTable(
 
 export const userExperiences = pgTable("user_experiences", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  user_id: bigint("user_id", { mode: "number" })
+  userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  company_id: uuid("company_id")
+  companyId: uuid("company_id")
     .notNull()
     .references(() => companies.id),
-  position: varchar("position", { length: 255 }),
-  start_date: date("start_date").notNull(),
-  end_date: date("end_date"),
-  job_title: varchar("job_title", { length: 255 }).notNull(),
+  position: varchar("position", { length: 255 }).notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  jobTitle: varchar("job_title", { length: 255 }).notNull(),
   description: text("description"),
   ...timestamps,
 });
@@ -65,24 +64,24 @@ export const userExperiences = pgTable("user_experiences", {
 export const userSkills = pgTable(
   "user_skills",
   {
-    user_id: bigint("user_id", { mode: "number" })
+    userId: uuid("user_id")
       .notNull()
       .references(() => users.id),
-    skill_id: uuid("skill_id")
+    skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id),
   },
-  (table) => [primaryKey({ columns: [table.user_id, table.skill_id] })],
+  (table) => [primaryKey({ columns: [table.userId, table.skillId] })],
 );
 
 export const userOnboardings = pgTable("user_onboardings", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  user_id: bigint("user_id", { mode: "number" })
+  userId: uuid("user_id")
     .notNull()
     .unique()
     .references(() => users.id),
-  education_level: educationLevelEnum("education_level"),
+  educationLevel: educationLevelEnum("education_level"),
   major: varchar("major", { length: 255 }),
   school: varchar("school", { length: 255 }),
-  current_goal: varchar("current_goal", { length: 500 }),
+  currentGoal: varchar("current_goal", { length: 500 }),
 });
