@@ -106,3 +106,79 @@ export class GetUserDto {
     });
   }
 }
+
+export class CreateUserExperienceDto {
+  @ApiProperty()
+  @IsString()
+  companyId: string;
+
+  @ApiProperty()
+  @IsString()
+  userId: number;
+
+  @ApiProperty()
+  @IsString()
+  jobTitle: string;
+
+  @ApiProperty()
+  @IsString()
+  position: string;
+
+  @ApiProperty()
+  @IsString()
+  startDate: Date;
+
+  @ApiProperty()
+  @IsString()
+  endDate: Date;
+
+  @ApiProperty()
+  @IsString()
+  description: string;
+}
+
+export class UpdateUserExperienceDto {
+  @ApiProperty()
+  @IsString()
+  id: string;
+
+  @ApiProperty()
+  @IsString()
+  userId: number;
+
+  @ApiProperty()
+  @IsString()
+  description: string;
+
+  @ApiProperty()
+  @IsString()
+  startDate: Date;
+
+  @ApiProperty()
+  @IsString()
+  endDate: Date;
+
+  @ApiProperty()
+  @IsString()
+  position: string;
+
+  @ApiProperty()
+  @IsString()
+  jobTitle: string;
+
+  @ApiProperty()
+  @IsString()
+  companyId: string;
+}
+
+export class CreateUserSkillDto {
+  @ApiProperty()
+  @IsString()
+  skillId: string;
+}
+
+export class UpdateUserSkillDto {
+  @ApiProperty()
+  @IsString()
+  skillId: string;
+}

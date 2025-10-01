@@ -2,16 +2,7 @@ services:
   backend:
     image: tnnhan57/ai-recruit:latest
     restart: always
-    environment:
-      DATABASE_URL: "postgresql://neondb_owner:npg_VFCRk1Q0cTju@ep-tiny-art-a1vu0die-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-      PORT: 3000
-      JWT_SECRET: "zaDA/KeDBa6PsISgY2bV6n1+Hfv6XyqeJhw520iLoYl9Bs1T0gO1viV9G1/YgUIwb5mjGmiIDU57hnFYVQM5nQ=="
-      FIREBASE_PROJECT_ID: "airecruit-b3ddc"
-      FIREBASE_CLIENT_EMAIL: "firebase-adminsdk-fbsvc@airecruit-b3ddc.iam.gserviceaccount.com"
-      FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDNdwvg1biCDlos\nJRWhYd2S7J/9VueDbqjKUqTZ6WHKIbGKt+bOX3i60KqegRJ9//omQImbv0XkLIGO\n2VFOIIexwgcBF3KWR/lVjGny+NI5ZkK3j6IUnfu0rzeKC7X0+NuzG5dV+gqxl98r\nWmWyLyuvusoWnFT7zZtTeX5vxoGXse3YD5O1a4b2sWsm3GjfRWdKU+TXbOWcYvN7\nPQfCp7WsxMDA0BIKsRtUuHYJdTjafVDmc5uu5TRaMSl94i4vP9XT5vtk3tIwMQ8F\n000SL3rrpux3QCGjmHPspZdx/JRV3DVpNiIj9ygqmxlDjIqqbt8mn6kER5tdnk+b\ngu5yGReRAgMBAAECggEAAOzDQezUWsmDwGUeVs6g97NW+QX2HtJVsitzEIQLa6SB\nLxWq1Uz6tySPUA1WrviDAL8Tn37Z6rAEmUcDJa3hznwIGgon+uMyDR+Hro9OKvH5\n5OehnCQl6OdNAbMRy5t/Kaw7Hyjz+V6so35RrN6nfLADjtx/SW7gfxyx5ADpvmwN\nia0Nes8dYi9hDJ9MVBhS48VaNkuKOkaSx2cm9ldHreLLNpG2LGBPz929He+30L8U\ntW3j7NbLHMbqSBZVFzRRgdKVfq4Mlp8BrTPywTs25KhRZUuEJB8kBj/cBYhee9qz\nVmXhRHgtszN+CnscWfeX7V2Q+cLZbKOH1QkhnibKfQKBgQD+G91Ri6xHpWmiGhA+\ndqki7pJA6CuHQhDSErURgnwpCzcbux+fPmUUKnCpzMFRgWsDCOESIRwdpzl2QSXe\nWI22u0JafTv1qNzOPtSJq/T+jK0/jQSUNNXAKOkXL0i2arUIzRuC/CaZFB8bTlKJ\nqJY64lz8WSv4jtIOctqVskED7wKBgQDO/oEXwtTGbv3Rug4pMxvYq2IyjyUlPP0J\n/5ZlxLuWCGkcdpFuYgE78kN5NedRrxLG6hHLvcIwPOxeMOvi5fYPWoQ+nWbALW4H\nUisOvecRvj/ru3K2iIzFplT/fIGFNZ+hrUVvH54UZiebDWSr5UG8mb55Lyo6P6aH\n06UtHTYcfwKBgFIXRmR1ru5mbb3ElcLYKsPyNqVpW8aSfUSgboZ9lQbdbKw0w356\ndcUSANuaHknqeVu9nphwwdiCkXm2ijlOelmyHTmGg7xVFSA8BAWF29vwLnf9YqFO\ngE9X6BVpXSAxUNLLEDw8oWuKqJH1t4xpPj8/qbKMTDw8R3gLeropn/9ZAoGAaTA8\nOe7wYcaVhbae66DlTb4KMNc9cScFD8eqjhzjluK/R4+ZaBa1udjrIPWbj48AY8Uf\nNgJAZHMRSuxhcvSZjkPZYFhslsx/VYkUCHHIsuOTaB/hs5DAuNBF8W88Ao21iVuc\nJVRT6Nng1pJ/zjq6pTUb7klhlCg0YGHVVo+5p9ECgYAiCgGzLQZdYoIlo5s6D78X\nVBdKfd13kxROqTcALpCOIQtdM84IGw/taKTdlUKvCFG9VougOh/ffPSFN7+ctuAn\npetYqGu+5oOo94iZEd9cgNs+zjcHUv16d0UNorQ1Eu/zp0/mCA01zxE6Tfwnu6xL\nPE1wUI2I1p714Qnt23ZfPw==\n-----END PRIVATE KEY-----\n"
-      JWT_EXPIRES_IN: "1h"
-      REFRESH_EXPIRES_IN: "7" # days
-      FIREBASE_STORAGE_BUCKET: "your-project-id.appspot.com"
-
+    env_file:
+      - .env
     ports:
       - "3000:3000"

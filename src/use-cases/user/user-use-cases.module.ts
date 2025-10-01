@@ -1,11 +1,20 @@
 import { Module } from "@nestjs/common";
 import { DataServicesModule } from "@/services/data-services/data-services.module";
-import { UserFactoryService } from "./user-factory.service";
+import { BloomFilterModule } from "../../frameworks/bloom-filter/bloom-filter.module";
+import { BloomFilterService } from "../../frameworks/bloom-filter/bloom-filter.service";
+import { IBloomFilterService } from "../../core/abstracts";
 import { UserUseCases } from "./user.use-case";
+import { CloudinaryModule } from "@/frameworks/storage/cloudinary/cloudinary.module";
 
 @Module({
-  imports: [DataServicesModule],
-  providers: [UserFactoryService, UserUseCases],
+  imports: [DataServicesModule, BloomFilterModule, CloudinaryModule],
+  providers: [
+    UserUseCases,
+    {
+      provide: IBloomFilterService,
+      useClass: BloomFilterService,
+    },
+  ],
   exports: [UserUseCases],
 })
 export class UserUseCasesModule {}

@@ -13,7 +13,7 @@ export class LoggerMiddleware implements NestMiddleware {
     const { method, originalUrl, body } = req;
     if (
       Object.keys((body || {}) as Record<string, any>).length > 0 &&
-      this.configService.get<string>("NODE_ENV") === "development"
+      this.configService.get<string>("NODE_ENV") === "local"
     ) {
       bodyMsg = `-> BODY: ${JSON.stringify(body)}`;
     }
