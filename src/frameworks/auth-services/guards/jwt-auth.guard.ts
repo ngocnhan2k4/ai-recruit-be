@@ -6,6 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { AnonymousId } from "@/common/constants/roles";
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
@@ -16,7 +17,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     info: any,
     _context: ExecutionContext,
   ): TokenPayload {
-    if (err || !user) {
+    if (err || !user || user.sub === AnonymousId) {
       this.logger.error("[JwtAuthGuard] [handleRequest] JWT Info:", info, err);
       throw new UnauthorizedException({
         message: info?.message || "Unauthorized",
