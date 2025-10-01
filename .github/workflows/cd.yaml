@@ -1,7 +1,7 @@
 name: CD Pipeline
 env:
   APP_URL: https://airecruit.software
-  IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit
+  IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
 on:
   push:
     branches: ["dev", "main"]
