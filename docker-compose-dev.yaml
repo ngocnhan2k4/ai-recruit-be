@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/ngocnhan2k4/ai-recruit:latest
+    image: ghcr.io/ngocnhan2k4/ai-recruit-be:latest
     restart: always
     env_file:
       - .env
