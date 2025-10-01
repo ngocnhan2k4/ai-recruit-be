@@ -34,7 +34,7 @@ export class UserPublicDto {
   gender: GenderEnum | null;
 
   @ApiProperty()
-  dob: Date | null;
+  dob: string | null;
 }
 
 export class UserDto {
@@ -57,7 +57,7 @@ export class UserDto {
   name: string;
 
   @ApiProperty({ required: false })
-  dob: Date | null;
+  dob: string | null;
 
   @ApiProperty()
   createdAt: Date;
@@ -91,7 +91,7 @@ export class GetUserDto {
   @Expose()
   name: string;
   @Expose()
-  dob: Date | null;
+  dob: string | null;
   @Expose()
   gender: string | null;
   @Expose()

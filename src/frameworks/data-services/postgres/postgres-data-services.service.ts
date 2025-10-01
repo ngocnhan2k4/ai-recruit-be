@@ -4,6 +4,7 @@ import {
   ICategoryGenericRepository,
   IDataServices,
   IJobGenericRepository,
+  IGenericRepository,
 } from "../../../core";
 import {
   AuthPostgresGenericRepository,
@@ -11,13 +12,17 @@ import {
   JobPostgresGenericRepository,
   PostgresGenericRepository,
 } from "./postgres-generic-repository";
-import { User, RefreshToken, Skill } from "../../../core/entities";
-import { IGenericRepository } from "../../../core";
 import { users, refreshTokens, jobs, categories } from "./model";
-import { Job, Company } from "@/core/index";
+import {
+  Job,
+  Company,
+  User,
+  RefreshToken,
+  Skill,
+  Province,
+  Category,
+} from "@/core";
 import { type DBDrizzle } from "./helpers";
-import { Category } from "@/core/entities/category.entity";
-import { Province } from "@/core/entities/province.entity";
 
 @Injectable()
 export class PostgresDataServices implements IDataServices {

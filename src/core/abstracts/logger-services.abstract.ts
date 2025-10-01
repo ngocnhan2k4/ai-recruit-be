@@ -1,4 +1,4 @@
-import { Logs } from "../entities/logs.entity";
+import { Logs } from "../entities/log.entity";
 
 export abstract class ILoggerServices {
   abstract logInfo(message: Logs): Promise<void>;

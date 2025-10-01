@@ -1,5 +1,5 @@
 import { convertDateToStr } from "@/common/utils/date";
-import { Logs } from "@/core/entities/logs.entity";
+import { Logs } from "@/core/entities/log.entity";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";

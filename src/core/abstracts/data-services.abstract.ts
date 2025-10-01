@@ -1,5 +1,12 @@
-import { User, RefreshToken, Company, Category, Job, Skill } from "../entities";
-import { Province } from "../entities/province.entity";
+import {
+  User,
+  RefreshToken,
+  Company,
+  Category,
+  Job,
+  Skill,
+  Province,
+} from "../entities";
 import {
   IGenericRepository,
   IAuthGenericRepository,

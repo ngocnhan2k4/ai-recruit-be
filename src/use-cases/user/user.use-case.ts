@@ -2,10 +2,11 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { User } from "../../core/entities";
 import { IDataServices } from "../../core/abstracts";
 import { UserFactoryService } from "./user-factory.service";
-import { UserPublicDto, UpdateUserDto } from "@/interfaces/dtos";
+import { UserPublicDto, UpdateUserDto, UserDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { TokenPayload } from "@/common/types/token";
+import { GenderEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class UserUseCases {
@@ -74,7 +75,7 @@ export class UserUseCases {
         username: user.username,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        gender: user.gender,
+        gender: user.gender as GenderEnum,
         dob: user.dob,
       },
     };
@@ -83,7 +84,7 @@ export class UserUseCases {
   async updateUserProfile(
     userId: number,
     updateUserDto: UpdateUserDto,
-  ): Promise<ApiResponse<User>> {
+  ): Promise<ApiResponse<UserDto>> {
     const user = await this.dataServices.users.get(userId);
     if (!user) {
       throw new NotFoundException({
@@ -103,7 +104,10 @@ export class UserUseCases {
     return {
       message: "User profile updated successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        ...result,
+        gender: result.gender as GenderEnum,
+      },
     };
   }
 }
