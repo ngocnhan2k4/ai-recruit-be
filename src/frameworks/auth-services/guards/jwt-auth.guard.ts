@@ -1,5 +1,4 @@
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { AnonymousId } from "@/common/constants/roles";
 import {
   Injectable,
   ExecutionContext,
@@ -17,7 +16,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     info: any,
     _context: ExecutionContext,
   ): TokenPayload {
-    if (err || !user || user.sub === AnonymousId) {
+    if (err || !user) {
       this.logger.error("[JwtAuthGuard] [handleRequest] JWT Info:", info, err);
       throw new UnauthorizedException({
         message: info?.message || "Unauthorized",

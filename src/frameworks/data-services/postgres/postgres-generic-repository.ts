@@ -20,6 +20,7 @@ import {
   IAuthGenericRepository,
   IJobGenericRepository,
   ICategoryGenericRepository,
+  IProvinceGenericRepository,
   StatisticsJobFilter,
 } from "../../../core";
 import { Inject } from "@nestjs/common";
@@ -304,6 +305,15 @@ export class JobPostgresGenericRepository<
       avgSalaryMax: Number(r.avgSalaryMax),
       jobCount: Number(r.jobCount),
     }));
+  }
+}
+
+export class ProvincePostgresGenericRepository<TProvince, TTable>
+  extends PostgresGenericRepository<TProvince, TTable>
+  implements IProvinceGenericRepository<TProvince>
+{
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+    super(db, provinces as TTable);
   }
 }
 

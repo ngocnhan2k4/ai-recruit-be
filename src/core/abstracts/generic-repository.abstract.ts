@@ -48,3 +48,7 @@ export interface IJobGenericRepository<TJob, TProvince, TCompany, TSkill>
 //  eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ICategoryGenericRepository<TCategory>
   extends IGenericRepository<TCategory> {}
+
+//  eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface IProvinceGenericRepository<TProvince>
+  extends IGenericRepository<TProvince> {}

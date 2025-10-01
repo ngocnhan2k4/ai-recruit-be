@@ -2,16 +2,16 @@ import { Injectable } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { CategoryDto } from "@/interfaces/dtos/category.dto";
+import { ProvinceDto } from "@/interfaces/dtos/province.dto";
 
 @Injectable()
-export class CategoryUseCases {
+export class ProvinceUseCases {
   constructor(private readonly dataServices: IDataServices) {}
 
-  async getCategories(): Promise<ApiResponse<CategoryDto[]>> {
-    const data = await this.dataServices.categories.getAll();
+  async getProvinces(): Promise<ApiResponse<ProvinceDto[]>> {
+    const data = await this.dataServices.provinces.getAll();
     return {
-      message: "Categories fetched successfully",
+      message: "Provinces fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data,
     };

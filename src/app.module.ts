@@ -5,6 +5,7 @@ import {
   UploadController,
   HealthController,
   CategoryController,
+  ProvinceController,
   JobController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -17,6 +18,7 @@ import { AuthUseCasesModule } from "./use-cases/auth/auth-use-cases.module";
 import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
 import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
+import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
 import { StorageModule } from "./frameworks/storage/storage.module";
 import { TerminusModule } from "@nestjs/terminus";
@@ -40,6 +42,7 @@ import { AppConfigProps } from "./common/config/app.config";
     AuthUseCasesModule,
     CasbinModule,
     CategoryUseCasesModule,
+    ProvinceUseCasesModule,
     StorageModule,
     TerminusModule,
     HttpModule,
@@ -50,6 +53,7 @@ import { AppConfigProps } from "./common/config/app.config";
     AuthController,
     JobController,
     CategoryController,
+    ProvinceController,
     UploadController,
     HealthController,
   ],

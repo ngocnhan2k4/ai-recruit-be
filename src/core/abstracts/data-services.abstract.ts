@@ -5,6 +5,7 @@ import {
   IAuthGenericRepository,
   IJobGenericRepository,
   ICategoryGenericRepository,
+  IProvinceGenericRepository,
 } from "./generic-repository.abstract";
 
 export abstract class IDataServices {
@@ -12,6 +13,7 @@ export abstract class IDataServices {
   abstract refreshTokens: IAuthGenericRepository<RefreshToken>;
   abstract jobs: IJobGenericRepository<Job, Province, Company, Skill>;
   abstract categories: ICategoryGenericRepository<Category>;
+  abstract provinces: IProvinceGenericRepository<Province>;
 
   // other repositories
 }

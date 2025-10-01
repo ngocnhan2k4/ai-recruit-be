@@ -1,4 +1,4 @@
 export class Province {
-  id: bigint;
+  id: string;
   name: string;
 }
