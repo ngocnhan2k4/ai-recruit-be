@@ -9,6 +9,7 @@ import {
   JobController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import envConfig, {
   Environment,
@@ -20,7 +21,9 @@ import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy"
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
-import { StorageModule } from "./frameworks/storage/storage.module";
+import { RedisModule } from "./frameworks/redis/redis.module";
+import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.module";
+import { StorageModule } from "./use-cases/storage/storage.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
 import { APP_FILTER } from "@nestjs/core";
@@ -37,12 +40,15 @@ import { AppConfigProps } from "./common/config/app.config";
       load: [envConfig],
       validate: validateConfig,
     }),
+    ScheduleModule.forRoot(),
+    RedisModule,
     UserUseCasesModule,
     JobUseCasesModule,
     AuthUseCasesModule,
     CasbinModule,
     CategoryUseCasesModule,
     ProvinceUseCasesModule,
+    CloudinaryModule,
     StorageModule,
     TerminusModule,
     HttpModule,

@@ -5,6 +5,8 @@ import {
   IProvinceGenericRepository,
   IDataServices,
   IJobGenericRepository,
+  IUserExperienceGenericRepository,
+  IUserSkillGenericRepository,
 } from "../../../core";
 import {
   AuthPostgresGenericRepository,
@@ -12,10 +14,26 @@ import {
   ProvincePostgresGenericRepository,
   JobPostgresGenericRepository,
   PostgresGenericRepository,
+  UserExperiencePostgresGenericRepository,
+  UserSkillPostgresGenericRepository,
 } from "./postgres-generic-repository";
-import { User, RefreshToken, Skill } from "../../../core/entities";
+import {
+  User,
+  RefreshToken,
+  UserExperience,
+  UserSkill,
+  Skill,
+} from "../../../core/entities";
 import { IGenericRepository } from "../../../core";
-import { users, refreshTokens, jobs, categories, provinces } from "./model";
+import {
+  users,
+  refreshTokens,
+  jobs,
+  categories,
+  userExperiences,
+  userSkills,
+  provinces,
+} from "./model";
 import { Job, Company } from "@/core/index";
 import { type DBDrizzle } from "./helpers";
 import { Category } from "@/core/entities/category.entity";
@@ -29,6 +47,8 @@ export class PostgresDataServices implements IDataServices {
   categories: ICategoryGenericRepository<Category>;
   provinces: IProvinceGenericRepository<Province>;
 
+  userExperiences: IUserExperienceGenericRepository<UserExperience>;
+  userSkills: IUserSkillGenericRepository<UserSkill>;
   constructor(@Inject("DRIZZLE") private db: DBDrizzle) {
     this.users = new PostgresGenericRepository<User, typeof users>(db, users);
 
@@ -53,6 +73,16 @@ export class PostgresDataServices implements IDataServices {
     this.provinces = new ProvincePostgresGenericRepository<
       Province,
       typeof provinces
+    >(db);
+
+    this.userExperiences = new UserExperiencePostgresGenericRepository<
+      UserExperience,
+      typeof userExperiences
+    >(db);
+
+    this.userSkills = new UserSkillPostgresGenericRepository<
+      UserSkill,
+      typeof userSkills
     >(db);
   }
 }

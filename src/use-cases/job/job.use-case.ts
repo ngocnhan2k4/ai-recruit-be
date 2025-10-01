@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { IDataServices } from "../../core/abstracts";
 import { StatisticsJobFilter } from "@/core/entities/job.entity";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -13,6 +13,7 @@ import { Province } from "@/core/entities/province.entity";
 
 @Injectable()
 export class JobUseCases {
+  private readonly logger = new Logger(JobUseCases.name);
   constructor(private readonly dataServices: IDataServices) {}
 
   async getAllJobs(
@@ -33,6 +34,7 @@ export class JobUseCases {
       sortBy,
       sortDirection,
     );
+    this.logger.log(`Fetched ${result.length} jobs`);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -64,6 +66,7 @@ export class JobUseCases {
       }),
     ]);
 
+    this.logger.log(`Fetched statistics jobs`);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

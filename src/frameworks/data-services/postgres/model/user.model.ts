@@ -54,11 +54,11 @@ export const userExperiences = pgTable("user_experiences", {
   company_id: uuid("company_id")
     .notNull()
     .references(() => companies.id),
+  position: varchar("position", { length: 255 }),
   start_date: date("start_date").notNull(),
   end_date: date("end_date"),
   job_title: varchar("job_title", { length: 255 }).notNull(),
   description: text("description"),
-  is_current: boolean("is_current").notNull().default(false),
   ...timestamps,
 });
 
