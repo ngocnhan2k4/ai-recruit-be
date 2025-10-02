@@ -51,3 +51,5 @@ RATE_LIMIT_EXCEEDED
 
 ---
 *Last updated: September 17, 2025*
+### 5. Naming
+- Using camelCase with all variable 

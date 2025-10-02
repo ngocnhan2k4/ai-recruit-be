@@ -32,3 +32,9 @@ bun drizzle-kit push
 ```bash
 bun run start:dev
 ```
+
+
+# Flow 
+- Request -> Interfaces/Controller (Dùng DTO để validate) -> Use case -> Gọi Repository qua interface
+- Abstract: Định nghĩa interface cho services và entity
+- Frameworks: Implement các interface trong abstract

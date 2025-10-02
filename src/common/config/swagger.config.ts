@@ -1,9 +1,11 @@
 import { AppConfigProps, getAppConfigs } from "@/common/config/app.config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { Environment } from "./env.config";
 
-const tags: string[] = [];
-const developmentUrls: string[] = ["localhost"];
+const tags: string[] = ["Users", "File Upload"];
+const localUrls: string[] = ["localhost"];
+const developmentUrls: string[] = ["airecruit.software"];
 const productionUrls: string[] = [];
 
 const generateTags = (tags: string[]) => {
@@ -32,11 +34,18 @@ export const generateDocumentBuilder = ({
   generateTags(tags).forEach((tag) =>
     document.addTag(tag.name, tag.description),
   );
-  if (nodeEnv === "development") {
+  if (nodeEnv === Environment.Development) {
     developmentUrls.forEach((url, index) => {
       document.addServer(
-        `http://${url}:${port}${globalPrefix}`,
+        `https://${url}${globalPrefix}`,
         `Development server ${index + 1}`,
+      );
+    });
+  } else if (nodeEnv === Environment.Local) {
+    localUrls.forEach((url, index) => {
+      document.addServer(
+        `http://${url}:${port}${globalPrefix}`,
+        `Local server ${index + 1}`,
       );
     });
   } else {
@@ -64,6 +73,8 @@ export const enableSwaggerDoc = (app: NestFastifyApplication) => {
 
   SwaggerModule.setup("docs", app, document, {
     jsonDocumentUrl: "docs/json",
-    swaggerOptions: { persistAuthorization: true },
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
   });
 };

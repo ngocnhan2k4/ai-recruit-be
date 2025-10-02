@@ -1,0 +1,108 @@
+import { IsEmail, IsInt, IsString } from "class-validator";
+import { PartialType } from "@nestjs/mapped-types";
+import { ApiProperty } from "@nestjs/swagger";
+import { Expose, plainToInstance } from "class-transformer";
+import { GenderEnum } from "@/common/constants/roles";
+
+export class CreateUserRequestDto {
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsInt()
+  age: number;
+}
+
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
+
+export class UserPublicResponseDto {
+  @ApiProperty()
+  username: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  avatarUrl: string | null;
+
+  @ApiProperty()
+  gender: GenderEnum | null;
+
+  @ApiProperty()
+  dob: string | null;
+}
+
+export class UserDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  username: string;
+
+  @ApiProperty({ required: false })
+  email: string | null;
+
+  @ApiProperty({ required: false })
+  phone: string | null;
+
+  @ApiProperty({ required: false })
+  avatarUrl: string | null;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ required: false })
+  dob: string | null;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty({ required: false })
+  updatedAt: Date | null;
+
+  @ApiProperty({ required: false })
+  firebaseUid: string | null;
+
+  @ApiProperty({ required: false, enum: GenderEnum })
+  gender: GenderEnum | null;
+
+  @ApiProperty({ required: false, type: "boolean" })
+  emailVerified: boolean | null;
+}
+
+export class GetUserResponseDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  username: string;
+
+  @Expose()
+  email: string | null;
+  @Expose()
+  phone: string | null;
+  @Expose()
+  avatarUrl: string | null;
+  @Expose()
+  name: string;
+  @Expose()
+  dob: string | null;
+  @Expose()
+  gender: string | null;
+  @Expose()
+  firebaseUid: string | null;
+  @Expose()
+  emailVerified: boolean;
+
+  //Use this instead of Object.assign to drop non-exposed fields
+  static from(partial: Partial<GetUserResponseDto>) {
+    return plainToInstance(GetUserResponseDto, partial, {
+      excludeExtraneousValues: true,
+    });
+  }
+}
