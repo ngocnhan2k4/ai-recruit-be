@@ -3,7 +3,7 @@ import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../dtos";
 import { JobResponse, QueryJobDto } from "../dtos/jobs/query-job.dto";
-import { StatisticsJobFilterDto, StatisticsJobResponse } from "../dtos";
+import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 
 @ApiTags("Jobs")
@@ -40,7 +40,7 @@ export class JobController {
   @ApiResponseDto(StatisticsJobResponse)
   @Get("statistics")
   async getStatisticsJob(
-    @Query() filter: StatisticsJobFilterDto,
+    @Query() filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
     return this.jobUseCases.getStatisticsJobs(filter);
   }

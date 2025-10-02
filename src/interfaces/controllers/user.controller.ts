@@ -22,20 +22,23 @@ import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decor
 import {
   ApiResponse,
   ApiResponseDto,
-  GetUserDto,
-  UpdateUserDto,
+  GetUserResponseDto,
+  UpdateUserRequestDto,
   UserDto,
-  UserPublicDto,
+  UserPublicResponseDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { type FastifyRequest } from "fastify";
 import {
-  CreateUserExperienceDto,
-  UpdateUserExperienceDto,
+  CreateUserExperienceRequestDto,
+  UpdateUserExperienceRequestDto,
   UserExperienceDto,
 } from "../dtos/users/user-experience.dto";
-import { CreateUserSkillDto, UserSkillDto } from "../dtos/users/user-skill.dto";
+import {
+  CreateUserSkillRequestDto,
+  UserSkillDto,
+} from "../dtos/users/user-skill.dto";
 
 @ApiTags("Users")
 @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -65,19 +68,21 @@ export class UserController {
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",
   })
-  @ApiResponseDto(GetUserDto)
+  @ApiResponseDto(GetUserResponseDto)
   @Get("me")
-  getMe(@GetUser() user: TokenPayload): Promise<ApiResponse<GetUserDto>> {
+  getMe(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
     return this.userUseCases.getUserByAccessToken(user);
   }
 
   @ApiOperation({ summary: "Get user by username" })
   @CasbinPermission("/", "GET")
   @Get(":username")
-  @ApiResponseDto(UserPublicDto)
+  @ApiResponseDto(UserPublicResponseDto)
   async getUserProfilePublic(
     @Param("username") username: string,
-  ): Promise<ApiResponse<UserPublicDto>> {
+  ): Promise<ApiResponse<UserPublicResponseDto>> {
     return await this.userUseCases.getUserByUsername(username);
   }
 
@@ -87,7 +92,7 @@ export class UserController {
   @ApiResponseDto(UserDto)
   async updateProfile(
     @GetUser() user: TokenPayload,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateUserRequestDto,
   ): Promise<ApiResponse<UserDto>> {
     return await this.userUseCases.updateUserProfile(
       user.userId,
@@ -111,7 +116,7 @@ export class UserController {
   @ApiResponseDto(UserExperienceDto)
   async createUserExperience(
     @GetUser() user: TokenPayload,
-    @Body() createUserExperienceDto: CreateUserExperienceDto,
+    @Body() createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperienceDto>> {
     return this.userUseCases.createUserExperience(
       user.userId,
@@ -126,7 +131,7 @@ export class UserController {
   async updateUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
-    @Body() updateUserExperienceDto: UpdateUserExperienceDto,
+    @Body() updateUserExperienceDto: UpdateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperienceDto>> {
     return this.userUseCases.updateUserExperience(
       user.userId,
@@ -170,7 +175,7 @@ export class UserController {
   @ApiResponseDto(UserSkillDto)
   async createUserSkill(
     @GetUser() user: TokenPayload,
-    @Body() createUserSkillDto: CreateUserSkillDto,
+    @Body() createUserSkillDto: CreateUserSkillRequestDto,
   ) {
     return this.userUseCases.createUserSkill(
       user.userId,

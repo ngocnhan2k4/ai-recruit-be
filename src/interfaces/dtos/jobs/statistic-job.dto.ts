@@ -2,7 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsOptional, IsString, IsDate } from "class-validator";
 
-export class StatisticsJobFilterDto {
+export class StatisticsJobFilterRequestDto {
   @ApiProperty({ type: Date, example: "2023-01-01" })
   @Type(() => Date)
   @IsDate()

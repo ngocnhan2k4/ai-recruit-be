@@ -5,7 +5,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
-  StatisticsJobFilterDto,
+  StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
 } from "@/interfaces/dtos";
 import { Skill, Job, Company, Province } from "@/core";
@@ -42,7 +42,7 @@ export class JobUseCases {
   }
 
   async getStatisticsJobs(
-    filter: StatisticsJobFilterDto,
+    filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
     const [
       frequentlyJobs,

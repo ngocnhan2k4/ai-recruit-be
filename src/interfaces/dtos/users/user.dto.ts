@@ -4,7 +4,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
 
-export class CreateUserDto {
+export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
   email: string;
@@ -18,9 +18,9 @@ export class CreateUserDto {
   age: number;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
 
-export class UserPublicDto {
+export class UserPublicResponseDto {
   @ApiProperty()
   username: string;
 
@@ -75,7 +75,7 @@ export class UserDto {
   emailVerified: boolean | null;
 }
 
-export class GetUserDto {
+export class GetUserResponseDto {
   @Expose()
   id: string;
 
@@ -100,8 +100,8 @@ export class GetUserDto {
   emailVerified: boolean;
 
   //Use this instead of Object.assign to drop non-exposed fields
-  static from(partial: Partial<GetUserDto>) {
-    return plainToInstance(GetUserDto, partial, {
+  static from(partial: Partial<GetUserResponseDto>) {
+    return plainToInstance(GetUserResponseDto, partial, {
       excludeExtraneousValues: true,
     });
   }

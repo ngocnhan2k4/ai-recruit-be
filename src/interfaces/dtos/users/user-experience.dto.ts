@@ -36,7 +36,7 @@ export class UserExperienceDto {
   deletedAt: Date | null;
 }
 
-export class CreateUserExperienceDto {
+export class CreateUserExperienceRequestDto {
   @ApiProperty()
   @IsString()
   companyId: string;
@@ -62,7 +62,7 @@ export class CreateUserExperienceDto {
   description: string;
 }
 
-export class UpdateUserExperienceDto {
+export class UpdateUserExperienceRequestDto {
   @ApiProperty()
   @IsString()
   description: string;

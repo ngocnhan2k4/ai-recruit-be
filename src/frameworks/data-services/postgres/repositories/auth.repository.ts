@@ -1,13 +1,13 @@
 import { IAuthRepository, RefreshToken } from "@/core";
-import { PostgresGenericRepository } from "./generic-postgres-repository";
+import { GenericRepository } from "./generic-repository";
 import { and, eq, gt } from "drizzle-orm";
 import { refreshTokens } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
 @Injectable()
-export class AuthPostgresRepository
-  extends PostgresGenericRepository<RefreshToken, typeof refreshTokens>
+export class AuthRepository
+  extends GenericRepository<RefreshToken, typeof refreshTokens>
   implements IAuthRepository
 {
   constructor(@Inject("DRIZZLE") db: DBDrizzle) {

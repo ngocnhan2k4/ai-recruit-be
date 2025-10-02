@@ -11,10 +11,10 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   ApiResponse,
-  GetUserDto,
-  UpdateUserDto,
+  GetUserResponseDto,
+  UpdateUserRequestDto,
   UserDto,
-  UserPublicDto,
+  UserPublicResponseDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
@@ -22,8 +22,8 @@ import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import { UserExperience, UserSkill } from "@/core";
 import {
-  CreateUserExperienceDto,
-  UpdateUserExperienceDto,
+  CreateUserExperienceRequestDto,
+  UpdateUserExperienceRequestDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
 
@@ -75,7 +75,7 @@ export class UserUseCases implements OnModuleInit {
     return this.userRepository.getAll();
   }
 
-  async getUserById(id: number): Promise<ApiResponse<GetUserDto>> {
+  async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
@@ -85,8 +85,8 @@ export class UserUseCases implements OnModuleInit {
         }),
       );
     }
-    const userDto = GetUserDto.from(user);
-    return new ApiResponse<GetUserDto>({
+    const userDto = GetUserResponseDto.from(user);
+    return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
@@ -95,7 +95,7 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByAccessToken(
     payload: TokenPayload,
-  ): Promise<ApiResponse<GetUserDto>> {
+  ): Promise<ApiResponse<GetUserResponseDto>> {
     const id: string = payload.userId;
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
@@ -106,8 +106,8 @@ export class UserUseCases implements OnModuleInit {
         }),
       );
     }
-    const userDto = GetUserDto.from(user);
-    return new ApiResponse<GetUserDto>({
+    const userDto = GetUserResponseDto.from(user);
+    return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
@@ -116,7 +116,7 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByUsername(
     username: string,
-  ): Promise<ApiResponse<UserPublicDto>> {
+  ): Promise<ApiResponse<UserPublicResponseDto>> {
     const user = (await this.userRepository.getByField({ username }))[0];
     if (!user) {
       throw new NotFoundException({
@@ -139,7 +139,7 @@ export class UserUseCases implements OnModuleInit {
 
   async updateUserProfile(
     userId: string,
-    updateUserDto: UpdateUserDto,
+    updateUserDto: UpdateUserRequestDto,
   ): Promise<ApiResponse<UserDto>> {
     const user = await this.userRepository.get(userId);
     if (!user) {
@@ -200,7 +200,7 @@ export class UserUseCases implements OnModuleInit {
 
   async createUserExperience(
     userId: string,
-    createUserExperienceDto: CreateUserExperienceDto,
+    createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperience>> {
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
@@ -224,7 +224,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserExperience(
     userId: string,
     id: number,
-    updateUserExperienceDto: UpdateUserExperienceDto,
+    updateUserExperienceDto: UpdateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperience>> {
     const userExperience = (
       await this.userExperienceRepository.getByField({

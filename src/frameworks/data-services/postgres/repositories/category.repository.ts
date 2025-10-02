@@ -1,12 +1,12 @@
 import { Category, ICategoryRepository } from "@/core";
-import { PostgresGenericRepository } from "./generic-postgres-repository";
+import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { categories } from "../models";
 
 @Injectable()
-export class CategoryPostgresRepository
-  extends PostgresGenericRepository<Category, typeof categories>
+export class CategoryRepository
+  extends GenericRepository<Category, typeof categories>
   implements ICategoryRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {

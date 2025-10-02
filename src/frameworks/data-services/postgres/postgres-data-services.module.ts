@@ -13,13 +13,13 @@ import {
   IUserRepository,
   IUserSkillRepository,
 } from "@/core";
-import { AuthPostgresRepository } from "./repositories/auth-postgres.repository";
-import { CategoryPostgresRepository } from "./repositories/category-postgres.repository";
-import { JobPostgresRepository } from "./repositories/job-postgres.repository";
-import { ProvincePostgresRepository } from "./repositories/province-postgres.repository";
-import { UserExperiencePostgresRepository } from "./repositories/user-experience-postgres.repository";
-import { UserSkillPostgresRepository } from "./repositories/user-skill-postgres.repository";
-import { UserPostgresRepository } from "./repositories/user-postgres.repository";
+import { AuthRepository } from "./repositories/auth.repository";
+import { CategoryRepository } from "./repositories/category.repository";
+import { JobRepository } from "./repositories/job.repository";
+import { ProvinceRepository } from "./repositories/province.repository";
+import { UserExperienceRepository } from "./repositories/user-experience.repository";
+import { UserSkillRepository } from "./repositories/user-skill.repository";
+import { UserRepository } from "./repositories/user.repository";
 
 @Global()
 @Module({
@@ -78,31 +78,31 @@ import { UserPostgresRepository } from "./repositories/user-postgres.repository"
     },
     {
       provide: IAuthRepository,
-      useClass: AuthPostgresRepository,
+      useClass: AuthRepository,
     },
     {
       provide: ICategoryRepository,
-      useClass: CategoryPostgresRepository,
+      useClass: CategoryRepository,
     },
     {
       provide: IJobRepository,
-      useClass: JobPostgresRepository,
+      useClass: JobRepository,
     },
     {
       provide: IProvinceRepository,
-      useClass: ProvincePostgresRepository,
+      useClass: ProvinceRepository,
     },
     {
       provide: IUserExperienceRepository,
-      useClass: UserExperiencePostgresRepository,
+      useClass: UserExperienceRepository,
     },
     {
       provide: IUserSkillRepository,
-      useClass: UserSkillPostgresRepository,
+      useClass: UserSkillRepository,
     },
     {
       provide: IUserRepository,
-      useClass: UserPostgresRepository,
+      useClass: UserRepository,
     },
   ],
   exports: [

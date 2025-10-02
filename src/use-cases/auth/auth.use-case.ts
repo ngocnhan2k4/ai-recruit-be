@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthService, NewUser, User } from "@/core";
 import { IAuthRepository, IUserRepository } from "@/core";
-import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
+import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
 import { AnonymousId, RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
@@ -20,7 +20,7 @@ export class AuthUseCases {
   async logIn(idToken: string): Promise<
     ApiResponse<{
       tokens: { accessToken: string; refreshToken: string };
-      user: GetUserDto;
+      user: GetUserResponseDto;
     }>
   > {
     let decode: {
@@ -86,7 +86,7 @@ export class AuthUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data: {
         tokens: { accessToken, refreshToken },
-        user: GetUserDto.from(user),
+        user: GetUserResponseDto.from(user),
       },
     };
   }

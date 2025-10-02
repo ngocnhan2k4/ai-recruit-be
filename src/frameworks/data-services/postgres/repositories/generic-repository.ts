@@ -3,9 +3,7 @@ import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
-export class PostgresGenericRepository<T, TTable>
-  implements IGenericRepository<T>
-{
+export class GenericRepository<T, TTable> implements IGenericRepository<T> {
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,

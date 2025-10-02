@@ -9,13 +9,7 @@ export class UserSkillDto {
   skillId: string;
 }
 
-export class CreateUserSkillDto {
-  @ApiProperty()
-  @IsString()
-  skillId: string;
-}
-
-export class UpdateUserSkillDto {
+export class CreateUserSkillRequestDto {
   @ApiProperty()
   @IsString()
   skillId: string;

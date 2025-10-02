@@ -23,10 +23,10 @@ import {
   jobSkills,
   jobCategories,
   provinces,
-} from "..//models";
+} from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
-import { PostgresGenericRepository } from "./generic-postgres-repository";
+import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
 import {
   Job,
@@ -37,8 +37,8 @@ import {
 } from "@/core/entities";
 
 @Injectable()
-export class JobPostgresRepository
-  extends PostgresGenericRepository<Job, typeof jobs>
+export class JobRepository
+  extends GenericRepository<Job, typeof jobs>
   implements IJobRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
