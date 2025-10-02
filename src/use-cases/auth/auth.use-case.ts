@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { IAuthServices, NewUser, User } from "@/core";
-import { IDataServices } from "@/core/abstracts/data-services.abstract";
+import { IAuthService, NewUser, User } from "@/core";
+import { IAuthRepository, IUserRepository } from "@/core";
 import { ApiResponse, GetUserDto } from "@/interfaces/dtos";
 import { AnonymousId, RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
@@ -11,8 +11,9 @@ import { generateUsername } from "@/common/utils/string";
 @Injectable()
 export class AuthUseCases {
   constructor(
-    private readonly authService: IAuthServices,
-    private readonly dataServices: IDataServices,
+    private readonly authService: IAuthService,
+    private readonly authRepository: IAuthRepository,
+    private readonly userRepository: IUserRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -41,7 +42,7 @@ export class AuthUseCases {
     if (decode.provider_id !== "anonymous") {
       user =
         (
-          await this.dataServices.users.getByField({
+          await this.userRepository.getByField({
             firebaseUid: decode.uid,
           })
         )[0] || null;
@@ -57,7 +58,7 @@ export class AuthUseCases {
           dob: null,
           phone: null,
         };
-        user = await this.dataServices.users.create(newUser);
+        user = await this.userRepository.create(newUser);
       } else {
         // Update user info if necessary
       }
@@ -105,7 +106,7 @@ export class AuthUseCases {
     const refreshTokenExpires = new Date(
       newDate.getTime() + refreshExpiresIn * 24 * 60 * 60 * 1000,
     ); // 7 days
-    await this.dataServices.refreshTokens.create({
+    await this.authRepository.create({
       userId: user.id,
       token: refreshToken,
       expiresAt: new Date(refreshTokenExpires),
@@ -118,16 +119,16 @@ export class AuthUseCases {
     oldRefreshToken: string,
   ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     const storedToken =
-      await this.dataServices.refreshTokens.findValidToken(oldRefreshToken);
+      await this.authRepository.findValidToken(oldRefreshToken);
     if (!storedToken) {
       throw new UnauthorizedException({
         message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
         code: RESPONSE_CODE.INVALID_CREDENTIALS,
       });
     }
-    const user = await this.dataServices.users.get(storedToken.userId);
+    const user = await this.userRepository.get(storedToken.userId);
     const { accessToken, refreshToken } = await this.issueNewTokens(user!);
-    await this.dataServices.refreshTokens.revoke(oldRefreshToken);
+    await this.authRepository.revoke(oldRefreshToken);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -135,15 +136,14 @@ export class AuthUseCases {
     };
   }
   async logout(refreshToken: string): Promise<ApiResponse<any>> {
-    const storedToken =
-      await this.dataServices.refreshTokens.findValidToken(refreshToken);
+    const storedToken = await this.authRepository.findValidToken(refreshToken);
     if (!storedToken) {
       throw new UnauthorizedException({
         message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
         code: RESPONSE_CODE.INVALID_CREDENTIALS,
       });
     }
-    await this.dataServices.refreshTokens.revoke(refreshToken);
+    await this.authRepository.revoke(refreshToken);
     return {
       message: "Logged out successfully",
       code: RESPONSE_CODE.SUCCESS,

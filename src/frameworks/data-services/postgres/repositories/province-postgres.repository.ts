@@ -1,14 +1,16 @@
-import { IProvinceGenericRepository } from "@/core";
-import { PostgresGenericRepository } from "./postgres-generic-repository";
+import { IProvinceRepository } from "@/core";
+import { PostgresGenericRepository } from "./generic-postgres-repository";
 import { type DBDrizzle } from "../types";
-import { Inject } from "@nestjs/common/decorators/core/inject.decorator";
+import { Inject, Injectable } from "@nestjs/common";
 import { provinces } from "../schema";
+import { Province } from "@/core";
 
-export class ProvincePostgresGenericRepository<TProvince, TTable>
-  extends PostgresGenericRepository<TProvince, TTable>
-  implements IProvinceGenericRepository<TProvince>
+@Injectable()
+export class ProvincePostgresRepository
+  extends PostgresGenericRepository<Province, typeof provinces>
+  implements IProvinceRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, provinces as TTable);
+    super(db, provinces);
   }
 }

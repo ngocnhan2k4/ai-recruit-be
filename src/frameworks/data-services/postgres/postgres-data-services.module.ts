@@ -1,11 +1,25 @@
 import { Global, Module } from "@nestjs/common";
-import { IDataServices } from "../../../core";
-import { PostgresDataServices } from "./postgres-data-services.service";
 import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { Logger } from "@nestjs/common";
 import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import {
+  IAuthRepository,
+  ICategoryRepository,
+  IJobRepository,
+  IProvinceRepository,
+  IUserExperienceRepository,
+  IUserRepository,
+  IUserSkillRepository,
+} from "@/core";
+import { AuthPostgresRepository } from "./repositories/auth-postgres.repository";
+import { CategoryPostgresRepository } from "./repositories/category-postgres.repository";
+import { JobPostgresRepository } from "./repositories/job-postgres.repository";
+import { ProvincePostgresRepository } from "./repositories/province-postgres.repository";
+import { UserExperiencePostgresRepository } from "./repositories/user-experience-postgres.repository";
+import { UserSkillPostgresRepository } from "./repositories/user-skill-postgres.repository";
+import { UserPostgresRepository } from "./repositories/user-postgres.repository";
 
 @Global()
 @Module({
@@ -63,10 +77,42 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
       inject: [ConfigService],
     },
     {
-      provide: IDataServices,
-      useClass: PostgresDataServices,
+      provide: IAuthRepository,
+      useClass: AuthPostgresRepository,
+    },
+    {
+      provide: ICategoryRepository,
+      useClass: CategoryPostgresRepository,
+    },
+    {
+      provide: IJobRepository,
+      useClass: JobPostgresRepository,
+    },
+    {
+      provide: IProvinceRepository,
+      useClass: ProvincePostgresRepository,
+    },
+    {
+      provide: IUserExperienceRepository,
+      useClass: UserExperiencePostgresRepository,
+    },
+    {
+      provide: IUserSkillRepository,
+      useClass: UserSkillPostgresRepository,
+    },
+    {
+      provide: IUserRepository,
+      useClass: UserPostgresRepository,
     },
   ],
-  exports: [IDataServices],
+  exports: [
+    IAuthRepository,
+    ICategoryRepository,
+    IJobRepository,
+    IProvinceRepository,
+    IUserExperienceRepository,
+    IUserSkillRepository,
+    IUserRepository,
+  ],
 })
 export class PostgresDataServicesModule {}

@@ -1,11 +1,18 @@
-import { IAuthGenericRepository } from "@/core";
-import { PostgresGenericRepository } from "./postgres-generic-repository";
+import { IAuthRepository, RefreshToken } from "@/core";
+import { PostgresGenericRepository } from "./generic-postgres-repository";
 import { and, eq, gt } from "drizzle-orm";
+import { refreshTokens } from "../models";
+import { Inject, Injectable } from "@nestjs/common";
+import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
-export class AuthPostgresGenericRepository<T, TTable>
-  extends PostgresGenericRepository<T, TTable>
-  implements IAuthGenericRepository<T>
+@Injectable()
+export class AuthPostgresRepository
+  extends PostgresGenericRepository<RefreshToken, typeof refreshTokens>
+  implements IAuthRepository
 {
+  constructor(@Inject("DRIZZLE") db: DBDrizzle) {
+    super(db, refreshTokens);
+  }
   async revoke(token: string): Promise<void> {
     await this.db
       .update(this._table as any)
@@ -13,7 +20,7 @@ export class AuthPostgresGenericRepository<T, TTable>
       .where(eq((this._table as any).token, token))
       .execute();
   }
-  async findValidToken(token: string): Promise<T | null> {
+  async findValidToken(token: string): Promise<RefreshToken | null> {
     const result = await this.db
       .select()
       .from(this._table as any)
@@ -24,6 +31,6 @@ export class AuthPostgresGenericRepository<T, TTable>
           gt((this._table as any).expiresAt, new Date()),
         ),
       );
-    return (result[0] as T) || null;
+    return (result[0] as RefreshToken) || null;
   }
 }

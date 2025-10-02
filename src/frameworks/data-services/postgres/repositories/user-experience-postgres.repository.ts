@@ -1,14 +1,16 @@
-import { IUserExperienceGenericRepository } from "@/core";
-import { PostgresGenericRepository } from "./postgres-generic-repository";
-import { Inject } from "@nestjs/common";
+import { IUserExperienceRepository } from "@/core";
+import { PostgresGenericRepository } from "./generic-postgres-repository";
+import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { userExperiences } from "../models";
+import { UserExperience } from "@/core/entities";
 
-export class UserExperiencePostgresRepository<TUserExperience, TTable>
-  extends PostgresGenericRepository<TUserExperience, TTable>
-  implements IUserExperienceGenericRepository<TUserExperience>
+@Injectable()
+export class UserExperiencePostgresRepository
+  extends PostgresGenericRepository<UserExperience, typeof userExperiences>
+  implements IUserExperienceRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, userExperiences as TTable);
+    super(db, userExperiences);
   }
 }

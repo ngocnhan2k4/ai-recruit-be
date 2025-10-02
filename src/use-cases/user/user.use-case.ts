@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { User } from "../../core/entities";
-import { IBloomFilterService, IDataServices } from "../../core/abstracts";
+import {
+  IBloomFilterService,
+  IUserRepository,
+  IUserExperienceRepository,
+  IUserSkillRepository,
+} from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
@@ -27,7 +32,9 @@ export class UserUseCases implements OnModuleInit {
   private readonly logger = new Logger(UserUseCases.name);
 
   constructor(
-    private readonly dataServices: IDataServices,
+    private readonly userRepository: IUserRepository,
+    private readonly userExperienceRepository: IUserExperienceRepository,
+    private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
@@ -47,7 +54,7 @@ export class UserUseCases implements OnModuleInit {
   private async initializeBloomFilter() {
     try {
       // Get all usernames from database
-      const users = await this.dataServices.users.getAll();
+      const users = await this.userRepository.getAll();
       const usernames = users.map((user) => user.username);
 
       this.bloomFilterService.initialize(usernames);
@@ -65,11 +72,11 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return this.dataServices.users.getAll();
+    return this.userRepository.getAll();
   }
 
   async getUserById(id: number): Promise<ApiResponse<GetUserDto>> {
-    const user: User | null = await this.dataServices.users.get(id);
+    const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
         new ApiResponse({
@@ -90,7 +97,7 @@ export class UserUseCases implements OnModuleInit {
     payload: TokenPayload,
   ): Promise<ApiResponse<GetUserDto>> {
     const id: string = payload.userId;
-    const user: User | null = await this.dataServices.users.get(id);
+    const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
         new ApiResponse({
@@ -110,7 +117,7 @@ export class UserUseCases implements OnModuleInit {
   async getUserByUsername(
     username: string,
   ): Promise<ApiResponse<UserPublicDto>> {
-    const user = (await this.dataServices.users.getByField({ username }))[0];
+    const user = (await this.userRepository.getByField({ username }))[0];
     if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
@@ -134,7 +141,7 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     updateUserDto: UpdateUserDto,
   ): Promise<ApiResponse<UserDto>> {
-    const user = await this.dataServices.users.get(userId);
+    const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
@@ -148,7 +155,7 @@ export class UserUseCases implements OnModuleInit {
     };
 
     const result = (
-      await this.dataServices.users.update(
+      await this.userRepository.update(
         {
           id: userId,
         },
@@ -174,7 +181,7 @@ export class UserUseCases implements OnModuleInit {
   async getUserExperiences(
     userId: string,
   ): Promise<ApiResponse<UserExperience[]>> {
-    const userExperiences = await this.dataServices.userExperiences.getByField({
+    const userExperiences = await this.userExperienceRepository.getByField({
       userId,
     });
     if (!userExperiences) {
@@ -195,7 +202,7 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceDto,
   ): Promise<ApiResponse<UserExperience>> {
-    const result = await this.dataServices.userExperiences.create({
+    const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
       userId,
       startDate: convertDateToStr(createUserExperienceDto.startDate),
@@ -220,7 +227,7 @@ export class UserUseCases implements OnModuleInit {
     updateUserExperienceDto: UpdateUserExperienceDto,
   ): Promise<ApiResponse<UserExperience>> {
     const userExperience = (
-      await this.dataServices.userExperiences.getByField({
+      await this.userExperienceRepository.getByField({
         userId,
         id,
       })
@@ -236,7 +243,7 @@ export class UserUseCases implements OnModuleInit {
       ...updateUserExperienceDto,
     };
     const result = (
-      await this.dataServices.userExperiences.update(
+      await this.userExperienceRepository.update(
         { userId, id },
         {
           ...updatedUserExperience,
@@ -264,7 +271,7 @@ export class UserUseCases implements OnModuleInit {
     id: number,
   ): Promise<ApiResponse<UserExperience>> {
     const result = (
-      await this.dataServices.userExperiences.delete({
+      await this.userExperienceRepository.delete({
         userId,
         id,
       })
@@ -283,7 +290,7 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async getUserSkills(userId: string): Promise<ApiResponse<UserSkill[]>> {
-    const userSkills = await this.dataServices.userSkills.getByField({
+    const userSkills = await this.userSkillRepository.getByField({
       userId,
     });
     if (!userSkills) {
@@ -303,7 +310,7 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.create({
+    const userSkill = await this.userSkillRepository.create({
       userId,
       skillId,
     });
@@ -325,7 +332,7 @@ export class UserUseCases implements OnModuleInit {
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
     const result = (
-      await this.dataServices.userSkills.delete({
+      await this.userSkillRepository.delete({
         userId,
         skillId,
       })
@@ -354,7 +361,7 @@ export class UserUseCases implements OnModuleInit {
       });
     }
     const result = await this.cloudinaryService.uploadFile(file);
-    const user = await this.dataServices.users.get(userId);
+    const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
         message: "[uploadUserAvatar] - [get] User not found",
@@ -365,7 +372,7 @@ export class UserUseCases implements OnModuleInit {
       ...user,
       avatarUrl: result.secure_url,
     };
-    const updatedUserResult = await this.dataServices.users.update(
+    const updatedUserResult = await this.userRepository.update(
       { id: userId },
       updatedUser,
     );
@@ -405,7 +412,7 @@ export class UserUseCases implements OnModuleInit {
     }
 
     // Step 2: verify DB để loại false positive
-    const user = await this.dataServices.users.getByField({ username });
+    const user = await this.userRepository.getByField({ username });
     exists = user !== null;
 
     return {

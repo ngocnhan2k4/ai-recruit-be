@@ -15,7 +15,7 @@ import {
   desc,
   SQLWrapper,
 } from "drizzle-orm";
-import { Inject } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   jobs,
   companies,
@@ -26,16 +26,23 @@ import {
 } from "..//models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
-import { PostgresGenericRepository } from "./postgres-generic-repository";
-import { IJobGenericRepository } from "@/core/abstracts/generic-repository.abstract";
-import { StatisticsJobFilter } from "@/core/entities";
+import { PostgresGenericRepository } from "./generic-postgres-repository";
+import { IJobRepository } from "@/core";
+import {
+  Job,
+  Province,
+  Skill,
+  StatisticsJobFilter,
+  Company,
+} from "@/core/entities";
 
-export class JobPostgresRepository<TJob, TProvince, TCompany, TSkill, JobTable>
-  extends PostgresGenericRepository<TJob, JobTable>
-  implements IJobGenericRepository<TJob, TProvince, TCompany, TSkill>
+@Injectable()
+export class JobPostgresRepository
+  extends PostgresGenericRepository<Job, typeof jobs>
+  implements IJobRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, jobs as JobTable);
+    super(db, jobs);
   }
 
   async getAllJobs(
@@ -45,7 +52,7 @@ export class JobPostgresRepository<TJob, TProvince, TCompany, TSkill, JobTable>
     sortBy = "datePosted",
     sortDirection: "asc" | "desc" = "asc",
   ): Promise<
-    { job: TJob; provinces: TProvince[]; company: TCompany; skills: TSkill[] }[]
+    { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
   > {
     const sortColumn: SQLWrapper = jobs[sortBy];
 
@@ -75,10 +82,10 @@ export class JobPostgresRepository<TJob, TProvince, TCompany, TSkill, JobTable>
       .orderBy(orderExpr)
       .limit(limit)
       .offset(offset)) as {
-      job: TJob;
-      provinces: TProvince[];
-      company: TCompany;
-      skills: TSkill[];
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
     }[];
 
     return result;
