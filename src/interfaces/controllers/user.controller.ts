@@ -39,13 +39,14 @@ import {
   CreateUserSkillRequestDto,
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
+import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 
 @ApiTags("Users")
-@UseGuards(JwtAuthGuard, CasbinGuard)
 @Controller("users")
 export class UserController {
   constructor(private readonly userUseCases: UserUseCases) {}
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @Get("check-username/:username")
   @ApiOperation({
     summary: "Check if username exists using Bloom Filter",
@@ -64,6 +65,7 @@ export class UserController {
     return result;
   }
 
+  @UseGuards(GuestGuard, CasbinGuard)
   @ApiOperation({
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",
@@ -76,6 +78,7 @@ export class UserController {
     return this.userUseCases.getUserByAccessToken(user);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user by username" })
   @CasbinPermission("/", "GET")
   @Get(":username")
@@ -86,6 +89,7 @@ export class UserController {
     return await this.userUseCases.getUserByUsername(username);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user profile" })
   @CasbinPermission("/", "PUT")
   @Put("profile")
@@ -100,6 +104,7 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user experience" })
   @ApiResponseDto(UserExperienceDto, { isArray: true })
   @CasbinPermission("/user-experiences", "GET")
@@ -110,6 +115,7 @@ export class UserController {
     return this.userUseCases.getUserExperiences(user.userId);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
@@ -124,6 +130,7 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
@@ -140,6 +147,7 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Delete user experience" })
   @SwaggerApiResponse({
     status: 200,
@@ -155,6 +163,7 @@ export class UserController {
     return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
   @SwaggerApiResponse({
     status: 200,
@@ -169,6 +178,7 @@ export class UserController {
     return this.userUseCases.getUserSkills(user.userId);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Create user skill" })
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
@@ -183,6 +193,7 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Delete user skill" })
   @CasbinPermission("/user-skills", "DELETE")
   @Delete("user-skills/:id")
@@ -208,6 +219,7 @@ export class UserController {
   //   );
   // }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Upload user avatar" })
   @CasbinPermission("/user-avatar", "POST")
   @Post("user-avatar")
