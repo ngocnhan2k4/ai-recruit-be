@@ -49,7 +49,7 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
       sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically in dev
@@ -89,7 +89,7 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.refreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
       sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically
@@ -123,7 +123,7 @@ export class AuthController {
     }
     res.clearCookie(REFRESH_TOKEN, {
       httpOnly: true,
-      secure: false, // Must match the original cookie settings
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Must match the original cookie settings
       sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Must match the original cookie settings
       path: "/",
       domain: undefined, // Must match the original cookie settings
