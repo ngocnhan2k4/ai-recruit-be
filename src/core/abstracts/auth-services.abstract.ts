@@ -1,4 +1,4 @@
-export abstract class IAuthServices {
+export abstract class IAuthService {
   abstract verifyIdToken(idToken: string): Promise<{
     uid: string;
     email?: string;

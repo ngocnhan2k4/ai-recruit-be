@@ -17,10 +17,10 @@ export class CompanyDto {
   address: string[] | null;
 
   @ApiProperty({ type: "number" })
-  employeesMin: number;
+  employeesMin: number | null;
 
   @ApiProperty({ type: "number" })
-  employeesMax: number;
+  employeesMax: number | null;
 
   @ApiProperty({ type: "string", nullable: true })
   websiteUrl: string | null;

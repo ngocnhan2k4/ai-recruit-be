@@ -1,9 +1,8 @@
 import { Module } from "@nestjs/common";
-import { DataServicesModule } from "@/services/data-services/data-services.module";
 import { JobUseCases } from "./job.use-case";
 
 @Module({
-  imports: [DataServicesModule],
+  imports: [],
   providers: [JobUseCases],
   exports: [JobUseCases],
 })

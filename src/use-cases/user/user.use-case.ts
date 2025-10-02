@@ -1,31 +1,40 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { User } from "../../core/entities";
 import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from "@nestjs/common";
+  IBloomFilterService,
+  IUserRepository,
+  IUserExperienceRepository,
+  IUserSkillRepository,
+} from "../../core/abstracts";
+import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { User, UserExperience, UserSkill } from "../../core/entities";
-import { IDataServices, IBloomFilterService } from "../../core/abstracts";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   ApiResponse,
-  CreateUserExperienceDto,
-  GetUserDto,
-  UpdateUserDto,
-  UpdateUserExperienceDto,
-  UserPublicDto,
+  GetUserResponseDto,
+  UpdateUserRequestDto,
+  UserDto,
+  UserPublicResponseDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
+import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
+import { UserExperience, UserSkill } from "@/core";
+import {
+  CreateUserExperienceRequestDto,
+  UpdateUserExperienceRequestDto,
+} from "@/interfaces/dtos/users/user-experience.dto";
+import { convertDateToStr } from "@/common/utils/date";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
   private readonly logger = new Logger(UserUseCases.name);
 
   constructor(
-    private readonly dataServices: IDataServices,
+    private readonly userRepository: IUserRepository,
+    private readonly userExperienceRepository: IUserExperienceRepository,
+    private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
@@ -45,7 +54,7 @@ export class UserUseCases implements OnModuleInit {
   private async initializeBloomFilter() {
     try {
       // Get all usernames from database
-      const users = await this.dataServices.users.getAll();
+      const users = await this.userRepository.getAll();
       const usernames = users.map((user) => user.username);
 
       this.bloomFilterService.initialize(usernames);
@@ -63,11 +72,11 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return this.dataServices.users.getAll();
+    return this.userRepository.getAll();
   }
 
-  async getUserById(id: number): Promise<ApiResponse<GetUserDto>> {
-    const user: User | null = await this.dataServices.users.get(id);
+  async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
+    const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
         new ApiResponse({
@@ -76,8 +85,8 @@ export class UserUseCases implements OnModuleInit {
         }),
       );
     }
-    const userDto = GetUserDto.from(user);
-    return new ApiResponse<GetUserDto>({
+    const userDto = GetUserResponseDto.from(user);
+    return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
@@ -86,9 +95,9 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByAccessToken(
     payload: TokenPayload,
-  ): Promise<ApiResponse<GetUserDto>> {
-    const id: number = payload.sub;
-    const user: User | null = await this.dataServices.users.get(id);
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    const id: string = payload.userId;
+    const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
         new ApiResponse({
@@ -97,8 +106,8 @@ export class UserUseCases implements OnModuleInit {
         }),
       );
     }
-    const userDto = GetUserDto.from(user);
-    return new ApiResponse<GetUserDto>({
+    const userDto = GetUserResponseDto.from(user);
+    return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
@@ -107,13 +116,9 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByUsername(
     username: string,
-  ): Promise<ApiResponse<UserPublicDto>> {
-    const user = await this.dataServices.users.getByField({ username });
+  ): Promise<ApiResponse<UserPublicResponseDto>> {
+    const user = (await this.userRepository.getByField({ username }))[0];
     if (!user) {
-      throw new NotFoundException({
-        message: "User not found",
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
@@ -126,17 +131,17 @@ export class UserUseCases implements OnModuleInit {
         username: user.username,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        gender: user.gender,
+        gender: user.gender as GenderEnum,
         dob: user.dob,
       },
     };
   }
 
   async updateUserProfile(
-    userId: number,
-    updateUserDto: UpdateUserDto,
-  ): Promise<ApiResponse<User>> {
-    const user = await this.dataServices.users.get(userId);
+    userId: string,
+    updateUserDto: UpdateUserRequestDto,
+  ): Promise<ApiResponse<UserDto>> {
+    const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
@@ -149,7 +154,14 @@ export class UserUseCases implements OnModuleInit {
       ...updateUserDto,
     };
 
-    const result = await this.dataServices.users.update(userId, updatedUser);
+    const result = (
+      await this.userRepository.update(
+        {
+          id: userId,
+        },
+        updatedUser,
+      )
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
@@ -159,38 +171,43 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User profile updated successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        ...result,
+        gender: result.gender as GenderEnum,
+      },
     };
   }
 
-  async getUserExperience(
-    userId: number,
+  async getUserExperiences(
+    userId: string,
   ): Promise<ApiResponse<UserExperience[]>> {
-    const userExperiences =
-      await this.dataServices.userExperiences.getByUserId(userId);
+    const userExperiences = await this.userExperienceRepository.getByField({
+      userId,
+    });
     if (!userExperiences) {
       throw new NotFoundException({
         message:
-          "[getUserExperience] - [getByUserId] User experience not found",
+          "[getUserExperiences] - [getByUserId] User experiences not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
     return {
-      message: "User experience fetched successfully",
+      message: "User experiences fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
       data: userExperiences,
     };
   }
 
   async createUserExperience(
-    createUserExperienceDto: CreateUserExperienceDto,
+    userId: string,
+    createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperience>> {
-    const userExperience = {
+    const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
-    };
-
-    const result =
-      await this.dataServices.userExperiences.create(userExperience);
+      userId,
+      startDate: convertDateToStr(createUserExperienceDto.startDate),
+      endDate: convertDateToStr(createUserExperienceDto.endDate),
+    });
     if (!result) {
       throw new NotFoundException({
         message: "[createUserExperience] - [create] User experience not found",
@@ -205,11 +222,16 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async updateUserExperience(
-    userId: number,
-    id: string,
-    updateUserExperienceDto: UpdateUserExperienceDto,
+    userId: string,
+    id: number,
+    updateUserExperienceDto: UpdateUserExperienceRequestDto,
   ): Promise<ApiResponse<UserExperience>> {
-    const userExperience = await this.dataServices.userExperiences.get(id);
+    const userExperience = (
+      await this.userExperienceRepository.getByField({
+        userId,
+        id,
+      })
+    )[0];
     if (!userExperience) {
       throw new NotFoundException({
         message: "[updateUserExperience] - [get] User experience not found",
@@ -220,11 +242,16 @@ export class UserUseCases implements OnModuleInit {
       ...userExperience,
       ...updateUserExperienceDto,
     };
-    const result = await this.dataServices.userExperiences.updateUserExperience(
-      userId,
-      id,
-      updatedUserExperience,
-    );
+    const result = (
+      await this.userExperienceRepository.update(
+        { userId, id },
+        {
+          ...updatedUserExperience,
+          startDate: convertDateToStr(updateUserExperienceDto.startDate),
+          endDate: convertDateToStr(updateUserExperienceDto.endDate),
+        },
+      )
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message:
@@ -240,13 +267,15 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserExperience(
-    userId: number,
-    id: string,
+    userId: string,
+    id: number,
   ): Promise<ApiResponse<UserExperience>> {
-    const result = await this.dataServices.userExperiences.deleteUserExperience(
-      userId,
-      id,
-    );
+    const result = (
+      await this.userExperienceRepository.delete({
+        userId,
+        id,
+      })
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
@@ -260,8 +289,10 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserSkills(userId: number): Promise<ApiResponse<UserSkill[]>> {
-    const userSkills = await this.dataServices.userSkills.getByUserId(userId);
+  async getUserSkills(userId: string): Promise<ApiResponse<UserSkill[]>> {
+    const userSkills = await this.userSkillRepository.getByField({
+      userId,
+    });
     if (!userSkills) {
       throw new NotFoundException({
         message: "[getUserSkills] - [getByUserId] User skills not found",
@@ -276,13 +307,13 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async createUserSkill(
-    userId: number,
+    userId: string,
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.createUserSkill(
+    const userSkill = await this.userSkillRepository.create({
       userId,
       skillId,
-    );
+    });
     if (!userSkill) {
       throw new NotFoundException({
         message: "[createUserSkill] - [createUserSkill] User skill not found",
@@ -297,13 +328,15 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserSkill(
-    userId: number,
+    userId: string,
     skillId: string,
   ): Promise<ApiResponse<UserSkill>> {
-    const result = await this.dataServices.userSkills.deleteUserSkill(
-      userId,
-      skillId,
-    );
+    const result = (
+      await this.userSkillRepository.delete({
+        userId,
+        skillId,
+      })
+    )[0];
     if (!result) {
       throw new NotFoundException({
         message: "[deleteUserSkill] - [deleteUserSkill] User skill not found",
@@ -317,29 +350,8 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async updateUserSkill(
-    userId: number,
-    skillId: string,
-  ): Promise<ApiResponse<UserSkill>> {
-    const userSkill = await this.dataServices.userSkills.updateUserSkill(
-      userId,
-      skillId,
-    );
-    if (!userSkill) {
-      throw new NotFoundException({
-        message: "[updateUserSkill] - [updateUserSkill] User skill not found",
-        code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
-      });
-    }
-    return {
-      message: "User skill updated successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: userSkill,
-    };
-  }
-
   async uploadUserAvatar(
-    userId: number,
+    userId: string,
     file: MultipartFile | undefined,
   ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
     if (!file) {
@@ -349,7 +361,7 @@ export class UserUseCases implements OnModuleInit {
       });
     }
     const result = await this.cloudinaryService.uploadFile(file);
-    const user = await this.dataServices.users.get(userId);
+    const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
         message: "[uploadUserAvatar] - [get] User not found",
@@ -360,8 +372,8 @@ export class UserUseCases implements OnModuleInit {
       ...user,
       avatarUrl: result.secure_url,
     };
-    const updatedUserResult = await this.dataServices.users.update(
-      userId,
+    const updatedUserResult = await this.userRepository.update(
+      { id: userId },
       updatedUser,
     );
     if (!updatedUserResult) {
@@ -400,7 +412,7 @@ export class UserUseCases implements OnModuleInit {
     }
 
     // Step 2: verify DB để loại false positive
-    const user = await this.dataServices.users.getByField({ username });
+    const user = await this.userRepository.getByField({ username });
     exists = user !== null;
 
     return {

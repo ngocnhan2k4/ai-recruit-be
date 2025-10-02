@@ -4,7 +4,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
 
-export class CreateUserDto {
+export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
   email: string;
@@ -18,9 +18,9 @@ export class CreateUserDto {
   age: number;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
 
-export class UserPublicDto {
+export class UserPublicResponseDto {
   @ApiProperty()
   username: string;
 
@@ -34,12 +34,12 @@ export class UserPublicDto {
   gender: GenderEnum | null;
 
   @ApiProperty()
-  dob: Date | null;
+  dob: string | null;
 }
 
 export class UserDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   username: string;
@@ -57,7 +57,7 @@ export class UserDto {
   name: string;
 
   @ApiProperty({ required: false })
-  dob: Date | null;
+  dob: string | null;
 
   @ApiProperty()
   createdAt: Date;
@@ -75,9 +75,9 @@ export class UserDto {
   emailVerified: boolean | null;
 }
 
-export class GetUserDto {
+export class GetUserResponseDto {
   @Expose()
-  id: number;
+  id: string;
 
   @Expose()
   username: string;
@@ -91,7 +91,7 @@ export class GetUserDto {
   @Expose()
   name: string;
   @Expose()
-  dob: Date | null;
+  dob: string | null;
   @Expose()
   gender: string | null;
   @Expose()
@@ -100,85 +100,9 @@ export class GetUserDto {
   emailVerified: boolean;
 
   //Use this instead of Object.assign to drop non-exposed fields
-  static from(partial: Partial<GetUserDto>) {
-    return plainToInstance(GetUserDto, partial, {
+  static from(partial: Partial<GetUserResponseDto>) {
+    return plainToInstance(GetUserResponseDto, partial, {
       excludeExtraneousValues: true,
     });
   }
-}
-
-export class CreateUserExperienceDto {
-  @ApiProperty()
-  @IsString()
-  companyId: string;
-
-  @ApiProperty()
-  @IsString()
-  userId: number;
-
-  @ApiProperty()
-  @IsString()
-  jobTitle: string;
-
-  @ApiProperty()
-  @IsString()
-  position: string;
-
-  @ApiProperty()
-  @IsString()
-  startDate: Date;
-
-  @ApiProperty()
-  @IsString()
-  endDate: Date;
-
-  @ApiProperty()
-  @IsString()
-  description: string;
-}
-
-export class UpdateUserExperienceDto {
-  @ApiProperty()
-  @IsString()
-  id: string;
-
-  @ApiProperty()
-  @IsString()
-  userId: number;
-
-  @ApiProperty()
-  @IsString()
-  description: string;
-
-  @ApiProperty()
-  @IsString()
-  startDate: Date;
-
-  @ApiProperty()
-  @IsString()
-  endDate: Date;
-
-  @ApiProperty()
-  @IsString()
-  position: string;
-
-  @ApiProperty()
-  @IsString()
-  jobTitle: string;
-
-  @ApiProperty()
-  @IsString()
-  companyId: string;
-}
-
-export class CreateUserSkillDto {
-  @ApiProperty()
-  @IsString()
-  skillId: string;
-}
-
-export class UpdateUserSkillDto {
-  @ApiProperty()
-  @IsString()
-  skillId: string;
 }

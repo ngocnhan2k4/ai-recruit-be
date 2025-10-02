@@ -5,7 +5,7 @@ import { JobDto } from "./job.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
-import { Province } from "@/core/entities/province.entity";
+import { Province } from "@/core";
 
 export class QueryJobDto extends GeneralQueryDto {}
 

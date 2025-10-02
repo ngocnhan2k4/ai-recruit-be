@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import * as admin from "firebase-admin";
-import { FireBaseAuthServices } from "./firebase-auth-services.service";
-import { IAuthServices } from "@/core";
+import { FireBaseAuthService } from "./firebase-auth-services.service";
+import { IAuthService } from "@/core";
 import { JwtModule } from "@nestjs/jwt";
 import { FIREBASE_ADMIN } from "@/common/constants/response";
 import { ConfigService } from "@nestjs/config";
@@ -32,10 +32,10 @@ import { ConfigService } from "@nestjs/config";
       },
     },
     {
-      provide: IAuthServices,
-      useClass: FireBaseAuthServices,
+      provide: IAuthService,
+      useClass: FireBaseAuthService,
     },
   ],
-  exports: [IAuthServices],
+  exports: [IAuthService],
 })
 export class FireBaseAuthServicesModule {}

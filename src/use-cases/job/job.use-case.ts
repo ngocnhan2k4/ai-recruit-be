@@ -1,20 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { IDataServices } from "../../core/abstracts";
+import { IJobRepository } from "../../core/abstracts";
 import { StatisticsJobFilter } from "@/core/entities/job.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
-  StatisticsJobFilterDto,
+  StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
 } from "@/interfaces/dtos";
-import { Skill, Job, Company } from "@/core";
-import { Province } from "@/core/entities/province.entity";
+import { Skill, Job, Company, Province } from "@/core";
 
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
-  constructor(private readonly dataServices: IDataServices) {}
+  constructor(private readonly jobRepository: IJobRepository) {}
 
   async getAllJobs(
     limit?: number,
@@ -27,7 +26,7 @@ export class JobUseCases {
       { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
     >
   > {
-    const result = await this.dataServices.jobs.getAllJobs(
+    const result = await this.jobRepository.getAllJobs(
       limit,
       offset,
       keyword,
@@ -43,7 +42,7 @@ export class JobUseCases {
   }
 
   async getStatisticsJobs(
-    filter: StatisticsJobFilterDto,
+    filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
     const [
       frequentlyJobs,
@@ -52,16 +51,16 @@ export class JobUseCases {
       totalJobs,
       totalJobByCategoryId,
     ] = await Promise.all([
-      this.dataServices.jobs.getFrequentlyJobs(filter),
-      this.dataServices.jobs.count({
+      this.jobRepository.getFrequentlyJobs(filter),
+      this.jobRepository.count({
         ...filter,
         isOpen: true,
       }),
-      this.dataServices.jobs.getSalaryStatisticsByExperience(filter),
-      this.dataServices.jobs.count({
+      this.jobRepository.getSalaryStatisticsByExperience(filter),
+      this.jobRepository.count({
         ...(omit(filter, ["categoryId"]) as StatisticsJobFilter),
       }),
-      this.dataServices.jobs.count({
+      this.jobRepository.count({
         ...filter,
       }),
     ]);

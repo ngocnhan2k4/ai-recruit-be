@@ -12,16 +12,16 @@ export class JobDto {
     nullable: true,
     description: "Job description in JSON format",
   })
-  description: Record<string, unknown> | null;
+  description: unknown;
 
   @ApiProperty({ type: "string" })
   companyId: string;
 
-  @ApiProperty({ type: "number", nullable: true })
-  salaryMin: number | null;
+  @ApiProperty({ type: "string", nullable: true })
+  salaryMin: string | null;
 
-  @ApiProperty({ type: "number", nullable: true })
-  salaryMax: number | null;
+  @ApiProperty({ type: "string", nullable: true })
+  salaryMax: string | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
   createdAt: Date;

@@ -8,12 +8,11 @@ import {
 } from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import {
-  LoginDto,
+  LoginRequestDto,
   ApiResponse,
-  RefreshTokenDto,
   LoginResponseDto,
   ApiResponseDto,
-  AccessTokenDto,
+  AccessTokenResponseDto,
 } from "../dtos";
 import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
@@ -32,12 +31,12 @@ export class AuthController {
   })
   @ApiBody({
     description: "Firebase ID Token",
-    type: LoginDto,
+    type: LoginRequestDto,
   })
   @ApiResponseDto(LoginResponseDto)
   @Post("login")
   async logIn(
-    @Body() loginDto: LoginDto,
+    @Body() loginDto: LoginRequestDto,
     @Res({ passthrough: true }) res: FastifyReply,
   ): Promise<ApiResponse<LoginResponseDto>> {
     const result = await this.authUseCases.logIn(loginDto.idToken);
@@ -67,22 +66,12 @@ export class AuthController {
     description:
       "Validate refresh token and rotate it. Returns a new access token and a new refresh token.",
   })
-  @ApiBody({
-    description: "Refresh token",
-    type: RefreshTokenDto,
-    examples: {
-      sample: {
-        summary: "Refresh with valid refresh token",
-        value: { refreshToken: "f2f374604e2462c13f441457a68c2644ce..." },
-      },
-    },
-  })
-  @ApiResponseDto(AccessTokenDto)
+  @ApiResponseDto(AccessTokenResponseDto)
   @Post("refresh")
   async refresh(
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
-  ): Promise<ApiResponse<AccessTokenDto>> {
+  ): Promise<ApiResponse<AccessTokenResponseDto>> {
     const token = req.cookies[REFRESH_TOKEN];
     if (!token) {
       throw new BadRequestException({
@@ -114,10 +103,6 @@ export class AuthController {
   @ApiOperation({
     summary: "Logout",
     description: "Revoke the provided refresh token.",
-  })
-  @ApiBody({
-    description: "Refresh token",
-    type: RefreshTokenDto,
   })
   @ApiResponseDto("string")
   @Post("logout")

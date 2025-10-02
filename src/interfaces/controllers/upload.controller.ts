@@ -7,20 +7,18 @@ import {
   Req,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiConsumes,
-  ApiBody,
-  ApiResponse as SwaggerApiResponse,
-  ApiParam,
-  ApiBearerAuth,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBody, ApiParam } from "@nestjs/swagger";
 
-import { UploadFileDto, UploadResultDto } from "@/interfaces/dtos/upload.dto";
-import { ApiResponse as CustomApiResponse } from "@/interfaces/dtos/common/api-response.dto";
+import {
+  DeleteFileResponseDto,
+  UploadFileRequestDto,
+  UploadResponseDto,
+} from "@/interfaces/dtos/upload.dto";
+import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";
+import { RESPONSE_CODE } from "@/common/constants/response";
+
 @ApiTags("File Upload")
 @Controller("upload")
 export class UploadController {
@@ -31,29 +29,22 @@ export class UploadController {
     description:
       "Upload any file (image, document, etc.) to Cloudinary and get a public URL",
   })
-  @ApiConsumes("multipart/form-data")
   @ApiBody({
     description: "File upload",
-    type: UploadFileDto,
+    type: UploadFileRequestDto,
   })
-  @SwaggerApiResponse({
-    status: 201,
-    description: "File uploaded successfully",
-    type: CustomApiResponse<UploadResultDto>,
-  })
-  @SwaggerApiResponse({
-    status: 400,
-    description: "Bad request - invalid file or file too large",
-  })
-  @ApiBearerAuth()
+  @ApiResponseDto(UploadResponseDto)
   @Post()
   async uploadFile(
     @Req() req: FastifyRequest,
-  ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
+  ): Promise<ApiResponse<UploadResponseDto>> {
     const data = await req.file();
 
     if (!data) {
-      throw new BadRequestException("No file uploaded");
+      throw new BadRequestException({
+        message: "No file uploaded",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     const result = await this.storageService.uploadFile(data);
@@ -69,20 +60,11 @@ export class UploadController {
     name: "public_id",
     description: "Public ID of the file to delete",
   })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "File deleted successfully",
-    type: CustomApiResponse<{ message: string }>,
-  })
-  @SwaggerApiResponse({
-    status: 400,
-    description: "Bad request - invalid public ID",
-  })
-  @ApiBearerAuth()
+  @ApiResponseDto(DeleteFileResponseDto)
   @Delete(":public_id")
   async deleteFile(
     @Param("public_id") public_id: string,
-  ): Promise<ApiResponse<{ message: string }>> {
+  ): Promise<ApiResponse<DeleteFileResponseDto>> {
     return this.storageService.deleteFile(public_id);
   }
 }
