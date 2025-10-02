@@ -20,7 +20,7 @@ async function bootstrap() {
   enableSwaggerDoc(app);
   enableAppMiddleware(app);
 
-  await app.listen(port, () => {
+  await app.listen(port, "0.0.0.0", () => {
     app.getUrl().then((url) => {
       const serverUrl = url.replace("[::1]", "localhost");
       logger.log(`Server is running on ${serverUrl}`);
