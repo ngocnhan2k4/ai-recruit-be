@@ -23,6 +23,7 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       "http://localhost:3000",
       "http://localhost:4000", // Add common frontend port
       "https://airecruit.software",
+      "https://dev.airecruit.software",
     ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
