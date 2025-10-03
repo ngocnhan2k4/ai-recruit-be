@@ -1,36 +1,175 @@
 name: CD Pipeline
-env:
-  APP_URL: https://airecruit.software
-  IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
 on:
   push:
     branches: ["dev", "main"]
 
 jobs:
-  cd:
+  cd-main:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      APP_URL: https://dev.airecruit.software
+      IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       
       - name: Login to Github Container Registry
-        if: github.ref == 'refs/heads/dev'
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
-        if: github.ref == 'refs/heads/dev'
+      - name: Build and Push Docker Image (Prod)
         run: |
           docker build -t ${{ env.IMAGE_NAME }}:latest .
           docker push ${{ env.IMAGE_NAME }}:latest
 
-      - name: Copy docker-compose to server
-        if: github.ref == 'refs/heads/dev'
+      - name: Copy docker-compose to prod server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+          source: "./docker-compose-main.yaml"
+          target: "/var/www/my-app-main/"
+    
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+          script: |
+            cd /var/www/my-app-main/
+            docker-compose -f docker-compose-main.yaml down
+            docker rmi -f $(docker images -aq)
+            docker-compose -f docker-compose-main.yaml up -d
+
+      # - name: Health Check After Deployment
+      #   id: healthcheck
+      #   if: github.ref == 'refs/heads/dev'
+      #   uses: appleboy/ssh-action@v0.1.6
+      #   with:
+      #     host: ${{ secrets.DEV_SERVER_HOST }}
+      #     username: ${{ secrets.DEV_SERVER_USER }}
+      #     key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+      #     port: ${{ secrets.DEV_SERVER_SSH_PORT }}
+      #     script: |
+      #       echo "🔍 Waiting for application to start..."
+      #       sleep 30
+
+      #       echo "🏥 Running health check at ${{ env.APP_URL }}..."
+
+      #       # Check if container is running
+      #       if ! docker-compose -f /var/www/my-app/docker-compose-dev.yaml ps | grep "Up"; then
+      #         echo "❌ Container is not running"
+      #         docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs backend
+      #         exit 1
+      #       fi
+            
+      #       # Health check with retries
+      #       MAX_RETRIES=5
+      #       RETRY_COUNT=0
+            
+      #       while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      #         echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
+              
+      #         # Test simple health endpoint
+      #         if curl -f -s ${{ env.APP_URL }}/api/v1/health > /dev/null 2>&1; then
+      #           echo "✅ Health check passed!"
+                
+      #           # Get health check response
+      #           HEALTH_RESPONSE=$(curl -s ${{ env.APP_URL }}/api/v1/health)
+      #           echo "📊 Health Status: $HEALTH_RESPONSE"
+            
+      #           exit 0
+      #         else
+      #           echo "❌ Health check failed (attempt $((RETRY_COUNT + 1)))"
+      #           RETRY_COUNT=$((RETRY_COUNT + 1))
+                
+      #           if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+      #             echo "⏳ Waiting 15 seconds before retry..."
+      #             sleep 15
+      #           fi
+      #         fi
+      #       done
+            
+      #       echo "❌ Health check failed after $MAX_RETRIES attempts"
+      #       echo "📋 Container logs:"
+      #       docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs --tail=20 backend
+      #       echo "🔍 Container status:"
+      #       docker-compose -f /var/www/my-app/docker-compose-dev.yaml ps
+      #       exit 1
+
+      - name: Notify Slack on Prod Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: cicd
+          SLACK_COLOR: good
+          SLACK_TITLE: "🚀 PRODUCTION Deployment Success"
+          SLACK_MESSAGE: |
+            *Environment:* 🔴 Production
+            *Repository:* ${{ github.repository }}
+            *Branch:* ${{ github.ref_name }}
+            *Commit:* ${{ github.event.head_commit.message }}
+            *Author:* ${{ github.event.head_commit.author.name }}
+            *Status:* Deployed ✅
+            *Prod URL:* ${{ env.APP_URL }}
+            
+            **Checks Completed:**
+            • Docker: ✅ Built & Pushed
+            • Deploy: ✅ Successful
+            • Health Check: ✅ Passed
+            
+      
+      - name: Notify Slack on Prod Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: cicd
+          SLACK_COLOR: danger
+          SLACK_TITLE: "🚨 PRODUCTION Deployment Failed"
+          SLACK_MESSAGE: |
+            *Environment:* 🔴 Production
+            *Repository:* ${{ github.repository }}
+            *Branch:* ${{ github.ref_name }}
+            *Status:* Pipeline failed ❌
+            
+            Please fix the issues and push again.
+  cd-dev:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      APP_URL: https://airecruit.software
+      IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image (Dev)
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:dev .
+          docker push ${{ env.IMAGE_NAME }}:dev
+
+      - name: Copy docker-compose to dev server
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
@@ -41,7 +180,6 @@ jobs:
           target: "/var/www/my-app/"
     
       - name: Deploy to Development Server
-        if: github.ref == 'refs/heads/dev'
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
@@ -117,14 +255,15 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_CHANNEL: cicd
           SLACK_COLOR: good
-          SLACK_TITLE: "✅ CD Pipeline Success"
+          SLACK_TITLE: "✅ Dev Deployment Success"
           SLACK_MESSAGE: |
+            *Environment:* 🧪 Development
             *Repository:* ${{ github.repository }}
             *Branch:* ${{ github.ref_name }}
             *Commit:* ${{ github.event.head_commit.message }}
             *Author:* ${{ github.event.head_commit.author.name }}
             *Status:* Deployed ✅
-              • Link Swagger: ${APP_URL}/docs
+            *Dev URL:* ${{ env.APP_URL }}/docs
             
             **Checks Completed:**
             • Docker: ✅ Built & Pushed
@@ -132,7 +271,6 @@ jobs:
             • Health Check: ✅ Passed
             
       
-
       - name: Notify Slack on Failure
         if: failure()
         uses: rtCamp/action-slack-notify@v2
@@ -140,12 +278,12 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_CHANNEL: cicd
           SLACK_COLOR: danger
-          SLACK_TITLE: "❌ CD Pipeline Failed"
+          SLACK_TITLE: "❌ Dev Deployment Failed"
           SLACK_MESSAGE: |
+            *Environment:* 🧪 Development
             *Repository:* ${{ github.repository }}
             *Branch:* ${{ github.ref_name }}
-            *Commit:* ${{ github.event.head_commit.message }}
-            *Author:* ${{ github.event.head_commit.author.name }}
             *Status:* Pipeline failed ❌
             
             Please fix the issues and push again.
+  
