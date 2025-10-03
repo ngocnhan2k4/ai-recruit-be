@@ -18,11 +18,15 @@ import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN } from "@/common/constants/token";
 import { RESPONSE_CODE } from "@/common/constants/response";
+import { ConfigService } from "@nestjs/config";
 
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authUseCases: AuthUseCases) {}
+  constructor(
+    private readonly authUseCases: AuthUseCases,
+    private readonly configService: ConfigService,
+  ) {}
 
   @ApiOperation({
     summary: "User login",
@@ -45,8 +49,8 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
-      sameSite: "lax", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically in dev
     });
@@ -85,8 +89,8 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.refreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
-      sameSite: "lax", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically
     });
@@ -119,8 +123,8 @@ export class AuthController {
     }
     res.clearCookie(REFRESH_TOKEN, {
       httpOnly: true,
-      secure: false, // Must match the original cookie settings
-      sameSite: "lax", // Must match the original cookie settings
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Must match the original cookie settings
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Must match the original cookie settings
       path: "/",
       domain: undefined, // Must match the original cookie settings
     });
