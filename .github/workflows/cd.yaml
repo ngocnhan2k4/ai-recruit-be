@@ -7,7 +7,7 @@ jobs:
   cd-main:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: dev
+    environment: production
     env:
       APP_URL: https://dev.airecruit.software
       IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
