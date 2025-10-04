@@ -78,6 +78,8 @@ export class AuthUseCases {
         deletedAt: null,
         gender: null,
         emailVerified: false,
+        phoneVerified: false,
+        bio: null,
       };
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);

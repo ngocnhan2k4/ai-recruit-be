@@ -27,14 +27,17 @@ export class UserPublicResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   avatarUrl: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true, enum: GenderEnum })
   gender: GenderEnum | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   dob: string | null;
+
+  @ApiProperty({ nullable: true })
+  bio: string | null;
 }
 
 export class UserDto {
@@ -44,34 +47,34 @@ export class UserDto {
   @ApiProperty()
   username: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: true })
   email: string | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   phone: string | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   avatarUrl: string | null;
 
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   dob: string | null;
 
   @ApiProperty()
   createdAt: Date;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   updatedAt: Date | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   firebaseUid: string | null;
 
-  @ApiProperty({ required: false, enum: GenderEnum })
+  @ApiProperty({ nullable: false, enum: GenderEnum })
   gender: GenderEnum | null;
 
-  @ApiProperty({ required: false, type: "boolean" })
+  @ApiProperty({ nullable: false, type: "boolean" })
   emailVerified: boolean | null;
 }
 
@@ -84,18 +87,25 @@ export class GetUserResponseDto {
 
   @Expose()
   email: string | null;
+
   @Expose()
   phone: string | null;
+
   @Expose()
   avatarUrl: string | null;
+
   @Expose()
   name: string;
+
   @Expose()
   dob: string | null;
+
   @Expose()
   gender: string | null;
+
   @Expose()
   firebaseUid: string | null;
+
   @Expose()
   emailVerified: boolean;
 
@@ -105,4 +115,20 @@ export class GetUserResponseDto {
       excludeExtraneousValues: true,
     });
   }
+}
+
+export class CheckUsernameResponseDto {
+  @ApiProperty()
+  exists: boolean;
+}
+
+export class UserAvatarUpdateResponseDto {
+  @ApiProperty()
+  url: string;
+
+  @ApiProperty()
+  publicId: string;
+
+  @ApiProperty()
+  format: string;
 }

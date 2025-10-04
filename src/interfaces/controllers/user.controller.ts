@@ -1,9 +1,4 @@
-import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiResponse as SwaggerApiResponse,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiParam, ApiConsumes } from "@nestjs/swagger";
 import {
   Body,
   Controller,
@@ -22,8 +17,10 @@ import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decor
 import {
   ApiResponse,
   ApiResponseDto,
+  CheckUsernameResponseDto,
   GetUserResponseDto,
   UpdateUserRequestDto,
+  UserAvatarUpdateResponseDto,
   UserDto,
   UserPublicResponseDto,
 } from "../dtos";
@@ -58,11 +55,11 @@ export class UserController {
     description: "Username to check",
     example: "john_doe",
   })
-  @ApiResponseDto("string")
-  async checkUsername(@Param("username") username: string) {
-    const result = await this.userUseCases.checkUserByUsername(username);
-
-    return result;
+  @ApiResponseDto(CheckUsernameResponseDto)
+  async checkUsername(
+    @Param("username") username: string,
+  ): Promise<ApiResponse<CheckUsernameResponseDto>> {
+    return await this.userUseCases.checkUserByUsername(username);
   }
 
   @UseGuards(GuestGuard, CasbinGuard)
@@ -119,11 +116,11 @@ export class UserController {
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
-  @ApiResponseDto(UserExperienceDto)
+  @ApiResponseDto("number")
   async createUserExperience(
     @GetUser() user: TokenPayload,
     @Body() createUserExperienceDto: CreateUserExperienceRequestDto,
-  ): Promise<ApiResponse<UserExperienceDto>> {
+  ): Promise<ApiResponse<number>> {
     return this.userUseCases.createUserExperience(
       user.userId,
       createUserExperienceDto,
@@ -134,12 +131,12 @@ export class UserController {
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
-  @ApiResponseDto(UserExperienceDto)
+  @ApiResponseDto("number")
   async updateUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
     @Body() updateUserExperienceDto: UpdateUserExperienceRequestDto,
-  ): Promise<ApiResponse<UserExperienceDto>> {
+  ): Promise<ApiResponse<number>> {
     return this.userUseCases.updateUserExperience(
       user.userId,
       id,
@@ -149,13 +146,9 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Delete user experience" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User experience deleted successfully",
-  })
   @CasbinPermission("/user-experiences", "DELETE")
   @Delete("user-experiences/:id")
-  @ApiResponseDto(UserDto)
+  @ApiResponseDto("number")
   async deleteUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
@@ -165,10 +158,6 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
-  @SwaggerApiResponse({
-    status: 200,
-    description: "User skills fetched successfully",
-  })
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
   @ApiResponseDto(UserSkillDto, { isArray: true })
@@ -221,9 +210,10 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Upload user avatar" })
+  @ApiConsumes("multipart/form-data")
   @CasbinPermission("/user-avatar", "POST")
   @Post("user-avatar")
-  @ApiResponseDto(UserDto)
+  @ApiResponseDto(UserAvatarUpdateResponseDto)
   async uploadUserAvatar(
     @GetUser() user: TokenPayload,
     @Req() req: FastifyRequest,

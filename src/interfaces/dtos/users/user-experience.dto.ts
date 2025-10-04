@@ -1,15 +1,13 @@
 import { IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
+import { CompanyDto } from "../companies/company.dto";
 
 export class UserExperienceDto {
   @ApiProperty()
   id: number;
 
-  @ApiProperty()
-  companyId: string;
-
-  @ApiProperty()
-  userId: string;
+  @ApiProperty({ type: () => CompanyDto })
+  company: Pick<CompanyDto, "id" | "name" | "logoUrl" | "address">;
 
   @ApiProperty()
   jobTitle: string;
@@ -20,20 +18,20 @@ export class UserExperienceDto {
   @ApiProperty()
   startDate: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, nullable: true })
   endDate: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, nullable: true })
   description: string | null;
 
-  @ApiProperty()
-  createdAt: Date;
+  // @ApiProperty()
+  // createdAt: Date;
 
-  @ApiProperty()
-  updatedAt: Date | null;
+  // @ApiProperty({ required: false })
+  // updatedAt: Date;
 
-  @ApiProperty()
-  deletedAt: Date | null;
+  // @ApiProperty({ required: false })
+  // deletedAt: Date;
 }
 
 export class CreateUserExperienceRequestDto {
