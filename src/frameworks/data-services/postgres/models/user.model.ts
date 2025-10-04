@@ -35,6 +35,8 @@ export const users = pgTable(
     avatarUrl: varchar("avatar_url", { length: 500 }),
     name: varchar("name", { length: 255 }).notNull(),
     dob: date("dob"),
+    bio: varchar("bio", { length: 500 }),
+    phoneVerified: boolean("phone_verified").notNull().default(false),
     gender: genderEnum("gender"),
     ...timestamps,
   },
