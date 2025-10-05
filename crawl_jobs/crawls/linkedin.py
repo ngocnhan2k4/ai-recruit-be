@@ -70,7 +70,7 @@ def linkedin_crawl():
         company_size = safe_text(dd[2]).strip()
 
         # comp_addr
-        comp_addr = safe_text(dd[3])
+        comp_addr = [safe_text(dd[3])]
 
         if company_name not in companies:
             companies[company_name] = {
