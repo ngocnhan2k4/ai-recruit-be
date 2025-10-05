@@ -48,7 +48,7 @@ def linkedin_crawl():
         desc_wrap = soup.select_one("div.show-more-less-html__markup")
         description_parts = [{"title": "", "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip()}]
 
-        human_delay(base=1, jitter=0)
+        human_delay(base=3, jitter=5)
 
         # --- Company page ---
         print(job_url)
@@ -91,6 +91,8 @@ def linkedin_crawl():
             "crawled_at": datetime.now(timezone.utc),
             "source": "linkedin"
         }
+
+    print(companies)
 
     return companies
 
