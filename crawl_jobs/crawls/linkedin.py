@@ -58,8 +58,7 @@ def linkedin_crawl():
         company_desc = safe_text(comp_soup.select_one("span.line-clamp-2"))
 
         # company_website_url
-        print(soup)
-        comp_wrap = soup.select_one("dl.mt-6")
+        comp_wrap = comp_soup.select_one("dl.mt-6")
         comp_web_url = comp_wrap.find("a")
 
         dd = comp_wrap.find_all("dd")
