@@ -7,3 +7,4 @@ export * from "./jobs/statistic-job.dto";
 export * from "./companies/company.dto";
 export * from "./skills/skill.dto";
 export * from "./provinces/province.dto";
+export * from "./users/user-onboarding.dto";

@@ -8,6 +8,7 @@ import {
   skills,
   userExperiences,
   userSkills,
+  userOnboardings,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -39,5 +40,8 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+
+export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
+export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
 
 export * from "./job.entity";

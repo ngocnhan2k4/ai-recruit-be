@@ -25,7 +25,9 @@ import {
   GetUserResponseDto,
   UpdateUserRequestDto,
   UserDto,
+  UserOnboardingStatusDto,
   UserPublicResponseDto,
+  UserOnboardingDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -231,5 +233,31 @@ export class UserController {
     const file = await req.file();
 
     return this.userUseCases.uploadUserAvatar(user.userId, file);
+  }
+
+  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @ApiOperation({ summary: "Get user onboarding status" })
+  @CasbinPermission("/onboarding", "GET")
+  @Get("onboarding")
+  @ApiResponseDto(UserOnboardingStatusDto)
+  async getUserOnboardingStatus(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+    return this.userUseCases.checkUserEnterOnboarding(user.userId);
+  }
+  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @ApiOperation({ summary: "Complete user onboarding" })
+  @CasbinPermission("/onboarding", "POST")
+  @Post("onboarding")
+  @ApiResponseDto(UserDto)
+  async completeUserOnboarding(
+    @GetUser() user: TokenPayload,
+    @Body() userOnboardingDto: UserOnboardingDto,
+  ): Promise<ApiResponse<void>> {
+    console.log("userOnboardingDto:", userOnboardingDto);
+    return await this.userUseCases.completeUserOnboarding(
+      userOnboardingDto,
+      user.userId,
+    );
   }
 }

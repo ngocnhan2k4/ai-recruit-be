@@ -12,6 +12,7 @@ import {
   IUserExperienceRepository,
   IUserRepository,
   IUserSkillRepository,
+  IUserOnboardingRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -20,6 +21,7 @@ import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
 import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
+import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
 
 @Global()
 @Module({
@@ -104,6 +106,10 @@ import { UserRepository } from "./repositories/user.repository";
       provide: IUserRepository,
       useClass: UserRepository,
     },
+    {
+      provide: IUserOnboardingRepository,
+      useClass: UserOnboardingRepository,
+    },
   ],
   exports: [
     IAuthRepository,
@@ -113,6 +119,7 @@ import { UserRepository } from "./repositories/user.repository";
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,
+    IUserOnboardingRepository,
   ],
 })
 export class PostgresDataServicesModule {}
