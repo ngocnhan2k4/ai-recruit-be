@@ -1,8 +1,8 @@
-import { IsEmail, IsInt, IsString } from "class-validator";
-import { PartialType } from "@nestjs/mapped-types";
-import { ApiProperty } from "@nestjs/swagger";
+import { IsEmail, IsEnum, IsString } from "class-validator";
+import { ApiProperty, PartialType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
+import { type ProviderEnumType } from "@/core";
 
 export class CreateUserRequestDto {
   @ApiProperty()
@@ -14,8 +14,20 @@ export class CreateUserRequestDto {
   name: string;
 
   @ApiProperty()
-  @IsInt()
-  age: number;
+  @IsString()
+  username: string;
+
+  @ApiProperty()
+  @IsString()
+  bio: string;
+
+  @ApiProperty()
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ enum: GenderEnum })
+  @IsEnum(GenderEnum)
+  gender: GenderEnum;
 }
 
 export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
@@ -109,6 +121,9 @@ export class GetUserResponseDto {
   @Expose()
   emailVerified: boolean;
 
+  @Expose()
+  provider: ProviderEnumType;
+
   //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {
@@ -131,4 +146,15 @@ export class UserAvatarUpdateResponseDto {
 
   @ApiProperty()
   format: string;
+}
+
+export enum TypeAvatar {
+  AVATAR = "avatar",
+  BANNER = "banner",
+}
+
+export class UserAvatarUpdateRequestDto {
+  @ApiProperty({ enum: TypeAvatar })
+  @IsEnum(TypeAvatar)
+  type: TypeAvatar;
 }

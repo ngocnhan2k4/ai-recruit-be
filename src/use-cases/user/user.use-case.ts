@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { User } from "../../core/entities";
 import {
   IBloomFilterService,
@@ -12,6 +16,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   ApiResponse,
   GetUserResponseDto,
+  TypeAvatar,
   UpdateUserRequestDto,
   UserDto,
   UserPublicResponseDto,
@@ -156,28 +161,54 @@ export class UserUseCases implements OnModuleInit {
       ...updateUserDto,
     };
 
-    const result = (
-      await this.userRepository.update(
-        {
-          id: userId,
+    try {
+      const result = (
+        await this.userRepository.update(
+          {
+            id: userId,
+          },
+          updatedUser,
+        )
+      )[0];
+
+      if (!result) {
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+          code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        });
+      }
+      return {
+        message: "User profile updated successfully",
+        code: RESPONSE_MESSAGE.SUCCESS,
+        data: {
+          ...result,
+          gender: result.gender as GenderEnum,
         },
-        updatedUser,
-      )
-    )[0];
-    if (!result) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-        code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-      });
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `[UserUseCases] - [updateUserProfile] - Error updating user profile: ${error.message}`,
+      );
+      if (error.cause?.code === "23505") {
+        if (error.cause.detail.includes("email")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.EMAIL_ALREADY_EXISTS,
+            code: RESPONSE_CODE.EMAIL_ALREADY_EXISTS,
+          });
+        } else if (error.cause.detail.includes("phone")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.PHONE_ALREADY_EXISTS,
+            code: RESPONSE_CODE.PHONE_ALREADY_EXISTS,
+          });
+        } else if (error.cause.detail.includes("username")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.USERNAME_ALREADY_EXISTS,
+            code: RESPONSE_CODE.USERNAME_ALREADY_EXISTS,
+          });
+        }
+      }
+      throw error;
     }
-    return {
-      message: "User profile updated successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        ...result,
-        gender: result.gender as GenderEnum,
-      },
-    };
   }
 
   async getUserExperiences(
@@ -354,6 +385,7 @@ export class UserUseCases implements OnModuleInit {
   async uploadUserAvatar(
     userId: string,
     file: MultipartFile | undefined,
+    type: TypeAvatar,
   ): Promise<ApiResponse<{ url: string; publicId: string; format: string }>> {
     if (!file) {
       throw new NotFoundException({
@@ -371,7 +403,9 @@ export class UserUseCases implements OnModuleInit {
     }
     const updatedUser = {
       ...user,
-      avatarUrl: result.secure_url,
+      ...(type === TypeAvatar.AVATAR
+        ? { avatarUrl: result.secure_url }
+        : { bannerUrl: result.secure_url }),
     };
     const updatedUserResult = await this.userRepository.update(
       { id: userId },
@@ -385,7 +419,7 @@ export class UserUseCases implements OnModuleInit {
     }
 
     return {
-      message: "Avatar uploaded successfully",
+      message: "User avatar uploaded successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: {
         url: result.secure_url,

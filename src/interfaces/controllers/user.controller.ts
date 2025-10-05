@@ -1,4 +1,10 @@
-import { ApiTags, ApiOperation, ApiParam, ApiConsumes } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiConsumes,
+  ApiBody,
+} from "@nestjs/swagger";
 import {
   Body,
   Controller,
@@ -20,6 +26,7 @@ import {
   CheckUsernameResponseDto,
   GetUserResponseDto,
   UpdateUserRequestDto,
+  UserAvatarUpdateRequestDto,
   UserAvatarUpdateResponseDto,
   UserDto,
   UserPublicResponseDto,
@@ -86,9 +93,11 @@ export class UserController {
     return await this.userUseCases.getUserByUsername(username);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user profile" })
-  @CasbinPermission("/", "PUT")
+  // @CasbinPermission("/", "PUT")
+  @ApiBody({ type: UpdateUserRequestDto })
   @Put("profile")
   @ApiResponseDto(UserDto)
   async updateProfile(
@@ -116,6 +125,7 @@ export class UserController {
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
+  @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")
   async createUserExperience(
     @GetUser() user: TokenPayload,
@@ -131,6 +141,7 @@ export class UserController {
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
+  @ApiBody({ type: UpdateUserExperienceRequestDto })
   @ApiResponseDto("number")
   async updateUserExperience(
     @GetUser() user: TokenPayload,
@@ -171,6 +182,7 @@ export class UserController {
   @ApiOperation({ summary: "Create user skill" })
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
+  @ApiBody({ type: CreateUserSkillRequestDto })
   @ApiResponseDto(UserSkillDto)
   async createUserSkill(
     @GetUser() user: TokenPayload,
@@ -212,14 +224,15 @@ export class UserController {
   @ApiOperation({ summary: "Upload user avatar" })
   @ApiConsumes("multipart/form-data")
   @CasbinPermission("/user-avatar", "POST")
-  @Post("user-avatar")
+  @Post("avatar")
   @ApiResponseDto(UserAvatarUpdateResponseDto)
   async uploadUserAvatar(
     @GetUser() user: TokenPayload,
     @Req() req: FastifyRequest,
+    @Body() body: UserAvatarUpdateRequestDto,
   ) {
     const file = await req.file();
 
-    return this.userUseCases.uploadUserAvatar(user.userId, file);
+    return this.userUseCases.uploadUserAvatar(user.userId, file, body.type);
   }
 }
