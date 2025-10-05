@@ -5,6 +5,7 @@ import {
   UploadController,
   HealthController,
   CategoryController,
+  CompanyController,
   JobController,
   ProvinceController,
 } from "./interfaces/controllers";
@@ -31,6 +32,7 @@ import { ILoggerServices } from "./core/abstracts/logger-services.abstract";
 import { AppConfigProps } from "./common/config/app.config";
 import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
+import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 
 @Module({
   imports: [
@@ -53,12 +55,14 @@ import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.
     HttpModule,
     LoggerServiceModule,
     ProvinceUseCasesModule,
+    CompanyUseCasesModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
     CategoryController,
+    CompanyController,
     UploadController,
     HealthController,
     ProvinceController,

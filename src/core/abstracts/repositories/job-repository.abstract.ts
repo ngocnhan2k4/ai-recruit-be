@@ -1,16 +1,23 @@
-import { StatisticsJobFilter } from "../../entities";
+import {
+  StatisticsJobFilter,
+  JobFilters,
+  CursorPaginationResult,
+} from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Job, Province, Company, Skill } from "@/core/entities";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
-    offset?: number,
-    keyword?: string,
-    sortBy?: string,
-    sortDirection?: "asc" | "desc",
+    cursor?: string,
+    filters?: JobFilters,
   ): Promise<
-    { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
+    CursorPaginationResult<{
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
+    }>
   >;
 
   abstract getFrequentlyJobs(

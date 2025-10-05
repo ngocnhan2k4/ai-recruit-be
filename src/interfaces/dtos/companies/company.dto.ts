@@ -25,3 +25,11 @@ export class CompanyDto {
   @ApiProperty({ type: "string", nullable: true })
   websiteUrl: string | null;
 }
+
+export class CompanySimpleDto {
+  @ApiProperty({ type: "string", format: "uuid" })
+  id: string;
+
+  @ApiProperty({ type: "string" })
+  name: string;
+}

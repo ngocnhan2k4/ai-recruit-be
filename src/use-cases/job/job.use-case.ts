@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IJobRepository } from "../../core/abstracts";
-import { StatisticsJobFilter } from "@/core/entities/job.entity";
+import { StatisticsJobFilter, JobFilters } from "@/core/entities/job.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
@@ -17,27 +17,31 @@ export class JobUseCases {
 
   async getAllJobs(
     limit?: number,
-    offset?: number,
-    keyword?: string,
-    sortBy?: string,
-    sortDirection?: "asc" | "desc",
+    cursor?: string,
+    filters?: JobFilters,
   ): Promise<
-    ApiResponse<
-      { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
-    >
+    ApiResponse<{
+      jobData: {
+        job: Job;
+        provinces: Province[];
+        company: Company;
+        skills: Skill[];
+      }[];
+      nextCursor?: string;
+      hasNextPage: boolean;
+    }>
   > {
-    const result = await this.jobRepository.getAllJobs(
-      limit,
-      offset,
-      keyword,
-      sortBy,
-      sortDirection,
-    );
-    this.logger.log(`Fetched ${result.length} jobs`);
+    console.log(filters);
+    const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
+    this.logger.log(`Fetched ${result.data.length} jobs`);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: {
+        jobData: result.data,
+        nextCursor: result.nextCursor,
+        hasNextPage: result.hasNextPage,
+      },
     };
   }
 

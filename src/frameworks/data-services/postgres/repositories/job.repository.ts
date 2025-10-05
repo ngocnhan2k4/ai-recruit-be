@@ -13,7 +13,6 @@ import {
   ilike,
   asc,
   desc,
-  SQLWrapper,
 } from "drizzle-orm";
 import { Inject, Injectable } from "@nestjs/common";
 import {
@@ -34,6 +33,8 @@ import {
   Skill,
   StatisticsJobFilter,
   Company,
+  JobFilters,
+  CursorPaginationResult,
 } from "@/core/entities";
 
 @Injectable()
@@ -47,18 +48,89 @@ export class JobRepository
 
   async getAllJobs(
     limit = 50,
-    offset = 0,
-    keyword = "",
-    sortBy = "datePosted",
-    sortDirection: "asc" | "desc" = "asc",
+    cursor?: string,
+    filters?: JobFilters,
   ): Promise<
-    { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
+    CursorPaginationResult<{
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
+    }>
   > {
-    const sortColumn: SQLWrapper = jobs[sortBy];
+    // Build where conditions
+    const whereConditions: SQL[] = [];
 
-    const orderExpr =
-      sortDirection === "asc" ? asc(sortColumn) : desc(sortColumn);
+    // Keyword search
+    if (filters?.keyword) {
+      whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
+    }
 
+    // Salary range filter
+    if (filters?.salaryRange) {
+      if (filters.salaryRange.min !== undefined) {
+        whereConditions.push(
+          gte(jobs.salaryMin, filters.salaryRange.min.toString()),
+        );
+      }
+      if (filters.salaryRange.max !== undefined) {
+        whereConditions.push(
+          lte(jobs.salaryMax, filters.salaryRange.max.toString()),
+        );
+      }
+    }
+
+    // Experience range filter
+    if (filters?.experienceRange) {
+      if (filters.experienceRange.min !== undefined) {
+        whereConditions.push(
+          gte(jobs.experienceMin, filters.experienceRange.min),
+        );
+      }
+      if (filters.experienceRange.max !== undefined) {
+        whereConditions.push(
+          lte(jobs.experienceMax, filters.experienceRange.max),
+        );
+      }
+    }
+
+    // Province filter
+    if (filters?.provinceId) {
+      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+    }
+
+    // Company filter
+    if (filters?.companyId) {
+      whereConditions.push(eq(jobs.companyId, filters.companyId));
+    }
+
+    // Work type filter
+    if (filters?.workType) {
+      whereConditions.push(eq(jobs.workType, filters.workType));
+    }
+
+    // Status filter
+    if (filters?.status) {
+      whereConditions.push(eq(jobs.status, filters.status));
+    }
+
+    // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
+    if (cursor) {
+      // For priority-based sorting, we need a composite cursor
+      // Format: "priority:id" (e.g., "5:uuid-string")
+      const [cursorPriority, cursorId] = cursor.split(":");
+      const cursorPriorityNum = parseInt(cursorPriority);
+      whereConditions.push(
+        or(
+          // Higher priority than cursor
+          gt(jobs.priority, cursorPriorityNum),
+          // Same priority but higher ID
+          and(eq(jobs.priority, cursorPriorityNum), gt(jobs.id, cursorId)),
+        ) as SQL,
+      );
+    }
+
+    // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
         job: jobs,
@@ -77,18 +149,30 @@ export class JobRepository
       .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
-      .where(ilike(jobs.title, `%${keyword}%`))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(jobs.id, companies.id)
-      .orderBy(orderExpr)
-      .limit(limit)
-      .offset(offset)) as {
+      .orderBy(desc(jobs.priority), asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
+      .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
       company: Company;
       skills: Skill[];
     }[];
 
-    return result;
+    // Check if there's a next page
+    const hasNextPage = result.length > limit;
+    const data = hasNextPage ? result.slice(0, limit) : result;
+    // Create composite cursor: "priority:id"
+    const nextCursor =
+      hasNextPage && result[limit - 1]?.job
+        ? `${result[limit - 1].job.priority}:${result[limit - 1].job.id}`
+        : undefined;
+
+    return {
+      data,
+      nextCursor,
+      hasNextPage,
+    };
   }
 
   async getFrequentlyJobs(

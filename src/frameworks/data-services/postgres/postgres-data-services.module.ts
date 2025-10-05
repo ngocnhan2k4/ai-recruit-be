@@ -7,6 +7,7 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
   IAuthRepository,
   ICategoryRepository,
+  ICompanyRepository,
   IJobRepository,
   IProvinceRepository,
   IUserExperienceRepository,
@@ -15,6 +16,7 @@ import {
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
+import { CompanyRepository } from "./repositories/company.repository";
 import { JobRepository } from "./repositories/job.repository";
 import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
@@ -85,6 +87,10 @@ import { UserRepository } from "./repositories/user.repository";
       useClass: CategoryRepository,
     },
     {
+      provide: ICompanyRepository,
+      useClass: CompanyRepository,
+    },
+    {
       provide: IJobRepository,
       useClass: JobRepository,
     },
@@ -108,6 +114,7 @@ import { UserRepository } from "./repositories/user.repository";
   exports: [
     IAuthRepository,
     ICategoryRepository,
+    ICompanyRepository,
     IJobRepository,
     IProvinceRepository,
     IUserExperienceRepository,

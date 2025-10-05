@@ -2,7 +2,10 @@ import { JobUseCases } from "@/use-cases/job/job.use-case";
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../dtos";
-import { JobResponse, QueryJobDto } from "../dtos/jobs/query-job.dto";
+import {
+  QueryJobDto,
+  JobPaginationResponseDto,
+} from "../dtos/jobs/query-job.dto";
 import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 
@@ -14,21 +17,31 @@ export class JobController {
   @ApiOperation({
     summary: "Get all jobs",
     description:
-      "Retrieve a list of all jobs with optional pagination and keyword filtering.",
+      "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
   })
   @UseGuards(GuestGuard)
-  @ApiResponseDto(JobResponse, { isArray: true })
+  @ApiResponseDto(JobPaginationResponseDto)
   @Get()
   async getAll(
     @Query() query: QueryJobDto,
-  ): Promise<ApiResponse<JobResponse[]>> {
-    return this.jobUseCases.getAllJobs(
-      query.limit,
-      query.offset,
-      query.keyword,
-      query.sortBy,
-      query.sortDirection,
-    );
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    const filters = {
+      keyword: query.keyword,
+      salaryRange:
+        query.salaryMin !== undefined || query.salaryMax !== undefined
+          ? { min: query.salaryMin, max: query.salaryMax }
+          : undefined,
+      experienceRange:
+        query.experienceMin !== undefined || query.experienceMax !== undefined
+          ? { min: query.experienceMin, max: query.experienceMax }
+          : undefined,
+      provinceId: query.provinceId,
+      companyId: query.companyId,
+      workType: query.workType,
+      status: query.status,
+    };
+
+    return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
   }
 
   @ApiOperation({
