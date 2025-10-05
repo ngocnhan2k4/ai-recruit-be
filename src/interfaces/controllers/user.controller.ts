@@ -3,6 +3,9 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse as SwaggerApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
 } from "@nestjs/swagger";
 import {
   Body,
@@ -227,11 +230,25 @@ export class UserController {
   //   );
   // }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Upload user avatar" })
   @CasbinPermission("/user-avatar", "POST")
   @Post("user-avatar")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    description: "File upload",
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+        },
+      },
+    },
+  })
   @ApiResponseDto(UserDto)
+  @ApiBearerAuth()
   async uploadUserAvatar(
     @GetUser() user: TokenPayload,
     @Req() req: FastifyRequest,
