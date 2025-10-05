@@ -115,7 +115,7 @@ def vn_parse_posted_date(text: str) -> datetime:
 def parse_posted_date(text: str) -> datetime:
     clean = re.sub(r"\s+", " ", text).strip()
 
-    m = re.search(r"(\d+)\s*(minute|hour|day)", clean, re.IGNORECASE)
+    m = re.search(r"(\d+)\s*(minute|hour|day|week|month)", clean, re.IGNORECASE)
     if not m:
         raise ValueError(f"Unrecognized date string: {text!r}")
 
@@ -129,6 +129,10 @@ def parse_posted_date(text: str) -> datetime:
         return now - timedelta(hours=value)
     elif unit.startswith("day"):
         return now - timedelta(days=value)
+    elif unit.startswith("week"):
+        return now - timedelta(weeks=value)
+    elif unit.startswith("month"):
+        return now - timedelta(days=value * 30)
     else:
         raise ValueError(f"Unknown unit in date string: {text!r}")
     
@@ -230,3 +234,13 @@ def extract_experience_years_jobsgo(experience_str: str):
             return val, val
         except:
             return None, None
+
+
+def process_province(locations: list[str]) -> list:
+    length = len(locations)
+    if length > 1:
+        return [locations[1] if ("Vietnam" not in locations[1]) else locations[0]]
+    elif "Vietnam" in locations[0]:
+        return []
+    
+    return locations
