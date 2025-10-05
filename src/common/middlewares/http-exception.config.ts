@@ -12,6 +12,7 @@ import { assign } from "lodash";
 import { RESPONSE_CODE } from "../constants/response";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "../config/env.config";
+import { DrizzleQueryError } from "drizzle-orm";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -41,6 +42,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       code =
         (exception as any).getResponse()?.code ||
         (exception as any).getStatus();
+
+      resContent = {
+        message: message,
+        code: code,
+      };
+    } else if (exception instanceof DrizzleQueryError) {
+      code = RESPONSE_CODE.BAD_REQUEST;
+      message = exception.cause?.message || "Bad request";
 
       resContent = {
         message: message,

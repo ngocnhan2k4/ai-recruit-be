@@ -17,6 +17,9 @@ export const RESPONSE_CODE = {
   TOKEN_NOT_FOUND: "TOKEN_NOT_FOUND",
   FILE_NOT_FOUND: "FILE_NOT_FOUND",
   BAD_REQUEST: "BAD_REQUEST",
+  USERNAME_ALREADY_EXISTS: "USERNAME_ALREADY_EXISTS",
+  PHONE_ALREADY_EXISTS: "PHONE_ALREADY_EXISTS",
+  EMAIL_ALREADY_EXISTS: "EMAIL_ALREADY_EXISTS",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -31,4 +34,7 @@ export const RESPONSE_MESSAGE = {
   USER_NOT_UPDATED: "User not updated.",
   USER_EXPERIENCE_NOT_FOUND: "User experience not found.",
   USER_SKILL_NOT_FOUND: "User skill not found.",
+  USERNAME_ALREADY_EXISTS: "Username already exists.",
+  PHONE_ALREADY_EXISTS: "Phone number already exists.",
+  EMAIL_ALREADY_EXISTS: "Email already exists.",
 };

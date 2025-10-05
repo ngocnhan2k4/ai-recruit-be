@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { Company, Skill, User } from "../../core/entities";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Skill, User } from "../../core/entities";
 import {
   IBloomFilterService,
   IUserRepository,
@@ -12,6 +16,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   ApiResponse,
   GetUserResponseDto,
+  TypeAvatar,
   UpdateUserRequestDto,
   UserDto,
   UserPublicResponseDto,
@@ -20,10 +25,11 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { UserExperience, UserSkill } from "@/core";
+import { UserSkill } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
+  UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
 
@@ -133,6 +139,7 @@ export class UserUseCases implements OnModuleInit {
         avatarUrl: user.avatarUrl,
         gender: user.gender as GenderEnum,
         dob: user.dob,
+        bio: user.bio,
       },
     };
   }
@@ -154,39 +161,59 @@ export class UserUseCases implements OnModuleInit {
       ...updateUserDto,
     };
 
-    const result = (
-      await this.userRepository.update(
-        {
-          id: userId,
+    try {
+      const result = (
+        await this.userRepository.update(
+          {
+            id: userId,
+          },
+          updatedUser,
+        )
+      )[0];
+
+      if (!result) {
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+          code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        });
+      }
+      return {
+        message: "User profile updated successfully",
+        code: RESPONSE_MESSAGE.SUCCESS,
+        data: {
+          ...result,
+          gender: result.gender as GenderEnum,
         },
-        updatedUser,
-      )
-    )[0];
-    if (!result) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-        code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-      });
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `[UserUseCases] - [updateUserProfile] - Error updating user profile: ${error.message}`,
+      );
+      if (error.cause?.code === "23505") {
+        if (error.cause.detail.includes("email")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.EMAIL_ALREADY_EXISTS,
+            code: RESPONSE_CODE.EMAIL_ALREADY_EXISTS,
+          });
+        } else if (error.cause.detail.includes("phone")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.PHONE_ALREADY_EXISTS,
+            code: RESPONSE_CODE.PHONE_ALREADY_EXISTS,
+          });
+        } else if (error.cause.detail.includes("username")) {
+          throw new ConflictException({
+            message: RESPONSE_MESSAGE.USERNAME_ALREADY_EXISTS,
+            code: RESPONSE_CODE.USERNAME_ALREADY_EXISTS,
+          });
+        }
+      }
+      throw error;
     }
-    return {
-      message: "User profile updated successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        ...result,
-        gender: result.gender as GenderEnum,
-      },
-    };
   }
 
-  async getUserExperiences(userId: string): Promise<
-    ApiResponse<
-      {
-        experience: UserExperience;
-        company: Company;
-        skill: Skill;
-      }[]
-    >
-  > {
+  async getUserExperiences(
+    userId: string,
+  ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
     const userExperiences =
       await this.userExperienceRepository.getUserExperiences(userId);
     if (!userExperiences) {
@@ -206,7 +233,7 @@ export class UserUseCases implements OnModuleInit {
   async createUserExperience(
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
-  ): Promise<ApiResponse<UserExperience>> {
+  ): Promise<ApiResponse<number>> {
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
       userId,
@@ -222,7 +249,7 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: result.id,
     };
   }
 
@@ -230,7 +257,7 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
     updateUserExperienceDto: UpdateUserExperienceRequestDto,
-  ): Promise<ApiResponse<UserExperience>> {
+  ): Promise<ApiResponse<number>> {
     const userExperience = (
       await this.userExperienceRepository.getByField({
         userId,
@@ -238,6 +265,9 @@ export class UserUseCases implements OnModuleInit {
       })
     )[0];
     if (!userExperience) {
+      this.logger.error(
+        "[updateUserExperience] - [get] userExperience not found",
+      );
       throw new NotFoundException({
         message: "[updateUserExperience] - [get] User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
@@ -247,34 +277,26 @@ export class UserUseCases implements OnModuleInit {
       ...userExperience,
       ...updateUserExperienceDto,
     };
-    const result = (
-      await this.userExperienceRepository.update(
-        { userId, id },
-        {
-          ...updatedUserExperience,
-          startDate: convertDateToStr(updateUserExperienceDto.startDate),
-          endDate: convertDateToStr(updateUserExperienceDto.endDate),
-        },
-      )
-    )[0];
-    if (!result) {
-      throw new NotFoundException({
-        message:
-          "[updateUserExperience] - [updateUserExperience] User experience not found",
-        code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
-      });
-    }
+    await this.userExperienceRepository.update(
+      { userId, id },
+      {
+        ...updatedUserExperience,
+        startDate: convertDateToStr(updateUserExperienceDto.startDate),
+        endDate: convertDateToStr(updateUserExperienceDto.endDate),
+      },
+    );
+
     return {
       message: "User experience updated successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: 1,
     };
   }
 
   async deleteUserExperience(
     userId: string,
     id: number,
-  ): Promise<ApiResponse<UserExperience>> {
+  ): Promise<ApiResponse<number>> {
     const result = (
       await this.userExperienceRepository.delete({
         userId,
@@ -290,19 +312,12 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User experience deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: 1,
     };
   }
 
-  async getUserSkills(userName: string): Promise<
-    ApiResponse<
-      {
-        userId: string;
-        skill: Skill;
-      }[]
-    >
-  > {
-    const userSkills = await this.userSkillRepository.getUserSkills(userName);
+  async getUserSkills(username: string): Promise<ApiResponse<Skill[]>> {
+    const userSkills = await this.userSkillRepository.getUserSkills(username);
     if (!userSkills) {
       throw new NotFoundException({
         message: "[getUserSkills] - [getByUserId] User skills not found",
@@ -365,7 +380,8 @@ export class UserUseCases implements OnModuleInit {
   async uploadUserAvatar(
     userId: string,
     file: MultipartFile | undefined,
-  ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
+    type: TypeAvatar,
+  ): Promise<ApiResponse<{ url: string; publicId: string; format: string }>> {
     if (!file) {
       throw new NotFoundException({
         message: "[uploadUserAvatar] - No file provided",
@@ -382,7 +398,9 @@ export class UserUseCases implements OnModuleInit {
     }
     const updatedUser = {
       ...user,
-      avatarUrl: result.secure_url,
+      ...(type === TypeAvatar.AVATAR
+        ? { avatarUrl: result.secure_url }
+        : { bannerUrl: result.secure_url }),
     };
     const updatedUserResult = await this.userRepository.update(
       { id: userId },
@@ -396,11 +414,11 @@ export class UserUseCases implements OnModuleInit {
     }
 
     return {
-      message: "Avatar uploaded successfully",
+      message: "User avatar uploaded successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: {
         url: result.secure_url,
-        public_id: result.public_id,
+        publicId: result.public_id,
         format: result.format,
       },
     };
@@ -409,29 +427,30 @@ export class UserUseCases implements OnModuleInit {
   /**
    * Check if username exists using Bloom Filter (fast check)
    * Returns:
-   * - false: Username definitely does NOT exist (100% accurate)
+   * - false: Username definitelyfalse does NOT exist (100% accurate)
    * - true: Username MIGHT exist (needs database verification due to possible false positives)
    */
   async checkUserByUsername(
     username: string,
   ): Promise<ApiResponse<{ exists: boolean }>> {
-    let exists = true;
     // Step 1: check bloom filter
     const mightExist = this.bloomFilterService.mightContain(username);
-
     if (!mightExist) {
-      exists = false;
+      return {
+        data: { exists: false },
+        message: "Username definitely does not exist",
+        code: RESPONSE_CODE.SUCCESS,
+      };
     }
 
     // Step 2: verify DB để loại false positive
-    const user = await this.userRepository.getByField({ username });
-    exists = user !== null;
+    const user = (await this.userRepository.getByField({ username }))[0];
 
     return {
       data: {
-        exists,
+        exists: !!user,
       },
-      message: "Username check result",
+      message: "Username existence checked successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

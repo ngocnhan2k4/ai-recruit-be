@@ -1,15 +1,11 @@
 import { IsOptional, IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
+import { CompanyDto } from "../companies/company.dto";
+import { SkillDto } from "../skills/skill.dto";
 
 export class UserExperienceDto {
   @ApiProperty()
   id: number;
-
-  @ApiProperty()
-  companyId: string;
-
-  @ApiProperty()
-  userId: string;
 
   @ApiProperty()
   jobTitle: string;
@@ -20,19 +16,19 @@ export class UserExperienceDto {
   @ApiProperty()
   startDate: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, nullable: true })
   endDate: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, nullable: true })
   description: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ type: Date })
   createdAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({ type: Date, nullable: true })
   updatedAt: Date | null;
 
-  @ApiProperty()
+  @ApiProperty({ type: Date, nullable: true })
   deletedAt: Date | null;
 }
 
@@ -88,4 +84,15 @@ export class UpdateUserExperienceRequestDto {
   @ApiProperty()
   @IsString()
   companyId: string;
+}
+
+export class UserExperiencesResponseDto {
+  @ApiProperty({ type: UserExperienceDto })
+  experience: Omit<UserExperienceDto, "createdAt" | "updatedAt" | "deletedAt">;
+
+  @ApiProperty({ type: CompanyDto })
+  company: Pick<CompanyDto, "id" | "name" | "logoUrl" | "address"> | null;
+
+  @ApiProperty({ type: [SkillDto] })
+  skills: SkillDto[];
 }

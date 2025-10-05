@@ -2,6 +2,7 @@ import { IUserExperienceRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
+import { Company, Skill, UserExperience } from "@/core/entities";
 import {
   companies,
   skills,
@@ -9,7 +10,6 @@ import {
   users,
   userSkills,
 } from "../models";
-import { Company, Skill, UserExperience } from "@/core/entities";
 import { and, eq } from "drizzle-orm";
 
 @Injectable()
@@ -21,23 +21,24 @@ export class UserExperienceRepository
     super(db, userExperiences);
   }
 
-  async getUserExperiences(userName: string): Promise<
+  async getUserExperiences(username: string): Promise<
     {
-      userName: string;
-      experience: UserExperience;
-      company: Company;
-      skill: Skill;
+      experience: Omit<
+        UserExperience,
+        "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
+      >;
+      company: Pick<Company, "id" | "name" | "logoUrl" | "address"> | null;
+      skills: Skill[];
     }[]
   > {
-    const result = await this.db
+    const rows = await this.db
       .select({
-        userName: users.username,
         experience: userExperiences,
         company: companies,
         skill: skills,
       })
-      .from(users)
-      .innerJoin(userExperiences, eq(users.id, userExperiences.userId))
+      .from(userExperiences)
+      .innerJoin(users, eq(users.id, userExperiences.userId))
       .leftJoin(companies, eq(userExperiences.companyId, companies.id))
       .leftJoin(
         userSkills,
@@ -47,13 +48,60 @@ export class UserExperienceRepository
         ),
       )
       .leftJoin(skills, eq(userSkills.skillId, skills.id))
-      .where(eq(users.username, userName));
+      .where(eq(users.username, username));
 
-    return result as {
-      userName: string;
-      experience: UserExperience;
-      company: Company;
-      skill: Skill;
-    }[];
+    const grouped = Object.values(
+      rows.reduce(
+        (acc, row) => {
+          const expId = row.experience.id;
+          if (!acc[expId]) {
+            acc[expId] = {
+              experience: {
+                id: row.experience.id,
+                position: row.experience.position,
+                startDate: row.experience.startDate,
+                endDate: row.experience.endDate,
+                jobTitle: row.experience.jobTitle,
+                description: row.experience.description,
+              },
+              company: row.company
+                ? {
+                    id: row.company.id,
+                    name: row.company.name,
+                    logoUrl: row.company.logoUrl,
+                    address: row.company.address,
+                  }
+                : null,
+              skills: [],
+            };
+          }
+
+          if (row.skill) {
+            acc[expId].skills.push({
+              id: row.skill.id,
+              name: row.skill.name,
+            });
+          }
+
+          return acc;
+        },
+        {} as Record<
+          string,
+          {
+            experience: Omit<
+              UserExperience,
+              "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
+            >;
+            company: Pick<
+              Company,
+              "id" | "name" | "logoUrl" | "address"
+            > | null;
+            skills: Skill[];
+          }
+        >,
+      ),
+    );
+
+    return grouped;
   }
 }

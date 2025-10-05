@@ -1,8 +1,8 @@
-import { IsEmail, IsInt, IsString } from "class-validator";
-import { PartialType } from "@nestjs/mapped-types";
-import { ApiProperty } from "@nestjs/swagger";
+import { IsEmail, IsEnum, IsString } from "class-validator";
+import { ApiProperty, PartialType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
+import { type ProviderEnumType } from "@/core";
 
 export class CreateUserRequestDto {
   @ApiProperty()
@@ -14,8 +14,20 @@ export class CreateUserRequestDto {
   name: string;
 
   @ApiProperty()
-  @IsInt()
-  age: number;
+  @IsString()
+  username: string;
+
+  @ApiProperty()
+  @IsString()
+  bio: string;
+
+  @ApiProperty()
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ enum: GenderEnum })
+  @IsEnum(GenderEnum)
+  gender: GenderEnum;
 }
 
 export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
@@ -27,14 +39,17 @@ export class UserPublicResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   avatarUrl: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true, enum: GenderEnum })
   gender: GenderEnum | null;
 
-  @ApiProperty()
+  @ApiProperty({ nullable: true })
   dob: string | null;
+
+  @ApiProperty({ nullable: true })
+  bio: string | null;
 }
 
 export class UserDto {
@@ -44,34 +59,34 @@ export class UserDto {
   @ApiProperty()
   username: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: true })
   email: string | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   phone: string | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   avatarUrl: string | null;
 
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   dob: string | null;
 
   @ApiProperty()
   createdAt: Date;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   updatedAt: Date | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ nullable: false })
   firebaseUid: string | null;
 
-  @ApiProperty({ required: false, enum: GenderEnum })
+  @ApiProperty({ nullable: false, enum: GenderEnum })
   gender: GenderEnum | null;
 
-  @ApiProperty({ required: false, type: "boolean" })
+  @ApiProperty({ nullable: false, type: "boolean" })
   emailVerified: boolean | null;
 }
 
@@ -84,20 +99,30 @@ export class GetUserResponseDto {
 
   @Expose()
   email: string | null;
+
   @Expose()
   phone: string | null;
+
   @Expose()
   avatarUrl: string | null;
+
   @Expose()
   name: string;
+
   @Expose()
   dob: string | null;
+
   @Expose()
   gender: string | null;
+
   @Expose()
   firebaseUid: string | null;
+
   @Expose()
   emailVerified: boolean;
+
+  @Expose()
+  provider: ProviderEnumType;
 
   //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
@@ -105,4 +130,31 @@ export class GetUserResponseDto {
       excludeExtraneousValues: true,
     });
   }
+}
+
+export class CheckUsernameResponseDto {
+  @ApiProperty()
+  exists: boolean;
+}
+
+export class UserAvatarUpdateResponseDto {
+  @ApiProperty()
+  url: string;
+
+  @ApiProperty()
+  publicId: string;
+
+  @ApiProperty()
+  format: string;
+}
+
+export enum TypeAvatar {
+  AVATAR = "avatar",
+  BANNER = "banner",
+}
+
+export class UserAvatarUpdateRequestDto {
+  @ApiProperty({ enum: TypeAvatar })
+  @IsEnum(TypeAvatar)
+  type: TypeAvatar;
 }
