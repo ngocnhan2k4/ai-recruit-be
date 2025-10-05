@@ -2,8 +2,8 @@ name: Crawl Jobs
 
 on:
   schedule:
-    # Runs at 7:30, 12:30, and 17:30
-    - cron: "30 0,6,10 * * *"
+    # Runs at 7:30, and 17:30
+    - cron: "30 0,10 * * *"
   workflow_dispatch: # allows manual trigger too
 
 jobs:
@@ -46,5 +46,6 @@ jobs:
             🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs
             🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
             🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
+            🔹 Linkedin: ${{ steps.run_crawler.outputs.linkedin }} jobs
 
             ✅ Status: ${{ job.status }}

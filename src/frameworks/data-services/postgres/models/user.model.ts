@@ -9,18 +9,28 @@ import {
   boolean,
   primaryKey,
   uniqueIndex,
+  integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { companies } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 
-export const genderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
-export const educationLevelEnum = pgEnum("education_level", [
+export const GenderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
+export const EducationLevelEnum = pgEnum("education_level", [
   "high_school",
   "bachelor",
   "master",
   "phd",
   "other",
+]);
+
+export const ProviderEnum = pgEnum("provider", [
+  "email",
+  "google",
+  "facebook",
+  "github",
+  "anonymous",
 ]);
 
 export const users = pgTable(
@@ -33,9 +43,13 @@ export const users = pgTable(
     phone: varchar("phone", { length: 20 }),
     firebaseUid: varchar("firebase_uid", { length: 255 }),
     avatarUrl: varchar("avatar_url", { length: 500 }),
+    bannerUrl: varchar("banner_url", { length: 500 }),
     name: varchar("name", { length: 255 }).notNull(),
     dob: date("dob"),
-    gender: genderEnum("gender"),
+    bio: varchar("bio", { length: 500 }),
+    phoneVerified: boolean("phone_verified").notNull().default(false),
+    gender: GenderEnum("gender"),
+    provider: ProviderEnum("provider").notNull().default("email"),
     ...timestamps,
   },
   (table) => [
@@ -70,6 +84,7 @@ export const userSkills = pgTable(
     skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id),
+    companyId: uuid("company_id").references(() => companies.id),
   },
   (table) => [primaryKey({ columns: [table.userId, table.skillId] })],
 );
@@ -80,8 +95,11 @@ export const userOnboardings = pgTable("user_onboardings", {
     .notNull()
     .unique()
     .references(() => users.id),
-  educationLevel: educationLevelEnum("education_level"),
+  educationLevel: EducationLevelEnum("education_level"),
   major: varchar("major", { length: 255 }),
   school: varchar("school", { length: 255 }),
   currentGoal: varchar("current_goal", { length: 500 }),
+  experienceYears: integer("experience_years"),
+  experienceDetails: varchar("experience_details", { length: 500 }),
+  skills: jsonb("skills"),
 });
