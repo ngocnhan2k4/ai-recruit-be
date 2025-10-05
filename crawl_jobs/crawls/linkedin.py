@@ -51,6 +51,7 @@ def linkedin_crawl():
         human_delay(base=1, jitter=0)
 
         # --- Company page ---
+        print(job_url)
         company_url = soup.find("a")["href"]
 
         comp_res = requests.get(company_url, headers=headers)
@@ -90,8 +91,6 @@ def linkedin_crawl():
             "crawled_at": datetime.now(timezone.utc),
             "source": "linkedin"
         }
-    
-    print(companies)
 
     return companies
 
@@ -101,7 +100,7 @@ def get_job_ids(headers) -> list:
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}"
 
-    for i in range(0, 3):
+    for i in range(0, 1):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
