@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from crawls.itviec import itviec_crawl
 from crawls.topcv import topcv_crawl
 from crawls.jobsgo import jobsgo_crawl
+from crawls.linkedin import linkedin_crawl
 
 from database import insert_to_db
 
@@ -14,31 +15,33 @@ def vietnam_time_now():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Job crawler")
-    parser.add_argument(
-        "--db-url",
-        required=True,
-        help="Postgres connection string, e.g. postgres://postgres:123456@localhost:5432/mydb",
-    )
-    parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
+    linkedin_crawl()
 
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description="Job crawler")
+    # parser.add_argument(
+    #     "--db-url",
+    #     required=True,
+    #     help="Postgres connection string, e.g. postgres://postgres:123456@localhost:5432/mydb",
+    # )
+    # parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
 
-    itviec_companies = itviec_crawl()
-    itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
+    # args = parser.parse_args()
 
-    topcv_companies = topcv_crawl()
-    topcv_job_inserted = insert_to_db(args.db_url, topcv_companies)
+    # itviec_companies = itviec_crawl()
+    # itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
 
-    jobsgo_companies = jobsgo_crawl()
-    jobsgo_job_inserted = insert_to_db(args.db_url, jobsgo_companies)
+    # topcv_companies = topcv_crawl()
+    # topcv_job_inserted = insert_to_db(args.db_url, topcv_companies)
 
-    if args.gha_output:
-        with open(args.gha_output, "a") as f:
-            f.write(f"itviec={itviec_job_inserted}\n")
-            f.write(f"topcv={topcv_job_inserted}\n")
-            f.write(f"jobsgo={jobsgo_job_inserted}\n")
-            f.write(f"crawl_time={vietnam_time_now()}\n")
+    # jobsgo_companies = jobsgo_crawl()
+    # jobsgo_job_inserted = insert_to_db(args.db_url, jobsgo_companies)
+
+    # if args.gha_output:
+    #     with open(args.gha_output, "a") as f:
+    #         f.write(f"itviec={itviec_job_inserted}\n")
+    #         f.write(f"topcv={topcv_job_inserted}\n")
+    #         f.write(f"jobsgo={jobsgo_job_inserted}\n")
+    #         f.write(f"crawl_time={vietnam_time_now()}\n")
 
 
 if __name__ == "__main__":
