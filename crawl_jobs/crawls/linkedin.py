@@ -15,6 +15,8 @@ from helpers import (
 def linkedin_crawl():
     companies = {}
 
+    count = 1
+
     headers = get_headers()
 
     job_ids = get_job_ids(headers)
@@ -59,7 +61,7 @@ def linkedin_crawl():
 
         # company_website_url
         comp_wrap = comp_soup.select_one("dl.mt-6")
-        comp_web_url = comp_wrap.find("a")
+        comp_web_url = safe_text(comp_wrap.find("a"))
 
         dd = comp_wrap.find_all("dd")
 
@@ -70,6 +72,7 @@ def linkedin_crawl():
         comp_addr = safe_text(dd[3])
 
         if company_name not in companies:
+            print(f"{count}. {company_size}")
             min, max = extract_employees(company_size)
 
             companies[company_name] = {
@@ -103,7 +106,7 @@ def get_job_ids(headers) -> list:
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}"
 
-    for i in range(0, 3):
+    for i in range(0, 1):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
