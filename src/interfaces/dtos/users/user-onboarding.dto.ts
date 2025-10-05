@@ -1,6 +1,6 @@
 import { GenderEnum } from "@/common/constants/roles";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsNumber, IsString } from "class-validator";
 
 export class UserOnboardingDto {
   @ApiProperty()
@@ -24,9 +24,15 @@ export class UserOnboardingDto {
   @ApiProperty()
   @IsString()
   currentGoal?: string | null;
+  @ApiProperty({ type: [String] })
+  @IsString({ each: true })
   skills?: string[] | null;
+  @ApiProperty()
+  @IsNumber()
   experienceYears?: number | null;
-  experienceDetail?: string | null;
+  @ApiProperty()
+  @IsString()
+  experienceDetails?: string | null;
 }
 
 export class UserOnboardingStatusDto {
