@@ -9,6 +9,8 @@ import {
   boolean,
   primaryKey,
   uniqueIndex,
+  integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { companies } from "./company.model";
 import { skills } from "./skill.model";
@@ -97,4 +99,7 @@ export const userOnboardings = pgTable("user_onboardings", {
   major: varchar("major", { length: 255 }),
   school: varchar("school", { length: 255 }),
   currentGoal: varchar("current_goal", { length: 500 }),
+  experienceYears: integer("experience_years"),
+  experienceDetails: varchar("experience_details", { length: 500 }),
+  skills: jsonb("skills"),
 });
