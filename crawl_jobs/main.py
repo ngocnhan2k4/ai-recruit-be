@@ -21,7 +21,7 @@ def main():
         required=True,
         help="Postgres connection string, e.g. postgres://postgres:123456@localhost:5432/mydb",
     )
-    # parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
+    parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
 
     args = parser.parse_args()
 
