@@ -8,6 +8,9 @@ import {
   skills,
   userExperiences,
   userSkills,
+  ProviderEnum,
+  EducationLevelEnum,
+  GenderEnum,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -39,5 +42,10 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+
+export type ProviderEnumType = (typeof ProviderEnum.enumValues)[number];
+export type EducationLevelEnumType =
+  (typeof EducationLevelEnum.enumValues)[number];
+export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
 
 export * from "./job.entity";

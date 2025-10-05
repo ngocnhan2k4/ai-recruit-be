@@ -3,10 +3,10 @@ import { IsOptional, IsString } from "class-validator";
 
 export class UserSkillDto {
   @ApiProperty()
-  userId: string;
+  id: string;
 
   @ApiProperty()
-  skillId: string;
+  name: string;
 }
 
 export class CreateUserSkillRequestDto {

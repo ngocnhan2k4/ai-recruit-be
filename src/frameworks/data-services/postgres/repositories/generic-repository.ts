@@ -3,7 +3,9 @@ import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
-export class GenericRepository<T, TTable> implements IGenericRepository<T> {
+export class GenericRepository<T, TTable extends object>
+  implements IGenericRepository<T>
+{
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
@@ -24,7 +26,7 @@ export class GenericRepository<T, TTable> implements IGenericRepository<T> {
     return (result[0] as T) || null;
   }
 
-  async getByField(field: Partial<T>): Promise<T[]> {
+  async getByField(field: Partial<T>, omit: (keyof T)[] = []): Promise<T[]> {
     const keys = Object.keys(field) as (keyof T)[];
     if (keys.length === 0) {
       return [];
@@ -32,8 +34,17 @@ export class GenericRepository<T, TTable> implements IGenericRepository<T> {
     const conditions = keys.map((key) =>
       eq((this._table as any)[key as string], field[key]),
     );
+
+    const allColumns = Object.keys(this._table) as (keyof T)[];
+    const selectedColumns = allColumns.filter((c) => !omit.includes(c));
+
     const result = await this.db
-      .select()
+      .select({
+        ...(selectedColumns as string[]).reduce(
+          (acc, col) => ({ ...acc, [col]: (this._table as any)[col] }),
+          {},
+        ),
+      })
       .from(this._table as any)
       .where(and(...conditions));
     return result as T[];
