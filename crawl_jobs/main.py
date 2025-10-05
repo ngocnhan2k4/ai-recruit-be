@@ -42,6 +42,7 @@ def main():
             f.write(f"itviec={0}\n")
             f.write(f"topcv={0}\n")
             f.write(f"jobsgo={0}\n")
+            f.write(f"linkedin={linkedin_job_inserted}\n")
             f.write(f"crawl_time={vietnam_time_now()}\n")
 
 

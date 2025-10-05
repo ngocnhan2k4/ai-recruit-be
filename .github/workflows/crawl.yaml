@@ -49,5 +49,6 @@ jobs:
             🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs
             🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
             🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
+            🔹 Linkedin: ${{ steps.run_crawler.outputs.linkedin }} jobs
 
             ✅ Status: ${{ job.status }}
