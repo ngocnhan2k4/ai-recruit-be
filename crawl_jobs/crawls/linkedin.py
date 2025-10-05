@@ -98,7 +98,7 @@ def get_job_ids(headers) -> list:
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}"
 
-    for i in range(0, 37):
+    for i in range(0, 2):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")

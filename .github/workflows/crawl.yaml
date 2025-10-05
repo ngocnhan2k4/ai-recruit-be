@@ -1,9 +1,6 @@
 name: Crawl Jobs
 
 on:
-  push:
-    branches:
-      - '**' 
   schedule:
     # Runs at 7:30, and 17:30
     - cron: "30 0,10 * * *"
