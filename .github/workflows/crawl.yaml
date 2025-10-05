@@ -1,6 +1,9 @@
 name: Crawl Jobs
 
 on:
+  push:
+    branches:
+      - '**' 
   schedule:
     # Runs at 7:30, 12:30, and 17:30
     - cron: "30 0,6,10 * * *"
@@ -30,21 +33,22 @@ jobs:
         id: run_crawler
         run: |
           cd crawl_jobs
-          python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT"
+          python main.py
 
-      - name: Notify Slack
-        if: always()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
-          SLACK_CHANNEL: crawl
-          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "📊 Kết quả crawl việc làm"
-          SLACK_MESSAGE: |
-            🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
+      # python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT"
+      # - name: Notify Slack
+      #   if: always()
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #     SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
+      #     SLACK_CHANNEL: crawl
+      #     SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
+      #     SLACK_TITLE: "📊 Kết quả crawl việc làm"
+      #     SLACK_MESSAGE: |
+      #       🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
 
-            🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs
-            🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
-            🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
+      #       🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs
+      #       🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
+      #       🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
 
-            ✅ Status: ${{ job.status }}
+      #       ✅ Status: ${{ job.status }}
