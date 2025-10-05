@@ -72,15 +72,10 @@ def linkedin_crawl():
         comp_addr = safe_text(dd[3])
 
         if company_name not in companies:
-            print(f"{count}. {company_size}")
-            min, max = extract_employees(company_size)
-
             companies[company_name] = {
                 "logo": logo,
                 "address": comp_addr,
                 "description": company_desc,
-                "employees_min": min,
-                "employees_max": max,
                 "website_url": comp_web_url,
                 "crawled_at": datetime.now(),
                 "source": "linkedin",  
@@ -96,7 +91,7 @@ def linkedin_crawl():
             "source": "linkedin"
         }
 
-        print(f"['URL': {company_url}, 'Data': {companies[company_name]}]")
+        print(f"['URL': {company_url}, \n'Data': {companies[company_name]}, \n'Company Size': {company_size}]")
     
     return companies
 
