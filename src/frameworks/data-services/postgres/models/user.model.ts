@@ -70,6 +70,7 @@ export const userSkills = pgTable(
     skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id),
+    companyId: uuid("company_id").references(() => companies.id),
   },
   (table) => [primaryKey({ columns: [table.userId, table.skillId] })],
 );
