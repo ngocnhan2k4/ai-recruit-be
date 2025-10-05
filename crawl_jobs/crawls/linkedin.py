@@ -13,7 +13,7 @@ from helpers import (
 
 
 def linkedin_crawl():
-    companies = []
+    companies = {}
 
     headers = get_headers()
 
