@@ -32,6 +32,11 @@ jobs:
         run: bun run build
         continue-on-error: false
 
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
       - name: Notify Slack on Success
         if: success()
         uses: rtCamp/action-slack-notify@v2
