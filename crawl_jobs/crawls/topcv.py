@@ -172,4 +172,4 @@ def scrape_page(scraper, page_num, headers):
 
 
 def topcv_crawl():
-    return crawl(scrape_page)
+    return crawl(scrape_page, delay=3, jitter=6)

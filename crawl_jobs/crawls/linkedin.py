@@ -15,8 +15,6 @@ from helpers import (
 def linkedin_crawl():
     companies = {}
 
-    count = 1
-
     headers = get_headers()
 
     job_ids = get_job_ids(headers)
@@ -48,7 +46,7 @@ def linkedin_crawl():
         desc_wrap = soup.select_one("div.show-more-less-html__markup")
         description_parts = [{"title": "", "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip()}]
 
-        human_delay(base=3, jitter=5)
+        human_delay(base=3, jitter=2)
 
         # --- Company page ---
         print(job_url)
@@ -92,8 +90,6 @@ def linkedin_crawl():
             "source": "linkedin"
         }
 
-    print(companies)
-
     return companies
 
 
@@ -102,7 +98,7 @@ def get_job_ids(headers) -> list:
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}"
 
-    for i in range(0, 1):
+    for i in range(0, 80):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
@@ -111,5 +107,7 @@ def get_job_ids(headers) -> list:
         for job in jobs_on_page:
             job_id = job.select_one("div.base-card").get("data-entity-urn").split(":")[3]
             job_ids.append(job_id)
+        
+        human_delay(base=1, jitter=0)
     
     return job_ids

@@ -28,20 +28,20 @@ def main():
     linkedin_companies = linkedin_crawl()
     linkedin_job_inserted = insert_to_db(args.db_url, linkedin_companies)
 
-    # itviec_companies = itviec_crawl()
-    # itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
+    itviec_companies = itviec_crawl()
+    itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
 
-    # topcv_companies = topcv_crawl()
-    # topcv_job_inserted = insert_to_db(args.db_url, topcv_companies)
+    topcv_companies = topcv_crawl()
+    topcv_job_inserted = insert_to_db(args.db_url, topcv_companies)
 
-    # jobsgo_companies = jobsgo_crawl()
-    # jobsgo_job_inserted = insert_to_db(args.db_url, jobsgo_companies)
+    jobsgo_companies = jobsgo_crawl()
+    jobsgo_job_inserted = insert_to_db(args.db_url, jobsgo_companies)
 
     if args.gha_output:
         with open(args.gha_output, "a") as f:
-            f.write(f"itviec={0}\n")
-            f.write(f"topcv={0}\n")
-            f.write(f"jobsgo={0}\n")
+            f.write(f"itviec={itviec_job_inserted}\n")
+            f.write(f"topcv={topcv_job_inserted}\n")
+            f.write(f"jobsgo={jobsgo_job_inserted}\n")
             f.write(f"linkedin={linkedin_job_inserted}\n")
             f.write(f"crawl_time={vietnam_time_now()}\n")
 
