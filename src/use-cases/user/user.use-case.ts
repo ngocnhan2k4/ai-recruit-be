@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { User } from "../../core/entities";
+import { Skill, User } from "../../core/entities";
 import {
   IBloomFilterService,
   IUserRepository,
@@ -29,7 +29,7 @@ import { UserSkill } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
-  UserExperienceDto,
+  UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
 
@@ -213,9 +213,9 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserExperiences(
     userId: string,
-  ): Promise<ApiResponse<UserExperienceDto[]>> {
+  ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
     const userExperiences =
-      await this.userExperienceRepository.getByUserId(userId);
+      await this.userExperienceRepository.getUserExperiences(userId);
     if (!userExperiences) {
       throw new NotFoundException({
         message:
@@ -316,15 +316,8 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserSkills(userId: string): Promise<
-    ApiResponse<
-      {
-        id: string;
-        name: string;
-      }[]
-    >
-  > {
-    const userSkills = await this.userSkillRepository.getByUserId(userId);
+  async getUserSkills(username: string): Promise<ApiResponse<Skill[]>> {
+    const userSkills = await this.userSkillRepository.getUserSkills(username);
     if (!userSkills) {
       throw new NotFoundException({
         message: "[getUserSkills] - [getByUserId] User skills not found",
@@ -341,10 +334,12 @@ export class UserUseCases implements OnModuleInit {
   async createUserSkill(
     userId: string,
     skillId: string,
+    companyId: string,
   ): Promise<ApiResponse<UserSkill>> {
     const userSkill = await this.userSkillRepository.create({
       userId,
       skillId,
+      companyId,
     });
     if (!userSkill) {
       throw new NotFoundException({

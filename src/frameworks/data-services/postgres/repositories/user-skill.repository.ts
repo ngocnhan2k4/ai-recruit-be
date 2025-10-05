@@ -1,8 +1,8 @@
-import { IUserSkillRepository } from "@/core";
+import { IUserSkillRepository, Skill } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { skills, userSkills } from "../models";
+import { skills, users, userSkills } from "../models";
 import { UserSkill } from "@/core";
 import { eq } from "drizzle-orm";
 
@@ -15,15 +15,14 @@ export class UserSkillRepository
     super(db, userSkills);
   }
 
-  async getByUserId(userId: string): Promise<{ id: string; name: string }[]> {
+  async getUserSkills(username: string): Promise<Skill[]> {
     const result = await this.db
-      .select({
-        id: userSkills.skillId,
-        name: skills.name,
-      })
-      .from(userSkills)
-      .innerJoin(skills, eq(skills.id, userSkills.skillId))
-      .where(eq(userSkills.userId, userId));
-    return result as { id: string; name: string }[];
+      .select({ id: skills.id, name: skills.name })
+      .from(users)
+      .innerJoin(userSkills, eq(users.id, userSkills.userId))
+      .innerJoin(skills, eq(userSkills.skillId, skills.id))
+      .where(eq(users.username, username));
+
+    return result as Skill[];
   }
 }

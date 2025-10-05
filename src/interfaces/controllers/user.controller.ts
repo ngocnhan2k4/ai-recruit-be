@@ -37,13 +37,14 @@ import { type FastifyRequest } from "fastify";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
-  UserExperienceDto,
+  UserExperiencesResponseDto,
 } from "../dtos/users/user-experience.dto";
 import {
   CreateUserSkillRequestDto,
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
+import { Skill } from "@/core/entities";
 
 @ApiTags("Users")
 @Controller("users")
@@ -110,18 +111,16 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user experience" })
-  @ApiResponseDto(UserExperienceDto, { isArray: true })
-  @CasbinPermission("/user-experiences", "GET")
-  @Get("user-experiences")
+  @ApiResponseDto(UserExperiencesResponseDto, { isArray: true })
+  @Get("user-experiences/:username")
   async getUserExperience(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserExperienceDto[]>> {
-    return this.userUseCases.getUserExperiences(user.userId);
+    @Param("username") username: string,
+  ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
+    return this.userUseCases.getUserExperiences(username);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
@@ -137,7 +136,6 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
@@ -167,18 +165,17 @@ export class UserController {
     return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
   @ApiResponseDto(UserSkillDto, { isArray: true })
   async getUserSkills(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserSkillDto[]>> {
-    return this.userUseCases.getUserSkills(user.userId);
+    @Param("userName") userName: string,
+  ): Promise<ApiResponse<Skill[]>> {
+    return this.userUseCases.getUserSkills(userName);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user skill" })
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
@@ -191,6 +188,7 @@ export class UserController {
     return this.userUseCases.createUserSkill(
       user.userId,
       createUserSkillDto.skillId,
+      createUserSkillDto.companyId,
     );
   }
 
