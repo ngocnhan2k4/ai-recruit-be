@@ -11,7 +11,6 @@ import {
   primaryKey,
   numeric,
   integer,
-  boolean,
 } from "drizzle-orm/pg-core";
 import { companies, companyRaws } from "./company.model";
 import { skills } from "./skill.model";
@@ -121,6 +120,6 @@ export const userCV = pgTable("user_cv", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   fileSize: bigint("file_size", { mode: "number" }).notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
+  lastUsed: timestamp("last_used_at").defaultNow(),
   ...timestamps,
 });
