@@ -40,6 +40,7 @@ import {
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
+import { Company, Skill, UserExperience } from "@/core/entities";
 
 @ApiTags("Users")
 @Controller("users")
@@ -104,18 +105,22 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user experience" })
   @ApiResponseDto(UserExperienceDto, { isArray: true })
-  @CasbinPermission("/user-experiences", "GET")
-  @Get("user-experiences")
-  async getUserExperience(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserExperienceDto[]>> {
-    return this.userUseCases.getUserExperiences(user.userId);
+  @Get("user-experiences/:userName")
+  async getUserExperience(@Param("userName") userName: string): Promise<
+    ApiResponse<
+      {
+        experience: UserExperience;
+        company: Company;
+        skill: Skill;
+      }[]
+    >
+  > {
+    return this.userUseCases.getUserExperiences(userName);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user experience" })
   @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
@@ -130,7 +135,6 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
@@ -163,22 +167,25 @@ export class UserController {
     return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
   @SwaggerApiResponse({
     status: 200,
     description: "User skills fetched successfully",
   })
-  @CasbinPermission("/user-skills", "GET")
-  @Get("user-skills")
+  @Get("user-skills/:userName")
   @ApiResponseDto(UserSkillDto, { isArray: true })
-  async getUserSkills(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserSkillDto[]>> {
-    return this.userUseCases.getUserSkills(user.userId);
+  async getUserSkills(@Param("userName") userName: string): Promise<
+    ApiResponse<
+      {
+        userId: string;
+        skill: Skill;
+      }[]
+    >
+  > {
+    return this.userUseCases.getUserSkills(userName);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user skill" })
   @CasbinPermission("/user-skills", "POST")
   @Post("user-skills")
@@ -190,6 +197,7 @@ export class UserController {
     return this.userUseCases.createUserSkill(
       user.userId,
       createUserSkillDto.skillId,
+      createUserSkillDto.companyId,
     );
   }
 

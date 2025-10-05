@@ -53,7 +53,7 @@ export class AuthUseCases {
           avatarUrl: decode.picture ?? null,
           firebaseUid: decode.uid,
           // roles: [RoleEnum.USER],
-          name: decode.name!,
+          name: decode.name ?? "",
           gender: null,
           dob: null,
           phone: null,
