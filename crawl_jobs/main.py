@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from crawls.itviec import itviec_crawl
 from crawls.topcv import topcv_crawl
 from crawls.jobsgo import jobsgo_crawl
+from crawls.linkedin import linkedin_crawl
 
 from database import insert_to_db
 
@@ -24,6 +25,9 @@ def main():
 
     args = parser.parse_args()
 
+    linkedin_companies = linkedin_crawl()
+    linkedin_job_inserted = insert_to_db(args.db_url, linkedin_companies)
+
     itviec_companies = itviec_crawl()
     itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
 
@@ -38,6 +42,7 @@ def main():
             f.write(f"itviec={itviec_job_inserted}\n")
             f.write(f"topcv={topcv_job_inserted}\n")
             f.write(f"jobsgo={jobsgo_job_inserted}\n")
+            f.write(f"linkedin={linkedin_job_inserted}\n")
             f.write(f"crawl_time={vietnam_time_now()}\n")
 
 

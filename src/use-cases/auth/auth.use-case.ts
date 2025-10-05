@@ -8,6 +8,7 @@ import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
 import { generateUsername } from "@/common/utils/string";
+import { normalizeProvider } from "@/common/utils/firebase";
 @Injectable()
 export class AuthUseCases {
   constructor(
@@ -39,6 +40,7 @@ export class AuthUseCases {
       });
     }
     let user: User | null = null;
+    console.log("decode", decode);
     if (decode.provider_id !== "anonymous") {
       user =
         (
@@ -53,10 +55,11 @@ export class AuthUseCases {
           avatarUrl: decode.picture ?? null,
           firebaseUid: decode.uid,
           // roles: [RoleEnum.USER],
-          name: decode.name!,
+          name: decode.name ?? "",
           gender: null,
           dob: null,
           phone: null,
+          provider: normalizeProvider(decode.provider_id || "email"),
         };
         user = await this.userRepository.create(newUser);
       } else {
@@ -78,6 +81,10 @@ export class AuthUseCases {
         deletedAt: null,
         gender: null,
         emailVerified: false,
+        phoneVerified: false,
+        bio: null,
+        bannerUrl: null,
+        provider: "anonymous",
       };
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
