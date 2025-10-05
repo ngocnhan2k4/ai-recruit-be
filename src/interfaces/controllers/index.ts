@@ -6,3 +6,4 @@ export * from "./category.controller";
 export * from "./company.controller";
 export * from "./health.controller";
 export * from "./province.controller";
+export * from "./cv.controller";

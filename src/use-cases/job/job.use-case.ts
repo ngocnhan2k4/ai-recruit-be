@@ -7,6 +7,8 @@ import { omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
+  ApplyJobResponseDto,
+  UserInteractionResponseDto,
 } from "@/interfaces/dtos";
 import { Skill, Job, Company, Province } from "@/core";
 
@@ -18,7 +20,7 @@ export class JobUseCases {
   async getAllJobs(
     limit?: number,
     cursor?: string,
-    filters?: JobFilters,
+    filters?: JobFilters & { userId?: string },
   ): Promise<
     ApiResponse<{
       jobData: {
@@ -26,6 +28,7 @@ export class JobUseCases {
         provinces: Province[];
         company: Company;
         skills: Skill[];
+        isSaved?: boolean;
       }[];
       nextCursor?: string;
       hasNextPage: boolean;
@@ -80,6 +83,46 @@ export class JobUseCases {
         totalJobs,
         totalJobByCategoryId,
       },
+    };
+  }
+
+  async applyJob(userId: string): Promise<ApiResponse<ApplyJobResponseDto>> {
+    const result = await this.jobRepository.applyJob(userId);
+    this.logger.log(`User ${userId} applied for job`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async saveJob(
+    userId: string,
+    jobId: string,
+    save: boolean,
+  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+    const result = await this.jobRepository.saveJob(userId, jobId, save);
+    this.logger.log(
+      `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async hideJob(
+    userId: string,
+    jobId: string,
+    hide: boolean,
+  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+    const result = await this.jobRepository.hideJob(userId, jobId, hide);
+    this.logger.log(`User ${userId} ${hide ? "hid" : "unhid"} job ${jobId}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
     };
   }
 }

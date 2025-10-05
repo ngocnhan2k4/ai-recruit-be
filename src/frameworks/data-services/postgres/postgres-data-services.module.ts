@@ -17,6 +17,7 @@ import {
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
 import { CompanyRepository } from "./repositories/company.repository";
+import { CvRepository } from "./repositories/cv.repository";
 import { JobRepository } from "./repositories/job.repository";
 import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
@@ -110,11 +111,16 @@ import { UserRepository } from "./repositories/user.repository";
       provide: IUserRepository,
       useClass: UserRepository,
     },
+    {
+      provide: "ICvRepository",
+      useClass: CvRepository,
+    },
   ],
   exports: [
     IAuthRepository,
     ICategoryRepository,
     ICompanyRepository,
+    "ICvRepository",
     IJobRepository,
     IProvinceRepository,
     IUserExperienceRepository,

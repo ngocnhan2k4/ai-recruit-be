@@ -99,6 +99,14 @@ export class JobResponse {
 
   @ApiProperty({ type: [SkillDto] })
   skills: Skill[];
+
+  @ApiProperty({
+    example: false,
+    required: false,
+    description:
+      "Whether the job is saved by the current user (only present for authenticated users)",
+  })
+  isSaved?: boolean;
 }
 
 export class JobPaginationResponseDto {

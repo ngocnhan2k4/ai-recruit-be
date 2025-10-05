@@ -22,11 +22,13 @@ import {
   jobSkills,
   jobCategories,
   provinces,
+  userInteractions,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
+import { AnonymousId } from "@/common/constants/roles";
 import {
   Job,
   Province,
@@ -36,6 +38,10 @@ import {
   JobFilters,
   CursorPaginationResult,
 } from "@/core/entities";
+import {
+  ApplyJobResponseDto,
+  UserInteractionResponseDto,
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class JobRepository
@@ -49,13 +55,14 @@ export class JobRepository
   async getAllJobs(
     limit = 50,
     cursor?: string,
-    filters?: JobFilters,
+    filters?: JobFilters & { userId?: string },
   ): Promise<
     CursorPaginationResult<{
       job: Job;
       provinces: Province[];
       company: Company;
       skills: Skill[];
+      isSaved?: boolean;
     }>
   > {
     // Build where conditions
@@ -114,6 +121,18 @@ export class JobRepository
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
+    // Filter out hidden jobs for authenticated users (exclude anonymous users)
+    if (filters?.userId && filters.userId !== AnonymousId) {
+      whereConditions.push(
+        sql`NOT EXISTS (
+          SELECT 1 FROM ${userInteractions} ui 
+          WHERE ui.job_id = ${jobs.id} 
+          AND ui.user_id = ${filters.userId} 
+          AND ui.type = 'hide'
+        )`,
+      );
+    }
+
     // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
     if (cursor) {
       // For priority-based sorting, we need a composite cursor
@@ -143,6 +162,15 @@ export class JobRepository
           sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
             "skills",
           ),
+        isSaved:
+          filters?.userId && filters.userId !== AnonymousId
+            ? sql`EXISTS (
+              SELECT 1 FROM ${userInteractions} ui 
+              WHERE ui.job_id = ${jobs.id} 
+              AND ui.user_id = ${filters.userId} 
+              AND ui.type = 'save'
+            )`.as("isSaved")
+            : sql`false`.as("isSaved"),
       })
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
@@ -157,6 +185,7 @@ export class JobRepository
       provinces: Province[];
       company: Company;
       skills: Skill[];
+      isSaved: boolean;
     }[];
 
     // Check if there's a next page
@@ -294,5 +323,123 @@ export class JobRepository
       avgSalaryMax: Number(r.avgSalaryMax),
       jobCount: Number(r.jobCount),
     }));
+  }
+
+  async applyJob(_userId: string): Promise<ApplyJobResponseDto> {
+    // TODO: Implement apply job logic
+    // This would typically:
+    // 1. Validate the job exists
+    // 2. Check if user hasn't already applied
+    // 3. Create application record
+    // 4. Return the application data
+    return Promise.reject(new Error("Not implemented"));
+  }
+
+  async saveJob(
+    userId: string,
+    jobId: string,
+    save: boolean,
+  ): Promise<UserInteractionResponseDto | null> {
+    // Check if user already has a save interaction for this job
+    const existingInteraction = await this.db
+      .select()
+      .from(userInteractions)
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.jobId, jobId),
+          eq(userInteractions.type, "save"),
+        ),
+      )
+      .limit(1);
+
+    if (save) {
+      // User wants to save the job
+      if (existingInteraction.length > 0) {
+        // Job already saved, return existing interaction
+        return existingInteraction[0] as UserInteractionResponseDto;
+      }
+
+      // Create new save interaction
+      const [newInteraction] = await this.db
+        .insert(userInteractions)
+        .values({
+          userId,
+          jobId,
+          type: "save",
+        })
+        .returning();
+
+      return newInteraction as UserInteractionResponseDto;
+    } else {
+      // User wants to unsave the job
+      if (existingInteraction.length > 0) {
+        // Delete the existing interaction
+        await this.db
+          .delete(userInteractions)
+          .where(
+            and(
+              eq(userInteractions.userId, userId),
+              eq(userInteractions.jobId, jobId),
+              eq(userInteractions.type, "save"),
+            ),
+          );
+      }
+      return null; // No interaction exists after unsaving
+    }
+  }
+
+  async hideJob(
+    userId: string,
+    jobId: string,
+    hide: boolean,
+  ): Promise<UserInteractionResponseDto | null> {
+    // Check if user already has a hide interaction for this job
+    const existingInteraction = await this.db
+      .select()
+      .from(userInteractions)
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.jobId, jobId),
+          eq(userInteractions.type, "hide"),
+        ),
+      )
+      .limit(1);
+
+    if (hide) {
+      // User wants to hide the job
+      if (existingInteraction.length > 0) {
+        // Job already hidden, return existing interaction
+        return existingInteraction[0] as UserInteractionResponseDto;
+      }
+
+      // Create new hide interaction
+      const [newInteraction] = await this.db
+        .insert(userInteractions)
+        .values({
+          userId,
+          jobId,
+          type: "hide",
+        })
+        .returning();
+
+      return newInteraction as UserInteractionResponseDto;
+    } else {
+      // User wants to unhide the job
+      if (existingInteraction.length > 0) {
+        // Delete the existing interaction
+        await this.db
+          .delete(userInteractions)
+          .where(
+            and(
+              eq(userInteractions.userId, userId),
+              eq(userInteractions.jobId, jobId),
+              eq(userInteractions.type, "hide"),
+            ),
+          );
+      }
+      return null; // No interaction exists after unhiding
+    }
   }
 }

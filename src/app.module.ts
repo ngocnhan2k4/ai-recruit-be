@@ -8,6 +8,7 @@ import {
   CompanyController,
   JobController,
   ProvinceController,
+  CvController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -33,6 +34,7 @@ import { AppConfigProps } from "./common/config/app.config";
 import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
+import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.mod
     LoggerServiceModule,
     ProvinceUseCasesModule,
     CompanyUseCasesModule,
+    CvUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -66,6 +69,7 @@ import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.mod
     UploadController,
     HealthController,
     ProvinceController,
+    CvController,
   ],
   providers: [
     JwtStrategy,
