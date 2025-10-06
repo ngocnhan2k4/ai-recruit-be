@@ -2,10 +2,12 @@ import {
   ApiTags,
   ApiOperation,
   ApiParam,
+  ApiBearerAuth,
   ApiConsumes,
   ApiBody,
 } from "@nestjs/swagger";
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,7 +16,6 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Req,
   UseGuards,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
@@ -27,13 +28,11 @@ import {
   GetUserResponseDto,
   UpdateUserRequestDto,
   UserAvatarUpdateRequestDto,
-  UserAvatarUpdateResponseDto,
   UserDto,
   UserPublicResponseDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { type FastifyRequest } from "fastify";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
@@ -45,6 +44,9 @@ import {
 } from "../dtos/users/user-skill.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { Skill } from "@/core/entities";
+import { RESPONSE_CODE } from "@/common/constants/response";
+import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { type MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Users")
 @Controller("users")
@@ -218,19 +220,36 @@ export class UserController {
   //   );
   // }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Upload user avatar" })
   @ApiConsumes("multipart/form-data")
-  @CasbinPermission("/user-avatar", "POST")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        type: { type: "string", enum: ["avatar", "banner"] },
+      },
+      required: ["file", "type"],
+    },
+  })
   @Post("avatar")
-  @ApiResponseDto(UserAvatarUpdateResponseDto)
   async uploadUserAvatar(
     @GetUser() user: TokenPayload,
-    @Req() req: FastifyRequest,
-    @Body() body: UserAvatarUpdateRequestDto,
+    @UploadFileAndBody()
+    uploadFile: { file: MultipartFile; body: UserAvatarUpdateRequestDto },
   ) {
-    const file = await req.file();
+    if (!uploadFile)
+      throw new BadRequestException({
+        message: "No file uploaded",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
 
-    return this.userUseCases.uploadUserAvatar(user.userId, file, body.type);
+    return this.userUseCases.uploadUserAvatar(
+      user.userId,
+      uploadFile.file,
+      uploadFile.body.type,
+    );
   }
 }
