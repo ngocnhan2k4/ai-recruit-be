@@ -2,16 +2,15 @@ import psycopg2
 from psycopg2.extras import Json
 
 def insert_to_db(db_url: str, companies: dict):
-    """
-    Insert companies and their jobs into Postgres without changing schema.
-    Uses SELECT to avoid duplicates.
-    """
+    job_inserted = 0
+
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
 
         for name, cdata in companies.items():
-            addresses = cdata.get("locations") or []
+            print(f"Insert jobs of {name}")
+            addresses = cdata.get("address") or []
             province_id = None
 
             # --- Check if company exists ---
@@ -54,7 +53,6 @@ def insert_to_db(db_url: str, companies: dict):
                     if prov_col:
                         province_id = prov_col[0]
                     elif province is not None:
-                        print(f"Inserting new province: {province}")
                         cur.execute(
                             "INSERT INTO provinces (name) VALUES (%s) RETURNING id",
                             (province,)
@@ -69,17 +67,25 @@ def insert_to_db(db_url: str, companies: dict):
                 cur.execute(
                     """
                     INSERT INTO jobs
-                        (title, description, date_posted, company_id, province_id)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
+                        (title, description, date_posted, company_id, province_id, created_at, salary_min, salary_max, experience_min, experience_max, end_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                     """,
                     (
                         title,
                         Json(jdata.get("description")),
                         jdata.get("date_posted"),
                         company_id,
-                        province_id
+                        province_id,
+                        jdata.get("crawled_at"),
+                        jdata.get("salary_min"),
+                        jdata.get("salary_max"),
+                        jdata.get("experience_min"),
+                        jdata.get("experience_max"),
+                        jdata.get("end_date"),
                     ),
                 )
+
+                job_inserted += 1
 
                 job_id = cur.fetchone()[0]
 
@@ -101,14 +107,22 @@ def insert_to_db(db_url: str, companies: dict):
                         )
                         skill_id = cur.fetchone()[0]
 
+                    # check existence before inserting into job_skills
                     cur.execute(
-                        "INSERT INTO job_skills (job_id, skill_id) VALUES (%s, %s)",
-                        (job_id, skill_id),
+                        "SELECT 1 FROM job_skills WHERE job_id = %s AND skill_id = %s",
+                        (job_id, skill_id)
                     )
+                    if not cur.fetchone():
+                        cur.execute(
+                            "INSERT INTO job_skills (job_id, skill_id) VALUES (%s, %s)",
+                            (job_id, skill_id)
+                        )
 
         conn.commit()
         cur.close()
         conn.close()
         print("Import completed.")
+
+        return job_inserted
     except Exception as e:
         print("Database connection failed:", e)

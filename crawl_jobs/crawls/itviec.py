@@ -1,13 +1,10 @@
-import time
 from urllib.parse import urlparse, urljoin
 import re
 from datetime import datetime, timezone
 
-import cloudscraper
 from bs4 import BeautifulSoup
 
-from helpers import parse_posted_date, safe_text, get_date_posted, extract_employees
-from config import CONFIG
+from helpers import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -108,11 +105,11 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
     }
 
 
-def scrape_page(scraper, page_num):
+def scrape_page(scraper, page_num, headers=[]):
     base_url = "https://itviec.com/it-jobs"
     listing_url = f"{base_url}?page={page_num}"
 
-    print(f"--- Scraping listing page {page_num} ---")
+    print(f"--- Scraping Itviec listing page {page_num} ---")
 
     html = scraper.get(listing_url).text
     soup = BeautifulSoup(html, "html.parser")
@@ -130,35 +127,5 @@ def scrape_page(scraper, page_num):
     return companies
 
 
-def crawl_jobs():
-    scraper = cloudscraper.create_scraper()
-
-    all_companies = {}
-    pages = 51
-
-    for page_num in range(2, pages):
-        attempts = 0
-
-        while True:
-            try:
-                attempts += 1
-                print(f"Scraping page {page_num} (attempt {attempts})")
-                page_companies = scrape_page(scraper, page_num)
-                break
-            except Exception as e:
-                print(f"Error on page {page_num}: {e}")
-                if attempts >= 3:
-                    print(f"Skipping page {page_num} after 3 failures.")
-                    page_companies = {}
-                    break
-                time.sleep(2)
-
-        for name, data in page_companies.items():
-            if name not in all_companies:
-                all_companies[name] = data
-            else:
-                all_companies[name]["jobs"].update(data["jobs"])
-
-        time.sleep(2)
-
-    return all_companies
+def itviec_crawl():
+    return crawl(scrape_page, delay=1, jitter=0)

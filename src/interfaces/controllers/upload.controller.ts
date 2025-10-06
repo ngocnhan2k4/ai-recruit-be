@@ -7,11 +7,16 @@ import {
   Req,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
-import { ApiTags, ApiOperation, ApiBody, ApiParam } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiParam,
+  ApiConsumes,
+} from "@nestjs/swagger";
 
 import {
   DeleteFileResponseDto,
-  UploadFileRequestDto,
   UploadResponseDto,
 } from "@/interfaces/dtos/upload.dto";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
@@ -31,10 +36,19 @@ export class UploadController {
   })
   @ApiBody({
     description: "File upload",
-    type: UploadFileRequestDto,
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+        },
+      },
+    },
   })
+  @ApiConsumes("multipart/form-data")
   @ApiResponseDto(UploadResponseDto)
-  @Post()
+  @Post("file")
   async uploadFile(
     @Req() req: FastifyRequest,
   ): Promise<ApiResponse<UploadResponseDto>> {

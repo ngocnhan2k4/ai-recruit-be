@@ -6,8 +6,8 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
     environment: dev
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,10 +32,10 @@ jobs:
         run: bun run build
         continue-on-error: false
 
-      # - name: SonarQube Scan
-      #   uses: SonarSource/sonarqube-scan-action@v5
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Notify Slack on Success
         if: success()

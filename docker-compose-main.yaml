@@ -1,0 +1,10 @@
+services:
+  backend:
+    image: ghcr.io/ngocnhan2k4/ai-recruit-be:latest
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    command: >
+      sh -c "npx drizzle-kit push && npm run build && npm run start:prod"
