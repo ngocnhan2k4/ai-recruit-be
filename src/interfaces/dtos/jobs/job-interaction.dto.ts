@@ -1,5 +1,32 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsUUID, IsOptional, IsObject, IsBoolean } from "class-validator";
+import {
+  IsUUID,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsString,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApplyStatus } from "./job.dto";
+
+export class JobAnswerDto {
+  @ApiProperty({
+    example: "What is your experience with React?",
+    description: "The question text",
+  })
+  @IsString()
+  question: string;
+
+  @ApiProperty({
+    example:
+      "I have 3 years of experience with React and have built several production applications.",
+    description: "The answer to the question",
+  })
+  @IsString()
+  answer: string;
+}
 
 export class ApplyJobDto {
   @ApiProperty({
@@ -19,13 +46,27 @@ export class ApplyJobDto {
   userCvId?: string;
 
   @ApiProperty({
-    example: { question1: "answer1", question2: "answer2" },
+    type: [JobAnswerDto],
     required: false,
     description: "Answers to job questions",
+    example: [
+      {
+        question: "What is your experience with React?",
+        answer:
+          "I have 3 years of experience with React and have built several production applications.",
+      },
+      {
+        question: "How do you handle state management?",
+        answer:
+          "I use Redux for complex state management and React hooks for local state.",
+      },
+    ],
   })
   @IsOptional()
-  @IsObject()
-  answers?: Record<string, any>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JobAnswerDto)
+  answers?: JobAnswerDto[];
 }
 
 export class SaveJobDto {
@@ -99,11 +140,18 @@ export class ApplyJobResponseDto {
   userCvId?: string;
 
   @ApiProperty({
-    example: { question1: "answer1" },
+    type: [JobAnswerDto],
     required: false,
     description: "Answers to job questions",
+    example: [
+      {
+        question: "What is your experience with React?",
+        answer:
+          "I have 3 years of experience with React and have built several production applications.",
+      },
+    ],
   })
-  answers?: Record<string, any>;
+  answers?: JobAnswerDto[];
 
   @ApiProperty({
     description: "Created at timestamp",
@@ -114,6 +162,51 @@ export class ApplyJobResponseDto {
     description: "Updated at timestamp",
   })
   updatedAt: Date;
+}
+
+export class UpdateApplyJobDto {
+  @ApiProperty({
+    example: "pending",
+    description: "New application status",
+    enum: ApplyStatus,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ApplyStatus)
+  status?: ApplyStatus;
+
+  @ApiProperty({
+    example: "uuid-cv-id",
+    required: false,
+    description:
+      "CV ID to use for application (can only be changed when status is 'applied')",
+  })
+  @IsOptional()
+  @IsUUID()
+  userCvId?: string;
+
+  @ApiProperty({
+    type: [JobAnswerDto],
+    required: false,
+    description: "Updated answers to job questions",
+    example: [
+      {
+        question: "What is your experience with React?",
+        answer:
+          "Updated: I have 5 years of experience with React and have built many production applications.",
+      },
+      {
+        question: "How do you handle state management?",
+        answer:
+          "Updated: I use Redux Toolkit for complex state management and React hooks for local state.",
+      },
+    ],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JobAnswerDto)
+  answers?: JobAnswerDto[];
 }
 
 export class UserInteractionResponseDto {

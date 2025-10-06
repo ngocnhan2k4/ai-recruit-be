@@ -23,6 +23,8 @@ import {
   jobCategories,
   provinces,
   userInteractions,
+  applyJobs,
+  userCV,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
@@ -41,6 +43,7 @@ import {
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
+  JobAnswerDto,
 } from "@/interfaces/dtos";
 
 @Injectable()
@@ -63,6 +66,9 @@ export class JobRepository
       company: Company;
       skills: Skill[];
       isSaved?: boolean;
+      isApplied?: boolean;
+      applyStatus?: string;
+      applyId?: string;
     }>
   > {
     // Build where conditions
@@ -72,6 +78,8 @@ export class JobRepository
     if (filters?.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
+    // Get jobs not deleted
+    whereConditions.push(isNull(jobs.deletedAt));
 
     // Salary range filter
     if (filters?.salaryRange) {
@@ -154,7 +162,7 @@ export class JobRepository
       .select({
         job: jobs,
         provinces:
-          sql`COALESCE(json_agg(${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
+          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
             "provinces",
           ),
         company: companies,
@@ -171,6 +179,32 @@ export class JobRepository
               AND ui.type = 'save'
             )`.as("isSaved")
             : sql`false`.as("isSaved"),
+        isApplied:
+          filters?.userId && filters.userId !== AnonymousId
+            ? sql`EXISTS (
+              SELECT 1 FROM ${applyJobs} aj 
+              WHERE aj.job_id = ${jobs.id} 
+              AND aj.user_id = ${filters.userId}
+            )`.as("isApplied")
+            : sql`false`.as("isApplied"),
+        applyStatus:
+          filters?.userId && filters.userId !== AnonymousId
+            ? sql`(
+              SELECT aj.status FROM ${applyJobs} aj 
+              WHERE aj.job_id = ${jobs.id} 
+              AND aj.user_id = ${filters.userId}
+              LIMIT 1
+            )`.as("applyStatus")
+            : sql`NULL`.as("applyStatus"),
+        applyId:
+          filters?.userId && filters.userId !== AnonymousId
+            ? sql`(
+              SELECT aj.id FROM ${applyJobs} aj 
+              WHERE aj.job_id = ${jobs.id} 
+              AND aj.user_id = ${filters.userId}
+              LIMIT 1
+            )`.as("applyId")
+            : sql`NULL`.as("applyId"),
       })
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
@@ -186,11 +220,21 @@ export class JobRepository
       company: Company;
       skills: Skill[];
       isSaved: boolean;
+      isApplied: boolean;
+      applyStatus: string | null;
+      applyId: string | null;
     }[];
 
     // Check if there's a next page
     const hasNextPage = result.length > limit;
     const data = hasNextPage ? result.slice(0, limit) : result;
+
+    // Transform null values to undefined for optional fields
+    const transformedData = data.map((item) => ({
+      ...item,
+      applyStatus: item.applyStatus || undefined,
+      applyId: item.applyId || undefined,
+    }));
     // Create composite cursor: "priority:id"
     const nextCursor =
       hasNextPage && result[limit - 1]?.job
@@ -198,7 +242,7 @@ export class JobRepository
         : undefined;
 
     return {
-      data,
+      data: transformedData,
       nextCursor,
       hasNextPage,
     };
@@ -325,14 +369,107 @@ export class JobRepository
     }));
   }
 
-  async applyJob(_userId: string): Promise<ApplyJobResponseDto> {
-    // TODO: Implement apply job logic
-    // This would typically:
-    // 1. Validate the job exists
-    // 2. Check if user hasn't already applied
-    // 3. Create application record
-    // 4. Return the application data
-    return Promise.reject(new Error("Not implemented"));
+  async applyJob(
+    userId: string,
+    jobId: string,
+    userCvId?: string,
+    answers?: Array<{ question: string; answer: string }>,
+  ): Promise<ApplyJobResponseDto> {
+    // Check if user already applied for this job
+    const existingApplication = await this.db
+      .select()
+      .from(applyJobs)
+      .where(and(eq(applyJobs.userId, userId), eq(applyJobs.jobId, jobId)))
+      .limit(1);
+
+    if (existingApplication.length > 0) {
+      throw new Error("User has already applied for this job");
+    }
+
+    // Create new application
+    const [newApplication] = await this.db
+      .insert(applyJobs)
+      .values({
+        userId,
+        jobId,
+        userCvId,
+        answers,
+        status: "applied",
+      })
+      .returning();
+
+    // Update lastUsed timestamp for CV if userCvId is provided
+    if (userCvId) {
+      await this.db
+        .update(userCV)
+        .set({
+          lastUsed: new Date(),
+        })
+        .where(eq(userCV.id, userCvId));
+    }
+
+    return newApplication as ApplyJobResponseDto;
+  }
+
+  async updateApplyJob(
+    applyId: string,
+    userId: string,
+    status?: string,
+    userCvId?: string,
+    answers?: JobAnswerDto[],
+  ): Promise<ApplyJobResponseDto | null> {
+    // Check if application exists and belongs to user
+    const existingApplication = await this.db
+      .select()
+      .from(applyJobs)
+      .where(and(eq(applyJobs.id, applyId), eq(applyJobs.userId, userId)))
+      .limit(1);
+
+    if (existingApplication.length === 0) {
+      throw new Error("Application not found or access denied");
+    }
+
+    // If user wants to change answers or userCvId, status must be APPLIED
+    if ((answers || userCvId) && existingApplication[0].status !== "applied") {
+      throw new Error("Status must be 'applied' to change answers or userCvId");
+    }
+
+    // Update application
+    const [updatedApplication] = await this.db
+      .update(applyJobs)
+      .set({
+        status: status || existingApplication[0].status,
+        userCvId: userCvId || existingApplication[0].userCvId,
+        answers: answers || existingApplication[0].answers,
+        updatedAt: new Date(),
+      })
+      .where(eq(applyJobs.id, applyId))
+      .returning();
+
+    // Update lastUsed timestamp for CV if userCvId is provided
+    if (userCvId) {
+      await this.db
+        .update(userCV)
+        .set({
+          lastUsed: new Date(),
+        })
+        .where(eq(userCV.id, userCvId));
+    }
+
+    return updatedApplication as ApplyJobResponseDto;
+  }
+
+  async getApplyJobById(
+    applyId: string,
+    userId: string,
+  ): Promise<ApplyJobResponseDto | null> {
+    const result = await this.db
+      .select()
+      .from(applyJobs)
+      .where(and(eq(applyJobs.id, applyId), eq(applyJobs.userId, userId)))
+      .limit(1);
+
+    return result[0] as ApplyJobResponseDto | null;
   }
 
   async saveJob(
@@ -441,5 +578,97 @@ export class JobRepository
       }
       return null; // No interaction exists after unhiding
     }
+  }
+
+  async createJob(job: Partial<Job> & { skillIds?: string[] }): Promise<Job> {
+    const jobData = {
+      title: job.title!,
+      companyId: job.companyId!,
+      description: job.description,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      experienceMin: job.experienceMin,
+      experienceMax: job.experienceMax,
+      datePosted: job.datePosted,
+      endDate: job.endDate,
+      workType: job.workType,
+      applyType: job.applyType || "onsite",
+      applyUrl: job.applyUrl,
+      priority: job.priority || 0,
+      provinceId: job.provinceId,
+      questions: job.questions,
+      status: job.status || "active",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const [newJob] = await this.db.insert(jobs).values(jobData).returning();
+
+    // Handle skill associations if skillIds provided
+    if (job.skillIds && job.skillIds.length > 0) {
+      const skillAssociations = job.skillIds.map((skillId) => ({
+        jobId: newJob.id,
+        skillId: skillId,
+      }));
+
+      await this.db.insert(jobSkills).values(skillAssociations);
+    }
+
+    return newJob as Job;
+  }
+
+  async updateJob(
+    jobId: string,
+    job: Partial<Job> & { skillIds?: string[] },
+  ): Promise<Job | null> {
+    const [updatedJob] = await this.db
+      .update(jobs)
+      .set({
+        ...job,
+        updatedAt: new Date(),
+      })
+      .where(eq(jobs.id, jobId))
+      .returning();
+
+    // Handle skill associations if skillIds provided
+    if (job.skillIds !== undefined) {
+      // Remove existing skill associations
+      await this.db.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
+
+      // Add new skill associations if any
+      if (job.skillIds.length > 0) {
+        const skillAssociations = job.skillIds.map((skillId) => ({
+          jobId: jobId,
+          skillId: skillId,
+        }));
+
+        await this.db.insert(jobSkills).values(skillAssociations);
+      }
+    }
+
+    return updatedJob as Job | null;
+  }
+
+  async deleteJob(jobId: string): Promise<boolean> {
+    const result = await this.db
+      .update(jobs)
+      .set({
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(jobs.id, jobId))
+      .returning();
+
+    return result.length > 0;
+  }
+
+  async getJobById(jobId: string): Promise<Job | null> {
+    const result = await this.db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
+      .limit(1);
+
+    return result[0] as Job | null;
   }
 }

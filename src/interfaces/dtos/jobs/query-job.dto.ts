@@ -107,6 +107,30 @@ export class JobResponse {
       "Whether the job is saved by the current user (only present for authenticated users)",
   })
   isSaved?: boolean;
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    description:
+      "Whether the current user has applied for this job (only present for authenticated users)",
+  })
+  isApplied?: boolean;
+
+  @ApiProperty({
+    example: "applied",
+    required: false,
+    description:
+      "Application status if user has applied for this job (only present for authenticated users)",
+  })
+  applyStatus?: string;
+
+  @ApiProperty({
+    example: "uuid-apply-id",
+    required: false,
+    description:
+      "Application ID if user has applied for this job (only present for authenticated users)",
+  })
+  applyId?: string;
 }
 
 export class JobPaginationResponseDto {

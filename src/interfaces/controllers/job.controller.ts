@@ -1,17 +1,30 @@
 import { JobUseCases } from "@/use-cases/job/job.use-case";
-import { Controller, Get, Query, UseGuards, Post, Body } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+} from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../dtos";
 import {
   QueryJobDto,
   JobPaginationResponseDto,
 } from "../dtos/jobs/query-job.dto";
+import { CreateJobDto, UpdateJobDto, JobDto } from "../dtos/jobs/job.dto";
 import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   SaveJobDto,
   HideJobDto,
+  ApplyJobDto,
+  UpdateApplyJobDto,
 } from "../dtos/jobs/job-interaction.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -79,8 +92,43 @@ export class JobController {
   @Post("apply")
   async applyJob(
     @GetUser() user: TokenPayload,
+    @Body() applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    return await this.jobUseCases.applyJob(user.userId);
+    return await this.jobUseCases.applyJob(user.userId, applyJobDto);
+  }
+
+  @ApiOperation({
+    summary: "Update job application",
+    description:
+      "Update application status, answers, and CV. To change answers or userCvId, status must be 'applied'",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(ApplyJobResponseDto)
+  @Put("apply/:applyId")
+  async updateApplyJob(
+    @GetUser() user: TokenPayload,
+    @Param("applyId") applyId: string,
+    @Body() updateApplyJobDto: UpdateApplyJobDto,
+  ): Promise<ApiResponse<ApplyJobResponseDto>> {
+    return await this.jobUseCases.updateApplyJob(
+      user.userId,
+      applyId,
+      updateApplyJobDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: "Get job application by ID",
+    description: "Retrieve a specific job application by its ID",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(ApplyJobResponseDto)
+  @Get("apply/:applyId")
+  async getApplyJobById(
+    @GetUser() user: TokenPayload,
+    @Param("applyId") applyId: string,
+  ): Promise<ApiResponse<ApplyJobResponseDto>> {
+    return await this.jobUseCases.getApplyJobById(user.userId, applyId);
   }
 
   @ApiOperation({
@@ -111,5 +159,55 @@ export class JobController {
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
     const hide = hideJobDto.hide !== undefined ? hideJobDto.hide : true;
     return await this.jobUseCases.hideJob(user.userId, hideJobDto.jobId, hide);
+  }
+
+  @ApiOperation({
+    summary: "Create a new job",
+    description: "Create a new job posting",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(JobDto)
+  @Post()
+  async createJob(
+    @Body() createJobDto: CreateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
+    return await this.jobUseCases.createJob(createJobDto);
+  }
+
+  @ApiOperation({
+    summary: "Update a job",
+    description: "Update an existing job posting",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(JobDto)
+  @Put(":id")
+  async updateJob(
+    @Param("id") jobId: string,
+    @Body() updateJobDto: UpdateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
+    return await this.jobUseCases.updateJob(jobId, updateJobDto);
+  }
+
+  @ApiOperation({
+    summary: "Delete a job",
+    description: "Delete a job posting (soft delete)",
+  })
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id")
+  async deleteJob(
+    @Param("id") jobId: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    return await this.jobUseCases.deleteJob(jobId);
+  }
+
+  @ApiOperation({
+    summary: "Get job by ID",
+    description: "Retrieve a specific job by its ID",
+  })
+  @UseGuards(GuestGuard)
+  @ApiResponseDto(JobDto)
+  @Get(":id")
+  async getJobById(@Param("id") jobId: string): Promise<ApiResponse<JobDto>> {
+    return await this.jobUseCases.getJobById(jobId);
   }
 }

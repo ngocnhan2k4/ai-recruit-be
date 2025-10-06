@@ -21,7 +21,9 @@ export type NewCategory = InferInsertModel<typeof categories>;
 export type Category = InferSelectModel<typeof categories>;
 
 export type NewJob = InferInsertModel<typeof jobs>;
-export type Job = InferSelectModel<typeof jobs>;
+export type Job = InferSelectModel<typeof jobs> & {
+  questions?: string[];
+};
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
