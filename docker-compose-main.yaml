@@ -6,3 +6,6 @@ services:
       - .env
     ports:
       - "3001:3001"
+    command: >
+      sh -c "npx drizzle-kit push && npm run build && npm run start:prod"
+
