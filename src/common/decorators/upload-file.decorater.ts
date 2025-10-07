@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { MultipartFile } from "@fastify/multipart";
+import { RESPONSE_CODE } from "../constants/response";
 
 export interface UploadFileRequest extends FastifyRequest {
   fileData?: MultipartFile;
@@ -17,7 +18,10 @@ export const UploadFileAndBody = createParamDecorator(
 
     // Fastify multipart plugin must be registered
     if (typeof request.parts !== "function") {
-      throw new BadRequestException("Multipart support not enabled");
+      throw new BadRequestException({
+        message: "Multipart support not enabled",
+        code: RESPONSE_CODE.FILE_TYPE_NOT_SUPPORTED,
+      });
     }
 
     const body: Record<string, any> = {};
@@ -32,7 +36,10 @@ export const UploadFileAndBody = createParamDecorator(
     }
 
     if (!file) {
-      throw new BadRequestException("No file uploaded");
+      throw new BadRequestException({
+        message: "No file uploaded",
+        code: RESPONSE_CODE.FILE_NOT_PROVIDE,
+      });
     }
 
     request.fileData = file;

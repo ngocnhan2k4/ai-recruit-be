@@ -35,6 +35,8 @@ import { LoggerServiceModule } from "./frameworks/logger-services/logger.module"
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
+import { SkillController } from "./interfaces/controllers/skill.controller";
+import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 
 @Module({
   imports: [
@@ -59,6 +61,7 @@ import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
     ProvinceUseCasesModule,
     CompanyUseCasesModule,
     CvUseCasesModule,
+    SkillUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -70,6 +73,7 @@ import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
     HealthController,
     ProvinceController,
     CvController,
+    SkillController,
   ],
   providers: [
     JwtStrategy,

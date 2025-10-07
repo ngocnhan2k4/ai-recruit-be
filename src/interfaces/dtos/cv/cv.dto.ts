@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsOptional, IsNumber, IsDate } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class CvRequestDto {
   @ApiProperty({
@@ -27,6 +28,7 @@ export class CvRequestDto {
   })
   @IsOptional()
   @IsNumber()
+  @Transform(({ value }) => (value ? Number(value) : undefined))
   fileSize?: number;
 }
 
@@ -66,6 +68,7 @@ export class CvDto {
     description: "File size in bytes",
   })
   @IsNumber()
+  @Transform(({ value }) => Number(value))
   fileSize: number;
 
   @ApiProperty({

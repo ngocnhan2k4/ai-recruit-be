@@ -9,7 +9,9 @@ import {
   ICategoryRepository,
   ICompanyRepository,
   IJobRepository,
+  ICvRepository,
   IProvinceRepository,
+  ISkillRepository,
   IUserExperienceRepository,
   IUserRepository,
   IUserSkillRepository,
@@ -23,6 +25,7 @@ import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
 import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
+import { SkillRepository } from "./repositories/skill.repository";
 
 @Global()
 @Module({
@@ -69,7 +72,7 @@ import { UserRepository } from "./repositories/user.repository";
           }
           const db = drizzle(pool, {
             casing: "snake_case",
-            // logger: process.env.NODE_ENV === "development",
+            // logger: true,
           }) as DBDrizzle;
           return db;
         } catch (err) {
@@ -112,17 +115,22 @@ import { UserRepository } from "./repositories/user.repository";
       useClass: UserRepository,
     },
     {
-      provide: "ICvRepository",
+      provide: ICvRepository,
       useClass: CvRepository,
+    },
+    {
+      provide: ISkillRepository,
+      useClass: SkillRepository,
     },
   ],
   exports: [
     IAuthRepository,
     ICategoryRepository,
     ICompanyRepository,
-    "ICvRepository",
+    ICvRepository,
     IJobRepository,
     IProvinceRepository,
+    ISkillRepository,
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,

@@ -8,7 +8,7 @@ import {
 } from "@/interfaces/dtos/cv/cv.dto";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { MultipartFile } from "@fastify/multipart";
-import type { ICvRepository } from "@/core";
+import { ICvRepository } from "@/core";
 import { Cv } from "@/core";
 import { Inject } from "@nestjs/common";
 
@@ -17,24 +17,26 @@ export class CvUseCases {
   private readonly logger = new Logger(CvUseCases.name);
   constructor(
     private readonly storageUseCase: StorageUseCase,
-    @Inject("ICvRepository") private readonly cvRepository: ICvRepository,
+    @Inject(ICvRepository) private readonly cvRepository: ICvRepository,
   ) {}
 
   async getUserCvs(userId: string): Promise<ApiResponse<CvListResponseDto>> {
     this.logger.log(`[getUserCvs] [get] Getting CVs for user ${userId}`);
     const cvs = await this.cvRepository.getByField({ userId: userId });
 
-    const cvDtos: CvDto[] = cvs.map((cv) => ({
-      id: cv.id,
-      userId: cv.userId,
-      fileUrl: cv.fileUrl,
-      fileName: cv.fileName,
-      mimeType: cv.mimeType,
-      fileSize: cv.fileSize,
-      lastUsed: cv.lastUsed ? new Date(cv.lastUsed) : new Date(cv.createdAt),
-      createdAt: new Date(cv.createdAt),
-      updatedAt: cv.updatedAt ? new Date(cv.updatedAt) : null,
-    }));
+    const cvDtos: CvDto[] = cvs
+      .map((cv) => ({
+        id: cv.id,
+        userId: cv.userId,
+        fileUrl: cv.fileUrl,
+        fileName: cv.fileName,
+        mimeType: cv.mimeType,
+        fileSize: cv.fileSize,
+        lastUsed: cv.lastUsed ? new Date(cv.lastUsed) : new Date(cv.createdAt),
+        createdAt: new Date(cv.createdAt),
+        updatedAt: cv.updatedAt ? new Date(cv.updatedAt) : null,
+      }))
+      .sort((a, b) => b.lastUsed.getTime() - a.lastUsed.getTime());
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

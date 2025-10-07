@@ -31,20 +31,17 @@ import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
 import { AnonymousId } from "@/common/constants/roles";
-import {
-  Job,
-  Province,
-  Skill,
-  StatisticsJobFilter,
-  Company,
-  JobFilters,
-  CursorPaginationResult,
-} from "@/core/entities";
+import { Job, Province, Skill, Company } from "@/core/entities";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
 } from "@/interfaces/dtos";
+import {
+  JobFilters,
+  CursorPaginationResult,
+  StatisticsJobFilter,
+} from "@/core/abstracts/repositories/job-repository.abstract";
 
 @Injectable()
 export class JobRepository

@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
-import { CompanyUseCases } from "./company.use-case";
+import { CompanyUseCase } from "./company.use-case";
 
 @Module({
-  providers: [CompanyUseCases],
-  exports: [CompanyUseCases],
+  providers: [CompanyUseCase],
+  exports: [CompanyUseCase],
 })
 export class CompanyUseCasesModule {}

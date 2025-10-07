@@ -21,7 +21,7 @@ export class UserExperienceRepository
     super(db, userExperiences);
   }
 
-  async getUserExperiences(username: string): Promise<
+  async getUserExperiencesByUsername(username: string): Promise<
     {
       experience: Omit<
         UserExperience,

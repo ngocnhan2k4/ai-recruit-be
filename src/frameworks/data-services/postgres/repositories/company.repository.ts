@@ -1,9 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
+import { ICompanyRepository, Company } from "@/core";
+import { companies } from "../models/company.model";
+import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { ICompanyRepository } from "@/core";
-import { companies } from "../models";
-import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { Company } from "@/core/entities";
 
 @Injectable()
 export class CompanyRepository
@@ -19,6 +18,20 @@ export class CompanyRepository
       .select({
         id: companies.id,
         name: companies.name,
+      })
+      .from(companies);
+
+    return result;
+  }
+  async getAllCompanies(): Promise<
+    Pick<Company, "id" | "name" | "logoUrl" | "address">[]
+  > {
+    const result = this.db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        logoUrl: companies.logoUrl,
+        address: companies.address,
       })
       .from(companies);
 
