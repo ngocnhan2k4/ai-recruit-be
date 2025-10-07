@@ -117,6 +117,12 @@ export class UserUseCases implements OnModuleInit {
       );
     }
     const userDto = GetUserResponseDto.from(user);
+    const userOnboarding = await this.userOnboardingRepository.getByField({
+      userId: id,
+    });
+    const isOnboarded = userOnboarding.length > 0;
+    userDto.onboardingCompleted = isOnboarded;
+    console.log("userDto:", userDto);
     return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
