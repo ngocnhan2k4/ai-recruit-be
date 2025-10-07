@@ -28,7 +28,7 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { UserSkill, UserOnboarding } from "@/core";
+import { ICompanyRepository, UserSkill, UserOnboarding } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
@@ -46,6 +46,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly companyRepository: ICompanyRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {}
 
@@ -222,10 +223,12 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async getUserExperiences(
-    userId: string,
+    username: string,
   ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
     const userExperiences =
-      await this.userExperienceRepository.getUserExperiences(userId);
+      await this.userExperienceRepository.getUserExperiencesByUsername(
+        username,
+      );
     if (!userExperiences) {
       throw new NotFoundException({
         message:
@@ -244,11 +247,20 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    let companyId = createUserExperienceDto.companyId;
+    if (!companyId) {
+      const company = await this.companyRepository.create({
+        name: createUserExperienceDto.companyName,
+      });
+      companyId = company.id;
+    }
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
       userId,
       startDate: convertDateToStr(createUserExperienceDto.startDate),
-      endDate: convertDateToStr(createUserExperienceDto.endDate),
+      endDate: createUserExperienceDto.endDate
+        ? convertDateToStr(createUserExperienceDto.endDate)
+        : null,
     });
     if (!result) {
       throw new NotFoundException({

@@ -11,9 +11,6 @@ export class LoggerMiddleware implements NestMiddleware {
   use(req: FastifyRequest, res: FastifyReply, next: () => void) {
     let bodyMsg: string = "";
     const { method, originalUrl, body } = req;
-    console.log("body", body);
-    console.log("originalUrl", originalUrl);
-    console.log("method", method);
     if (
       Object.keys((body || {}) as Record<string, any>).length > 0 &&
       this.configService.get<string>("NODE_ENV") === "local"

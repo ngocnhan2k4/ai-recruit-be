@@ -27,14 +27,8 @@ import {
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
-import { IJobRepository } from "@/core";
-import {
-  Job,
-  Province,
-  Skill,
-  StatisticsJobFilter,
-  Company,
-} from "@/core/entities";
+import { IJobRepository, StatisticsJobFilter } from "@/core";
+import { Job, Province, Skill, Company } from "@/core/entities";
 
 @Injectable()
 export class JobRepository

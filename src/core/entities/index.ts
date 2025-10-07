@@ -51,5 +51,3 @@ export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
-
-export * from "./job.entity";

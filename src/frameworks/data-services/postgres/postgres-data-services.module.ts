@@ -7,8 +7,10 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
   IAuthRepository,
   ICategoryRepository,
+  ICompanyRepository,
   IJobRepository,
   IProvinceRepository,
+  ISkillRepository,
   IUserExperienceRepository,
   IUserRepository,
   IUserSkillRepository,
@@ -16,11 +18,13 @@ import {
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
+import { CompanyRepository } from "./repositories/company.repository";
 import { JobRepository } from "./repositories/job.repository";
 import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
 import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
+import { SkillRepository } from "./repositories/skill.repository";
 import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
 
 @Global()
@@ -68,7 +72,7 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
           }
           const db = drizzle(pool, {
             casing: "snake_case",
-            // logger: process.env.NODE_ENV === "development",
+            // logger: true,
           }) as DBDrizzle;
           return db;
         } catch (err) {
@@ -85,6 +89,10 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
     {
       provide: ICategoryRepository,
       useClass: CategoryRepository,
+    },
+    {
+      provide: ICompanyRepository,
+      useClass: CompanyRepository,
     },
     {
       provide: IJobRepository,
@@ -107,6 +115,10 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
       useClass: UserRepository,
     },
     {
+      provide: ISkillRepository,
+      useClass: SkillRepository,
+    },
+    {
       provide: IUserOnboardingRepository,
       useClass: UserOnboardingRepository,
     },
@@ -114,8 +126,10 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
   exports: [
     IAuthRepository,
     ICategoryRepository,
+    ICompanyRepository,
     IJobRepository,
     IProvinceRepository,
+    ISkillRepository,
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,
