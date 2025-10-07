@@ -47,5 +47,3 @@ export type ProviderEnumType = (typeof ProviderEnum.enumValues)[number];
 export type EducationLevelEnumType =
   (typeof EducationLevelEnum.enumValues)[number];
 export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
-
-export * from "./job.entity";

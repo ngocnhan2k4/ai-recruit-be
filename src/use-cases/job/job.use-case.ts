@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { IJobRepository } from "../../core/abstracts";
-import { StatisticsJobFilter } from "@/core/entities/job.entity";
+import { IJobRepository, StatisticsJobFilter } from "../../core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
