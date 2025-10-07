@@ -9,6 +9,7 @@ import {
   ICategoryRepository,
   ICompanyRepository,
   IJobRepository,
+  ICvRepository,
   IProvinceRepository,
   ISkillRepository,
   IUserExperienceRepository,
@@ -18,6 +19,7 @@ import {
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
 import { CompanyRepository } from "./repositories/company.repository";
+import { CvRepository } from "./repositories/cv.repository";
 import { JobRepository } from "./repositories/job.repository";
 import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
@@ -113,6 +115,10 @@ import { SkillRepository } from "./repositories/skill.repository";
       useClass: UserRepository,
     },
     {
+      provide: ICvRepository,
+      useClass: CvRepository,
+    },
+    {
       provide: ISkillRepository,
       useClass: SkillRepository,
     },
@@ -121,6 +127,7 @@ import { SkillRepository } from "./repositories/skill.repository";
     IAuthRepository,
     ICategoryRepository,
     ICompanyRepository,
+    ICvRepository,
     IJobRepository,
     IProvinceRepository,
     ISkillRepository,
