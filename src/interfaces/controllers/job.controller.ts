@@ -142,8 +142,11 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() saveJobDto: SaveJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const save = saveJobDto.save !== undefined ? saveJobDto.save : true;
-    return await this.jobUseCases.saveJob(user.userId, saveJobDto.jobId, save);
+    return await this.jobUseCases.saveJob(
+      user.userId,
+      saveJobDto.jobId,
+      saveJobDto.save!,
+    );
   }
 
   @ApiOperation({
@@ -157,8 +160,11 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() hideJobDto: HideJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const hide = hideJobDto.hide !== undefined ? hideJobDto.hide : true;
-    return await this.jobUseCases.hideJob(user.userId, hideJobDto.jobId, hide);
+    return await this.jobUseCases.hideJob(
+      user.userId,
+      hideJobDto.jobId,
+      hideJobDto.hide!,
+    );
   }
 
   @ApiOperation({

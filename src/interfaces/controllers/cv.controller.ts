@@ -21,6 +21,7 @@ import { CvDto, CvListResponseDto, CvRequestDto } from "../dtos/cv/cv.dto";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { FastifyRequest } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
+import { RESPONSE_CODE } from "@/common/constants/response";
 
 @ApiTags("CV")
 @Controller("cv")
@@ -61,54 +62,54 @@ export class CvController {
     @GetUser() user: TokenPayload,
     @Req() request: FastifyRequest,
   ): Promise<ApiResponse<CvDto>> {
-    try {
-      // Parse multipart data more efficiently
-      const parts = request.parts();
-      let fileData: MultipartFile | null = null;
+    // Parse multipart data more efficiently
+    const parts = request.parts();
+    let fileData: MultipartFile | null = null;
 
-      // Process parts efficiently - stop after finding first file
-      for await (const part of parts) {
-        if (part.type === "file") {
-          fileData = part;
-          break; // Stop after finding the first file
-        }
+    // Process parts efficiently - stop after finding first file
+    for await (const part of parts) {
+      if (part.type === "file") {
+        fileData = part;
+        break; // Stop after finding the first file
       }
-
-      if (!fileData) {
-        throw new BadRequestException("CV file is required");
-      }
-
-      // Validate file type
-      const allowedMimeTypes = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-      if (!allowedMimeTypes.includes(fileData.mimetype)) {
-        throw new BadRequestException(
-          "Only PDF, DOC, and DOCX files are allowed",
-        );
-      }
-
-      // Validate file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (fileData.file && fileData.file.bytesRead > maxSize) {
-        throw new BadRequestException("File size must be less than 10MB");
-      }
-
-      const createCvDto: CvRequestDto = {
-        fileName: fileData.filename || "cv_file",
-        mimeType: fileData.mimetype,
-        fileSize: fileData.file.bytesRead || 0,
-      };
-
-      return this.cvUseCases.createCv(user.userId, fileData, createCvDto);
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to create CV");
     }
+
+    if (!fileData) {
+      throw new BadRequestException({
+        message: "CV file is required",
+        code: RESPONSE_CODE.CV_FILE_REQUIRED,
+      });
+    }
+
+    // Validate file type
+    const allowedMimeTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (!allowedMimeTypes.includes(fileData.mimetype)) {
+      throw new BadRequestException({
+        message: "Only PDF, DOC, and DOCX files are allowed",
+        code: RESPONSE_CODE.CV_FILE_INVALID,
+      });
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (fileData.file && fileData.file.bytesRead > maxSize) {
+      throw new BadRequestException({
+        message: "File size must be less than 10MB",
+        code: RESPONSE_CODE.CV_FILE_INVALID,
+      });
+    }
+
+    const createCvDto: CvRequestDto = {
+      fileName: fileData.filename || "cv_file",
+      mimeType: fileData.mimetype,
+      fileSize: fileData.file.bytesRead || 0,
+    };
+
+    return this.cvUseCases.createCv(user.userId, fileData, createCvDto);
   }
 
   @ApiOperation({
@@ -123,58 +124,55 @@ export class CvController {
     @Param("id") cvId: string,
     @Req() request: FastifyRequest,
   ): Promise<ApiResponse<CvDto>> {
-    try {
-      const parts = request.parts();
-      let fileData: MultipartFile | null = null;
+    const parts = request.parts();
+    let fileData: MultipartFile | null = null;
 
-      // Process parts efficiently - stop after finding first file
-      for await (const part of parts) {
-        if (part.type === "file") {
-          fileData = part;
-          break; // Stop after finding the first file
-        }
+    // Process parts efficiently - stop after finding first file
+    for await (const part of parts) {
+      if (part.type === "file") {
+        fileData = part;
+        break; // Stop after finding the first file
       }
-
-      // Validate file if provided
-      if (fileData) {
-        const allowedMimeTypes = [
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ];
-        if (!allowedMimeTypes.includes(fileData.mimetype)) {
-          throw new BadRequestException(
-            "Only PDF, DOC, and DOCX files are allowed",
-          );
-        }
-
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (fileData.file && fileData.file.bytesRead > maxSize) {
-          throw new BadRequestException("File size must be less than 10MB");
-        }
-      }
-
-      const updateCvDto: CvRequestDto = {};
-
-      // Only update file-related fields if a new file is provided
-      if (fileData) {
-        updateCvDto.fileName = fileData.filename || undefined;
-        updateCvDto.mimeType = fileData.mimetype;
-        updateCvDto.fileSize = fileData.file ? fileData.file.bytesRead || 0 : 0;
-      }
-
-      return this.cvUseCases.updateCv(
-        user.userId,
-        cvId,
-        fileData || undefined,
-        updateCvDto,
-      );
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to update CV");
     }
+
+    // Validate file if provided
+    if (fileData) {
+      const allowedMimeTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (!allowedMimeTypes.includes(fileData.mimetype)) {
+        throw new BadRequestException({
+          message: "Only PDF, DOC, and DOCX files are allowed",
+          code: RESPONSE_CODE.CV_FILE_INVALID,
+        });
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (fileData.file && fileData.file.bytesRead > maxSize) {
+        throw new BadRequestException({
+          message: "File size must be less than 10MB",
+          code: RESPONSE_CODE.CV_FILE_INVALID,
+        });
+      }
+    }
+
+    const updateCvDto: CvRequestDto = {};
+
+    // Only update file-related fields if a new file is provided
+    if (fileData) {
+      updateCvDto.fileName = fileData.filename || undefined;
+      updateCvDto.mimeType = fileData.mimetype;
+      updateCvDto.fileSize = fileData.file ? fileData.file.bytesRead || 0 : 0;
+    }
+
+    return this.cvUseCases.updateCv(
+      user.userId,
+      cvId,
+      fileData || undefined,
+      updateCvDto,
+    );
   }
 
   @ApiOperation({

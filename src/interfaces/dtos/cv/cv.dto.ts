@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsOptional, IsNumber } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsDate } from "class-validator";
 
 export class CvRequestDto {
   @ApiProperty({
@@ -65,6 +65,7 @@ export class CvDto {
     example: 1024000,
     description: "File size in bytes",
   })
+  @IsNumber()
   fileSize: number;
 
   @ApiProperty({
@@ -75,6 +76,7 @@ export class CvDto {
   @ApiProperty({
     description: "Created at timestamp",
   })
+  @IsDate()
   createdAt: Date;
 
   @ApiProperty({

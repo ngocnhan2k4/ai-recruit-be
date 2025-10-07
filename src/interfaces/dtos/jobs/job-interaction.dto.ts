@@ -8,7 +8,7 @@ import {
   IsString,
   ValidateNested,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 import { ApplyStatus } from "./job.dto";
 
 export class JobAnswerDto {
@@ -85,6 +85,10 @@ export class SaveJobDto {
   })
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === undefined) return true;
+    return value as boolean;
+  })
   save?: boolean;
 }
 
@@ -104,6 +108,10 @@ export class HideJobDto {
   })
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === undefined) return true;
+    return value as boolean;
+  })
   hide?: boolean;
 }
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString, IsNumber } from "class-validator";
+import { IsOptional, IsString, IsNumber, IsBoolean } from "class-validator";
 import { Type } from "class-transformer";
 import { GeneralQueryDto } from "../common/query";
 import { CompanyDto } from "../companies/company.dto";
@@ -114,6 +114,7 @@ export class JobResponse {
     description:
       "Whether the current user has applied for this job (only present for authenticated users)",
   })
+  @IsBoolean()
   isApplied?: boolean;
 
   @ApiProperty({
