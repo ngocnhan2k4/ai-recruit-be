@@ -26,7 +26,7 @@ export class CompanyDto {
   websiteUrl: string | null;
 }
 
-export class CompanySimpleDto {
+export class CompanySimpleResponseDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;
 
