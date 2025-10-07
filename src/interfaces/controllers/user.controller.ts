@@ -155,7 +155,7 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Delete user experience" })
   @CasbinPermission("/user-experiences", "DELETE")
   @Delete("user-experiences/:id")
