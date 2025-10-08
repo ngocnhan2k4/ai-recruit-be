@@ -1,11 +1,24 @@
-import { Injectable } from "@nestjs/common";
-import { Company, ICompanyRepository } from "@/core";
-import { ApiResponse, CreateCompanyDto } from "@/interfaces/dtos";
+import { Injectable, Logger } from "@nestjs/common";
+import { ApiResponse, CompanySimpleResponseDto } from "@/interfaces/dtos";
+import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
+import { Company, ICompanyRepository } from "@/core";
 
 @Injectable()
 export class CompanyUseCase {
   constructor(private readonly companyRepository: ICompanyRepository) {}
+
+  private readonly logger = new Logger(CompanyUseCase.name);
+
+  async getSimpleCompanies(): Promise<ApiResponse<CompanySimpleResponseDto[]>> {
+    const data = await this.companyRepository.getAllSimple();
+    this.logger.log(`Fetched ${data.length} companies`);
+    return {
+      message: "Companies fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: data,
+    };
+  }
 
   async getAllCompanies(): Promise<
     ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>

@@ -7,5 +7,7 @@ export * from "./job-repository.abstract";
 export * from "./user-repository.abstract";
 export * from "./user-experience-repository.abstract";
 export * from "./user-skill-repository.abstract";
+export * from "./cv-repository.abstract";
 export * from "./skill-repository.abstract";
+export * from "./university-repository.abstract";
 export * from "./user-onboarding-repository.abstract";

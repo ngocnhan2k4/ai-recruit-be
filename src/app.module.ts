@@ -5,10 +5,11 @@ import {
   UploadController,
   HealthController,
   CategoryController,
+  CompanyController,
   JobController,
   ProvinceController,
+  CvController,
 } from "./interfaces/controllers";
-import { CompanyController } from "./interfaces/controllers/company.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -33,6 +34,7 @@ import { AppConfigProps } from "./common/config/app.config";
 import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
+import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 import { SkillController } from "./interfaces/controllers/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 
@@ -58,6 +60,7 @@ import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
     LoggerServiceModule,
     ProvinceUseCasesModule,
     CompanyUseCasesModule,
+    CvUseCasesModule,
     SkillUseCasesModule,
   ],
   controllers: [
@@ -69,6 +72,7 @@ import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
     UploadController,
     HealthController,
     ProvinceController,
+    CvController,
     SkillController,
   ],
   providers: [

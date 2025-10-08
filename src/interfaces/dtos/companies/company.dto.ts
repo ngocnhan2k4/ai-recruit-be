@@ -44,3 +44,11 @@ export class CreateCompanyDto {
   @MaxLength(255, { message: "Company name must not exceed 255 characters" })
   name: string;
 }
+
+export class CompanySimpleResponseDto {
+  @ApiProperty({ type: "string", format: "uuid" })
+  id: string;
+
+  @ApiProperty({ type: "string" })
+  name: string;
+}

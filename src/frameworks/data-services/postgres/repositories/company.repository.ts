@@ -13,6 +13,16 @@ export class CompanyRepository
     super(db, companies);
   }
 
+  async getAllSimple(): Promise<{ id: string; name: string }[]> {
+    const result = await this.db
+      .select({
+        id: companies.id,
+        name: companies.name,
+      })
+      .from(companies);
+
+    return result;
+  }
   async getAllCompanies(): Promise<
     Pick<Company, "id" | "name" | "logoUrl" | "address">[]
   > {
