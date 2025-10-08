@@ -12,6 +12,7 @@ import {
   ProviderEnum,
   EducationLevelEnum,
   GenderEnum,
+  universities,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -45,6 +46,9 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+
+export type NewUniversity = InferInsertModel<typeof universities>;
+export type University = InferSelectModel<typeof universities>;
 
 export type NewCv = InferInsertModel<typeof userCV>;
 export type Cv = InferSelectModel<typeof userCV>;
