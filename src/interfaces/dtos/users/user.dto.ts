@@ -124,6 +124,9 @@ export class GetUserResponseDto {
   @Expose()
   provider: ProviderEnumType;
 
+  @Expose()
+  onboardingCompleted: boolean;
+
   //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {

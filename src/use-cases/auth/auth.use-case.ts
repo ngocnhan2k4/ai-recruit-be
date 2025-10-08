@@ -1,6 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthService, NewUser, User } from "@/core";
-import { IAuthRepository, IUserRepository } from "@/core";
+import {
+  IAuthRepository,
+  IUserRepository,
+  IUserOnboardingRepository,
+} from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
 import { AnonymousId, RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
@@ -15,6 +19,7 @@ export class AuthUseCases {
     private readonly authService: IAuthService,
     private readonly authRepository: IAuthRepository,
     private readonly userRepository: IUserRepository,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -31,6 +36,7 @@ export class AuthUseCases {
       picture?: string;
       provider_id?: string;
     };
+    let onboarded = false;
     try {
       decode = await this.authService.verifyIdToken(idToken);
     } catch {
@@ -64,6 +70,13 @@ export class AuthUseCases {
         user = await this.userRepository.create(newUser);
       } else {
         // Update user info if necessary
+        const user = await this.userRepository.getByField({
+          firebaseUid: decode.uid,
+        });
+        const userOnboarding = await this.userOnboardingRepository.getByField({
+          userId: user[0].id,
+        });
+        onboarded = userOnboarding.length > 0;
       }
     } else {
       user = {
@@ -88,12 +101,14 @@ export class AuthUseCases {
       };
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
+    const userDto = GetUserResponseDto.from(user);
+    userDto.onboardingCompleted = onboarded;
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
         tokens: { accessToken, refreshToken },
-        user: GetUserResponseDto.from(user),
+        user: userDto,
       },
     };
   }

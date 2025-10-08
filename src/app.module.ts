@@ -9,6 +9,7 @@ import {
   JobController,
   ProvinceController,
   CvController,
+  UniversityController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -37,6 +38,7 @@ import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.mod
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 import { SkillController } from "./interfaces/controllers/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
+import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 
 @Module({
   imports: [
@@ -62,6 +64,7 @@ import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
     CompanyUseCasesModule,
     CvUseCasesModule,
     SkillUseCasesModule,
+    UniversityUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -74,6 +77,7 @@ import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
     ProvinceController,
     CvController,
     SkillController,
+    UniversityController,
   ],
   providers: [
     JwtStrategy,

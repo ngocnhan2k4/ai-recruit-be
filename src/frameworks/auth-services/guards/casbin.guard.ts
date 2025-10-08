@@ -29,7 +29,8 @@ export class CasbinGuard implements CanActivate {
     if (!meta) {
       return true;
     }
-
+    console.log("User roles:", user.roles);
+    console.log("Casbin meta:", meta.act, meta.obj);
     const ok = await this.casbinService.can(user.roles, meta.obj, meta.act);
     if (!ok) {
       throw new ForbiddenException(

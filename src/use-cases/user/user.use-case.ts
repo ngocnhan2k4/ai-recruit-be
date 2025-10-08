@@ -9,6 +9,7 @@ import {
   IUserRepository,
   IUserExperienceRepository,
   IUserSkillRepository,
+  IUserOnboardingRepository,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -20,12 +21,14 @@ import {
   UpdateUserRequestDto,
   UserDto,
   UserPublicResponseDto,
+  UserOnboardingStatusDto,
+  UserOnboardingDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { ICompanyRepository, UserSkill } from "@/core";
+import { ICompanyRepository, UserSkill, UserOnboarding } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
@@ -44,6 +47,7 @@ export class UserUseCases implements OnModuleInit {
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly companyRepository: ICompanyRepository,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {}
 
   async onModuleInit() {
@@ -114,6 +118,12 @@ export class UserUseCases implements OnModuleInit {
       );
     }
     const userDto = GetUserResponseDto.from(user);
+    const userOnboarding = await this.userOnboardingRepository.getByField({
+      userId: id,
+    });
+    const isOnboarded = userOnboarding.length > 0;
+    userDto.onboardingCompleted = isOnboarded;
+    console.log("userDto:", userDto);
     return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -463,6 +473,59 @@ export class UserUseCases implements OnModuleInit {
         exists: !!user,
       },
       message: "Username existence checked successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+  async checkUserEnterOnboarding(
+    userId: string,
+  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[checkUserEnterOnboarding] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    const userOnboarding = await this.userOnboardingRepository.getByField({
+      userId,
+    });
+    console.log("User onboarding record:", userOnboarding);
+    const isOnboarded = userOnboarding.length > 0;
+    console.log("User onboarding status:", isOnboarded);
+    return {
+      data: {
+        isOnboarded,
+      },
+      message: "User onboarding status checked successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async completeUserOnboarding(
+    userOnboarding: UserOnboardingDto,
+    userId: string,
+  ): Promise<ApiResponse<void>> {
+    const onboarding: Partial<
+      Omit<UserOnboardingDto, "name" | "gender" | "dob">
+    > = {
+      ...userOnboarding,
+    };
+    const newOnboarding = {
+      ...onboarding,
+      userId,
+    } as Partial<UserOnboarding>;
+
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[completeUserOnboarding] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    console.log(newOnboarding);
+    await this.userOnboardingRepository.create(newOnboarding);
+    return {
+      message: "User onboarding completed successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

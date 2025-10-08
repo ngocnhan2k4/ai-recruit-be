@@ -7,3 +7,5 @@ export * from "./company.controller";
 export * from "./health.controller";
 export * from "./province.controller";
 export * from "./cv.controller";
+export * from "./skill.controller";
+export * from "./university.controller";
