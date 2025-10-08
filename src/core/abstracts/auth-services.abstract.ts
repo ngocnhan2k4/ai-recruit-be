@@ -1,6 +1,10 @@
-export abstract class IAuthServices {
-  abstract verifyIdToken(
-    idToken: string,
-  ): Promise<{ uid: string; email?: string; name?: string; picture?: string }>;
+export abstract class IAuthService {
+  abstract verifyIdToken(idToken: string): Promise<{
+    uid: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    provider_id?: string;
+  }>;
   abstract signJwt(payload: any): string;
 }

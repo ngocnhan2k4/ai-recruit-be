@@ -1,12 +1,35 @@
-import { Module } from "@nestjs/common";
-import { IDataServices } from "../../../core";
-import { PostgresDataServices } from "./postgres-data-services.service";
+import { Global, Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { Logger } from "@nestjs/common";
-import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import {
+  IAuthRepository,
+  ICategoryRepository,
+  ICompanyRepository,
+  IJobRepository,
+  ICvRepository,
+  IProvinceRepository,
+  ISkillRepository,
+  IUserExperienceRepository,
+  IUserRepository,
+  IUserSkillRepository,
+  IUniversityRepository,
+} from "@/core";
+import { AuthRepository } from "./repositories/auth.repository";
+import { CategoryRepository } from "./repositories/category.repository";
+import { CompanyRepository } from "./repositories/company.repository";
+import { CvRepository } from "./repositories/cv.repository";
+import { JobRepository } from "./repositories/job.repository";
+import { ProvinceRepository } from "./repositories/province.repository";
+import { UserExperienceRepository } from "./repositories/user-experience.repository";
+import { UserSkillRepository } from "./repositories/user-skill.repository";
+import { UserRepository } from "./repositories/user.repository";
+import { SkillRepository } from "./repositories/skill.repository";
+import { UniversityRepository } from "./repositories/university.repository";
 
+@Global()
 @Module({
   providers: [
     {
@@ -25,11 +48,33 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
-          await pool.query("SELECT 1");
-          logger.log("Database connection established successfully.");
+          const maxRetries = 3;
+          let attempt = 0;
+          let connected = false;
+
+          while (!connected && attempt < maxRetries) {
+            attempt++;
+            try {
+              await pool.query("SELECT 1");
+              connected = true;
+              logger.log(
+                `Database connection established successfully (attempt ${attempt}).`,
+              );
+            } catch (err) {
+              logger.error(
+                `Database connection attempt ${attempt} failed:`,
+                err,
+              );
+              if (attempt < maxRetries) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              } else {
+                throw err; // hết retry thì throw
+              }
+            }
+          }
           const db = drizzle(pool, {
             casing: "snake_case",
-            // logger: process.env.NODE_ENV === "development",
+            // logger: true,
           }) as DBDrizzle;
           return db;
         } catch (err) {
@@ -40,10 +85,62 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/helpers";
       inject: [ConfigService],
     },
     {
-      provide: IDataServices,
-      useClass: PostgresDataServices,
+      provide: IAuthRepository,
+      useClass: AuthRepository,
+    },
+    {
+      provide: ICategoryRepository,
+      useClass: CategoryRepository,
+    },
+    {
+      provide: ICompanyRepository,
+      useClass: CompanyRepository,
+    },
+    {
+      provide: IJobRepository,
+      useClass: JobRepository,
+    },
+    {
+      provide: IProvinceRepository,
+      useClass: ProvinceRepository,
+    },
+    {
+      provide: IUserExperienceRepository,
+      useClass: UserExperienceRepository,
+    },
+    {
+      provide: IUserSkillRepository,
+      useClass: UserSkillRepository,
+    },
+    {
+      provide: IUserRepository,
+      useClass: UserRepository,
+    },
+    {
+      provide: ICvRepository,
+      useClass: CvRepository,
+    },
+    {
+      provide: ISkillRepository,
+      useClass: SkillRepository,
+    },
+    {
+      provide: IUniversityRepository,
+      useClass: UniversityRepository,
     },
   ],
-  exports: [IDataServices],
+  exports: [
+    IAuthRepository,
+    ICategoryRepository,
+    ICompanyRepository,
+    ICvRepository,
+    IJobRepository,
+    IProvinceRepository,
+    ISkillRepository,
+    IUserExperienceRepository,
+    IUserSkillRepository,
+    IUserRepository,
+    IUniversityRepository,
+  ],
 })
 export class PostgresDataServicesModule {}

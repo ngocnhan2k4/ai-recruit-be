@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-export class UploadFileDto {
+export class UploadFileRequestDto {
   @ApiProperty({
     type: "string",
     format: "binary",
@@ -9,43 +9,31 @@ export class UploadFileDto {
   file: any;
 }
 
-export class UploadResultDto {
+export class UploadResponseDto {
   @ApiProperty({
     description: "Public URL of the uploaded file",
     example:
       "https://storage.googleapis.com/bucket-name/uploads/uuid-filename.jpg",
   })
-  fileUrl: string;
+  url: string;
 
   @ApiProperty({
     description: "Original filename with unique identifier",
     example: "uuid-filename.jpg",
   })
-  fileName: string;
+  public_id: string;
 
   @ApiProperty({
     description: "Firebase Storage bucket name",
     example: "your-project-id.appspot.com",
   })
-  bucket: string;
-
-  @ApiProperty({
-    description: "File size in bytes",
-    example: 1024000,
-  })
-  size: number;
-
-  @ApiProperty({
-    description: "MIME type of the file",
-    example: "image/jpeg",
-  })
-  contentType: string;
+  format: string;
 }
 
-export class DeleteFileDto {
+export class DeleteFileResponseDto {
   @ApiProperty({
-    description: "Path of the file to delete",
-    example: "uploads/uuid-filename.jpg",
+    description: "Result message",
+    example: "File deleted successfully",
   })
-  path: string;
+  message: string;
 }

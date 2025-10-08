@@ -1,114 +1,68 @@
-import { Body, Controller, Post, HttpCode } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  Res,
+  Req,
+  BadRequestException,
+} from "@nestjs/common";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import {
-  LoginDto,
+  LoginRequestDto,
   ApiResponse,
-  RefreshTokenDto,
-  TokenPairDto,
   LoginResponseDto,
+  ApiResponseDto,
+  AccessTokenResponseDto,
 } from "../dtos";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiOkResponse,
-  ApiBadRequestResponse,
-  ApiUnauthorizedResponse,
-  ApiBody,
-  ApiConsumes,
-  ApiExtraModels,
-  getSchemaPath,
-} from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
+import { type FastifyRequest, type FastifyReply } from "fastify";
+import { REFRESH_TOKEN } from "@/common/constants/token";
+import { RESPONSE_CODE } from "@/common/constants/response";
+import { ConfigService } from "@nestjs/config";
 
 @ApiTags("Authentication")
-@ApiExtraModels(
-  ApiResponse,
-  TokenPairDto,
-  LoginDto,
-  RefreshTokenDto,
-  LoginResponseDto,
-)
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authUseCases: AuthUseCases) {}
+  constructor(
+    private readonly authUseCases: AuthUseCases,
+    private readonly configService: ConfigService,
+  ) {}
 
   @ApiOperation({
     summary: "User login",
     description:
       "Verify Firebase ID Token, auto-provision user if first login, issue access/refresh tokens.",
   })
-  @ApiConsumes("application/json")
   @ApiBody({
     description: "Firebase ID Token",
-    type: LoginDto,
-    examples: {
-      sample: {
-        summary: "Login with Firebase ID Token",
-        value: { idToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6..." },
-      },
-    },
+    type: LoginRequestDto,
   })
-  @ApiOkResponse({
-    description: "Login success",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(LoginResponseDto) },
-          },
-        },
-      ],
-      example: {
-        code: "SUCCESS",
-        message: "Success",
-        data: {
-          tokens: {
-            accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            refreshToken: "f2f374604e2462c13f441457a68c2644ce...",
-          },
-          user: {
-            id: 1,
-            username: "exampleuser",
-            email: "user@example.com",
-            phone: "1234567890",
-            avatarUrl: "https://cdn.example.com/avatar.png",
-            name: "John Doe",
-            dob: "1990-01-01",
-            gender: "Male",
-            firebaseUid: "lPuOOqhJlsc8J5Va7Jg2cYNMp323",
-          },
-        },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: "Invalid Firebase ID Token",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "INVALID_CREDENTIALS",
-            message: "Invalid credentials.",
-          },
-        },
-      ],
-    },
-  })
-  @ApiBadRequestResponse({
-    description: "Invalid request body",
-    example: {
-      code: 400,
-      message: ["idToken must be a string"],
-      stack: "...",
-    },
-  })
+  @ApiResponseDto(LoginResponseDto)
   @Post("login")
-  @HttpCode(200)
   async logIn(
-    @Body() loginDto: LoginDto,
+    @Body() loginDto: LoginRequestDto,
+    @Res({ passthrough: true }) res: FastifyReply,
   ): Promise<ApiResponse<LoginResponseDto>> {
-    return this.authUseCases.logIn(loginDto.idToken);
+    const result = await this.authUseCases.logIn(loginDto.idToken);
+
+    if (!result.data) throw new Error("Login failed");
+
+    res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
+      httpOnly: true,
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      path: "/",
+      domain: undefined, // Let browser set automatically in dev
+    });
+
+    return {
+      code: result.code,
+      message: result.message,
+      data: {
+        accessToken: result.data.tokens.accessToken,
+        user: result.data.user,
+      },
+    };
   }
 
   @ApiOperation({
@@ -116,114 +70,64 @@ export class AuthController {
     description:
       "Validate refresh token and rotate it. Returns a new access token and a new refresh token.",
   })
-  @ApiConsumes("application/json")
-  @ApiBody({
-    description: "Refresh token",
-    type: RefreshTokenDto,
-    examples: {
-      sample: {
-        summary: "Refresh with valid refresh token",
-        value: { refreshToken: "f2f374604e2462c13f441457a68c2644ce..." },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description: "Refresh success",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(TokenPairDto) },
-          },
-        },
-      ],
-    },
-  })
-  @ApiBadRequestResponse({
-    description: "Invalid request body",
-    example: {
-      statusCode: 400,
-      message: ["refreshToken must be a string"],
-      stack: "...",
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: "Invalid, revoked, or expired refresh token",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "INVALID_CREDENTIALS",
-            message: "Invalid credentials.",
-          },
-        },
-      ],
-    },
-  })
+  @ApiResponseDto(AccessTokenResponseDto)
   @Post("refresh")
-  @HttpCode(200)
   async refresh(
-    @Body() body: RefreshTokenDto,
-  ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    return this.authUseCases.refreshToken(body.refreshToken);
+    @Req() req: FastifyRequest,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ): Promise<ApiResponse<AccessTokenResponseDto>> {
+    const token = req.cookies[REFRESH_TOKEN];
+    if (!token) {
+      throw new BadRequestException({
+        code: RESPONSE_CODE.TOKEN_NOT_FOUND,
+        message: "Refresh token not provided",
+      });
+    }
+    const result = await this.authUseCases.refreshToken(token);
+
+    if (!result.data) return result;
+
+    res.cookie(REFRESH_TOKEN, result.data.refreshToken, {
+      httpOnly: true,
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      path: "/",
+      domain: undefined, // Let browser set automatically
+    });
+
+    return {
+      code: result.code,
+      message: result.message,
+      data: {
+        accessToken: result.data.accessToken,
+      },
+    };
   }
 
   @ApiOperation({
     summary: "Logout",
     description: "Revoke the provided refresh token.",
   })
-  @ApiConsumes("application/json")
-  @ApiBody({
-    description: "Refresh token",
-    type: RefreshTokenDto,
-    examples: {
-      sample: {
-        summary: "Refresh with valid refresh token",
-        value: { refreshToken: "f2f374604e2462c13f441457a68c2644ce..." },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description: "Logout success",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "SUCCESS",
-            message: "Logged out successfully.",
-          },
-        },
-      ],
-    },
-  })
-  @ApiBadRequestResponse({
-    description: "Invalid request body",
-    example: {
-      statusCode: 400,
-      message: ["refreshToken must be a string"],
-      stack: "...",
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: "Invalid, revoked, or expired refresh token",
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponse) },
-        {
-          example: {
-            code: "INVALID_CREDENTIALS",
-            message: "Invalid credentials.",
-          },
-        },
-      ],
-    },
-  })
+  @ApiResponseDto("string")
   @Post("logout")
-  @HttpCode(200)
-  async logout(@Body() body: RefreshTokenDto): Promise<ApiResponse<any>> {
-    return this.authUseCases.logout(body.refreshToken);
+  async logout(
+    @Res({ passthrough: true }) res: FastifyReply,
+    @Req() req: FastifyRequest,
+  ): Promise<ApiResponse<any>> {
+    const token = req.cookies[REFRESH_TOKEN];
+    if (!token) {
+      throw new BadRequestException({
+        code: RESPONSE_CODE.TOKEN_NOT_FOUND,
+        message: "Refresh token not provided",
+      });
+    }
+    res.clearCookie(REFRESH_TOKEN, {
+      httpOnly: true,
+      secure: !(this.configService.get("NODE_ENV") === "local"), // Must match the original cookie settings
+      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Must match the original cookie settings
+      path: "/",
+      domain: undefined, // Must match the original cookie settings
+    });
+    return this.authUseCases.logout(token);
   }
 }

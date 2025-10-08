@@ -1,4 +1,4 @@
-CREATE TABLE "refresh_tokens" (
+CREATE TABLE not exists "refresh_tokens" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
 	"token" varchar NOT NULL,

@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { AuthUseCases } from "./auth.use-case";
-import { AuthServicesModule } from "@/services/auth-services/auth-services.module";
-import { DataServicesModule } from "@/services/data-services/data-services.module";
+import { FireBaseAuthServicesModule } from "@/frameworks/auth-services/firebase/firebase-auth-services.module";
+
 @Module({
-  imports: [AuthServicesModule, DataServicesModule],
+  imports: [FireBaseAuthServicesModule],
   providers: [AuthUseCases],
   exports: [AuthUseCases],
 })
