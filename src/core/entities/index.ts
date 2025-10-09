@@ -14,6 +14,7 @@ import {
   GenderEnum,
   universities,
   userOnboardings,
+  organizationMembers,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -60,3 +61,8 @@ export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
+
+export type OrganizationMember = InferSelectModel<typeof organizationMembers>;
+export type NewOrganizationMember = InferInsertModel<
+  typeof organizationMembers
+>;
