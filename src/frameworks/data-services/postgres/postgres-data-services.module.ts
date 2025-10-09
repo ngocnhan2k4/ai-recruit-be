@@ -30,6 +30,8 @@ import { UserRepository } from "./repositories/user.repository";
 import { SkillRepository } from "./repositories/skill.repository";
 import { UniversityRepository } from "./repositories/university.repository";
 import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
 
 @Global()
 @Module({
@@ -134,6 +136,10 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
       provide: IUserOnboardingRepository,
       useClass: UserOnboardingRepository,
     },
+    {
+      provide: IOrganizationMembersRepository,
+      useClass: OrganizationMembersRepository,
+    },
   ],
   exports: [
     IAuthRepository,
@@ -148,6 +154,7 @@ import { UserOnboardingRepository } from "./repositories/user-onboarding.reposit
     IUserRepository,
     IUniversityRepository,
     IUserOnboardingRepository,
+    IOrganizationMembersRepository,
   ],
 })
 export class PostgresDataServicesModule {}

@@ -39,9 +39,14 @@ import {
 } from "@/interfaces/dtos";
 import {
   JobFilters,
-  CursorPaginationResult,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
+
+export interface CursorPaginationResult<T> {
+  data: T[];
+  nextCursor?: string;
+  hasNextPage: boolean;
+}
 
 @Injectable()
 export class JobRepository

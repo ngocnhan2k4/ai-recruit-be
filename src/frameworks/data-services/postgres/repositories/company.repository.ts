@@ -3,6 +3,7 @@ import { ICompanyRepository, Company } from "@/core";
 import { companies } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
+import { PaginatedResult } from "@/common/types/api";
 
 @Injectable()
 export class CompanyRepository
@@ -11,6 +12,30 @@ export class CompanyRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
+  }
+  getCompaniesByUserId(
+    userId: string,
+    limit: number,
+    cursor: string,
+  ): Promise<
+    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
+  > {
+    throw new Error("Method not implemented.");
+  }
+  createCompany(org: Partial<Company>): Promise<Company> {
+    throw new Error("Method not implemented.");
+  }
+  updateCompany(
+    companyId: string,
+    company: Partial<Company>,
+  ): Promise<Company | null> {
+    throw new Error("Method not implemented.");
+  }
+  deleteCompany(companyId: string): Promise<boolean> {
+    throw new Error("Method not implemented.");
+  }
+  getCompanyById(companyId: string): Promise<Company | null> {
+    throw new Error("Method not implemented.");
   }
 
   async getAllSimple(): Promise<{ id: string; name: string }[]> {
