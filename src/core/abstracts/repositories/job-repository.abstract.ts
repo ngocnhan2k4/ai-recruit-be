@@ -106,4 +106,22 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract updateJob(jobId: string, job: Partial<Job>): Promise<Job | null>;
   abstract deleteJob(jobId: string): Promise<boolean>;
   abstract getJobById(jobId: string): Promise<Job | null>;
+
+  abstract getAllSavedJobs(
+    userId: string,
+    sortOption: "createdAt" | "endedAt",
+  ): Promise<
+    {
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+    }[]
+  >;
 }

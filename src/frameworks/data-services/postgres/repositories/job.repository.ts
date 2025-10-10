@@ -668,4 +668,53 @@ export class JobRepository
 
     return result[0] as Job | null;
   }
+
+  async getAllSavedJobs(
+    userId: string,
+    sortOption: "createdAt" | "endedAt",
+  ): Promise<
+    {
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+    }[]
+  > {
+    const result = await this.db
+      .select({
+        id: jobs.id,
+        title: jobs.title,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+        companyName: companies.name,
+        logoUrl: companies.logoUrl,
+        workType: jobs.workType,
+        createdAt: jobs.createdAt,
+        endedAt: jobs.endDate,
+        provinceName: provinces.name,
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      )
+      .orderBy(
+        sortOption === "createdAt" ? desc(jobs.createdAt) : desc(jobs.endDate),
+      )
+      .limit(20);
+
+    return result;
+  }
 }

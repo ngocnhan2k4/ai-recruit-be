@@ -15,7 +15,7 @@ import {
 } from "@/interfaces/dtos";
 import { Skill, Job, Company, Province } from "@/core";
 import { BadRequestException } from "@nestjs/common";
-import { JobDto } from "@/interfaces/dtos";
+import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
@@ -371,5 +371,31 @@ export class JobUseCases {
       }
       throw new BadRequestException("Failed to get job");
     }
+  }
+
+  async getAllSavedJobs(
+    userId: string,
+    sort: "createdAt" | "endedAt" = "createdAt",
+  ): Promise<ApiResponse<SavedJobsResponseDto[]>> {
+    const jobs = await this.jobRepository.getAllSavedJobs(userId, sort);
+    const transformedJobs: SavedJobsResponseDto[] = jobs.map((job) => ({
+      id: job.id,
+      title: job.title,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      companyName: job.companyName,
+      logoUrl: job.logoUrl || "",
+      workType: (job.workType || "onsite") as "remote" | "onsite",
+      createdAt: job.createdAt.toISOString(),
+      endedAt: job.endedAt!,
+      provinceName: job.provinceName,
+      isSaved: true,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJobs,
+    };
   }
 }
