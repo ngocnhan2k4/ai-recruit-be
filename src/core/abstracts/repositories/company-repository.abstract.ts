@@ -19,12 +19,4 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
   ): Promise<
     PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
   >;
-
-  abstract createCompany(org: Partial<Company>): Promise<Company>;
-  abstract updateCompany(
-    companyId: string,
-    company: Partial<Company>,
-  ): Promise<Company | null>;
-  abstract deleteCompany(companyId: string): Promise<boolean>;
-  abstract getCompanyById(companyId: string): Promise<Company | null>;
 }

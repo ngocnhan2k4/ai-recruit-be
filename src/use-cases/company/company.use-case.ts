@@ -3,10 +3,15 @@ import { ApiResponse, CompanySimpleResponseDto } from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { Company, ICompanyRepository } from "@/core";
+import { OrganizationRole } from "@/common/constants/organization-roles";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
 
 @Injectable()
 export class CompanyUseCase {
-  constructor(private readonly companyRepository: ICompanyRepository) {}
+  constructor(
+    private readonly companyRepository: ICompanyRepository,
+    private readonly organizationMembersRepository: IOrganizationMembersRepository,
+  ) {}
 
   private readonly logger = new Logger(CompanyUseCase.name);
 
@@ -32,15 +37,58 @@ export class CompanyUseCase {
     };
   }
 
-  async createCompany(data: CreateCompanyDto): Promise<ApiResponse<Company>> {
-    const company = await this.companyRepository.create({
-      name: data.name,
-    });
+  async createCompany(
+    userId: string,
+    data: CreateCompanyDto,
+  ): Promise<ApiResponse<Company>> {
+    try {
+      const organization = await this.companyRepository.create({
+        name: data.name,
+        description: data.description,
+        logoUrl: data.logoUrl,
+        taxCode: data.taxCode,
+        address: data.address,
+        employeesMin: data.employeesMin,
+        employeesMax: data.employeesMax,
+        websiteUrl: data.websiteUrl,
+        organizationCulture: data.organizationCulture,
+      });
+      const organizationMember =
+        await this.organizationMembersRepository.create({
+          userId: userId,
+          organizationId: organization.id,
+          role: OrganizationRole.ORGANIZATION_OWNER,
+        });
+      return {
+        message: "Company created successfully",
+        code: RESPONSE_CODE.SUCCESS,
+        data: organization,
+      };
+    } catch (error) {
+      this.logger.error(`Error creating company: ${error.message}`);
+      throw error;
+    }
+  }
 
+  async getCompaniesByUserId(
+    userId: string,
+    limit: number,
+    cursor: string,
+  ): Promise<ApiResponse<Partial<Company>[]>> {
+    const res = await this.companyRepository.getCompaniesByUserId(
+      userId,
+      limit,
+      cursor,
+    );
     return {
-      message: "Company created successfully",
+      message: "Companies fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: company,
+      data: res.data.map((company) => ({
+        id: company.id,
+        name: company.name,
+        logoUrl: company.logoUrl,
+        description: company.description,
+      })),
     };
   }
 }

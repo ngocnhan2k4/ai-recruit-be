@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, UseGuards, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { CompanyUseCase } from "@/use-cases/company/company.use-case";
 import {
@@ -13,6 +13,8 @@ import {
 import { Company } from "@/core/entities";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import { TokenPayload } from "@/common/types/token";
 @ApiTags("Companies")
 @Controller("companies")
 export class CompanyController {
@@ -42,18 +44,5 @@ export class CompanyController {
     ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
   > {
     return await this.companyUseCase.getAllCompanies();
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  @ApiOperation({
-    summary: "Create a new company",
-    description: "Create a new company with the provided name",
-  })
-  @ApiResponseDto(CompanyDto)
-  async createCompany(
-    @Body() data: CreateCompanyDto,
-  ): Promise<ApiResponse<Company>> {
-    return await this.companyUseCase.createCompany(data);
   }
 }

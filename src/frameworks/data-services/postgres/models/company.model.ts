@@ -21,7 +21,7 @@ export const companies = pgTable("companies", {
   websiteUrl: varchar("website_url", { length: 500 }),
   foundingYear: integer("founding_year"),
   taxCode: varchar("tax_code", { length: 100 }),
-  organization_culture: text("organization_culture"),
+  organizationCulture: text("organization_culture"),
   benefits: text("benefits").array(),
   ...timestamps,
 });
