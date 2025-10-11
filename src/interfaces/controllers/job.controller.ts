@@ -16,6 +16,7 @@ import {
   QueryJobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
+  JobResponse,
 } from "../dtos/jobs/query-job.dto";
 import { CreateJobDto, UpdateJobDto, JobDto } from "../dtos/jobs/job.dto";
 import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
@@ -212,10 +213,14 @@ export class JobController {
     description: "Retrieve a specific job by its ID",
   })
   @UseGuards(GuestGuard)
-  @ApiResponseDto(JobDto)
+  @ApiResponseDto(JobResponse)
   @Get(":id")
-  async getJobById(@Param("id") jobId: string): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.getJobById(jobId);
+  async getJobById(
+    @Param("id") jobId: string,
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<JobResponse>> {
+    const userId = user.userId;
+    return await this.jobUseCases.getJobById(jobId, userId);
   }
 
   @ApiOperation({

@@ -12,6 +12,7 @@ import {
   UpdateJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
+  JobResponse,
 } from "@/interfaces/dtos";
 import { Skill, Job, Company, Province } from "@/core";
 import { BadRequestException } from "@nestjs/common";
@@ -346,31 +347,41 @@ export class JobUseCases {
     }
   }
 
-  async getJobById(jobId: string): Promise<ApiResponse<JobDto>> {
-    try {
-      const job = await this.jobRepository.getJobById(jobId);
-      if (!job) {
-        throw new BadRequestException("Job not found");
-      }
-
-      // Transform questions field
-      const transformedJob: JobDto = {
-        ...job,
-        questions: job.questions || null,
-      };
-
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: transformedJob,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get job ${jobId}:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to get job");
+  async getJobById(
+    jobId: string,
+    userId?: string,
+  ): Promise<ApiResponse<JobResponse>> {
+    const job: {
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
+      isSaved?: boolean;
+      isApplied?: boolean;
+      applyStatus?: string;
+      applyId?: string;
+    } | null = await this.jobRepository.getFullJobById(jobId, userId);
+    if (!job) {
+      throw new BadRequestException({
+        message: "[getJobById] [get] Job not found",
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    // Transform questions field
+    const transformedJob: JobResponse = {
+      ...job,
+      job: {
+        ...job.job,
+        questions: job.job.questions || null,
+      },
+    };
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
   }
 
   async getAllSavedJobs(
@@ -379,16 +390,11 @@ export class JobUseCases {
   ): Promise<ApiResponse<SavedJobsResponseDto[]>> {
     const jobs = await this.jobRepository.getAllSavedJobs(userId, sort);
     const transformedJobs: SavedJobsResponseDto[] = jobs.map((job) => ({
-      id: job.id,
-      title: job.title,
-      salaryMin: job.salaryMin,
-      salaryMax: job.salaryMax,
-      companyName: job.companyName,
+      ...job,
       logoUrl: job.logoUrl || "",
       workType: (job.workType || "onsite") as "remote" | "onsite",
       createdAt: job.createdAt.toISOString(),
       endedAt: job.endedAt!,
-      provinceName: job.provinceName,
       isSaved: true,
     }));
 

@@ -201,6 +201,13 @@ export class SavedJobsResponseDto {
     required: true,
   })
   isSaved: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: "Indicates if the user has applied for the job",
+    required: true,
+  })
+  isApplied: boolean;
 }
 
 export class JobPaginationResponseDto {
