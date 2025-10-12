@@ -10,10 +10,10 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
 
-export const enableAppMiddleware = (app: NestFastifyApplication) => {
+export const enableAppMiddleware = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
 
-  app.register(fastifyCors, {
+  await app.register(fastifyCors, {
     origin: [
       "http://127.0.0.1:3000",
       "http://127.0.0.1:8000",
@@ -38,8 +38,8 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
   app.setGlobalPrefix(appConfigs.globalPrefix);
 
   // Use Fastify-native compression to avoid response/body issues in browsers
-  app.register(fastifyCompress, { global: true });
-  app.register(fastifyCookie);
+  await app.register(fastifyCompress, { global: true });
+  await app.register(fastifyCookie);
 
   // Register multipart support for file uploads
   const multipartOptions: FastifyMultipartOptions = {
@@ -47,7 +47,7 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       fileSize: 10 * 1024 * 1024, // 10MB
     },
   };
-  app.register(fastifyMultipart, multipartOptions);
+  await app.register(fastifyMultipart, multipartOptions);
 
   // Add logger middleware
   const loggerMiddleware = new LoggerMiddleware(new ConfigService());

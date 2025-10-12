@@ -13,4 +13,5 @@ export enum OrganizationRole {
   ORGANIZATION_ANALYST_EDITOR = "organization_analyst_editor",
   ORGANIZATION_ANALYST_VIEWER = "organization_analyst_viewer",
   ORGANIZATION_EMPLOYEE = "organization_employee",
+  ANONYMOUSLY = "anonymously",
 }

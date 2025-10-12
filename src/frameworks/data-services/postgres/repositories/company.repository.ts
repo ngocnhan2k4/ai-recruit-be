@@ -4,7 +4,8 @@ import { companies, organizationMembers } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { PaginatedResult } from "@/common/types/api";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt, desc, Or, is, not } from "drizzle-orm";
+import { OrganizationRole } from "@/common/constants/organization-roles";
 
 @Injectable()
 export class CompanyRepository
@@ -20,7 +21,12 @@ export class CompanyRepository
     limit: number,
     cursor: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
+    PaginatedResult<
+      Pick<
+        Company,
+        "id" | "name" | "logoUrl" | "description" | "createdAt" | "foundingYear"
+      > & { role: string }
+    >
   > {
     const whereConditions = [eq(organizationMembers.userId, userId)];
 
@@ -37,6 +43,8 @@ export class CompanyRepository
         logoUrl: companies.logoUrl,
         description: companies.description,
         createdAt: companies.createdAt,
+        foundingYear: companies.foundingYear,
+        role: organizationMembers.role,
       })
       .from(companies)
       .innerJoin(
@@ -58,7 +66,7 @@ export class CompanyRepository
         : null;
 
     return {
-      data: data.map(({ createdAt, ...company }) => company),
+      data: data,
       pagination: {
         cursor: nextCursor,
         hasNextPage,

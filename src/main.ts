@@ -18,7 +18,7 @@ async function bootstrap() {
   const { port, globalPrefix } = getAppConfigs(app);
 
   enableSwaggerDoc(app);
-  enableAppMiddleware(app);
+  await enableAppMiddleware(app);
 
   await app.listen(port, "0.0.0.0", () => {
     app.getUrl().then((url) => {

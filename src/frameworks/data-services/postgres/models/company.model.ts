@@ -19,10 +19,12 @@ export const companies = pgTable("companies", {
   employeesMin: integer("employees_min"),
   employeesMax: integer("employees_max"),
   websiteUrl: varchar("website_url", { length: 500 }),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
   foundingYear: integer("founding_year"),
   taxCode: varchar("tax_code", { length: 100 }),
   organizationCulture: text("organization_culture"),
-  benefits: text("benefits").array(),
+  benefits: text("benefits"),
   ...timestamps,
 });
 

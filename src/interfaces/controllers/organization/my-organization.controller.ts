@@ -23,7 +23,7 @@ import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 
 @UseGuards(GuestGuard)
 @ApiTags("My-Organization")
-@Controller("user/me/org")
+@Controller("users/me/org")
 export class MyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
@@ -57,6 +57,7 @@ export class MyOrganizationController {
     @GetUser() user: TokenPayload,
     @Body() data: CreateCompanyDto,
   ): Promise<ApiResponse<Company>> {
+    console.log("data", data);
     return await this.companyUseCase.createCompany(user.userId, data);
   }
 }

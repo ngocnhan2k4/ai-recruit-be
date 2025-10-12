@@ -1,28 +1,12 @@
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { CompanyUseCase } from "@/use-cases/company/company.use-case";
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import {
-  ApiResponse,
-  ApiResponseDto,
-  CompanyDto,
-  CreateCompanyDto,
-} from "../../dtos";
+import { ApiResponse, ApiResponseDto, CompanyDto } from "../../dtos";
 import { Company } from "@/core/entities";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 
 @ApiTags("User-Organization")
-@Controller("user/:userId/org")
+@Controller("users/:userId/org")
 export class UserOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
   @UseGuards(GuestGuard)

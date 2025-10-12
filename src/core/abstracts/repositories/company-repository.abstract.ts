@@ -17,6 +17,11 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
     limit: number,
     cursor: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
+    PaginatedResult<
+      Pick<
+        Company,
+        "id" | "name" | "logoUrl" | "description" | "createdAt" | "foundingYear"
+      > & { role: string }
+    >
   >;
 }
