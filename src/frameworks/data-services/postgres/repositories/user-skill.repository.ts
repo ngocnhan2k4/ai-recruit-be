@@ -25,4 +25,16 @@ export class UserSkillRepository
 
     return result as Skill[];
   }
+
+  async createMany(userSkillValues: UserSkill[]): Promise<UserSkill[]> {
+    const result = await this.db
+      .insert(userSkills)
+      .values(userSkillValues)
+      .onConflictDoNothing({
+        target: [userSkills.userId, userSkills.skillId],
+      })
+      .returning();
+
+    return result;
+  }
 }

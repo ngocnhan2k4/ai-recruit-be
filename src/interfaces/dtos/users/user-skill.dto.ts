@@ -19,3 +19,11 @@ export class CreateUserSkillRequestDto {
   @IsOptional()
   companyId: string;
 }
+
+export class DeleteUserSkillResponseDto {
+  @ApiProperty()
+  skillId: string;
+
+  @ApiProperty({ nullable: true })
+  companyId: string | null;
+}
