@@ -5,8 +5,11 @@ import {
   UploadController,
   HealthController,
   CategoryController,
+  CompanyController,
   JobController,
   ProvinceController,
+  CvController,
+  UniversityController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -31,6 +34,11 @@ import { ILoggerServices } from "./core/abstracts/logger-services.abstract";
 import { AppConfigProps } from "./common/config/app.config";
 import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
+import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
+import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
+import { SkillController } from "./interfaces/controllers/skill.controller";
+import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
+import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 
 @Module({
   imports: [
@@ -53,15 +61,23 @@ import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.
     HttpModule,
     LoggerServiceModule,
     ProvinceUseCasesModule,
+    CompanyUseCasesModule,
+    CvUseCasesModule,
+    SkillUseCasesModule,
+    UniversityUseCasesModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
     CategoryController,
+    CompanyController,
     UploadController,
     HealthController,
     ProvinceController,
+    CvController,
+    SkillController,
+    UniversityController,
   ],
   providers: [
     JwtStrategy,

@@ -1,7 +1,7 @@
 import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
-import { users } from "../schema";
+import { users } from "../models";
 import { User } from "@/core/entities";
 
 @Injectable()

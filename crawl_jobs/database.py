@@ -1,5 +1,6 @@
 import psycopg2
 from psycopg2.extras import Json
+import json
 
 def _insert_company_raw(cur, name, cdata):
     query = """
@@ -59,7 +60,7 @@ def _insert_job_raw(cur, title, jdata, company_raw_id):
         RETURNING id;
     """
     cur.execute(query, (
-        title, Json(jdata.get("description")), jdata.get("url"),
+        title, json.dumps(jdata.get("description")), jdata.get("url"),
         jdata.get("date_posted"), jdata.get("skills"),
         jdata.get("crawled_at"), company_raw_id, jdata.get("salary_min"),
         jdata.get("salary_max"), jdata.get("locations"),
@@ -143,7 +144,7 @@ def _link_job_to_category(cur, job_id, category_id):
     )
 
 
-def insert_to_db(db_url: str, companies: dict, source: str):
+def insert_to_db(db_url: str, companies: dict):
     jobs_inserted = 0
     conn = None
     try:

@@ -1,16 +1,55 @@
-import { StatisticsJobFilter } from "../../entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Job, Province, Company, Skill } from "@/core/entities";
+import {
+  ApplyJobResponseDto,
+  JobAnswerDto,
+  UserInteractionResponseDto,
+} from "@/interfaces/dtos";
+
+export interface RangeFilter {
+  min?: number;
+  max?: number;
+}
+
+export interface JobFilters {
+  keyword?: string;
+  salaryRange?: RangeFilter;
+  experienceRange?: RangeFilter;
+  provinceId?: string;
+  companyId?: string;
+  workType?: string;
+  status?: string;
+}
+
+export interface CursorPaginationResult<T> {
+  data: T[];
+  nextCursor?: string;
+  hasNextPage: boolean;
+}
+export interface StatisticsJobFilter {
+  fromDate?: Date;
+  toDate?: Date;
+  categoryId?: string;
+  provinceId?: string;
+  isOpen?: boolean;
+}
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
-    offset?: number,
-    keyword?: string,
-    sortBy?: string,
-    sortDirection?: "asc" | "desc",
+    cursor?: string,
+    filters?: JobFilters & { userId?: string },
   ): Promise<
-    { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
+    CursorPaginationResult<{
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
+      isSaved?: boolean;
+      isApplied?: boolean;
+      applyStatus?: string;
+      applyId?: string;
+    }>
   >;
 
   abstract getFrequentlyJobs(
@@ -29,4 +68,42 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       jobCount: number;
     }[]
   >;
+
+  abstract applyJob(
+    userId: string,
+    jobId: string,
+    userCvId?: string,
+    answers?: JobAnswerDto[],
+  ): Promise<ApplyJobResponseDto>;
+
+  abstract updateApplyJob(
+    applyId: string,
+    userId: string,
+    status?: string,
+    userCvId?: string,
+    answers?: JobAnswerDto[],
+  ): Promise<ApplyJobResponseDto | null>;
+
+  abstract getApplyJobById(
+    applyId: string,
+    userId: string,
+  ): Promise<ApplyJobResponseDto | null>;
+
+  abstract saveJob(
+    userId: string,
+    jobId: string,
+    save: boolean,
+  ): Promise<UserInteractionResponseDto | null>;
+
+  abstract hideJob(
+    userId: string,
+    jobId: string,
+    hide: boolean,
+  ): Promise<UserInteractionResponseDto | null>;
+
+  // CRUD operations
+  abstract createJob(job: Partial<Job>): Promise<Job>;
+  abstract updateJob(jobId: string, job: Partial<Job>): Promise<Job | null>;
+  abstract deleteJob(jobId: string): Promise<boolean>;
+  abstract getJobById(jobId: string): Promise<Job | null>;
 }

@@ -16,6 +16,7 @@ export class LoggerMiddleware implements NestMiddleware {
       this.configService.get<string>("NODE_ENV") === "local"
     ) {
       bodyMsg = `-> BODY: ${JSON.stringify(body)}`;
+      console.log("bodyMsg", bodyMsg);
     }
     this.logger.log(`${method} ${originalUrl} ${bodyMsg || ""}`);
 

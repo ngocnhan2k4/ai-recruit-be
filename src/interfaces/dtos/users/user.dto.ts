@@ -42,6 +42,9 @@ export class UserPublicResponseDto {
   @ApiProperty({ nullable: true })
   avatarUrl: string | null;
 
+  @ApiProperty({ nullable: true })
+  bannerUrl: string | null;
+
   @ApiProperty({ nullable: true, enum: GenderEnum })
   gender: GenderEnum | null;
 
@@ -123,6 +126,9 @@ export class GetUserResponseDto {
 
   @Expose()
   provider: ProviderEnumType;
+
+  @Expose()
+  onboardingCompleted: boolean;
 
   //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
