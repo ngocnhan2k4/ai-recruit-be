@@ -67,6 +67,16 @@ export class CreateUserExperienceRequestDto {
   @IsString()
   @IsOptional()
   description: string;
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillIds?: string[];
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillNames?: string[];
 }
 
 export class UpdateUserExperienceRequestDto {

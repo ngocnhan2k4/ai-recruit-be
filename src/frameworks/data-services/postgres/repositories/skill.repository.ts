@@ -12,4 +12,16 @@ export class SkillRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, skills);
   }
+
+  async createMany(skillValues: Omit<Skill, "id">[]): Promise<Skill[]> {
+    const result = await this.db
+      .insert(skills)
+      .values(skillValues)
+      .onConflictDoNothing({
+        target: [skills.name],
+      })
+      .returning();
+
+    return result;
+  }
 }

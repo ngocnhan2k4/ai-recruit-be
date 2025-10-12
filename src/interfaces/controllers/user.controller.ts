@@ -42,6 +42,7 @@ import {
 } from "../dtos/users/user-experience.dto";
 import {
   CreateUserSkillRequestDto,
+  DeleteUserSkillResponseDto,
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
@@ -204,7 +205,7 @@ export class UserController {
   async deleteUserSkill(
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
-  ) {
+  ): Promise<ApiResponse<DeleteUserSkillResponseDto>> {
     return this.userUseCases.deleteUserSkill(user.userId, id);
   }
 
@@ -265,6 +266,7 @@ export class UserController {
   ): Promise<ApiResponse<UserOnboardingStatusDto>> {
     return this.userUseCases.checkUserEnterOnboarding(user.userId);
   }
+
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Complete user onboarding" })
   @CasbinPermission("/onboarding", "POST")
@@ -274,7 +276,6 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Body() userOnboardingDto: UserOnboardingDto,
   ): Promise<ApiResponse<void>> {
-    console.log("userOnboardingDto:", userOnboardingDto);
     return await this.userUseCases.completeUserOnboarding(
       userOnboardingDto,
       user.userId,

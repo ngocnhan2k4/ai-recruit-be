@@ -42,6 +42,9 @@ export class UserPublicResponseDto {
   @ApiProperty({ nullable: true })
   avatarUrl: string | null;
 
+  @ApiProperty({ nullable: true })
+  bannerUrl: string | null;
+
   @ApiProperty({ nullable: true, enum: GenderEnum })
   gender: GenderEnum | null;
 
