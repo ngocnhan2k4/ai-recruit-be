@@ -43,18 +43,7 @@ export class CompanyUseCase {
   ): Promise<ApiResponse<Company>> {
     try {
       const organization = await this.companyRepository.create({
-        name: data.name,
-        description: data.description,
-        logoUrl: data.logoUrl,
-        taxCode: data.taxCode,
-        address: data.address,
-        foundingYear: data.foundingYear,
-        phone: data.phone,
-        email: data.email,
-        employeesMin: data.employeesMin,
-        employeesMax: data.employeesMax,
-        websiteUrl: data.websiteUrl,
-        organizationCulture: data.organizationCulture,
+        ...data,
       });
       const organizationMember =
         await this.organizationMembersRepository.create({
