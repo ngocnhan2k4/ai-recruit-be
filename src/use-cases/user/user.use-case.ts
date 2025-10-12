@@ -28,7 +28,12 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { ICompanyRepository, UserSkill, UserOnboarding } from "@/core";
+import {
+  ICompanyRepository,
+  UserSkill,
+  UserOnboarding,
+  ISkillRepository,
+} from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
@@ -48,6 +53,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly cloudinaryService: CloudinaryService,
     private readonly companyRepository: ICompanyRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
+    private readonly skillRepository: ISkillRepository,
   ) {}
 
   async onModuleInit() {
@@ -123,7 +129,7 @@ export class UserUseCases implements OnModuleInit {
     });
     const isOnboarded = userOnboarding.length > 0;
     userDto.onboardingCompleted = isOnboarded;
-    console.log("userDto:", userDto);
+
     return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -151,6 +157,7 @@ export class UserUseCases implements OnModuleInit {
         gender: user.gender as GenderEnum,
         dob: user.dob,
         bio: user.bio,
+        bannerUrl: user.bannerUrl,
       },
     };
   }
@@ -243,17 +250,53 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  private async preCreateBeforeCreateUserExperience(
+    userId: string,
+    data: CreateUserExperienceRequestDto,
+  ) {
+    let companyId = data.companyId;
+    if (!companyId) {
+      const company = await this.companyRepository.create({
+        name: data.companyName,
+      });
+      companyId = company.id;
+    }
+    const skillIds = data.skillIds || [];
+    const skillNames = data.skillNames || [];
+
+    // Process skill names to get or create skill IDs
+    if (skillNames.length > 0) {
+      const newSkills = await this.skillRepository.createMany(
+        skillNames.map((name) => ({ name })),
+      );
+      skillIds.push(...newSkills.map((skill) => skill.id));
+    }
+
+    // Create user-skill associations
+    if (skillIds.length > 0)
+      await this.userSkillRepository.createMany(
+        skillIds.map((skillId) => ({
+          userId,
+          skillId,
+          companyId,
+        })),
+      );
+    return {
+      companyId,
+    };
+  }
+
+  // Create user experience, along with creating new company (if needed) and skills (if needed)
+  // [TODO]: It will not reasonable if user work a company twice, need to handle this case later
   async createUserExperience(
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    let companyId = createUserExperienceDto.companyId;
-    if (!companyId) {
-      const company = await this.companyRepository.create({
-        name: createUserExperienceDto.companyName,
-      });
-      companyId = company.id;
-    }
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      createUserExperienceDto,
+    );
+
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
       userId,
@@ -261,6 +304,7 @@ export class UserUseCases implements OnModuleInit {
       endDate: createUserExperienceDto.endDate
         ? convertDateToStr(createUserExperienceDto.endDate)
         : null,
+      companyId: companyId,
     });
     if (!result) {
       throw new NotFoundException({
@@ -278,7 +322,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserExperience(
     userId: string,
     id: number,
-    updateUserExperienceDto: UpdateUserExperienceRequestDto,
+    updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
     const userExperience = (
       await this.userExperienceRepository.getByField({
@@ -295,16 +339,28 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+    await this.userSkillRepository.delete({
+      userId,
+      companyId: userExperience.companyId,
+    });
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      updateUserExperienceDto,
+    );
+
     const updatedUserExperience = {
       ...userExperience,
       ...updateUserExperienceDto,
+      companyId,
     };
     await this.userExperienceRepository.update(
       { userId, id },
       {
         ...updatedUserExperience,
         startDate: convertDateToStr(updateUserExperienceDto.startDate),
-        endDate: convertDateToStr(updateUserExperienceDto.endDate),
+        endDate: updateUserExperienceDto.endDate
+          ? convertDateToStr(updateUserExperienceDto.endDate)
+          : null,
       },
     );
 
@@ -379,7 +435,12 @@ export class UserUseCases implements OnModuleInit {
   async deleteUserSkill(
     userId: string,
     skillId: string,
-  ): Promise<ApiResponse<UserSkill>> {
+  ): Promise<
+    ApiResponse<{
+      skillId: string;
+      companyId: string | null;
+    }>
+  > {
     const result = (
       await this.userSkillRepository.delete({
         userId,

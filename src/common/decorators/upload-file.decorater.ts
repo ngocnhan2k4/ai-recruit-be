@@ -29,7 +29,17 @@ export const UploadFileAndBody = createParamDecorator(
 
     for await (const part of request.parts()) {
       if (part.type === "file") {
-        file = part;
+        const chunks: Buffer[] = [];
+        for await (const chunk of part.file) {
+          chunks.push(chunk as Buffer);
+        }
+        const buffer = Buffer.concat(chunks);
+
+        file = {
+          ...part,
+          buffer,
+          toBuffer: () => Promise.resolve(buffer),
+        } as unknown as MultipartFile;
       } else if (part.type === "field") {
         body[part.fieldname] = part.value;
       }
