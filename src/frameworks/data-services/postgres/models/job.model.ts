@@ -19,10 +19,11 @@ import { timestamps } from "./helpers";
 import { categories } from "./category.model";
 import { provinces } from "./province.model";
 import { jsonb } from "drizzle-orm/pg-core";
+
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
+  description: json("description"),
   url: varchar("url", { length: 500 }),
   datePosted: date("date_posted"),
   skills: text("skills").array(), // storing as array of strings
@@ -30,7 +31,10 @@ export const jobRaws = pgTable("job_raws", {
   companyId: bigint("company_id", { mode: "number" })
     .notNull()
     .references(() => companyRaws.id),
-  salaryRange: json("salary_range"), // storing as JSON for flexibility
+  salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
+  salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),
+  provinces: text("provinces").array(), // List of raw provinces
+  category: text("category"), // Job raw category
   source: varchar("source", { length: 255 }).notNull(),
 });
 
@@ -52,9 +56,9 @@ export const jobs = pgTable("jobs", {
   status: varchar("status", { length: 50 }).notNull().default("active"), // "active" | "inactive"
   priority: integer("priority").default(0), // Higher number = higher priority
   workType: varchar("work_type", { length: 50 }), // "remote" | "onsite"
-  applyType: varchar("apply_type", { length: 50 }).notNull().default("onsite"), // "onsite" | "goto_url"
-  applyUrl: text("apply_url"), // URL for external applications
-  ...timestamps,
+  jobRawId: bigint("job_raw_id", { mode: "number" })
+    .notNull()
+    .references(() => jobRaws.id),
 });
 
 export const jobSkills = pgTable(
