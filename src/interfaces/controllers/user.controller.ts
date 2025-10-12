@@ -141,15 +141,16 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
-  @ApiBody({ type: UpdateUserExperienceRequestDto })
+  @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")
   async updateUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
-    @Body() updateUserExperienceDto: UpdateUserExperienceRequestDto,
+    @Body() updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
     return this.userUseCases.updateUserExperience(
       user.userId,

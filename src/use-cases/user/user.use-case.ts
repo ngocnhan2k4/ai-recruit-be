@@ -250,22 +250,19 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  // Create user experience, along with creating new company (if needed) and skills (if needed)
-  // [TODO]: It will not reasonable if user work a company twice, need to handle this case later
-  async createUserExperience(
+  private async preCreateBeforeCreateUserExperience(
     userId: string,
-    createUserExperienceDto: CreateUserExperienceRequestDto,
-  ): Promise<ApiResponse<number>> {
-    let companyId = createUserExperienceDto.companyId;
+    data: CreateUserExperienceRequestDto,
+  ) {
+    let companyId = data.companyId;
     if (!companyId) {
       const company = await this.companyRepository.create({
-        name: createUserExperienceDto.companyName,
+        name: data.companyName,
       });
       companyId = company.id;
     }
-    console.log("companyId", companyId);
-    const skillIds = createUserExperienceDto.skillIds || [];
-    const skillNames = createUserExperienceDto.skillNames || [];
+    const skillIds = data.skillIds || [];
+    const skillNames = data.skillNames || [];
 
     // Process skill names to get or create skill IDs
     if (skillNames.length > 0) {
@@ -284,6 +281,21 @@ export class UserUseCases implements OnModuleInit {
           companyId,
         })),
       );
+    return {
+      companyId,
+    };
+  }
+
+  // Create user experience, along with creating new company (if needed) and skills (if needed)
+  // [TODO]: It will not reasonable if user work a company twice, need to handle this case later
+  async createUserExperience(
+    userId: string,
+    createUserExperienceDto: CreateUserExperienceRequestDto,
+  ): Promise<ApiResponse<number>> {
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      createUserExperienceDto,
+    );
 
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
@@ -310,7 +322,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserExperience(
     userId: string,
     id: number,
-    updateUserExperienceDto: UpdateUserExperienceRequestDto,
+    updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
     const userExperience = (
       await this.userExperienceRepository.getByField({
@@ -327,16 +339,28 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+    await this.userSkillRepository.delete({
+      userId,
+      companyId: userExperience.companyId,
+    });
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      updateUserExperienceDto,
+    );
+
     const updatedUserExperience = {
       ...userExperience,
       ...updateUserExperienceDto,
+      companyId,
     };
     await this.userExperienceRepository.update(
       { userId, id },
       {
         ...updatedUserExperience,
         startDate: convertDateToStr(updateUserExperienceDto.startDate),
-        endDate: convertDateToStr(updateUserExperienceDto.endDate),
+        endDate: updateUserExperienceDto.endDate
+          ? convertDateToStr(updateUserExperienceDto.endDate)
+          : null,
       },
     );
 
