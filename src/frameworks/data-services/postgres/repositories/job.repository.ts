@@ -719,7 +719,7 @@ export class JobRepository
       .orderBy(
         sortOption === "createdAt" ? desc(jobs.createdAt) : desc(jobs.endDate),
       )
-      .limit(20);
+      .limit(30);
 
     return result.map((item) => ({
       ...item,
