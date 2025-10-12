@@ -55,9 +55,9 @@ export const jobs = pgTable("jobs", {
   status: varchar("status", { length: 50 }).notNull().default("active"), // "active" | "inactive"
   priority: integer("priority").default(0), // Higher number = higher priority
   workType: varchar("work_type", { length: 50 }), // "remote" | "onsite"
-  jobRawId: bigint("job_raw_id", { mode: "number" })
-    .notNull()
-    .references(() => jobRaws.id),
+  jobRawId: bigint("job_raw_id", { mode: "number" }).references(
+    () => jobRaws.id,
+  ),
   ...timestamps,
 });
 
