@@ -121,6 +121,7 @@ export const applyJobs = pgTable("apply_jobs", {
 export const userCV = pgTable("user_cv", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(), // References users table
+  name: varchar("name", { length: 255 }).notNull(),
   fileUrl: varchar("file_url", { length: 500 }).notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
