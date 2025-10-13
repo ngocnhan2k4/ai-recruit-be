@@ -98,6 +98,7 @@ export class AuthUseCases {
         bio: null,
         bannerUrl: null,
         provider: "anonymous",
+        address: null,
       };
     }
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
