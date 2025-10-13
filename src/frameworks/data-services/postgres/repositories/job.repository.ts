@@ -672,4 +672,151 @@ export class JobRepository
 
     return result[0] as Job | null;
   }
+
+  async getAllSavedJobs(
+    userId: string,
+    sortOption: "createdAt" | "endedAt",
+  ): Promise<
+    {
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+    }[]
+  > {
+    const result = await this.db
+      .select({
+        id: jobs.id,
+        title: jobs.title,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+        companyName: companies.name,
+        logoUrl: companies.logoUrl,
+        workType: jobs.workType,
+        createdAt: jobs.createdAt,
+        endedAt: jobs.endDate,
+        provinceName: provinces.name,
+        applyJobId: applyJobs.id,
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(
+        applyJobs,
+        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      )
+      .orderBy(
+        sortOption === "createdAt" ? desc(jobs.createdAt) : desc(jobs.endDate),
+      )
+      .limit(30);
+
+    return result.map((item) => ({
+      ...item,
+      isApplied: item.applyJobId ? true : false,
+    }));
+  }
+  async getFullJobById(
+    jobId: string,
+    userId?: string,
+  ): Promise<{
+    job: Job;
+    provinces: Province[];
+    company: Company;
+    skills: Skill[];
+    isSaved?: boolean;
+    isApplied?: boolean;
+    applyStatus?: string;
+    applyId?: string;
+  } | null> {
+    // check if user is authenticated (userId exists and is not anonymous)
+    const isAuthenticatedUser = userId && userId !== AnonymousId;
+
+    // Create query to get job information and relations
+    const result = await this.db
+      .select({
+        job: jobs,
+        provinces:
+          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
+            "provinces",
+          ),
+        company: companies,
+        skills:
+          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
+            "skills",
+          ),
+        // If user is authenticated, check if job is saved or applied
+        isSaved: isAuthenticatedUser
+          ? sql`EXISTS (
+            SELECT 1 FROM ${userInteractions} ui 
+            WHERE ui.job_id = ${jobs.id} 
+            AND ui.user_id = ${userId} 
+            AND ui.type = 'save'
+          )`.as("isSaved")
+          : sql`false`.as("isSaved"),
+        isApplied: isAuthenticatedUser
+          ? sql`EXISTS (
+            SELECT 1 FROM ${applyJobs} aj 
+            WHERE aj.job_id = ${jobs.id} 
+            AND aj.user_id = ${userId}
+          )`.as("isApplied")
+          : sql`false`.as("isApplied"),
+        applyStatus: isAuthenticatedUser
+          ? sql`(
+            SELECT aj.status FROM ${applyJobs} aj 
+            WHERE aj.job_id = ${jobs.id} 
+            AND aj.user_id = ${userId}
+            LIMIT 1
+          )`.as("applyStatus")
+          : sql`NULL`.as("applyStatus"),
+        applyId: isAuthenticatedUser
+          ? sql`(
+            SELECT aj.id FROM ${applyJobs} aj 
+            WHERE aj.job_id = ${jobs.id} 
+            AND aj.user_id = ${userId}
+            LIMIT 1
+          )`.as("applyId")
+          : sql`NULL`.as("applyId"),
+      })
+      .from(jobs)
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
+      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
+      .groupBy(jobs.id, companies.id)
+      .limit(1);
+
+    if (!result || result.length === 0) {
+      return null;
+    }
+
+    // get data from result
+    const data = result[0];
+
+    return {
+      job: data.job as Job,
+      provinces: data.provinces as Province[],
+      company: data.company as Company,
+      skills: data.skills as Skill[],
+      isSaved: (data.isSaved || undefined) as boolean | undefined,
+      isApplied: (data.isApplied || undefined) as boolean | undefined,
+      applyStatus: (data.applyStatus || undefined) as string | undefined,
+      applyId: (data.applyId || undefined) as string | undefined,
+    };
+  }
 }
