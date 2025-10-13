@@ -10,7 +10,6 @@ import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
 import { eq, and, gt, desc, or, ilike, SQL } from "drizzle-orm";
 import { OrganizationRole } from "@/common/constants/organization-roles";
-import { isNull } from "lodash";
 
 @Injectable()
 export class OrganizationMembersRepository

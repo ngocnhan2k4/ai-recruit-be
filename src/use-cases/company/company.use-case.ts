@@ -1,11 +1,15 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { ApiResponse, CompanySimpleResponseDto } from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { Company, ICompanyRepository } from "@/core";
 import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
-import { NotFoundError } from "rxjs";
 
 @Injectable()
 export class CompanyUseCase {
@@ -42,25 +46,32 @@ export class CompanyUseCase {
     userId: string,
     data: CreateCompanyDto,
   ): Promise<ApiResponse<Company>> {
-    try {
-      const organization = await this.companyRepository.create({
-        ...data,
-      });
-      const organizationMember =
-        await this.organizationMembersRepository.create({
-          userId: userId,
-          organizationId: organization.id,
-          role: OrganizationRole.ORGANIZATION_OWNER,
-        });
-      return {
-        message: "Company created successfully",
-        code: RESPONSE_CODE.SUCCESS,
-        data: organization,
-      };
-    } catch (error) {
-      this.logger.error(`Error creating company: ${error.message}`);
-      throw error;
+    const organization = await this.companyRepository.create({
+      ...data,
+    });
+    if (!organization) {
+      throw new BadRequestException(
+        "[CompanyUseCase] - [createCompany] Create company failed",
+      );
     }
+    const organizationMember = await this.organizationMembersRepository.create({
+      userId: userId,
+      organizationId: organization.id,
+      role: OrganizationRole.ORGANIZATION_OWNER,
+    });
+    if (!organizationMember) {
+      await this.companyRepository.delete({
+        id: organization.id,
+      });
+      throw new BadRequestException(
+        "[CompanyUseCase] - [createCompany] Create organization member failed",
+      );
+    }
+    return {
+      message: "Company created successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: organization,
+    };
   }
 
   async getCompaniesByUserId(
@@ -92,11 +103,15 @@ export class CompanyUseCase {
     companyId?: string,
   ): Promise<ApiResponse<Company & { role: string }>> {
     if (!companyId) {
-      throw new NotFoundException("Company ID is required");
+      throw new NotFoundException(
+        "[CompanyUseCase] - [getCompany] Company ID is required",
+      );
     }
     const company = await this.companyRepository.get(companyId);
     if (!company) {
-      throw new NotFoundException("Company not found");
+      throw new NotFoundException(
+        "[CompanyUseCase] - [getCompany] Company not found",
+      );
     }
     const role = userId
       ? await this.organizationMembersRepository

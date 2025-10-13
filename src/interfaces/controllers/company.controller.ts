@@ -60,7 +60,7 @@ export class CompanyController {
     summary: "Get company by ID",
     description: "Retrieve a company by its ID",
   })
-  @ApiResponseDto(CompanyDto)
+  @ApiResponseDto(GetCompanyDto)
   async getCompany(
     @GetUser() user: TokenPayload,
     @Param("companyId") companyId: string,
