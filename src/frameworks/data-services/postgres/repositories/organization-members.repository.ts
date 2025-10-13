@@ -9,6 +9,8 @@ import {
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
 import { eq, and, gt, desc, or, ilike, SQL } from "drizzle-orm";
+import { OrganizationRole } from "@/common/constants/organization-roles";
+import { isNull } from "lodash";
 
 @Injectable()
 export class OrganizationMembersRepository
@@ -17,6 +19,44 @@ export class OrganizationMembersRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, organizationMembers);
+  }
+  async findMemberByUserIdAndOrganizationId(
+    userId: string,
+    organizationId: string,
+  ): Promise<OrganizationMember | null> {
+    const member = await this.db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.userId, userId),
+          eq(organizationMembers.organizationId, organizationId),
+        ),
+      )
+      .limit(1);
+    return member.length > 0 ? member[0] : null;
+  }
+  removeMember(userId: string, organizationId: string): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  async updateMemberRole(
+    userId: string,
+    organizationId: string,
+    newRole: OrganizationRole,
+  ): Promise<OrganizationMember> {
+    const updatedAt = new Date();
+    const updated = await this.db
+      .update(organizationMembers)
+      .set({ role: newRole, updatedAt })
+      .where(
+        and(
+          eq(organizationMembers.userId, userId),
+          eq(organizationMembers.organizationId, organizationId),
+        ),
+      )
+      .returning();
+    return updated[0];
   }
 
   async getMembersByOrganizationId(

@@ -35,6 +35,24 @@ export class CompanyDto {
 
   @ApiProperty({ type: "string", nullable: true })
   websiteUrl: string | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  email: string | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  phone: string | null;
+
+  @ApiProperty({ type: "number", nullable: true })
+  foundingYear: number | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  taxCode: string | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  organizationCulture: string | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  benefits: string | null;
 }
 
 export class GetCompaniesQueryDto extends GeneralQueryDto {}
@@ -187,4 +205,8 @@ export class CompanySimpleResponseDto {
 
   @ApiProperty({ type: "string", nullable: true })
   createdAt?: string | null;
+}
+
+export class GetCompanyDto extends CompanyDto {
+  role: string;
 }

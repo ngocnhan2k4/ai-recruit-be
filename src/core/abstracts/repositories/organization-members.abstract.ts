@@ -20,4 +20,17 @@ export abstract class IOrganizationMembersRepository extends IGenericRepository<
     organizationId: string,
     filter?: MemberFilter,
   ): Promise<number>;
+
+  abstract findMemberByUserIdAndOrganizationId(
+    userId: string,
+    organizationId: string,
+  ): Promise<OrganizationMember | null>;
+
+  abstract removeMember(userId: string, organizationId: string): Promise<void>;
+
+  abstract updateMemberRole(
+    userId: string,
+    organizationId: string,
+    newRole: OrganizationRole,
+  ): Promise<OrganizationMember>;
 }
