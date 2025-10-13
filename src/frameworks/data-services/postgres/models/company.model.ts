@@ -6,6 +6,7 @@ import {
   integer,
   bigserial,
   timestamp,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import { users } from "../schema";
@@ -23,6 +24,9 @@ export const companies = pgTable("companies", {
   taxCode: varchar("tax_code", { length: 100 }),
   organization_culture: text("organization_culture"),
   benefits: text("benefits").array(),
+  companyRawId: bigint("company_raw_id", { mode: "number" }).references(
+    () => companyRaws.id,
+  ),
   ...timestamps,
 });
 
@@ -32,10 +36,11 @@ export const companyRaws = pgTable("company_raws", {
   logoUrl: varchar("logo_url", { length: 500 }),
   description: text("description"),
   address: text("address").array(),
-  employees: varchar("employees", { length: 50 }), // storing as string to handle ranges like "50-100"
+  employeesMin: integer("employees_min"),
+  employeesMax: integer("employees_max"),
   websiteUrl: varchar("website_url", { length: 500 }),
   source: varchar("source", { length: 255 }).notNull(),
-  crawled_at: timestamp("crawled_at").notNull().defaultNow(),
+  crawledAt: timestamp("crawled_at").notNull().defaultNow(),
 });
 
 export const organizationMembers = pgTable("organization_members", {

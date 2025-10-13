@@ -2,8 +2,8 @@ name: Crawl Jobs
 
 on:
   schedule:
-    # Runs at 7:30, and 17:30
-    - cron: "30 0,10 * * *"
+    # Runs at 17:30
+    - cron: "30 10 * * *"
   workflow_dispatch: # allows manual trigger too
 
 jobs:
