@@ -25,7 +25,7 @@ export const companies = pgTable("companies", {
   foundingYear: integer("founding_year"),
   taxCode: varchar("tax_code", { length: 100 }),
   organization_culture: text("organization_culture"),
-  benefits: text("benefits").array(),
+  benefits: text("benefits"),
   companyRawId: bigint("company_raw_id", { mode: "number" }).references(
     () => companyRaws.id,
   ),

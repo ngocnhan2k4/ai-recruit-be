@@ -184,7 +184,7 @@ export class CreateCompanyDto {
     description: "Company benefits",
     type: "array",
     items: { type: "string" },
-    example: "Health insurance, Paid time off, 401(k) matching",
+    example: "Health insurance Paid time off, 401(k) matching",
   })
   @IsOptional()
   benefits?: string;
