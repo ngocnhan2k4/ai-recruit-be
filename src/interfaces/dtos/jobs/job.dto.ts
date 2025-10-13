@@ -401,20 +401,11 @@ export class JobDto {
   experienceYear?: number | null;
 
   @ApiProperty({
-    type: "string",
-    description: "Application type",
-    example: "onsite",
-    enum: Object.values(ApplyType),
-  })
-  applyType: string;
-
-  @ApiProperty({
-    type: "string",
+    type: "number",
     nullable: true,
-    description: "Application URL for external applications",
-    example: "https://company.com/apply/job-123",
+    description: "Job Raw ID from jobRaws table",
   })
-  applyUrl: string | null;
+  jobRawId?: number | null;
 
   @ApiProperty({
     type: "string",
