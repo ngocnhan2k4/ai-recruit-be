@@ -53,6 +53,9 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ nullable: true })
   bio: string | null;
+
+  @ApiProperty({ nullable: true })
+  address: string | null;
 }
 
 export class UserDto {
