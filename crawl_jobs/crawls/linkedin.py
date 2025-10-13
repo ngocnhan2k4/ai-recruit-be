@@ -105,8 +105,6 @@ def linkedin_crawl(categories: list):
             "crawled_at": datetime.now(timezone.utc),
             "source": "linkedin"
         }
-    
-    print(companies)
 
     return companies
 

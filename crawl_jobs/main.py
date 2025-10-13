@@ -1,5 +1,4 @@
 import argparse
-from datetime import datetime, timezone, timedelta
 
 from crawls.itviec import itviec_crawl
 from crawls.topcv import topcv_crawl
