@@ -134,6 +134,82 @@ export class JobResponse {
   applyId?: string;
 }
 
+export class SavedJobsResponseDto {
+  @ApiProperty({
+    example: "uuid-of-job",
+    description: "Unique identifier for the job",
+    required: true,
+  })
+  id: string;
+  @ApiProperty({
+    example: "Senior Software Engineer",
+    description: "Title of the job",
+    required: true,
+  })
+  title: string;
+  @ApiProperty({
+    example: "25000000",
+    description: "Salary minimum for the job",
+    required: false,
+  })
+  salaryMin: string | null;
+  @ApiProperty({
+    example: "40000000",
+    description: "Salary maximum for the job",
+    required: false,
+  })
+  salaryMax: string | null;
+  @ApiProperty({
+    example: "Tech Corp",
+    description: "Name of the company offering the job",
+    required: true,
+  })
+  companyName: string;
+  @ApiProperty({
+    example: "https://example.com/logo.png",
+    description: "URL of the company's logo",
+    required: false,
+  })
+  logoUrl?: string;
+  @ApiProperty({
+    example: "remote",
+    description: "Work type (remote, onsite)",
+    required: false,
+  })
+  workType: "remote" | "onsite";
+  @ApiProperty({
+    example: "2023-01-01T00:00:00Z",
+    description: "Creation date of the job",
+    required: true,
+  })
+  createdAt: string;
+  @ApiProperty({
+    example: "2023-12-31",
+    description: "End date of the job",
+    required: false,
+  })
+  endedAt?: string;
+  @ApiProperty({
+    example: "Hanoi",
+    description: "Name of the province where the job is located",
+    required: true,
+  })
+  provinceName: string;
+  @ApiProperty({
+    example: true,
+    description: "Indicates if the job is saved by the user",
+    required: true,
+  })
+  isSaved: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: "Indicates if the user has applied for the job",
+    required: true,
+  })
+  isApplied: boolean;
+}
+
 export class JobPaginationResponseDto {
   @ApiProperty({
     type: [JobResponse],

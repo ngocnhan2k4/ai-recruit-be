@@ -1,12 +1,13 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { ICompanyRepository, Company } from "@/core";
-import { companies } from "../models/company.model";
+import { ICompanyRepository, Company, NewCompany } from "@/core";
+import { companies, organizationMembers } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { PaginatedResult } from "@/common/types/api";
-import { ilike, gt, and } from "drizzle-orm/sql/expressions/conditions";
 import { asc, SQL } from "drizzle-orm";
 import { orderBy } from "lodash";
+import { eq, and, gt, desc, Or, is, not, ilike } from "drizzle-orm";
+import { OrganizationRole } from "@/common/constants/organization-roles";
 
 @Injectable()
 export class CompanyRepository
@@ -16,31 +17,64 @@ export class CompanyRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
   }
-  getCompaniesByUserId(
+
+  async getCompaniesByUserId(
     userId: string,
     limit: number,
     cursor: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
+    PaginatedResult<
+      Pick<
+        Company,
+        "id" | "name" | "logoUrl" | "description" | "createdAt" | "foundingYear"
+      > & { role: string }
+    >
   > {
-    throw new Error("Method not implemented.");
-  }
-  createCompany(org: Partial<Company>): Promise<Company> {
-    throw new Error("Method not implemented.");
-  }
-  updateCompany(
-    companyId: string,
-    company: Partial<Company>,
-  ): Promise<Company | null> {
-    throw new Error("Method not implemented.");
-  }
-  deleteCompany(companyId: string): Promise<boolean> {
-    throw new Error("Method not implemented.");
-  }
-  getCompanyById(companyId: string): Promise<Company | null> {
-    throw new Error("Method not implemented.");
-  }
+    const whereConditions = [eq(organizationMembers.userId, userId)];
 
+    // Add cursor condition if provided
+    if (cursor) {
+      whereConditions.push(gt(companies.createdAt, new Date(cursor)));
+    }
+
+    // Fetch limit + 1 to check if there's a next page
+    const results = await this.db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        logoUrl: companies.logoUrl,
+        description: companies.description,
+        createdAt: companies.createdAt,
+        foundingYear: companies.foundingYear,
+        role: organizationMembers.role,
+      })
+      .from(companies)
+      .innerJoin(
+        organizationMembers,
+        eq(companies.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(companies.createdAt))
+      .limit(limit + 1);
+
+    // Check if there's a next page
+    const hasNextPage = results.length > limit;
+    const data = hasNextPage ? results.slice(0, limit) : results;
+
+    // Get the next cursor from the last item
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data: data,
+      pagination: {
+        cursor: nextCursor,
+        hasNextPage,
+      },
+    };
+  }
   async getAllSimple(): Promise<{ id: string; name: string }[]> {
     const result = await this.db
       .select({

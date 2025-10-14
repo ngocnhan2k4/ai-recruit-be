@@ -158,6 +158,7 @@ export class UserUseCases implements OnModuleInit {
         dob: user.dob,
         bio: user.bio,
         bannerUrl: user.bannerUrl,
+        address: user.address,
       },
     };
   }

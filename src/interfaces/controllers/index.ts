@@ -9,3 +9,5 @@ export * from "./province.controller";
 export * from "./cv.controller";
 export * from "./skill.controller";
 export * from "./university.controller";
+export * from "./organization/user-organization.controller";
+export * from "./organization/my-organization.controller";

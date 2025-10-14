@@ -23,14 +23,11 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
     limit: number,
     cursor: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "description">>
+    PaginatedResult<
+      Pick<
+        Company,
+        "id" | "name" | "logoUrl" | "description" | "createdAt" | "foundingYear"
+      > & { role: string }
+    >
   >;
-
-  abstract createCompany(org: Partial<Company>): Promise<Company>;
-  abstract updateCompany(
-    companyId: string,
-    company: Partial<Company>,
-  ): Promise<Company | null>;
-  abstract deleteCompany(companyId: string): Promise<boolean>;
-  abstract getCompanyById(companyId: string): Promise<Company | null>;
 }
