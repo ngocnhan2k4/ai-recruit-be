@@ -43,7 +43,7 @@ import {
 } from "@/core/abstracts/repositories/job-repository.abstract";
 
 export interface CursorPaginationResult<T> {
-  data: T[];
+  paginationData: T[];
   nextCursor?: string;
   hasNextPage: boolean;
 }
@@ -244,7 +244,7 @@ export class JobRepository
         : undefined;
 
     return {
-      data: transformedData,
+      paginationData: transformedData,
       nextCursor,
       hasNextPage,
     };
