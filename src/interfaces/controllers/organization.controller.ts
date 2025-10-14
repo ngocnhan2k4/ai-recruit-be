@@ -22,10 +22,11 @@ import { type TokenPayload } from "@/common/types/token";
 import { GeneralQueryDto } from "../dtos/common/query";
 
 @ApiTags("My-Organization")
-@Controller("organization")
+@Controller("organizations")
 export class MyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get("/me")
   @ApiOperation({
     summary: "Get auth user's organizations",
@@ -46,6 +47,7 @@ export class MyOrganizationController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiOperation({
     summary: "Create a new company",
@@ -59,6 +61,7 @@ export class MyOrganizationController {
     return await this.companyUseCase.createCompany(user.userId, data);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("users/:userId")
   @ApiOperation({
     summary: "Get organizations by user ID with cursor pagination",
