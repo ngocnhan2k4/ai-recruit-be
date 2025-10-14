@@ -74,7 +74,7 @@ export class UserController {
     return await this.userUseCases.checkUserByUsername(username);
   }
 
-  @UseGuards(CasbinGuard)
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",
