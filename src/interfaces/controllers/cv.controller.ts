@@ -11,7 +11,13 @@ import {
   Req,
   BadRequestException,
 } from "@nestjs/common";
-import { ApiOperation, ApiTags, ApiConsumes, ApiQuery } from "@nestjs/swagger";
+import {
+  ApiOperation,
+  ApiTags,
+  ApiConsumes,
+  ApiQuery,
+  ApiBody,
+} from "@nestjs/swagger";
 // Remove Express file interceptor import
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
@@ -22,6 +28,8 @@ import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { FastifyRequest } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
 import { RESPONSE_CODE } from "@/common/constants/response";
+import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { Cv } from "@/core";
 
 @ApiTags("CV")
 @Controller("cv")
@@ -56,60 +64,34 @@ export class CvController {
     description: "Upload a new CV for the authenticated user",
   })
   @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        name: { type: "string" },
+      },
+      required: ["file", "name"],
+    },
+  })
   @ApiResponseDto(CvDto)
   @Post()
   async createCv(
     @GetUser() user: TokenPayload,
-    @Req() request: FastifyRequest,
+    @UploadFileAndBody()
+    uploadFile: { file: MultipartFile; body: CvRequestDto },
   ): Promise<ApiResponse<CvDto>> {
-    // Parse multipart data more efficiently
-    const parts = request.parts();
-    let fileData: MultipartFile | null = null;
-
-    // Process parts efficiently - stop after finding first file
-    for await (const part of parts) {
-      if (part.type === "file") {
-        fileData = part;
-        break; // Stop after finding the first file
-      }
-    }
-
-    if (!fileData) {
+    if (!uploadFile)
       throw new BadRequestException({
-        message: "CV file is required",
-        code: RESPONSE_CODE.CV_FILE_REQUIRED,
+        message: "No file uploaded",
+        code: RESPONSE_CODE.BAD_REQUEST,
       });
-    }
-
-    // Validate file type
-    const allowedMimeTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    if (!allowedMimeTypes.includes(fileData.mimetype)) {
-      throw new BadRequestException({
-        message: "Only PDF, DOC, and DOCX files are allowed",
-        code: RESPONSE_CODE.CV_FILE_INVALID,
-      });
-    }
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (fileData.file && fileData.file.bytesRead > maxSize) {
-      throw new BadRequestException({
-        message: "File size must be less than 10MB",
-        code: RESPONSE_CODE.CV_FILE_INVALID,
-      });
-    }
-
-    const createCvDto: CvRequestDto = {
-      fileName: fileData.filename || "cv_file",
-      mimeType: fileData.mimetype,
-      fileSize: fileData.file.bytesRead || 0,
-    };
-
-    return this.cvUseCases.createCv(user.userId, fileData, createCvDto);
+    return this.cvUseCases.createCv(user.userId, uploadFile.file, {
+      ...uploadFile.body,
+      fileName: uploadFile.file?.filename || undefined,
+      mimeType: uploadFile.file?.mimetype,
+      fileSize: uploadFile.file?.file ? uploadFile.file.file.bytesRead || 0 : 0,
+    });
   }
 
   @ApiOperation({
@@ -117,60 +99,40 @@ export class CvController {
     description: "Update an existing CV",
   })
   @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        name: { type: "string" },
+      },
+    },
+  })
   @ApiResponseDto(CvDto)
   @Put(":id")
   async updateCv(
     @GetUser() user: TokenPayload,
     @Param("id") cvId: string,
-    @Req() request: FastifyRequest,
+    @UploadFileAndBody({ required: false })
+    uploadFile: { file?: MultipartFile; body: CvRequestDto },
   ): Promise<ApiResponse<CvDto>> {
-    const parts = request.parts();
-    let fileData: MultipartFile | null = null;
-
-    // Process parts efficiently - stop after finding first file
-    for await (const part of parts) {
-      if (part.type === "file") {
-        fileData = part;
-        break; // Stop after finding the first file
-      }
-    }
-
-    // Validate file if provided
-    if (fileData) {
-      const allowedMimeTypes = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-      if (!allowedMimeTypes.includes(fileData.mimetype)) {
-        throw new BadRequestException({
-          message: "Only PDF, DOC, and DOCX files are allowed",
-          code: RESPONSE_CODE.CV_FILE_INVALID,
-        });
-      }
-
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (fileData.file && fileData.file.bytesRead > maxSize) {
-        throw new BadRequestException({
-          message: "File size must be less than 10MB",
-          code: RESPONSE_CODE.CV_FILE_INVALID,
-        });
-      }
-    }
-
-    const updateCvDto: CvRequestDto = {};
+    const updateCvDto: CvRequestDto = {
+      ...uploadFile.body,
+    };
 
     // Only update file-related fields if a new file is provided
-    if (fileData) {
-      updateCvDto.fileName = fileData.filename || undefined;
-      updateCvDto.mimeType = fileData.mimetype;
-      updateCvDto.fileSize = fileData.file ? fileData.file.bytesRead || 0 : 0;
+    if (uploadFile.file) {
+      updateCvDto.fileName = uploadFile.file?.filename || undefined;
+      updateCvDto.mimeType = uploadFile.file?.mimetype;
+      updateCvDto.fileSize = uploadFile.file?.file
+        ? uploadFile.file.file.bytesRead || 0
+        : 0;
     }
 
     return this.cvUseCases.updateCv(
       user.userId,
       cvId,
-      fileData || undefined,
+      uploadFile.file || undefined,
       updateCvDto,
     );
   }

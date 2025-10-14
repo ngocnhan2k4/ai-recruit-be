@@ -22,7 +22,7 @@ export interface JobFilters {
 }
 
 export interface CursorPaginationResult<T> {
-  data: T[];
+  paginationData: T[];
   nextCursor?: string;
   hasNextPage: boolean;
 }
