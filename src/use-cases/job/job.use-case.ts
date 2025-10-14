@@ -32,7 +32,7 @@ export class JobUseCases {
     filters?: JobFilters & { userId?: string },
   ): Promise<
     ApiResponse<{
-      jobData: {
+      paginationData: {
         job: JobDto;
         provinces: Province[];
         company: Company;
@@ -46,11 +46,10 @@ export class JobUseCases {
       hasNextPage: boolean;
     }>
   > {
-    console.log(filters);
     const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
-    this.logger.log(`Fetched ${result.data.length} jobs`);
+    this.logger.log(`Fetched ${result.paginationData.length} jobs`);
     // Transform Job entities to JobDtos
-    const transformedJobData = result.data.map((item) => ({
+    const transformedJobData = result.paginationData.map((item) => ({
       ...item,
       job: {
         ...item.job,
@@ -62,7 +61,7 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        jobData: transformedJobData,
+        paginationData: transformedJobData,
         nextCursor: result.nextCursor,
         hasNextPage: result.hasNextPage,
       },
@@ -381,6 +380,18 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: transformedJob,
+    };
+  }
+  async getApplyJobs(
+    jobId: string,
+  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
+    const result = await this.jobRepository.getApplyJobs(jobId);
+    this.logger.log(`Get job applications for job ${jobId}`);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
     };
   }
 

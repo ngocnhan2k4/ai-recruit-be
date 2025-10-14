@@ -28,6 +28,7 @@ export class CvUseCases {
       .map((cv) => ({
         id: cv.id,
         userId: cv.userId,
+        name: cv.name,
         fileUrl: cv.fileUrl,
         fileName: cv.fileName,
         mimeType: cv.mimeType,
@@ -70,6 +71,7 @@ export class CvUseCases {
     // Save CV record to database
     const newCv = await this.cvRepository.create({
       userId: userId,
+      name: createCvDto.name,
       fileUrl: uploadResult.data.url,
       fileName: createCvDto.fileName,
       mimeType: createCvDto.mimeType,
@@ -84,6 +86,7 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: newCv.id,
       userId: newCv.userId,
+      name: newCv.name,
       fileUrl: newCv.fileUrl,
       fileName: newCv.fileName,
       mimeType: newCv.mimeType,
@@ -133,9 +136,7 @@ export class CvUseCases {
     }
 
     // Prepare update data
-    const updateData: Partial<Cv> = {
-      updatedAt: new Date(),
-    };
+    const updateData: Partial<Cv> = {};
 
     if (fileUrl) {
       updateData.fileUrl = fileUrl;
@@ -152,17 +153,20 @@ export class CvUseCases {
     if (updateCvDto?.fileSize !== undefined) {
       updateData.fileSize = updateCvDto.fileSize;
     }
+    if (updateCvDto?.name !== undefined) {
+      updateData.name = updateCvDto.name;
+    }
 
     // Update lastUsed when file is updated
     if (fileUrl) {
       updateData.lastUsed = new Date();
     }
-
     // Update CV record in database
-    const updatedCv = await this.cvRepository.update(
+    const updatedRows = await this.cvRepository.update(
       { id: cvId },
       updateData,
-    )[0];
+    );
+    const updatedCv = updatedRows[0];
     if (!updatedCv) {
       throw new BadRequestException({
         message: "Failed to update CV",
@@ -177,6 +181,7 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: updatedCv.id,
       userId: updatedCv.userId,
+      name: updatedCv.name,
       fileUrl: updatedCv.fileUrl,
       fileName: updatedCv.fileName,
       mimeType: updatedCv.mimeType,

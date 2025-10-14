@@ -12,7 +12,7 @@ import { CompanyUseCase } from "@/use-cases/company/company.use-case";
 import {
   CreateCompanyDto,
   CompanyDto,
-  CompanySimpleResponseDto,
+  GetCompaniesQueryDto,
   GetCompanyDto,
 } from "@/interfaces/dtos";
 import {
@@ -22,19 +22,32 @@ import {
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
+import { PaginatedResult } from "../dtos/common/query";
 @ApiTags("Companies")
 @Controller("companies")
 export class CompanyController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
-  @Get("/all/simple")
+  @Get()
   @ApiOperation({
-    summary: "Get all companies",
-    description: "Get a simple list of all companies with id and name",
+    summary: "Get companies with cursor pagination",
+    description: "Retrieve a list of companies with cursor-based pagination",
   })
-  @ApiResponseDto(CompanySimpleResponseDto, { isArray: true })
-  async getSimpleCompanies(): Promise<ApiResponse<CompanySimpleResponseDto[]>> {
-    return await this.companyUseCase.getSimpleCompanies();
+  @ApiResponseDto(CompanyDto, {
+    isArray: true,
+  })
+  async getPaginationCompanies(
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    >
+  > {
+    return await this.companyUseCase.getCompanies(
+      query.limit,
+      query.keyword,
+      query.cursor,
+    );
   }
 
   @Get("/all")

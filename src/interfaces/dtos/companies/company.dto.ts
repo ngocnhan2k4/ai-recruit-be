@@ -190,23 +190,6 @@ export class CreateCompanyDto {
   benefits?: string;
 }
 
-export class CompanySimpleResponseDto {
-  @ApiProperty({ type: "string", format: "uuid" })
-  id: string;
-
-  @ApiProperty({ type: "string" })
-  name: string;
-
-  @ApiProperty({ type: "string" })
-  description?: string;
-
-  @ApiProperty({ type: "string", nullable: true })
-  logoUrl?: string | null;
-
-  @ApiProperty({ type: "string", nullable: true })
-  createdAt?: string | null;
-}
-
 export class GetCompanyDto extends CompanyDto {
   role: string;
 }

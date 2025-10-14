@@ -6,10 +6,16 @@ export interface CreateCompanyData {
   name: string;
 }
 export abstract class ICompanyRepository extends IGenericRepository<Company> {
-  abstract getAllSimple(): Promise<{ id: string; name: string }[]>;
-
   abstract getAllCompanies(): Promise<
     Pick<Company, "id" | "name" | "logoUrl" | "address">[]
+  >;
+
+  abstract getCompanies(
+    limit: number,
+    keyword?: string,
+    cursor?: string,
+  ): Promise<
+    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
   >;
 
   abstract getCompaniesByUserId(

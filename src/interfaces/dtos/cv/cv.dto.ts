@@ -13,6 +13,15 @@ export class CvRequestDto {
   fileName?: string;
 
   @ApiProperty({
+    example: "My Software Engineer CV",
+    required: false,
+    description: "Name of the CV",
+  })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({
     example: "application/pdf",
     required: false,
     description: "MIME type of the CV file",
@@ -38,6 +47,13 @@ export class CvDto {
     description: "CV ID",
   })
   id: string;
+
+  @ApiProperty({
+    example: "My Software Engineer CV",
+    description: "Name of the CV",
+  })
+  @IsString()
+  name: string;
 
   @ApiProperty({
     example: "uuid-user-id",

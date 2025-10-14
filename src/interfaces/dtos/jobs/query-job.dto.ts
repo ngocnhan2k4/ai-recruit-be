@@ -215,7 +215,7 @@ export class JobPaginationResponseDto {
     type: [JobResponse],
     description: "Array of job responses",
   })
-  jobData: JobResponse[];
+  paginationData: JobResponse[];
 
   @ApiProperty({
     required: false,

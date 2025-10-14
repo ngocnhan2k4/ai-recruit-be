@@ -22,7 +22,7 @@ export interface JobFilters {
 }
 
 export interface CursorPaginationResult<T> {
-  data: T[];
+  paginationData: T[];
   nextCursor?: string;
   hasNextPage: boolean;
 }
@@ -120,6 +120,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     applyStatus?: string;
     applyId?: string;
   } | null>;
+
+  abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
 
   abstract getAllSavedJobs(
     userId: string,

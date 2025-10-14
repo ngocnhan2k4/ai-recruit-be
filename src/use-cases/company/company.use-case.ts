@@ -4,10 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { ApiResponse, CompanySimpleResponseDto } from "@/interfaces/dtos";
+import { ApiResponse } from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { Company, ICompanyRepository } from "@/core";
+import { PaginatedResult } from "@/common/types/api";
 import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
 
@@ -20,16 +21,6 @@ export class CompanyUseCase {
 
   private readonly logger = new Logger(CompanyUseCase.name);
 
-  async getSimpleCompanies(): Promise<ApiResponse<CompanySimpleResponseDto[]>> {
-    const data = await this.companyRepository.getAllSimple();
-    this.logger.log(`Fetched ${data.length} companies`);
-    return {
-      message: "Companies fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: data,
-    };
-  }
-
   async getAllCompanies(): Promise<
     ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
   > {
@@ -37,6 +28,27 @@ export class CompanyUseCase {
 
     return {
       message: "Companies retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async getCompanies(
+    limit = 20,
+    keyword?: string,
+    cursor?: string,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    >
+  > {
+    const result = await this.companyRepository.getCompanies(
+      limit,
+      keyword,
+      cursor,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
     };
