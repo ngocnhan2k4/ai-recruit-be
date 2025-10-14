@@ -382,6 +382,18 @@ export class JobUseCases {
       data: transformedJob,
     };
   }
+  async getApplyJobs(
+    jobId: string,
+  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
+    const result = await this.jobRepository.getApplyJobs(jobId);
+    this.logger.log(`Get job applications for job ${jobId}`);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
 
   async getAllSavedJobs(
     userId: string,

@@ -121,6 +121,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     applyId?: string;
   } | null>;
 
+  abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
+
   abstract getAllSavedJobs(
     userId: string,
     sortOption: "createdAt" | "endedAt",

@@ -115,6 +115,15 @@ export class HideJobDto {
   hide?: boolean;
 }
 
+export class ApplyJobQueryDto {
+  @ApiProperty({
+    example: "uuid-apply-id",
+    description: "Job ID",
+  })
+  @IsUUID()
+  jobId: string;
+}
+
 export class ApplyJobResponseDto {
   @ApiProperty({
     example: "uuid-apply-id",

@@ -27,6 +27,7 @@ import {
   HideJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
+  ApplyJobQueryDto,
 } from "../dtos/jobs/job-interaction.dto";
 import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -131,6 +132,19 @@ export class JobController {
     @Param("applyId") applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     return await this.jobUseCases.getApplyJobById(user.userId, applyId);
+  }
+
+  @ApiOperation({
+    summary: "Get job applications by job ID",
+    description: "Retrieve a job applications by job ID",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(ApplyJobResponseDto)
+  @Get("apply")
+  async getApplyJobs(
+    @Query() query: ApplyJobQueryDto,
+  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
+    return await this.jobUseCases.getApplyJobs(query.jobId);
   }
 
   @ApiOperation({
