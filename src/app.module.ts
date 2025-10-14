@@ -10,7 +10,6 @@ import {
   ProvinceController,
   CvController,
   UniversityController,
-  UserOrganizationController,
   MyOrganizationController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -80,7 +79,6 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvController,
     SkillController,
     UniversityController,
-    UserOrganizationController,
     MyOrganizationController,
   ],
   providers: [

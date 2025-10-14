@@ -20,16 +20,14 @@ import {
   ApiResponseDto,
 } from "@/interfaces/dtos/common/api-response.dto";
 import { Company } from "@/core/entities";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
-import { PaginatedResult } from "@/common/types/api";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
+import { PaginatedResult } from "../dtos/common/query";
 @ApiTags("Companies")
 @Controller("companies")
 export class CompanyController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
-  @UseGuards(GuestGuard)
   @Get()
   @ApiOperation({
     summary: "Get companies with cursor pagination",
@@ -52,7 +50,6 @@ export class CompanyController {
     );
   }
 
-  @UseGuards(GuestGuard)
   @Get("/all")
   @ApiOperation({
     summary: "Get companies with cursor pagination",
@@ -67,7 +64,6 @@ export class CompanyController {
     return await this.companyUseCase.getAllCompanies();
   }
 
-  @UseGuards(GuestGuard)
   @Get("/:companyId")
   @ApiOperation({
     summary: "Get company by ID",

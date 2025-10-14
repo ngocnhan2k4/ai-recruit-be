@@ -30,7 +30,6 @@ export const ProviderEnum = pgEnum("provider", [
   "google",
   "facebook",
   "github",
-  "anonymous",
 ]);
 
 export const users = pgTable(
