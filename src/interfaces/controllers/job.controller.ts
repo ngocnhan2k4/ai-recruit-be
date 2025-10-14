@@ -28,7 +28,6 @@ import {
   ApplyJobDto,
   UpdateApplyJobDto,
 } from "../dtos/jobs/job-interaction.dto";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
@@ -44,7 +43,6 @@ export class JobController {
     description:
       "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
   })
-  @UseGuards(GuestGuard)
   @ApiResponseDto(JobPaginationResponseDto)
   @Get()
   async getAll(
@@ -76,7 +74,6 @@ export class JobController {
     description:
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
-  @UseGuards(GuestGuard)
   @ApiResponseDto(StatisticsJobResponse)
   @Get("statistics")
   async getStatisticsJob(
@@ -212,7 +209,6 @@ export class JobController {
     summary: "Get job by ID",
     description: "Retrieve a specific job by its ID",
   })
-  @UseGuards(GuestGuard)
   @ApiResponseDto(JobResponse)
   @Get(":id")
   async getJobById(

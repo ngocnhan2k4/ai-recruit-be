@@ -15,19 +15,18 @@ import {
   ApiResponseDto,
   CompanyDto,
   CreateCompanyDto,
-} from "../../dtos";
+} from "../dtos";
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
+import { GeneralQueryDto } from "../dtos/common/query";
 
-@UseGuards(GuestGuard)
 @ApiTags("My-Organization")
-@Controller("users/me/org")
+@Controller("organization")
 export class MyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
-  @Get()
+  @Get("/me")
   @ApiOperation({
     summary: "Get auth user's organizations",
     description:
@@ -36,7 +35,7 @@ export class MyOrganizationController {
   @ApiResponseDto(CompanyDto, {
     isArray: true,
   })
-  async getCompaniesByUserId(
+  async getCompaniesByOwner(
     @GetUser() user: TokenPayload,
     @Query() query: { limit: number; cursor: string },
   ): Promise<ApiResponse<Partial<Company>[]>> {
@@ -57,7 +56,26 @@ export class MyOrganizationController {
     @GetUser() user: TokenPayload,
     @Body() data: CreateCompanyDto,
   ): Promise<ApiResponse<Company>> {
-    console.log("data", data);
     return await this.companyUseCase.createCompany(user.userId, data);
+  }
+
+  @Get("users/:userId")
+  @ApiOperation({
+    summary: "Get organizations by user ID with cursor pagination",
+    description:
+      "Retrieve a list of organizations associated with a specific user using cursor-based pagination",
+  })
+  @ApiResponseDto(CompanyDto, {
+    isArray: true,
+  })
+  async getCompaniesByUserId(
+    @Param("userId") userId: string,
+    @Query() query: GeneralQueryDto,
+  ): Promise<ApiResponse<Partial<Company>[]>> {
+    return await this.companyUseCase.getCompaniesByUserId(
+      userId,
+      query.limit,
+      query.cursor || "",
+    );
   }
 }

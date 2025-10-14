@@ -45,7 +45,6 @@ import {
   DeleteUserSkillResponseDto,
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
@@ -75,7 +74,7 @@ export class UserController {
     return await this.userUseCases.checkUserByUsername(username);
   }
 
-  @UseGuards(GuestGuard, CasbinGuard)
+  @UseGuards(CasbinGuard)
   @ApiOperation({
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",

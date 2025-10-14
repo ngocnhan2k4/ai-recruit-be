@@ -20,7 +20,6 @@ import {
   ApiResponseDto,
 } from "@/interfaces/dtos/common/api-response.dto";
 import { Company } from "@/core/entities";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 @ApiTags("Companies")
@@ -34,12 +33,10 @@ export class CompanyController {
     description: "Get a simple list of all companies with id and name",
   })
   @ApiResponseDto(CompanySimpleResponseDto, { isArray: true })
-  @UseGuards(GuestGuard)
   async getSimpleCompanies(): Promise<ApiResponse<CompanySimpleResponseDto[]>> {
     return await this.companyUseCase.getSimpleCompanies();
   }
 
-  @UseGuards(GuestGuard)
   @Get("/all")
   @ApiOperation({
     summary: "Get companies with cursor pagination",
@@ -54,7 +51,6 @@ export class CompanyController {
     return await this.companyUseCase.getAllCompanies();
   }
 
-  @UseGuards(GuestGuard)
   @Get("/:companyId")
   @ApiOperation({
     summary: "Get company by ID",

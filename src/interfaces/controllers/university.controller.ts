@@ -1,7 +1,6 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponseDto, ApiResponse, UniversityDto } from "../dtos";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { UniversityUseCases } from "@/use-cases/university/university.use-case";
 
 @ApiTags("Universities")
@@ -13,7 +12,6 @@ export class UniversityController {
     summary: "Get all universities",
   })
   @ApiResponseDto(UniversityDto, { isArray: true })
-  @UseGuards(GuestGuard)
   @Get("/all")
   async getUniversities(): Promise<ApiResponse<UniversityDto[]>> {
     return this.universityUseCases.getUniversities();
