@@ -25,6 +25,7 @@ import {
   userInteractions,
   applyJobs,
   userCV,
+  jobRaws,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
@@ -41,6 +42,7 @@ import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
+import { app } from "firebase-admin";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -172,6 +174,7 @@ export class JobRepository
           sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
             "skills",
           ),
+        applyUrl: jobRaws.url,
         isSaved:
           filters?.userId && filters.userId !== AnonymousId
             ? sql`EXISTS (
@@ -213,14 +216,16 @@ export class JobRepository
       .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(jobs.id, companies.id)
+      .groupBy(jobs.id, companies.id, jobRaws.url)
       .orderBy(desc(jobs.priority), asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
       company: Company;
       skills: Skill[];
+      applyUrl: string | null;
       isSaved: boolean;
       isApplied: boolean;
       applyStatus: string | null;
@@ -234,6 +239,7 @@ export class JobRepository
     // Transform null values to undefined for optional fields
     const transformedData = data.map((item) => ({
       ...item,
+      applyUrl: item.applyUrl || undefined,
       applyStatus: item.applyStatus || undefined,
       applyId: item.applyId || undefined,
     }));
@@ -472,6 +478,16 @@ export class JobRepository
       .limit(1);
 
     return result[0] as ApplyJobResponseDto | null;
+  }
+
+  async getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]> {
+    const result = await this.db
+      .select()
+      .from(applyJobs)
+      .where(eq(applyJobs.jobId, jobId))
+      .orderBy(desc(applyJobs.createdAt));
+    console.log(result);
+    return result as ApplyJobResponseDto[];
   }
 
   async saveJob(
