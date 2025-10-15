@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, GetCompaniesQueryDto } from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { Company, ICompanyRepository } from "@/core";
@@ -54,6 +54,27 @@ export class CompanyUseCase {
     };
   }
 
+  async getCompaniesByName(
+    limit = 20,
+    name?: string,
+    cursor?: string,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    >
+  > {
+    const result = await this.companyRepository.getCompaniesByName(
+      limit,
+      name,
+      cursor,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
   async createCompany(
     userId: string,
     data: CreateCompanyDto,
@@ -88,25 +109,17 @@ export class CompanyUseCase {
 
   async getCompaniesByUserId(
     userId: string,
-    limit: number,
-    cursor: string,
-  ): Promise<ApiResponse<Partial<Company>[]>> {
+    query: GetCompaniesQueryDto,
+  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
     const res = await this.companyRepository.getCompaniesByUserId(
       userId,
-      limit,
-      cursor,
+      query.limit,
+      query.cursor,
     );
     return {
       message: "Companies fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: res.data.map((company) => ({
-        id: company.id,
-        name: company.name,
-        logoUrl: company.logoUrl,
-        description: company.description,
-        role: company.role,
-        foundingYear: company.foundingYear,
-      })),
+      data: res,
     };
   }
 
@@ -132,7 +145,11 @@ export class CompanyUseCase {
             member ? member.role : OrganizationRole.ANONYMOUSLY,
           )
       : OrganizationRole.ANONYMOUSLY;
-
+    console.log("[CompanyUseCase] - [getCompany]: ", {
+      userId,
+      companyId,
+      role,
+    });
     return {
       data: { ...company, role },
       message: "Company fetched successfully",

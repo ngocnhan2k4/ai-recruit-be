@@ -18,10 +18,18 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
     PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
   >;
 
+  abstract getCompaniesByName(
+    limit: number,
+    name?: string,
+    cursor?: string,
+  ): Promise<
+    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+  >;
+
   abstract getCompaniesByUserId(
     userId: string,
-    limit: number,
-    cursor: string,
+    limit?: number,
+    cursor?: string,
   ): Promise<
     PaginatedResult<
       Pick<

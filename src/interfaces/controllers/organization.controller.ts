@@ -1,4 +1,4 @@
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import { CasbinGuard, JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { CompanyUseCase } from "@/use-cases/company/company.use-case";
 import {
   Body,
@@ -15,13 +15,15 @@ import {
   ApiResponseDto,
   CompanyDto,
   CreateCompanyDto,
+  GetCompaniesQueryDto,
+  GetCompanyDto,
 } from "../dtos";
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { GeneralQueryDto } from "../dtos/common/query";
+import { PaginatedResult } from "../dtos/common/query";
 
-@ApiTags("My-Organization")
+@ApiTags("Organization")
 @Controller("organizations")
 export class MyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
@@ -38,13 +40,9 @@ export class MyOrganizationController {
   })
   async getCompaniesByOwner(
     @GetUser() user: TokenPayload,
-    @Query() query: { limit: number; cursor: string },
-  ): Promise<ApiResponse<Partial<Company>[]>> {
-    return await this.companyUseCase.getCompaniesByUserId(
-      user.userId,
-      query.limit,
-      query.cursor,
-    );
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
+    return await this.companyUseCase.getCompaniesByUserId(user.userId, query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -73,12 +71,79 @@ export class MyOrganizationController {
   })
   async getCompaniesByUserId(
     @Param("userId") userId: string,
-    @Query() query: GeneralQueryDto,
-  ): Promise<ApiResponse<Partial<Company>[]>> {
-    return await this.companyUseCase.getCompaniesByUserId(
-      userId,
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
+    return await this.companyUseCase.getCompaniesByUserId(userId, query);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: "Get companies with cursor pagination",
+    description: "Retrieve a list of companies with cursor-based pagination",
+  })
+  @ApiResponseDto(CompanyDto, {
+    isArray: true,
+  })
+  async getPaginationCompanies(
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    >
+  > {
+    return await this.companyUseCase.getCompanies(
       query.limit,
-      query.cursor || "",
+      query.keyword,
+      query.cursor,
     );
+  }
+
+  @Get("/searchByName")
+  @ApiOperation({
+    summary: "Search companies by name with cursor pagination",
+    description: "Search for companies by name using cursor-based pagination",
+  })
+  @ApiResponseDto(CompanyDto, {
+    isArray: true,
+  })
+  async getCompaniesByName(
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    >
+  > {
+    return await this.companyUseCase.getCompaniesByName(
+      query.limit,
+      query.keyword,
+      query.cursor,
+    );
+  }
+
+  @Get("/all")
+  @ApiOperation({
+    summary: "Get companies with cursor pagination",
+    description: "Retrieve a list of companies with cursor-based pagination",
+  })
+  @ApiResponseDto(CompanyDto, {
+    isArray: true,
+  })
+  async getCompanies(): Promise<
+    ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
+  > {
+    return await this.companyUseCase.getAllCompanies();
+  }
+
+  @Get("/:orgId")
+  @ApiOperation({
+    summary: "Get organization by ID",
+    description: "Retrieve an organization by its ID",
+  })
+  @ApiResponseDto(GetCompanyDto)
+  async getOrganization(
+    @GetUser() user: TokenPayload,
+    @Param("orgId") orgId: string,
+  ): Promise<ApiResponse<GetCompanyDto>> {
+    return await this.companyUseCase.getCompany(user?.userId, orgId);
   }
 }
