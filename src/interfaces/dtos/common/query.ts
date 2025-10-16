@@ -19,13 +19,13 @@ export class GeneralQueryDto {
   limit: number = 10;
 
   @ApiProperty({
-    example: 0,
+    example: 1,
     required: false,
     description: "Number of items to skip",
   })
-  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  @Transform(({ value }: { value: string }) => parseInt(value, 1))
   @IsNumber()
-  offset: number = 0;
+  page: number = 1;
 
   @ApiProperty({
     required: false,
@@ -83,7 +83,7 @@ export class PaginationResponseDto {
   total?: number;
 }
 
-export class PaginatedResult<T> {
+export class PaginatedResultDto<T> {
   @ApiProperty({ isArray: true })
   data: T[];
 

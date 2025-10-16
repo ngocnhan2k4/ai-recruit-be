@@ -10,8 +10,17 @@ export interface GeneralResponse {
 export interface PaginatedResult<T> {
   data: T[];
   pagination: {
-    cursor?: string | null;
+    nextCursor?: string | null;
     hasNextPage?: boolean;
     total?: number;
   };
+}
+
+export interface GeneralQuery {
+  limit?: number;
+  cursor?: string;
+  page?: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+  keyword?: string;
 }

@@ -70,7 +70,7 @@ export class CompanyRepository
     return {
       data: data,
       pagination: {
-        cursor: nextCursor,
+        nextCursor: nextCursor,
         hasNextPage,
       },
     };
@@ -136,7 +136,7 @@ export class CompanyRepository
     return {
       data,
       pagination: {
-        cursor: data.length > 0 ? data[data.length - 1].id : null,
+        nextCursor: data.length > 0 ? data[data.length - 1].id : null,
         hasNextPage,
       },
     };
