@@ -80,14 +80,6 @@ export class CvDto {
   mimeType: string;
 
   @ApiProperty({
-    example: 1024000,
-    description: "File size in bytes",
-  })
-  @IsNumber()
-  @Transform(({ value }) => Number(value))
-  fileSize: number;
-
-  @ApiProperty({
     description: "Last used timestamp",
   })
   lastUsed: Date;

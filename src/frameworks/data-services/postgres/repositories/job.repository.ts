@@ -26,6 +26,7 @@ import {
   applyJobs,
   userCV,
   jobRaws,
+  JobStatusEnum,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
@@ -37,6 +38,8 @@ import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
+  JobStatus,
+  ApplyStatus,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
@@ -151,14 +154,6 @@ export class JobRepository
       // Format: "priority:id" (e.g., "5:uuid-string")
       const [cursorPriority, cursorId] = cursor.split(":");
       const cursorPriorityNum = parseInt(cursorPriority);
-      whereConditions.push(
-        or(
-          // Higher priority than cursor
-          gt(jobs.priority, cursorPriorityNum),
-          // Same priority but higher ID
-          and(eq(jobs.priority, cursorPriorityNum), gt(jobs.id, cursorId)),
-        ) as SQL,
-      );
     }
 
     // Add one extra item to check if there's a next page
@@ -219,7 +214,7 @@ export class JobRepository
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(jobs.id, companies.id, jobRaws.url)
-      .orderBy(desc(jobs.priority), asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
+      .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -246,7 +241,7 @@ export class JobRepository
     // Create composite cursor: "priority:id"
     const nextCursor =
       hasNextPage && result[limit - 1]?.job
-        ? `${result[limit - 1].job.priority}:${result[limit - 1].job.id}`
+        ? `${result[limit - 1].job.id}`
         : undefined;
 
     return {
@@ -402,7 +397,7 @@ export class JobRepository
         jobId,
         userCvId,
         answers,
-        status: "applied",
+        status: ApplyStatus.PENDING,
       })
       .returning();
 
@@ -422,7 +417,7 @@ export class JobRepository
   async updateApplyJob(
     applyId: string,
     userId: string,
-    status?: string,
+    status?: ApplyStatus,
     userCvId?: string,
     answers?: JobAnswerDto[],
   ): Promise<ApplyJobResponseDto | null> {
@@ -438,7 +433,10 @@ export class JobRepository
     }
 
     // If user wants to change answers or userCvId, status must be APPLIED
-    if ((answers || userCvId) && existingApplication[0].status !== "applied") {
+    if (
+      (answers || userCvId) &&
+      existingApplication[0].status !== ApplyStatus.PENDING
+    ) {
       throw new Error("Status must be 'applied' to change answers or userCvId");
     }
 
@@ -611,7 +609,6 @@ export class JobRepository
       endDate: job.endDate,
       workType: job.workType,
       jobRawId: job.jobRawId,
-      priority: job.priority || 0,
       provinceId: job.provinceId,
       questions: job.questions,
       status: job.status || "active",

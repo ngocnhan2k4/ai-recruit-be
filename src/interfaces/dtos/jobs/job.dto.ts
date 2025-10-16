@@ -19,13 +19,15 @@ export enum ApplyType {
   GOTO_URL = "goto_url",
 }
 
-export enum Status {
+export enum JobStatus {
+  DRAFT = "draft",
+  PENDING_APPROVAL = "pending_approval",
   ACTIVE = "active",
-  INACTIVE = "inactive",
+  PAUSED = "paused",
+  CLOSED = "closed",
 }
 
 export enum ApplyStatus {
-  APPLIED = "applied",
   PENDING = "pending",
   ACCEPTED = "accepted",
   REJECTED = "rejected",
@@ -76,15 +78,6 @@ export class CreateJobDto {
   })
   @IsOptional()
   @IsDateString()
-  datePosted?: string | null;
-
-  @ApiProperty({
-    type: "string",
-    format: "date",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsDateString()
   endDate?: string | null;
 
   @ApiProperty({
@@ -112,33 +105,14 @@ export class CreateJobDto {
   @ApiProperty({
     type: "string",
     nullable: true,
-    description: "Application URL for external applications",
-    example: "https://company.com/apply/job-123",
-  })
-  @IsOptional()
-  @IsString()
-  applyUrl: string | null;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(Status),
-    default: Status.ACTIVE,
+    enum: Object.values(JobStatus),
+    default: JobStatus.ACTIVE,
   })
   @IsOptional()
-  @IsEnum(Status)
-  status: string;
-
-  @ApiProperty({
-    type: "number",
-    nullable: true,
-    description: "Priority level",
-  })
-  @IsOptional()
-  @IsNumber()
-  priority?: number | null;
+  @IsEnum(JobStatus)
+  status: JobStatus;
 
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsOptional()
@@ -268,11 +242,11 @@ export class UpdateJobDto {
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(Status),
+    enum: Object.values(JobStatus),
   })
   @IsOptional()
-  @IsEnum(Status)
-  status: string;
+  @IsEnum(JobStatus)
+  status: JobStatus;
 
   @ApiProperty({
     type: "number",
@@ -339,11 +313,6 @@ export class JobDto {
   @ApiProperty({
     type: [String],
     nullable: true,
-    description: "Array of questions for the job",
-    example: [
-      "What is your experience with React?",
-      "How do you handle state management?",
-    ],
   })
   questions: string[] | null;
 
@@ -367,9 +336,6 @@ export class JobDto {
 
   @ApiProperty({ type: "string", nullable: true })
   endDate: string | null;
-
-  @ApiProperty({ type: "number", nullable: true })
-  priority: number | null;
 
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   provinceId: string | null;
@@ -412,7 +378,7 @@ export class JobDto {
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(Status),
+    enum: Object.values(JobStatus),
   })
-  status: string;
+  status: JobStatus;
 }
