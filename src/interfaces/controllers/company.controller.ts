@@ -22,7 +22,7 @@ import {
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { PaginatedResult } from "../dtos/common/query";
+import { PaginatedResultDto } from "../dtos/common/query";
 @ApiTags("Companies")
 @Controller("companies")
 export class CompanyController {
@@ -40,7 +40,7 @@ export class CompanyController {
     @Query() query: GetCompaniesQueryDto,
   ): Promise<
     ApiResponse<
-      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+      PaginatedResultDto<Pick<Company, "id" | "name" | "logoUrl" | "address">>
     >
   > {
     return await this.companyUseCase.getCompanies(

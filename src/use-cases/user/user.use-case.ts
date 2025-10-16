@@ -23,6 +23,8 @@ import {
   UserPublicResponseDto,
   UserOnboardingStatusDto,
   UserOnboardingDto,
+  GetAllUserResponseDto,
+  UserStatusEnum,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
@@ -40,6 +42,11 @@ import {
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
+import { GetUserQuery } from "@/core/entities/user.entity";
+import {
+  PaginatedResultDto,
+  PaginationResponseDto,
+} from "@/interfaces/dtos/common/query";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -86,10 +93,6 @@ export class UserUseCases implements OnModuleInit {
       );
       throw error;
     }
-  }
-
-  async getAllUsers(): Promise<User[]> {
-    return this.userRepository.getAll();
   }
 
   async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
@@ -166,7 +169,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserProfile(
     userId: string,
     updateUserDto: UpdateUserRequestDto,
-  ): Promise<ApiResponse<UserDto>> {
+  ): Promise<ApiResponse<void>> {
     const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
@@ -199,10 +202,6 @@ export class UserUseCases implements OnModuleInit {
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
-        data: {
-          ...result,
-          gender: result.gender as GenderEnum,
-        },
       };
     } catch (error: any) {
       this.logger.error(
@@ -584,10 +583,26 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
-    console.log(newOnboarding);
     await this.userOnboardingRepository.create(newOnboarding);
     return {
       message: "User onboarding completed successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getAllUsers(
+    query: GetUserQuery,
+  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
+    const result = await this.userRepository.getAllWithOffset(query);
+    return {
+      data: {
+        data: result.data.map((user) => ({
+          ...user,
+          status: user.status as UserStatusEnum,
+        })),
+        pagination: result.pagination,
+      },
+      message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

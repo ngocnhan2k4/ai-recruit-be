@@ -16,6 +16,7 @@ import {
   userOnboardings,
   organizationMembers,
   JobStatusEnum,
+  UserStatusEnum,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -60,6 +61,7 @@ export type EducationLevelEnumType =
   (typeof EducationLevelEnum.enumValues)[number];
 export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
 export type JobStatusEnumType = (typeof JobStatusEnum.enumValues)[number];
+export type UserStatusEnumType = (typeof UserStatusEnum.enumValues)[number];
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
