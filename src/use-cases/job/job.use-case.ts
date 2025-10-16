@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { IJobRepository } from "@/core/abstracts";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, JobStatus } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -14,13 +14,15 @@ import {
   UpdateApplyJobDto,
   JobResponse,
 } from "@/interfaces/dtos";
-import { Skill, Job, Company, Province } from "@/core";
+import { Skill, Job, Company, Province, JobStatusEnumType } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
+import { convertDateToStr } from "@/common/utils/date";
+import { PaginationResponseDto } from "@/interfaces/dtos/common/query";
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
@@ -32,7 +34,7 @@ export class JobUseCases {
     filters?: JobFilters & { userId?: string },
   ): Promise<
     ApiResponse<{
-      paginationData: {
+      data: {
         job: JobDto;
         provinces: Province[];
         company: Company;
@@ -42,8 +44,7 @@ export class JobUseCases {
         applyStatus?: string;
         applyId?: string;
       }[];
-      nextCursor?: string;
-      hasNextPage: boolean;
+      pagination: PaginationResponseDto;
     }>
   > {
     const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
@@ -61,9 +62,11 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        paginationData: transformedJobData,
-        nextCursor: result.nextCursor,
-        hasNextPage: result.hasNextPage,
+        data: transformedJobData,
+        pagination: {
+          nextCursor: result.nextCursor,
+          hasNextPage: result.hasNextPage,
+        },
       },
     };
   }
@@ -233,13 +236,10 @@ export class JobUseCases {
     try {
       const jobData: Partial<Job> = {
         ...createJobDto,
-        status: createJobDto.status || undefined,
         questions: createJobDto.questions || undefined,
-        datePosted: createJobDto.datePosted
-          ? new Date(createJobDto.datePosted).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0],
+        datePosted: convertDateToStr(new Date()),
         endDate: createJobDto.endDate
-          ? new Date(createJobDto.endDate).toISOString().split("T")[0]
+          ? convertDateToStr(new Date(createJobDto.endDate))
           : null,
       };
 
@@ -249,6 +249,7 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...newJob,
         questions: newJob.questions || null,
+        status: newJob.status as JobStatus,
       };
 
       this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
@@ -301,6 +302,7 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...updatedJob,
         questions: updatedJob.questions || null,
+        status: updatedJob.status as JobStatus,
       };
 
       this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
@@ -361,8 +363,11 @@ export class JobUseCases {
       applyId?: string;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
-      throw new BadRequestException({
-        message: "[getJobById] [get] Job not found",
+      this.logger.error(
+        `[getJobById] [getFullJobById] Job not found: ${jobId}`,
+      );
+      throw new NotFoundException({
+        message: "Job not found",
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
@@ -373,6 +378,7 @@ export class JobUseCases {
       job: {
         ...job.job,
         questions: job.job.questions || null,
+        status: job.job.status as JobStatus,
       },
     };
 

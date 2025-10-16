@@ -1,9 +1,15 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString, IsNumber, IsBoolean } from "class-validator";
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsEnum,
+} from "class-validator";
 import { Type } from "class-transformer";
-import { GeneralQueryDto } from "../common/query";
+import { GeneralQueryDto, PaginationResponseDto } from "../common/query";
 import { CompanyDto } from "../companies/company.dto";
-import { JobDto } from "./job.dto";
+import { JobDto, JobStatus } from "./job.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
@@ -83,8 +89,8 @@ export class QueryJobDto extends GeneralQueryDto {
     description: "Status (active, inactive)",
   })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(JobStatus)
+  status?: JobStatus;
 }
 
 export class JobResponse {
@@ -215,18 +221,10 @@ export class JobPaginationResponseDto {
     type: [JobResponse],
     description: "Array of job responses",
   })
-  paginationData: JobResponse[];
+  data: JobResponse[];
 
   @ApiProperty({
-    required: false,
-    description: "Cursor for next page pagination",
-    example: "uuid-of-last-item",
+    type: PaginationResponseDto,
   })
-  nextCursor?: string;
-
-  @ApiProperty({
-    description: "Whether there are more pages available",
-    example: true,
-  })
-  hasNextPage: boolean;
+  pagination: PaginationResponseDto;
 }

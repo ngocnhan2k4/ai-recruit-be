@@ -3,6 +3,7 @@ import { Job, Province, Company, Skill } from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
+  JobStatus,
   UserInteractionResponseDto,
 } from "@/interfaces/dtos";
 
@@ -18,7 +19,7 @@ export interface JobFilters {
   provinceId?: string;
   companyId?: string;
   workType?: string;
-  status?: string;
+  status?: JobStatus;
 }
 
 export interface CursorPaginationResult<T> {
