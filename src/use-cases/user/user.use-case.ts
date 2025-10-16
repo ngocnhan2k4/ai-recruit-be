@@ -596,12 +596,10 @@ export class UserUseCases implements OnModuleInit {
     const result = await this.userRepository.getAllWithOffset(query);
     return {
       data: {
-        data: result.data.map((user) =>
-          GetAllUserResponseDto.from({
-            ...user,
-            status: user.status as UserStatusEnum,
-          }),
-        ),
+        data: result.data.map((user) => ({
+          ...user,
+          status: user.status as UserStatusEnum,
+        })),
         pagination: result.pagination,
       },
       message: "Users retrieved successfully",

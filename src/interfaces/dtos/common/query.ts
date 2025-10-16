@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString } from "class-validator";
+import { IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
 
@@ -15,6 +15,7 @@ export class GeneralQueryDto {
   @Transform(({ value }: { value: string }) =>
     Math.min(parseInt(value, 10), 100),
   )
+  @Min(1, { message: "Limit must be greater than or equal to 1" })
   @IsNumber()
   limit: number = 10;
 
@@ -23,8 +24,9 @@ export class GeneralQueryDto {
     required: false,
     description: "Number of items to skip",
   })
-  @Transform(({ value }: { value: string }) => parseInt(value, 1))
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
   @IsNumber()
+  @Min(1, { message: "Page number must be greater than or equal to 1" })
   page: number = 1;
 
   @ApiProperty({
