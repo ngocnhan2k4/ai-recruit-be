@@ -584,6 +584,14 @@ export class UserUseCases implements OnModuleInit {
       });
     }
     await this.userOnboardingRepository.create(newOnboarding);
+    await this.userRepository.update(
+      { id: userId },
+      {
+        name: userOnboarding.name!,
+        gender: userOnboarding.gender,
+        dob: userOnboarding.dob,
+      },
+    );
     return {
       message: "User onboarding completed successfully",
       code: RESPONSE_CODE.SUCCESS,

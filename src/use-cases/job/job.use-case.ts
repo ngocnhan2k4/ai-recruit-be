@@ -22,7 +22,12 @@ import {
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
 import { convertDateToStr } from "@/common/utils/date";
-import { PaginationResponseDto } from "@/interfaces/dtos/common/query";
+import {
+  PaginationResponseDto,
+  GeneralQueryDto,
+} from "@/interfaces/dtos/common/query";
+import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
@@ -403,22 +408,24 @@ export class JobUseCases {
 
   async getAllSavedJobs(
     userId: string,
-    sort: "createdAt" | "endedAt" = "createdAt",
-  ): Promise<ApiResponse<SavedJobsResponseDto[]>> {
-    const jobs = await this.jobRepository.getAllSavedJobs(userId, sort);
-    const transformedJobs: SavedJobsResponseDto[] = jobs.map((job) => ({
-      ...job,
-      logoUrl: job.logoUrl || "",
-      workType: (job.workType || "onsite") as "remote" | "onsite",
-      createdAt: job.createdAt.toISOString(),
-      endedAt: job.endedAt!,
-      isSaved: true,
-    }));
-
+    params: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
+    const result = await this.jobRepository.getAllSavedJobs(userId, params);
+    const transformedData: PaginatedResultDto<SavedJobsResponseDto> = {
+      data: result.data.map((job) => ({
+        ...job,
+        logoUrl: job.logoUrl || "",
+        workType: (job.workType || "onsite") as "remote" | "onsite",
+        createdAt: job.createdAt.toISOString(),
+        endedAt: job.endedAt!,
+        isSaved: true,
+      })),
+      pagination: result.pagination,
+    };
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: transformedJobs,
+      data: transformedData,
     };
   }
 }
