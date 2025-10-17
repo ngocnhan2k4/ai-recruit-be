@@ -748,10 +748,6 @@ export class JobRepository
 
     const hasNextPage = result.length > params.limit;
     const data = hasNextPage ? result.slice(0, params.limit) : result;
-    const nextCursor =
-      hasNextPage && data.length > 0
-        ? data[data.length - 1].createdAt.toISOString()
-        : null;
     const total = await this.db
       .select({
         count: sql`COUNT(*)`.as("count"),
@@ -778,7 +774,6 @@ export class JobRepository
         isApplied: item.applyJobId ? true : false,
       })),
       pagination: {
-        nextCursor: nextCursor,
         hasNextPage,
         total: Number(total[0]?.count ?? 0),
       },
