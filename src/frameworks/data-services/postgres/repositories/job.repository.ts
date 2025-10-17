@@ -46,6 +46,8 @@ import {
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
 import { app } from "firebase-admin";
+import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types/api";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -688,9 +690,9 @@ export class JobRepository
 
   async getAllSavedJobs(
     userId: string,
-    sortOption: "createdAt" | "endedAt",
+    params: GeneralQuery,
   ): Promise<
-    {
+    PaginatedResult<{
       id: string;
       title: string;
       salaryMin: string | null;
@@ -702,8 +704,11 @@ export class JobRepository
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-    }[]
+    }>
   > {
+    params.limit = params.limit ?? 10;
+    params.page = params.page ?? 1;
+    const offset = (params.page - 1) * params.limit;
     const result = await this.db
       .select({
         id: jobs.id,
@@ -734,14 +739,45 @@ export class JobRepository
         ),
       )
       .orderBy(
-        sortOption === "createdAt" ? desc(jobs.createdAt) : desc(jobs.endDate),
+        params.sortDirection === "desc"
+          ? desc(jobs.createdAt)
+          : asc(jobs.createdAt),
       )
-      .limit(30);
+      .offset(offset)
+      .limit(params.limit + 1);
 
-    return result.map((item) => ({
-      ...item,
-      isApplied: item.applyJobId ? true : false,
-    }));
+    const hasNextPage = result.length > params.limit;
+    const data = hasNextPage ? result.slice(0, params.limit) : result;
+    const total = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(
+        applyJobs,
+        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      );
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        isApplied: item.applyJobId ? true : false,
+      })),
+      pagination: {
+        hasNextPage,
+        total: Number(total[0]?.count ?? 0),
+      },
+    };
   }
   async getFullJobById(
     jobId: string,
