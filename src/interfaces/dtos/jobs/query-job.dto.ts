@@ -9,7 +9,7 @@ import {
 import { Type } from "class-transformer";
 import { GeneralQueryDto, PaginationResponseDto } from "../common/query";
 import { CompanyDto } from "../companies/company.dto";
-import { JobDto, JobStatus } from "./job.dto";
+import { JobDto, JobStatus, WorkType } from "./job.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
@@ -80,8 +80,8 @@ export class QueryJobDto extends GeneralQueryDto {
     description: "Work type (remote, onsite)",
   })
   @IsOptional()
-  @IsString()
-  workType?: string;
+  @IsEnum(WorkType)
+  workType?: WorkType;
 
   @ApiProperty({
     example: "active",

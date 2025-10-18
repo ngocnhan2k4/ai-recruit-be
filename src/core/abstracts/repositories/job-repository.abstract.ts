@@ -5,6 +5,7 @@ import {
   JobAnswerDto,
   JobStatus,
   UserInteractionResponseDto,
+  WorkType,
 } from "@/interfaces/dtos";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
@@ -20,7 +21,7 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: string;
+  workType?: WorkType;
   status?: JobStatus;
 }
 

@@ -137,7 +137,6 @@ export class JobRepository
     if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
-
     // Filter out hidden jobs for authenticated users (exclude anonymous users)
     if (filters?.userId && filters.userId !== AnonymousId) {
       whereConditions.push(
@@ -152,26 +151,28 @@ export class JobRepository
 
     // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
     if (cursor) {
-      // For priority-based sorting, we need a composite cursor
-      // Format: "priority:id" (e.g., "5:uuid-string")
-      const [cursorPriority, cursorId] = cursor.split(":");
-      const cursorPriorityNum = parseInt(cursorPriority);
+      whereConditions.push(gt(jobs.id, cursor));
     }
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
-        job: jobs,
-        provinces:
-          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
-            "provinces",
-          ),
+        job: {
+          ...jobs,
+          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+        },
+        provinces: sql`(
+          SELECT COALESCE(json_agg(p), '[]')
+          FROM provinces p
+          WHERE p.id = ${jobs.provinceId}
+        )`.as("provinces"),
         company: companies,
-        skills:
-          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
-            "skills",
-          ),
-        applyUrl: jobRaws.url,
+        skills: sql`(
+          SELECT COALESCE(json_agg(s), '[]')
+          FROM job_skills js
+          INNER JOIN skills s ON js.skill_id = s.id
+          WHERE js.job_id = ${jobs.id}
+        )`.as("skills"),
         isSaved:
           filters?.userId && filters.userId !== AnonymousId
             ? sql`EXISTS (
@@ -209,13 +210,9 @@ export class JobRepository
             : sql`NULL`.as("applyId"),
       })
       .from(jobs)
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
-      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(jobs.id, companies.id, jobRaws.url)
       .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
       .limit(limit + 1)) as {
       job: Job;
@@ -236,7 +233,6 @@ export class JobRepository
     // Transform null values to undefined for optional fields
     const transformedData = data.map((item) => ({
       ...item,
-      applyUrl: item.applyUrl || undefined,
       applyStatus: item.applyStatus || undefined,
       applyId: item.applyId || undefined,
     }));
@@ -847,7 +843,7 @@ export class JobRepository
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, companies.id)
+      .groupBy(jobs.id, companies.id, provinces.id)
       .limit(1);
 
     if (!result || result.length === 0) {

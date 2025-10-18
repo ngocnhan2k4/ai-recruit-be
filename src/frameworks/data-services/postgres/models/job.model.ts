@@ -35,6 +35,8 @@ export const ApplyStatusEnum = pgEnum("apply_status", [
   "rejected",
 ]);
 
+export const WorkTypeEnum = pgEnum("work_type", ["remote", "onsite", "hybrid"]);
+
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -69,7 +71,7 @@ export const jobs = pgTable("jobs", {
   provinceId: uuid("province_id").references(() => provinces.id),
   endDate: date("end_date"),
   status: JobStatusEnum("status").notNull().default("draft"),
-  workType: varchar("work_type", { length: 50 }), // "remote" | "onsite"
+  workType: WorkTypeEnum("work_type"),
   jobRawId: bigint("job_raw_id", { mode: "number" }).references(
     () => jobRaws.id,
   ),

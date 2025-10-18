@@ -284,6 +284,7 @@ export class JobUseCases {
         ...updateJobDto,
         status: updateJobDto.status || undefined,
         questions: updateJobDto.questions || undefined,
+        workType: updateJobDto.workType || undefined,
       };
 
       // Convert date strings to date strings if provided
