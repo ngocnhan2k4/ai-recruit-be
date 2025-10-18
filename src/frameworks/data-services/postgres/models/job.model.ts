@@ -112,30 +112,35 @@ export const jobCategories = pgTable(
   ],
 );
 
-// User job interactions table
+export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
+  "save",
+  "hide",
+]);
+
 export const userInteractions = pgTable("user_interactions", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(), // References users table
+  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
-  type: varchar("type", { length: 20 }).notNull(), // "save", "hide"
+  type: UserInteractionTypeEnum("type").notNull(),
   ...timestamps,
 });
 
 export const applyJobs = pgTable("apply_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(), // References users table
+  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
   status: ApplyStatusEnum("status").default("pending"),
-  userCvId: uuid("user_cv_id").references(() => userCV.id),
+  cvId: uuid("cv_id").references(() => cvs.id),
   answers: jsonb("answers"),
+
   ...timestamps,
 });
 
-export const userCV = pgTable("user_cv", {
+export const cvs = pgTable("cvs", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id")
     .notNull()

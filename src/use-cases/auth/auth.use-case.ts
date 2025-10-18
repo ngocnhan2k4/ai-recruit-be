@@ -6,7 +6,7 @@ import {
   IUserOnboardingRepository,
 } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { AnonymousId, RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";

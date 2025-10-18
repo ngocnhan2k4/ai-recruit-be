@@ -43,7 +43,7 @@ export class ApplyJobDto {
   })
   @IsOptional()
   @IsUUID()
-  userCvId?: string;
+  cvId?: string;
 
   @ApiProperty({
     type: [JobAnswerDto],

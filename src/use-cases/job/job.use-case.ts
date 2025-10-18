@@ -14,7 +14,14 @@ import {
   UpdateApplyJobDto,
   JobResponse,
 } from "@/interfaces/dtos";
-import { Skill, Job, Company, Province, JobStatusEnumType } from "@/core";
+import {
+  Skill,
+  Job,
+  Company,
+  Province,
+  JobStatusEnumType,
+  WorkTypeEnumType,
+} from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
 import {
@@ -128,7 +135,7 @@ export class JobUseCases {
       const result = await this.jobRepository.applyJob(
         userId,
         applyJobDto.jobId,
-        applyJobDto.userCvId,
+        applyJobDto.cvId,
         applyJobDto.answers,
       );
 
@@ -246,6 +253,7 @@ export class JobUseCases {
         endDate: createJobDto.endDate
           ? convertDateToStr(new Date(createJobDto.endDate))
           : null,
+        workType: createJobDto.workType as WorkTypeEnumType,
       };
 
       const newJob = await this.jobRepository.createJob(jobData);
@@ -284,7 +292,7 @@ export class JobUseCases {
         ...updateJobDto,
         status: updateJobDto.status || undefined,
         questions: updateJobDto.questions || undefined,
-        workType: updateJobDto.workType || undefined,
+        workType: updateJobDto.workType as WorkTypeEnumType,
       };
 
       // Convert date strings to date strings if provided

@@ -1,6 +1,5 @@
 import { Injectable, ExecutionContext, Logger } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { AnonymousId } from "@/common/constants/roles";
 
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard("jwt") {
@@ -13,7 +12,7 @@ export class OptionalJwtAuthGuard extends AuthGuard("jwt") {
     _context: ExecutionContext,
   ): any {
     // If there's an error or no user, return null instead of throwing
-    if (err || !user || user.userId === AnonymousId) {
+    if (err || !user) {
       this.logger.debug(
         "[OptionalJwtAuthGuard] No valid user found:",
         info?.message,
