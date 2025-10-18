@@ -12,6 +12,8 @@ import {
   JobStatus,
   UserInteractionResponseDto,
 } from "@/interfaces/dtos";
+import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 
 export interface RangeFilter {
   min?: number;
@@ -132,9 +134,9 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getAllSavedJobs(
     userId: string,
-    sortOption: "createdAt" | "endedAt",
+    params: GeneralQuery,
   ): Promise<
-    {
+    PaginatedResult<{
       id: string;
       title: string;
       salaryMin: string | null;
@@ -146,6 +148,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-    }[]
+    }>
   >;
 }
