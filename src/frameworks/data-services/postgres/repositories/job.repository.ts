@@ -24,15 +24,13 @@ import {
   provinces,
   userInteractions,
   applyJobs,
-  userCV,
+  cvs,
   jobRaws,
-  JobStatusEnum,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
-import { AnonymousId } from "@/common/constants/roles";
 import { Job, Province, Skill, Company } from "@/core/entities";
 import {
   ApplyJobResponseDto,
@@ -81,14 +79,11 @@ export class JobRepository
     // Build where conditions
     const whereConditions: SQL[] = [];
 
-    // Keyword search
     if (filters?.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
-    // Get jobs not deleted
     whereConditions.push(isNull(jobs.deletedAt));
 
-    // Salary range filter
     if (filters?.salaryRange) {
       if (filters.salaryRange.min !== undefined) {
         whereConditions.push(
@@ -102,7 +97,6 @@ export class JobRepository
       }
     }
 
-    // Experience range filter
     if (filters?.experienceRange) {
       if (filters.experienceRange.min !== undefined) {
         whereConditions.push(
@@ -116,28 +110,23 @@ export class JobRepository
       }
     }
 
-    // Province filter
     if (filters?.provinceId) {
       whereConditions.push(eq(jobs.provinceId, filters.provinceId));
     }
 
-    // Company filter
     if (filters?.companyId) {
       whereConditions.push(eq(jobs.companyId, filters.companyId));
     }
 
-    // Work type filter
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    // Status filter
     if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
-    // Filter out hidden jobs for authenticated users (exclude anonymous users)
-    if (filters?.userId && filters.userId !== AnonymousId) {
+    if (filters?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (
           SELECT 1 FROM ${userInteractions} ui 
@@ -150,8 +139,6 @@ export class JobRepository
 
     // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
     if (cursor) {
-      // For priority-based sorting, we need a composite cursor
-      // Format: "priority:id" (e.g., "5:uuid-string")
       const [cursorPriority, cursorId] = cursor.split(":");
       const cursorPriorityNum = parseInt(cursorPriority);
     }
@@ -170,41 +157,37 @@ export class JobRepository
             "skills",
           ),
         applyUrl: jobRaws.url,
-        isSaved:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`EXISTS (
+        isSaved: filters?.userId
+          ? sql`EXISTS (
               SELECT 1 FROM ${userInteractions} ui 
               WHERE ui.job_id = ${jobs.id} 
               AND ui.user_id = ${filters.userId} 
               AND ui.type = 'save'
             )`.as("isSaved")
-            : sql`false`.as("isSaved"),
-        isApplied:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`EXISTS (
+          : sql`false`.as("isSaved"),
+        isApplied: filters?.userId
+          ? sql`EXISTS (
               SELECT 1 FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
             )`.as("isApplied")
-            : sql`false`.as("isApplied"),
-        applyStatus:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`(
+          : sql`false`.as("isApplied"),
+        applyStatus: filters?.userId
+          ? sql`(
               SELECT aj.status FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
               LIMIT 1
             )`.as("applyStatus")
-            : sql`NULL`.as("applyStatus"),
-        applyId:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`(
+          : sql`NULL`.as("applyStatus"),
+        applyId: filters?.userId
+          ? sql`(
               SELECT aj.id FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
               LIMIT 1
             )`.as("applyId")
-            : sql`NULL`.as("applyId"),
+          : sql`NULL`.as("applyId"),
       })
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
@@ -382,6 +365,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.jobId, jobs.id))
       .where(and(eq(applyJobs.userId, userId), eq(applyJobs.jobId, jobId)))
       .limit(1);
 
@@ -395,7 +379,7 @@ export class JobRepository
       .values({
         userId,
         jobId,
-        userCvId,
+        cvId: userCvId,
         answers,
         status: ApplyStatus.PENDING,
       })
@@ -404,11 +388,11 @@ export class JobRepository
     // Update lastUsed timestamp for CV if userCvId is provided
     if (userCvId) {
       await this.db
-        .update(userCV)
+        .update(cvs)
         .set({
           lastUsed: new Date(),
         })
-        .where(eq(userCV.id, userCvId));
+        .where(eq(cvs.id, userCvId));
     }
 
     return newApplication as ApplyJobResponseDto;
@@ -445,7 +429,7 @@ export class JobRepository
       .update(applyJobs)
       .set({
         status: status || existingApplication[0].status,
-        userCvId: userCvId || existingApplication[0].userCvId,
+        cvId: userCvId || existingApplication[0].cvId,
         answers: answers || existingApplication[0].answers,
         updatedAt: new Date(),
       })
@@ -455,11 +439,11 @@ export class JobRepository
     // Update lastUsed timestamp for CV if userCvId is provided
     if (userCvId) {
       await this.db
-        .update(userCV)
+        .update(cvs)
         .set({
           lastUsed: new Date(),
         })
-        .where(eq(userCV.id, userCvId));
+        .where(eq(cvs.id, userCvId));
     }
 
     return updatedApplication as ApplyJobResponseDto;
@@ -757,7 +741,7 @@ export class JobRepository
     applyId?: string;
   } | null> {
     // check if user is authenticated (userId exists and is not anonymous)
-    const isAuthenticatedUser = userId && userId !== AnonymousId;
+    const isAuthenticatedUser = userId;
 
     // Create query to get job information and relations
     const result = await this.db
