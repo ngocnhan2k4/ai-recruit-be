@@ -11,6 +11,7 @@ import {
   CvController,
   UniversityController,
 } from "./interfaces/controllers";
+import { CasbinController } from "./interfaces/controllers/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -78,6 +79,7 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvController,
     SkillController,
     UniversityController,
+    CasbinController,
   ],
   providers: [
     JwtStrategy,
