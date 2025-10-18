@@ -690,7 +690,7 @@ export class JobRepository
 
   async getAllSavedJobs(
     userId: string,
-    params: GeneralQuery,
+    query: GeneralQuery,
   ): Promise<
     PaginatedResult<{
       id: string;
@@ -706,9 +706,9 @@ export class JobRepository
       isApplied: boolean;
     }>
   > {
-    params.limit = params.limit ?? 10;
-    params.page = params.page ?? 1;
-    const offset = (params.page - 1) * params.limit;
+    query.limit = query.limit ?? 10;
+    query.page = query.page ?? 1;
+    const offset = (query.page - 1) * query.limit;
     const result = await this.db
       .select({
         id: jobs.id,
@@ -739,15 +739,15 @@ export class JobRepository
         ),
       )
       .orderBy(
-        params.sortDirection === "desc"
+        query.sortDirection === "desc"
           ? desc(jobs.createdAt)
           : asc(jobs.createdAt),
       )
       .offset(offset)
-      .limit(params.limit + 1);
+      .limit(query.limit + 1);
 
-    const hasNextPage = result.length > params.limit;
-    const data = hasNextPage ? result.slice(0, params.limit) : result;
+    const hasNextPage = result.length > query.limit;
+    const data = hasNextPage ? result.slice(0, query.limit) : result;
     const total = await this.db
       .select({
         count: sql`COUNT(*)`.as("count"),
