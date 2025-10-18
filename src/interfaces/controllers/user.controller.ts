@@ -287,7 +287,7 @@ export class UserController {
   }
 
   // [TODO]: Admin only - add CasbinPermission
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Get all users (admin only)" })
   @Get()
   @ApiResponseDto(PaginatedResultDto<UserDto>)

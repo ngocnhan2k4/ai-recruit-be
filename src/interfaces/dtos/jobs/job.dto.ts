@@ -12,6 +12,7 @@ import {
 export enum WorkType {
   REMOTE = "remote",
   ONSITE = "onsite",
+  HYBRID = "hybrid",
 }
 
 export enum ApplyType {

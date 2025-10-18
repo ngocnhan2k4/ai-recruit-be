@@ -1,5 +1,11 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Job, Province, Company, Skill } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Company,
+  Skill,
+  WorkTypeEnumType,
+} from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
@@ -20,7 +26,7 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: string;
+  workType?: WorkTypeEnumType;
   status?: JobStatus;
 }
 
