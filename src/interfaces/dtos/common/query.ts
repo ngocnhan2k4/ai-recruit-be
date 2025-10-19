@@ -1,9 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
-
+export enum PaginationType {
+  PAGE = "page",
+  CURSOR = "cursor",
+}
 export class GeneralQueryDto {
   @ApiProperty({
     example: 0,
@@ -60,6 +63,18 @@ export class GeneralQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiProperty({
+    required: false,
+    description: "Type of pagination (page or cursor)",
+    enum: PaginationType,
+    example: PaginationType.PAGE,
+  })
+  @Transform(({ value }: { value?: string }) =>
+    value ? value : PaginationType.CURSOR,
+  )
+  @IsEnum(PaginationType)
+  pagination?: PaginationType = PaginationType.CURSOR;
 }
 
 export class PaginationResponseDto {
