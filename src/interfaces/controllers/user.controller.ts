@@ -16,6 +16,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
@@ -25,13 +26,15 @@ import {
   ApiResponse,
   ApiResponseDto,
   CheckUsernameResponseDto,
-  GetUserResponseDto,
   UpdateUserRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
   UserOnboardingStatusDto,
   UserPublicResponseDto,
   UserOnboardingDto,
+  GetUserQueryDto,
+  GetAllUserResponseDto,
+  GetUserResponseDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -49,6 +52,7 @@ import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
+import { PaginatedResultDto } from "../dtos/common/query";
 
 @ApiTags("Users")
 @Controller("users")
@@ -108,7 +112,7 @@ export class UserController {
   async updateProfile(
     @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserRequestDto,
-  ): Promise<ApiResponse<UserDto>> {
+  ): Promise<ApiResponse<void>> {
     return await this.userUseCases.updateUserProfile(
       user.userId,
       updateUserDto,
@@ -280,5 +284,16 @@ export class UserController {
       userOnboardingDto,
       user.userId,
     );
+  }
+
+  // [TODO]: Admin only - add CasbinPermission
+  // @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Get all users (admin only)" })
+  @Get()
+  @ApiResponseDto(PaginatedResultDto<UserDto>)
+  async getUsers(
+    @Query() query: GetUserQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
+    return await this.userUseCases.getAllUsers(query);
   }
 }

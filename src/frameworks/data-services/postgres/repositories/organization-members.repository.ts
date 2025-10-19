@@ -120,7 +120,7 @@ export class OrganizationMembersRepository
     return {
       data: data,
       pagination: {
-        cursor: nextCursor,
+        nextCursor: nextCursor,
         hasNextPage,
       },
     };

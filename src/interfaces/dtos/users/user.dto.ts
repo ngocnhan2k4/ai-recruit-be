@@ -1,9 +1,28 @@
-import { IsEmail, IsEnum, IsString } from "class-validator";
-import { ApiProperty, PartialType } from "@nestjs/swagger";
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from "class-validator";
+import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
 import { type ProviderEnumType } from "@/core";
+import { GeneralQueryDto } from "../common/query";
+import { Optional } from "@nestjs/common";
 
+export enum ProviderEnum {
+  EMAIL = "email",
+  GOOGLE = "google",
+  FACEBOOK = "facebook",
+  GITHUB = "github",
+}
+export enum UserStatusEnum {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  BANNED = "banned",
+}
 export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
@@ -94,6 +113,21 @@ export class UserDto {
 
   @ApiProperty({ nullable: false, type: "boolean" })
   emailVerified: boolean | null;
+
+  @ApiProperty({ nullable: false, type: "boolean" })
+  phoneVerified: boolean | null;
+
+  @ApiProperty()
+  provider: ProviderEnumType;
+
+  @ApiProperty({ type: "boolean" })
+  onboardingCompleted: boolean;
+
+  @ApiProperty({ nullable: false, enum: UserStatusEnum })
+  status: UserStatusEnum;
+
+  @ApiProperty({ nullable: false })
+  deletedAt: Date | null;
 }
 
 export class GetUserResponseDto {
@@ -166,4 +200,36 @@ export class UserAvatarUpdateRequestDto {
   @ApiProperty({ enum: TypeAvatar })
   @IsEnum(TypeAvatar)
   type: TypeAvatar;
+}
+
+export class GetUserQueryDto extends GeneralQueryDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isDeleted?: boolean;
+}
+
+export class GetAllUserResponseDto extends PickType(UserDto, [
+  "id",
+  "email",
+  "name",
+  "username",
+  "emailVerified",
+  "phone",
+  "phoneVerified",
+  "status",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+] as const) {
+  static from(partial: Partial<GetAllUserResponseDto>) {
+    return plainToInstance(GetAllUserResponseDto, partial, {
+      excludeExtraneousValues: true,
+    });
+  }
 }

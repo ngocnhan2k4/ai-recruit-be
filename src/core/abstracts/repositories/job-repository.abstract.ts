@@ -1,10 +1,19 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Job, Province, Company, Skill } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Company,
+  Skill,
+  WorkTypeEnumType,
+} from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
+  JobStatus,
   UserInteractionResponseDto,
 } from "@/interfaces/dtos";
+import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 
 export interface RangeFilter {
   min?: number;
@@ -17,8 +26,8 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: string;
-  status?: string;
+  workType?: WorkTypeEnumType;
+  status?: JobStatus;
 }
 
 export interface CursorPaginationResult<T> {
@@ -125,9 +134,9 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getAllSavedJobs(
     userId: string,
-    sortOption: "createdAt" | "endedAt",
+    params: GeneralQuery,
   ): Promise<
-    {
+    PaginatedResult<{
       id: string;
       title: string;
       salaryMin: string | null;
@@ -139,6 +148,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-    }[]
+    }>
   >;
 }

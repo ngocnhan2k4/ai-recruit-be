@@ -32,7 +32,8 @@ import {
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { AnonymousId } from "@/common/constants/roles";
+import { GeneralQueryDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../dtos/common/query";
 
 @ApiTags("Jobs")
 @Controller("jobs")
@@ -64,7 +65,7 @@ export class JobController {
       companyId: query.companyId,
       workType: query.workType,
       status: query.status,
-      userId: user?.userId !== AnonymousId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
+      userId: user?.userId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
     };
 
     return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
@@ -242,8 +243,8 @@ export class JobController {
   @Get("saved")
   async getAllSavedJobs(
     @GetUser() user: TokenPayload,
-    @Param("sort") sort: "createdAt" | "endedAt" = "createdAt",
-  ): Promise<ApiResponse<SavedJobsResponseDto[]>> {
-    return await this.jobUseCases.getAllSavedJobs(user.userId, sort);
+    @Param() params: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
+    return await this.jobUseCases.getAllSavedJobs(user.userId, params);
   }
 }

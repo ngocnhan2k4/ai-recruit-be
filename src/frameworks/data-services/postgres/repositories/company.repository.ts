@@ -3,10 +3,9 @@ import { ICompanyRepository, Company, NewCompany } from "@/core";
 import { companies, organizationMembers } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { PaginatedResult } from "@/common/types/api";
 import { asc, SQL, count } from "drizzle-orm";
-import { orderBy } from "lodash";
 import { eq, and, gt, desc, ilike } from "drizzle-orm";
+import { PaginatedResult } from "@/common/types/api";
 
 @Injectable()
 export class CompanyRepository
@@ -62,7 +61,7 @@ export class CompanyRepository
     return {
       data: data,
       pagination: {
-        cursor: nextCursor,
+        nextCursor: nextCursor,
         hasNextPage,
         total: totalCount,
       },
@@ -130,7 +129,7 @@ export class CompanyRepository
     return {
       data: data,
       pagination: {
-        cursor: nextCursor,
+        nextCursor: nextCursor,
         hasNextPage,
         total: totalCount,
       },
@@ -202,7 +201,7 @@ export class CompanyRepository
     return {
       data,
       pagination: {
-        cursor: data.length > 0 ? data[data.length - 1].id : null,
+        nextCursor: data.length > 0 ? data[data.length - 1].id : null,
         hasNextPage,
         total: totalCount,
       },

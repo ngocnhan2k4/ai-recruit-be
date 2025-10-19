@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString } from "class-validator";
+import { IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
 
@@ -15,17 +15,19 @@ export class GeneralQueryDto {
   @Transform(({ value }: { value: string }) =>
     Math.min(parseInt(value, 10), 100),
   )
+  @Min(1, { message: "Limit must be greater than or equal to 1" })
   @IsNumber()
   limit: number = 10;
 
   @ApiProperty({
-    example: 0,
+    example: 1,
     required: false,
     description: "Number of items to skip",
   })
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   @IsNumber()
-  offset: number = 0;
+  @Min(1, { message: "Page number must be greater than or equal to 1" })
+  page: number = 1;
 
   @ApiProperty({
     required: false,
@@ -66,7 +68,7 @@ export class PaginationResponseDto {
     required: false,
     description: "Cursor for the next page",
   })
-  cursor?: string | null;
+  nextCursor?: string | number | null;
 
   @ApiProperty({
     example: true,
@@ -83,7 +85,7 @@ export class PaginationResponseDto {
   total?: number;
 }
 
-export class PaginatedResult<T> {
+export class PaginatedResultDto<T> {
   @ApiProperty({ isArray: true })
   data: T[];
 

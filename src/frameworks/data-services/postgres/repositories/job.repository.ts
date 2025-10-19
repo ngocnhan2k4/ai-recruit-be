@@ -24,25 +24,28 @@ import {
   provinces,
   userInteractions,
   applyJobs,
-  userCV,
+  cvs,
   jobRaws,
 } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
-import { AnonymousId } from "@/common/constants/roles";
 import { Job, Province, Skill, Company } from "@/core/entities";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
+  JobStatus,
+  ApplyStatus,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
 import { app } from "firebase-admin";
+import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types/api";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -78,14 +81,11 @@ export class JobRepository
     // Build where conditions
     const whereConditions: SQL[] = [];
 
-    // Keyword search
     if (filters?.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
-    // Get jobs not deleted
     whereConditions.push(isNull(jobs.deletedAt));
 
-    // Salary range filter
     if (filters?.salaryRange) {
       if (filters.salaryRange.min !== undefined) {
         whereConditions.push(
@@ -99,7 +99,6 @@ export class JobRepository
       }
     }
 
-    // Experience range filter
     if (filters?.experienceRange) {
       if (filters.experienceRange.min !== undefined) {
         whereConditions.push(
@@ -113,28 +112,23 @@ export class JobRepository
       }
     }
 
-    // Province filter
     if (filters?.provinceId) {
       whereConditions.push(eq(jobs.provinceId, filters.provinceId));
     }
 
-    // Company filter
     if (filters?.companyId) {
       whereConditions.push(eq(jobs.companyId, filters.companyId));
     }
 
-    // Work type filter
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    // Status filter
     if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
-    // Filter out hidden jobs for authenticated users (exclude anonymous users)
-    if (filters?.userId && filters.userId !== AnonymousId) {
+    if (filters?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (
           SELECT 1 FROM ${userInteractions} ui 
@@ -147,18 +141,8 @@ export class JobRepository
 
     // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
     if (cursor) {
-      // For priority-based sorting, we need a composite cursor
-      // Format: "priority:id" (e.g., "5:uuid-string")
       const [cursorPriority, cursorId] = cursor.split(":");
       const cursorPriorityNum = parseInt(cursorPriority);
-      whereConditions.push(
-        or(
-          // Higher priority than cursor
-          gt(jobs.priority, cursorPriorityNum),
-          // Same priority but higher ID
-          and(eq(jobs.priority, cursorPriorityNum), gt(jobs.id, cursorId)),
-        ) as SQL,
-      );
     }
 
     // Add one extra item to check if there's a next page
@@ -175,41 +159,37 @@ export class JobRepository
             "skills",
           ),
         applyUrl: jobRaws.url,
-        isSaved:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`EXISTS (
+        isSaved: filters?.userId
+          ? sql`EXISTS (
               SELECT 1 FROM ${userInteractions} ui 
               WHERE ui.job_id = ${jobs.id} 
               AND ui.user_id = ${filters.userId} 
               AND ui.type = 'save'
             )`.as("isSaved")
-            : sql`false`.as("isSaved"),
-        isApplied:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`EXISTS (
+          : sql`false`.as("isSaved"),
+        isApplied: filters?.userId
+          ? sql`EXISTS (
               SELECT 1 FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
             )`.as("isApplied")
-            : sql`false`.as("isApplied"),
-        applyStatus:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`(
+          : sql`false`.as("isApplied"),
+        applyStatus: filters?.userId
+          ? sql`(
               SELECT aj.status FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
               LIMIT 1
             )`.as("applyStatus")
-            : sql`NULL`.as("applyStatus"),
-        applyId:
-          filters?.userId && filters.userId !== AnonymousId
-            ? sql`(
+          : sql`NULL`.as("applyStatus"),
+        applyId: filters?.userId
+          ? sql`(
               SELECT aj.id FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
               AND aj.user_id = ${filters.userId}
               LIMIT 1
             )`.as("applyId")
-            : sql`NULL`.as("applyId"),
+          : sql`NULL`.as("applyId"),
       })
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
@@ -219,7 +199,7 @@ export class JobRepository
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(jobs.id, companies.id, jobRaws.url)
-      .orderBy(desc(jobs.priority), asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
+      .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -246,7 +226,7 @@ export class JobRepository
     // Create composite cursor: "priority:id"
     const nextCursor =
       hasNextPage && result[limit - 1]?.job
-        ? `${result[limit - 1].job.priority}:${result[limit - 1].job.id}`
+        ? `${result[limit - 1].job.id}`
         : undefined;
 
     return {
@@ -387,6 +367,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.jobId, jobs.id))
       .where(and(eq(applyJobs.userId, userId), eq(applyJobs.jobId, jobId)))
       .limit(1);
 
@@ -400,20 +381,20 @@ export class JobRepository
       .values({
         userId,
         jobId,
-        userCvId,
+        cvId: userCvId,
         answers,
-        status: "applied",
+        status: ApplyStatus.PENDING,
       })
       .returning();
 
     // Update lastUsed timestamp for CV if userCvId is provided
     if (userCvId) {
       await this.db
-        .update(userCV)
+        .update(cvs)
         .set({
           lastUsed: new Date(),
         })
-        .where(eq(userCV.id, userCvId));
+        .where(eq(cvs.id, userCvId));
     }
 
     return newApplication as ApplyJobResponseDto;
@@ -422,7 +403,7 @@ export class JobRepository
   async updateApplyJob(
     applyId: string,
     userId: string,
-    status?: string,
+    status?: ApplyStatus,
     userCvId?: string,
     answers?: JobAnswerDto[],
   ): Promise<ApplyJobResponseDto | null> {
@@ -438,7 +419,10 @@ export class JobRepository
     }
 
     // If user wants to change answers or userCvId, status must be APPLIED
-    if ((answers || userCvId) && existingApplication[0].status !== "applied") {
+    if (
+      (answers || userCvId) &&
+      existingApplication[0].status !== ApplyStatus.PENDING
+    ) {
       throw new Error("Status must be 'applied' to change answers or userCvId");
     }
 
@@ -447,7 +431,7 @@ export class JobRepository
       .update(applyJobs)
       .set({
         status: status || existingApplication[0].status,
-        userCvId: userCvId || existingApplication[0].userCvId,
+        cvId: userCvId || existingApplication[0].cvId,
         answers: answers || existingApplication[0].answers,
         updatedAt: new Date(),
       })
@@ -457,11 +441,11 @@ export class JobRepository
     // Update lastUsed timestamp for CV if userCvId is provided
     if (userCvId) {
       await this.db
-        .update(userCV)
+        .update(cvs)
         .set({
           lastUsed: new Date(),
         })
-        .where(eq(userCV.id, userCvId));
+        .where(eq(cvs.id, userCvId));
     }
 
     return updatedApplication as ApplyJobResponseDto;
@@ -611,7 +595,6 @@ export class JobRepository
       endDate: job.endDate,
       workType: job.workType,
       jobRawId: job.jobRawId,
-      priority: job.priority || 0,
       provinceId: job.provinceId,
       questions: job.questions,
       status: job.status || "active",
@@ -691,9 +674,9 @@ export class JobRepository
 
   async getAllSavedJobs(
     userId: string,
-    sortOption: "createdAt" | "endedAt",
+    params: GeneralQuery,
   ): Promise<
-    {
+    PaginatedResult<{
       id: string;
       title: string;
       salaryMin: string | null;
@@ -705,8 +688,11 @@ export class JobRepository
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-    }[]
+    }>
   > {
+    params.limit = params.limit ?? 10;
+    params.page = params.page ?? 1;
+    const offset = (params.page - 1) * params.limit;
     const result = await this.db
       .select({
         id: jobs.id,
@@ -737,14 +723,45 @@ export class JobRepository
         ),
       )
       .orderBy(
-        sortOption === "createdAt" ? desc(jobs.createdAt) : desc(jobs.endDate),
+        params.sortDirection === "desc"
+          ? desc(jobs.createdAt)
+          : asc(jobs.createdAt),
       )
-      .limit(30);
+      .offset(offset)
+      .limit(params.limit + 1);
 
-    return result.map((item) => ({
-      ...item,
-      isApplied: item.applyJobId ? true : false,
-    }));
+    const hasNextPage = result.length > params.limit;
+    const data = hasNextPage ? result.slice(0, params.limit) : result;
+    const total = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(
+        applyJobs,
+        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      );
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        isApplied: item.applyJobId ? true : false,
+      })),
+      pagination: {
+        hasNextPage,
+        total: Number(total[0]?.count ?? 0),
+      },
+    };
   }
   async getFullJobById(
     jobId: string,
@@ -760,7 +777,7 @@ export class JobRepository
     applyId?: string;
   } | null> {
     // check if user is authenticated (userId exists and is not anonymous)
-    const isAuthenticatedUser = userId && userId !== AnonymousId;
+    const isAuthenticatedUser = userId;
 
     // Create query to get job information and relations
     const result = await this.db

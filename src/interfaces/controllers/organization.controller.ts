@@ -21,7 +21,7 @@ import {
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { PaginatedResult } from "../dtos/common/query";
+import { PaginatedResult } from "@/common/types/api";
 
 @ApiTags("Organization")
 @Controller("organizations")

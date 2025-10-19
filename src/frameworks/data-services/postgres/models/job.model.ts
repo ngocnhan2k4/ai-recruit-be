@@ -11,6 +11,7 @@ import {
   primaryKey,
   numeric,
   integer,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { companies, companyRaws } from "./company.model";
 import { skills } from "./skill.model";
@@ -18,6 +19,23 @@ import { timestamps } from "./helpers";
 import { categories } from "./category.model";
 import { provinces } from "./province.model";
 import { jsonb } from "drizzle-orm/pg-core";
+import { users } from "./user.model";
+
+export const JobStatusEnum = pgEnum("job_status", [
+  "draft",
+  "pending_approval",
+  "active",
+  "paused",
+  "closed",
+]);
+
+export const ApplyStatusEnum = pgEnum("apply_status", [
+  "pending",
+  "accepted",
+  "rejected",
+]);
+
+export const WorkTypeEnum = pgEnum("work_type", ["remote", "onsite", "hybrid"]);
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -52,9 +70,8 @@ export const jobs = pgTable("jobs", {
   questions: jsonb("questions"),
   provinceId: uuid("province_id").references(() => provinces.id),
   endDate: date("end_date"),
-  status: varchar("status", { length: 50 }).notNull().default("active"), // "active" | "inactive"
-  priority: integer("priority").default(0), // Higher number = higher priority
-  workType: varchar("work_type", { length: 50 }), // "remote" | "onsite"
+  status: JobStatusEnum("status").notNull().default("draft"),
+  workType: WorkTypeEnum("work_type"),
   jobRawId: bigint("job_raw_id", { mode: "number" }).references(
     () => jobRaws.id,
   ),
@@ -95,37 +112,43 @@ export const jobCategories = pgTable(
   ],
 );
 
-// User job interactions table
+export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
+  "save",
+  "hide",
+]);
+
 export const userInteractions = pgTable("user_interactions", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(), // References users table
+  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
-  type: varchar("type", { length: 20 }).notNull(), // "save", "hide"
+  type: UserInteractionTypeEnum("type").notNull(),
   ...timestamps,
 });
 
 export const applyJobs = pgTable("apply_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(), // References users table
+  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
-  status: varchar("status", { length: 50 }).default("pending"), // "pending", "accepted", "rejected"
-  userCvId: uuid("user_cv_id").references(() => userCV.id),
+  status: ApplyStatusEnum("status").default("pending"),
+  cvId: uuid("cv_id").references(() => cvs.id),
   answers: jsonb("answers"),
+
   ...timestamps,
 });
 
-export const userCV = pgTable("user_cv", {
+export const cvs = pgTable("cvs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(), // References users table
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
   name: varchar("name", { length: 255 }).notNull(),
   fileUrl: varchar("file_url", { length: 500 }).notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
-  fileSize: bigint("file_size", { mode: "number" }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
   ...timestamps,
 });
