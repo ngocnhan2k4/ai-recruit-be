@@ -11,9 +11,11 @@ import {
   JobAnswerDto,
   JobStatus,
   UserInteractionResponseDto,
+  WorkType,
 } from "@/interfaces/dtos";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
+import { TokenPayload } from "@/common/types/token";
 
 export interface RangeFilter {
   min?: number;
@@ -30,11 +32,6 @@ export interface JobFilters {
   status?: JobStatus;
 }
 
-export interface CursorPaginationResult<T> {
-  paginationData: T[];
-  nextCursor?: string;
-  hasNextPage: boolean;
-}
 export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
@@ -47,9 +44,9 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
     cursor?: string,
-    filters?: JobFilters & { userId?: string },
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
-    CursorPaginationResult<{
+    PaginatedResult<{
       job: Job;
       provinces: Province[];
       company: Company;
