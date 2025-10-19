@@ -60,7 +60,7 @@ def _insert_job_raw(cur, title, jdata, company_raw_id):
         RETURNING id;
     """
     cur.execute(query, (
-        title, json.dumps(jdata.get("description")), jdata.get("url"),
+        title, json.dumps(jdata.get("description")), jdata.get("job_url"),
         jdata.get("date_posted"), jdata.get("skills"),
         jdata.get("crawled_at"), company_raw_id, jdata.get("salary_min"),
         jdata.get("salary_max"), jdata.get("locations"),
@@ -132,6 +132,17 @@ def _get_or_create_category(cur, category_name):
         (category_name,)
     )
     return cur.fetchone()[0]
+
+def get_all_category(db_url):
+    conn = psycopg2.connect(db_url)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT name FROM categories
+            """
+        )
+        rows = cur.fetchall()
+        return [row[0] for row in rows]
 
 
 def _link_job_to_category(cur, job_id, category_id):

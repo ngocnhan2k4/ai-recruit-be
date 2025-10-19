@@ -1,9 +1,14 @@
 import time
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import re
-from typing import Callable, Any
+from typing import Callable, Any, Tuple, Optional
+from urllib.parse import urlparse
 import math
+import socket
+import ipaddress
+import socket
+import ipaddress
 
 import cloudscraper
 
@@ -244,3 +249,74 @@ def process_province(locations: list[str]) -> list:
         return []
     
     return locations
+
+def extract_employee_range(text: str) -> Tuple[Optional[int], Optional[int]]:
+    if not isinstance(text, str):
+        return (None, None)
+
+    number_strings = re.findall(r'[\d,.]+', text)
+
+    numbers = []
+    for s in number_strings:
+        try:
+            cleaned_num = int(s.replace('.', '').replace(',', ''))
+            numbers.append(cleaned_num)
+        except ValueError:
+            continue
+
+    if len(numbers) >= 2:
+        return (numbers[0], numbers[1])
+    elif len(numbers) == 1:
+        return (numbers[0], None)
+    else:
+        return (None, None)
+    
+
+def is_safe_db_url(url_string: str) -> bool:
+    """
+    Validates a URL against a blacklist of common SSRF targets.
+    Returns True if the URL is considered safe, False otherwise.
+    """
+    # 1. Blacklist of dangerous URL schemes
+    DISALLOWED_SCHEMES = ["file", "ftp", "gopher", "dict"]
+    
+    # 2. Blacklist of private and reserved IP networks
+    BLACKLISTED_NETWORKS = [
+        ipaddress.ip_network("10.0.0.0/8"),     # Private range
+        ipaddress.ip_network("172.16.0.0/12"),  # Private range
+        ipaddress.ip_network("192.168.0.0/16"), # Private range
+        ipaddress.ip_network("169.254.0.0/16"), # Link-local
+        ipaddress.ip_network("0.0.0.0/8"),      # Reserved
+    ]
+
+    try:
+        parsed_url = urlparse(url_string)
+        hostname = parsed_url.hostname
+
+        if not hostname:
+            print("Error: DB URL has no hostname.")
+            return False
+            
+        if parsed_url.scheme in DISALLOWED_SCHEMES:
+            print(f"Error: URL scheme '{parsed_url.scheme}' is not allowed.")
+            return False
+
+        # Resolve hostname to an IP address
+        resolved_ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+
+        # Check if the resolved IP is in any blacklisted network
+        for network in BLACKLISTED_NETWORKS:
+            if resolved_ip in network:
+                print(f"Error: DB host '{hostname}' resolves to a blacklisted IP address '{resolved_ip}'.")
+                return False
+
+    except (ValueError, socket.gaierror) as e:
+        print(f"Error validating DB URL: {e}")
+        return False
+
+    # If all checks pass, the URL is considered safe
+    return True
+
+def vietnam_time_now():
+    vn_tz = timezone(timedelta(hours=7))
+    return datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")

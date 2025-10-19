@@ -8,11 +8,11 @@ from helpers import (
     process_province, 
     parse_posted_date, 
     human_delay,
-    extract_employees
+    extract_employee_range
 )
 
 
-def linkedin_crawl():
+def linkedin_crawl(categories: list):
     companies = {}
 
     headers = get_headers()
@@ -46,6 +46,13 @@ def linkedin_crawl():
         desc_wrap = soup.select_one("div.show-more-less-html__markup")
         description_parts = [{"title": "", "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip()}]
 
+        # category
+        category = None
+        for key in categories:
+            if key in safe_text(desc_wrap):
+                category = key
+                break
+
         human_delay(base=3, jitter=2)
 
         # --- Company page ---
@@ -66,6 +73,12 @@ def linkedin_crawl():
 
         # company_size
         company_size = safe_text(dd[2]).strip()
+        employees_min, employees_max = None, None
+
+        try:
+            employees_min, employees_max = extract_employee_range(company_size)
+        except Exception as e:
+            print(f"Could not parse employee range from '{company_size}'. Error: {e}")
 
         # comp_addr
         comp_addr = [safe_text(dd[3])]
@@ -75,6 +88,8 @@ def linkedin_crawl():
                 "logo": logo,
                 "address": comp_addr,
                 "description": company_desc,
+                "employees_min": employees_min,
+                "employees_max": employees_max,
                 "website_url": comp_web_url,
                 "crawled_at": datetime.now(),
                 "source": "linkedin",  
@@ -84,6 +99,7 @@ def linkedin_crawl():
         companies[company_name]["jobs"][job_title] = {
             "description": description_parts,
             "locations": locations,
+            "category": category,
             "job_url": job_url,
             "date_posted": process,
             "crawled_at": datetime.now(timezone.utc),
@@ -98,7 +114,7 @@ def get_job_ids(headers) -> list:
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}"
 
-    for i in range(0, 2):
+    for i in range(0, 1):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
