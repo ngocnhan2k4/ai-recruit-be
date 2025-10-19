@@ -732,25 +732,7 @@ export class JobRepository
 
     const hasNextPage = result.length > query.limit;
     const data = hasNextPage ? result.slice(0, query.limit) : result;
-    const total = await this.db
-      .select({
-        count: sql`COUNT(*)`.as("count"),
-      })
-      .from(userInteractions)
-      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(
-        applyJobs,
-        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
-      )
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.type, "save"),
-          isNull(jobs.deletedAt),
-        ),
-      );
+    const total = await this.getNumberOfSavedJobs(userId);
 
     return {
       data: data.map((item) => ({
@@ -759,7 +741,7 @@ export class JobRepository
       })),
       pagination: {
         hasNextPage,
-        total: Number(total[0]?.count ?? 0),
+        total: total,
       },
     };
   }
@@ -851,5 +833,27 @@ export class JobRepository
       applyStatus: (data.applyStatus || undefined) as string | undefined,
       applyId: (data.applyId || undefined) as string | undefined,
     };
+  }
+  async getNumberOfSavedJobs(userId: string): Promise<number> {
+    const result = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(
+        applyJobs,
+        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      );
+    return Number(result[0]?.count ?? 0);
   }
 }
