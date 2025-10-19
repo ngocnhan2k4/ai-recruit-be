@@ -98,26 +98,18 @@ export class MyOrganizationController {
     );
   }
 
-  @Get("/searchByName")
+  @Get("/checkNameExists")
   @ApiOperation({
-    summary: "Search companies by name with cursor pagination",
-    description: "Search for companies by name using cursor-based pagination",
+    summary: "Check if a company name exists",
+    description: "Check if a company name exists",
   })
   @ApiResponseDto(CompanyDto, {
     isArray: true,
   })
-  async getCompaniesByName(
-    @Query() query: GetCompaniesQueryDto,
-  ): Promise<
-    ApiResponse<
-      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
-    >
-  > {
-    return await this.companyUseCase.getCompaniesByName(
-      query.limit,
-      query.keyword,
-      query.cursor,
-    );
+  async checkNameExists(
+    @Query() query: { name: string },
+  ): Promise<ApiResponse<boolean>> {
+    return await this.companyUseCase.checkNameExists(query.name);
   }
 
   @Get("/all")

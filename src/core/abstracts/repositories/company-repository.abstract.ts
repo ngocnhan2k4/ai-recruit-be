@@ -18,13 +18,7 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
     PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
   >;
 
-  abstract getCompaniesByName(
-    limit: number,
-    name?: string,
-    cursor?: string,
-  ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
-  >;
+  abstract checkNameExists(name: string): Promise<boolean>;
 
   abstract getCompaniesByUserId(
     userId: string,

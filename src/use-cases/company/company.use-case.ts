@@ -54,20 +54,8 @@ export class CompanyUseCase {
     };
   }
 
-  async getCompaniesByName(
-    limit = 20,
-    name?: string,
-    cursor?: string,
-  ): Promise<
-    ApiResponse<
-      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
-    >
-  > {
-    const result = await this.companyRepository.getCompaniesByName(
-      limit,
-      name,
-      cursor,
-    );
+  async checkNameExists(name: string): Promise<ApiResponse<boolean>> {
+    const result = await this.companyRepository.checkNameExists(name);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

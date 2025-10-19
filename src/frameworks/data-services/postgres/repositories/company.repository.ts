@@ -15,57 +15,14 @@ export class CompanyRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
   }
-  async getCompaniesByName(
-    limit: number,
-    name?: string,
-    cursor?: string,
-  ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
-  > {
-    const whereConditions: SQL[] = [eq(companies.name, name ?? "")];
-
-    // Add cursor condition if provided
-    if (cursor) {
-      whereConditions.push(gt(companies.createdAt, new Date(cursor)));
-    }
-
-    // Fetch limit + 1 to check if there's a next page
-    const results = await this.db
-      .select({
-        id: companies.id,
-        name: companies.name,
-        logoUrl: companies.logoUrl,
-        address: companies.address,
-        createdAt: companies.createdAt,
-      })
-      .from(companies)
-      .where(and(...whereConditions))
-      .orderBy(asc(companies.id))
-      .limit(limit + 1);
-
-    const [{ count: totalCount }] = await this.db
+  async checkNameExists(name: string): Promise<boolean> {
+    const result = await this.db
       .select({ count: count() })
       .from(companies)
-      .where(and(...whereConditions));
+      .where(eq(companies.name, name))
+      .limit(1);
 
-    // Check if there's a next page
-    const hasNextPage = results.length > limit;
-    const data = hasNextPage ? results.slice(0, limit) : results;
-
-    // Get the next cursor from the last item
-    const nextCursor =
-      hasNextPage && data.length > 0
-        ? data[data.length - 1].createdAt.toISOString()
-        : null;
-
-    return {
-      data: data,
-      pagination: {
-        nextCursor: nextCursor,
-        hasNextPage,
-        total: totalCount,
-      },
-    };
+    return result[0]?.count > 0;
   }
 
   async getCompaniesByUserId(
