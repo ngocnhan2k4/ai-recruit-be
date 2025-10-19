@@ -1,7 +1,8 @@
-import { IsOptional, IsString } from "class-validator";
+import { IsDate, IsOptional, IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 import { CompanyDto } from "../companies/company.dto";
 import { SkillDto } from "../skills/skill.dto";
+import { Type } from "class-transformer";
 
 export class UserExperienceDto {
   @ApiProperty()
@@ -34,8 +35,14 @@ export class UserExperienceDto {
 
 export class CreateUserExperienceRequestDto {
   @ApiProperty()
+  @IsOptional()
   @IsString()
-  companyId: string;
+  companyId?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 
   @ApiProperty()
   @IsString()
@@ -46,17 +53,30 @@ export class CreateUserExperienceRequestDto {
   position: string;
 
   @ApiProperty()
-  @IsString()
+  @Type(() => Date)
+  @IsDate()
   startDate: Date;
 
   @ApiProperty()
-  @IsString()
-  endDate: Date;
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  endDate?: Date;
 
   @ApiProperty()
   @IsString()
   @IsOptional()
   description: string;
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillIds?: string[];
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillNames?: string[];
 }
 
 export class UpdateUserExperienceRequestDto {
@@ -84,6 +104,20 @@ export class UpdateUserExperienceRequestDto {
   @ApiProperty()
   @IsString()
   companyId: string;
+
+  @ApiProperty()
+  @IsString()
+  companyName: string;
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillIds?: string[];
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsString({ each: true })
+  skillNames?: string[];
 }
 
 export class UserExperiencesResponseDto {

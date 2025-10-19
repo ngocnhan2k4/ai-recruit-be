@@ -1,17 +1,13 @@
 import argparse
-from datetime import datetime, timezone, timedelta
 
 from crawls.itviec import itviec_crawl
 from crawls.topcv import topcv_crawl
 from crawls.jobsgo import jobsgo_crawl
 from crawls.linkedin import linkedin_crawl
 
-from database import insert_to_db
+from helpers import vietnam_time_now, is_safe_db_url
 
-
-def vietnam_time_now():
-    vn_tz = timezone(timedelta(hours=7))
-    return datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+from database import insert_to_db, get_all_category
 
 
 def main():
@@ -19,17 +15,21 @@ def main():
     parser.add_argument(
         "--db-url",
         required=True,
-        help="Postgres connection string, e.g. postgres://postgres:123456@localhost:5432/mydb",
     )
     parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
 
     args = parser.parse_args()
 
-    linkedin_companies = linkedin_crawl()
-    linkedin_job_inserted = insert_to_db(args.db_url, linkedin_companies)
+    if not is_safe_db_url(args.db_url):
+        exit(1)
+
+    categories = get_all_category(args.db_url)
 
     itviec_companies = itviec_crawl()
     itviec_job_inserted = insert_to_db(args.db_url, itviec_companies)
+
+    linkedin_companies = linkedin_crawl(categories)
+    linkedin_job_inserted = insert_to_db(args.db_url, linkedin_companies)
 
     topcv_companies = topcv_crawl()
     topcv_job_inserted = insert_to_db(args.db_url, topcv_companies)

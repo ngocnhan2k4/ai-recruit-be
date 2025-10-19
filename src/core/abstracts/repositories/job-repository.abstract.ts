@@ -1,16 +1,61 @@
-import { StatisticsJobFilter } from "../../entities";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Job, Province, Company, Skill } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Company,
+  Skill,
+  WorkTypeEnumType,
+} from "@/core/entities";
+import {
+  ApplyJobResponseDto,
+  JobAnswerDto,
+  JobStatus,
+  UserInteractionResponseDto,
+  WorkType,
+} from "@/interfaces/dtos";
+import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
+import { TokenPayload } from "@/common/types/token";
+
+export interface RangeFilter {
+  min?: number;
+  max?: number;
+}
+
+export interface JobFilters {
+  keyword?: string;
+  salaryRange?: RangeFilter;
+  experienceRange?: RangeFilter;
+  provinceId?: string;
+  companyId?: string;
+  workType?: WorkTypeEnumType;
+  status?: JobStatus;
+}
+
+export interface StatisticsJobFilter {
+  fromDate?: Date;
+  toDate?: Date;
+  categoryId?: string;
+  provinceId?: string;
+  isOpen?: boolean;
+}
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
-    offset?: number,
-    keyword?: string,
-    sortBy?: string,
-    sortDirection?: "asc" | "desc",
+    cursor?: string,
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
-    { job: Job; provinces: Province[]; company: Company; skills: Skill[] }[]
+    PaginatedResult<{
+      job: Job;
+      provinces: Province[];
+      company: Company;
+      skills: Skill[];
+      isSaved?: boolean;
+      isApplied?: boolean;
+      applyStatus?: string;
+      applyId?: string;
+    }>
   >;
 
   abstract getFrequentlyJobs(
@@ -29,4 +74,78 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       jobCount: number;
     }[]
   >;
+
+  abstract applyJob(
+    userId: string,
+    jobId: string,
+    userCvId?: string,
+    answers?: JobAnswerDto[],
+  ): Promise<ApplyJobResponseDto>;
+
+  abstract updateApplyJob(
+    applyId: string,
+    userId: string,
+    status?: string,
+    userCvId?: string,
+    answers?: JobAnswerDto[],
+  ): Promise<ApplyJobResponseDto | null>;
+
+  abstract getApplyJobById(
+    applyId: string,
+    userId: string,
+  ): Promise<ApplyJobResponseDto | null>;
+
+  abstract saveJob(
+    userId: string,
+    jobId: string,
+    save: boolean,
+  ): Promise<UserInteractionResponseDto | null>;
+
+  abstract hideJob(
+    userId: string,
+    jobId: string,
+    hide: boolean,
+  ): Promise<UserInteractionResponseDto | null>;
+
+  // CRUD operations
+  abstract createJob(job: Partial<Job>): Promise<Job>;
+  abstract updateJob(jobId: string, job: Partial<Job>): Promise<Job | null>;
+  abstract deleteJob(jobId: string): Promise<boolean>;
+  abstract getJobById(jobId: string): Promise<Job | null>;
+
+  abstract getFullJobById(
+    jobId: string,
+    userId?: string,
+  ): Promise<{
+    job: Job;
+    provinces: Province[];
+    company: Company;
+    skills: Skill[];
+    isSaved?: boolean;
+    isApplied?: boolean;
+    applyStatus?: string;
+    applyId?: string;
+  } | null>;
+
+  abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
+
+  abstract getAllSavedJobs(
+    userId: string,
+    params: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+    }>
+  >;
+  abstract getNumberOfSavedJobs(userId: string): Promise<number>;
 }

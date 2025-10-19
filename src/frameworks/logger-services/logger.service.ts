@@ -4,6 +4,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import axios from "axios";
+import { retry } from "@/common/utils/api";
 
 @Injectable()
 export class LoggerService implements ILoggerServices {
@@ -18,9 +19,13 @@ export class LoggerService implements ILoggerServices {
           text: `🚨 **Error Detected!**\n🔹 **Type:** ${error.type}\n🔹 **Error:** ${error.content}\n🔹 **Note:** ${error.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };
 
-        await axios.post(
-          this.configService.get<string>("DISCORD_ERROR_WEBHOOK_URL")!,
-          discordMessage,
+        await retry(
+          () =>
+            axios.post(
+              this.configService.get<string>("DISCORD_ERROR_WEBHOOK_URL")!,
+              discordMessage,
+            ),
+          { interval: 5000 },
         );
       }
     } catch (error) {
@@ -35,9 +40,13 @@ export class LoggerService implements ILoggerServices {
           text: `🔔 **Info Detected!**\n🔹 **Type:** ${info.type}\n🔹 **Info:** ${info.content}\n🔹 **Note:** ${info.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };
 
-        await axios.post(
-          this.configService.get<string>("DISCORD_INFO_WEBHOOK_URL")!,
-          discordMessage,
+        await retry(
+          () =>
+            axios.post(
+              this.configService.get<string>("DISCORD_INFO_WEBHOOK_URL")!,
+              discordMessage,
+            ),
+          { interval: 5000 },
         );
       }
     } catch (error) {

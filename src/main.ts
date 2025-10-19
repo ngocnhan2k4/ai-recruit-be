@@ -5,6 +5,7 @@ import {
   NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { Logger } from "@nestjs/common";
+import { LoggerService } from "@/frameworks/logger-services/logger.service";
 import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
@@ -16,6 +17,15 @@ async function bootstrap() {
   );
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
+
+  try {
+    // app.get will return the provider instance if it is available in DI
+    // Note: if the provider is not yet available this will throw; we catch
+    // and ignore to fallback to console logging.
+    globalLoggerService = app.get(LoggerService);
+  } catch (e) {
+    // ignore - we'll fallback to console
+  }
 
   enableSwaggerDoc(app);
   enableAppMiddleware(app);
@@ -36,8 +46,32 @@ process.on("unhandledRejection", (reason) => {
 process.on("uncaughtException", (error) => {
   handleError("uncaughtException", error);
 });
-// [TODO]: log error here
-const handleError = (type: string, error: any) => {
-  console.error(type, error);
-};
+
+let globalLoggerService: LoggerService | null = null;
+
+function handleError(type: string, error: any) {
+  try {
+    if (globalLoggerService) {
+      globalLoggerService
+        .logError({
+          type,
+          content: JSON.stringify(error),
+          note: "It caused server crashes",
+        })
+        .catch((e) =>
+          console.error(
+            "[main] [handleError]",
+            "Failed to send error to logger service",
+            e,
+          ),
+        );
+    } else {
+      console.error("[main] [handleError]", type, error);
+    }
+  } catch (e) {
+    // As a last resort, print to stderr
+    console.error("[main] [handleError]", type, error);
+    console.error("[main] [handleError] Error while handling error:", e);
+  }
+}
 bootstrap();

@@ -2,13 +2,17 @@ name: Crawl Jobs
 
 on:
   schedule:
-    # Runs at 7:30, and 17:30
-    - cron: "30 0,10 * * *"
+    # Runs at 17:30
+    - cron: "30 10 * * *"
   workflow_dispatch: # allows manual trigger too
 
 jobs:
   run-crawler:
-    environment: dev
+    strategy:
+      matrix:
+        env: [dev, prod]
+
+    environment: ${{ matrix.env }}
     runs-on: ubuntu-latest
 
     steps:
@@ -19,18 +23,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: 'pip'
 
       - name: Install dependencies
-        working-directory: crawl_jobs
+        working-directory: ./crawl_jobs
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run crawler
         id: run_crawler
-        run: |
-          cd crawl_jobs
-          python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT"
+        working-directory: ./crawl_jobs
+        run: python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT"
 
       - name: Notify Slack
         if: always()
@@ -39,7 +43,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
           SLACK_CHANNEL: crawl
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "📊 Kết quả crawl việc làm"
+          SLACK_TITLE: "📊 Kết quả crawl việc làm (${{ matrix.env }})"
           SLACK_MESSAGE: |
             🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
 

@@ -27,6 +27,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
     logo_tag = soup.find("img", class_="employer-logo")
     logo = (logo_tag.get("src") or logo_tag.get("data-src") or "").strip() if logo_tag else None
 
+
     # date posted
     imb_3_wrap = soup.find("div", class_="imb-3")
     date_posted = None
@@ -34,6 +35,13 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
         span_text = get_date_posted(imb_3_wrap.find_all("span"))
         if span_text:
             date_posted = parse_posted_date(span_text)
+
+    print(clean_job_url(job_url))
+
+    # category
+    category = None
+    if imb_3_wrap:
+        category = safe_text(imb_3_wrap.find_all("a", class_="itag")[-1])
 
     # skills
     skills = []
@@ -55,7 +63,6 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
     description = description_parts if description_parts else []
 
     # --- Company page ---
-    print(clean_job_url(job_url))
     company_url_tag = soup.find("section", class_="job-show-employer-info").find("a")
     company_size = None
     if company_url_tag:
@@ -97,6 +104,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
     companies[company_name]["jobs"][job_title] = {
         "description": description,
         "locations": locations,
+        "category": category,
         "job_url": clean_job_url(job_url),
         "date_posted": date_posted,
         "skills": skills,

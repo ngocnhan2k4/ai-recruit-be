@@ -3,4 +3,5 @@ import { Skill, UserSkill } from "@/core/entities";
 
 export abstract class IUserSkillRepository extends IGenericRepository<UserSkill> {
   abstract getUserSkills(username: string): Promise<Skill[]>;
+  abstract createMany(userSkills: UserSkill[]): Promise<UserSkill[]>;
 }

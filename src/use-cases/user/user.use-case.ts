@@ -9,6 +9,7 @@ import {
   IUserRepository,
   IUserExperienceRepository,
   IUserSkillRepository,
+  IUserOnboardingRepository,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -20,18 +21,32 @@ import {
   UpdateUserRequestDto,
   UserDto,
   UserPublicResponseDto,
+  UserOnboardingStatusDto,
+  UserOnboardingDto,
+  GetAllUserResponseDto,
+  UserStatusEnum,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
-import { UserSkill } from "@/core";
+import {
+  ICompanyRepository,
+  UserSkill,
+  UserOnboarding,
+  ISkillRepository,
+} from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
+import { GetUserQuery } from "@/core/entities/user.entity";
+import {
+  PaginatedResultDto,
+  PaginationResponseDto,
+} from "@/interfaces/dtos/common/query";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -43,6 +58,9 @@ export class UserUseCases implements OnModuleInit {
     private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly companyRepository: ICompanyRepository,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
+    private readonly skillRepository: ISkillRepository,
   ) {}
 
   async onModuleInit() {
@@ -77,10 +95,6 @@ export class UserUseCases implements OnModuleInit {
     }
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return this.userRepository.getAll();
-  }
-
   async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
@@ -113,6 +127,12 @@ export class UserUseCases implements OnModuleInit {
       );
     }
     const userDto = GetUserResponseDto.from(user);
+    const userOnboarding = await this.userOnboardingRepository.getByField({
+      userId: id,
+    });
+    const isOnboarded = userOnboarding.length > 0;
+    userDto.onboardingCompleted = isOnboarded;
+
     return new ApiResponse<GetUserResponseDto>({
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -140,6 +160,8 @@ export class UserUseCases implements OnModuleInit {
         gender: user.gender as GenderEnum,
         dob: user.dob,
         bio: user.bio,
+        bannerUrl: user.bannerUrl,
+        address: user.address,
       },
     };
   }
@@ -147,7 +169,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserProfile(
     userId: string,
     updateUserDto: UpdateUserRequestDto,
-  ): Promise<ApiResponse<UserDto>> {
+  ): Promise<ApiResponse<void>> {
     const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({
@@ -180,10 +202,6 @@ export class UserUseCases implements OnModuleInit {
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
-        data: {
-          ...result,
-          gender: result.gender as GenderEnum,
-        },
       };
     } catch (error: any) {
       this.logger.error(
@@ -212,10 +230,12 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async getUserExperiences(
-    userId: string,
+    username: string,
   ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
     const userExperiences =
-      await this.userExperienceRepository.getUserExperiences(userId);
+      await this.userExperienceRepository.getUserExperiencesByUsername(
+        username,
+      );
     if (!userExperiences) {
       throw new NotFoundException({
         message:
@@ -230,15 +250,61 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  private async preCreateBeforeCreateUserExperience(
+    userId: string,
+    data: CreateUserExperienceRequestDto,
+  ) {
+    let companyId = data.companyId;
+    if (!companyId) {
+      const company = await this.companyRepository.create({
+        name: data.companyName,
+      });
+      companyId = company.id;
+    }
+    const skillIds = data.skillIds || [];
+    const skillNames = data.skillNames || [];
+
+    // Process skill names to get or create skill IDs
+    if (skillNames.length > 0) {
+      const newSkills = await this.skillRepository.createMany(
+        skillNames.map((name) => ({ name })),
+      );
+      skillIds.push(...newSkills.map((skill) => skill.id));
+    }
+
+    // Create user-skill associations
+    if (skillIds.length > 0)
+      await this.userSkillRepository.createMany(
+        skillIds.map((skillId) => ({
+          userId,
+          skillId,
+          companyId,
+        })),
+      );
+    return {
+      companyId,
+    };
+  }
+
+  // Create user experience, along with creating new company (if needed) and skills (if needed)
+  // [TODO]: It will not reasonable if user work a company twice, need to handle this case later
   async createUserExperience(
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      createUserExperienceDto,
+    );
+
     const result = await this.userExperienceRepository.create({
       ...createUserExperienceDto,
       userId,
       startDate: convertDateToStr(createUserExperienceDto.startDate),
-      endDate: convertDateToStr(createUserExperienceDto.endDate),
+      endDate: createUserExperienceDto.endDate
+        ? convertDateToStr(createUserExperienceDto.endDate)
+        : null,
+      companyId: companyId,
     });
     if (!result) {
       throw new NotFoundException({
@@ -256,7 +322,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserExperience(
     userId: string,
     id: number,
-    updateUserExperienceDto: UpdateUserExperienceRequestDto,
+    updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
     const userExperience = (
       await this.userExperienceRepository.getByField({
@@ -273,16 +339,28 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+    await this.userSkillRepository.delete({
+      userId,
+      companyId: userExperience.companyId,
+    });
+    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+      userId,
+      updateUserExperienceDto,
+    );
+
     const updatedUserExperience = {
       ...userExperience,
       ...updateUserExperienceDto,
+      companyId,
     };
     await this.userExperienceRepository.update(
       { userId, id },
       {
         ...updatedUserExperience,
         startDate: convertDateToStr(updateUserExperienceDto.startDate),
-        endDate: convertDateToStr(updateUserExperienceDto.endDate),
+        endDate: updateUserExperienceDto.endDate
+          ? convertDateToStr(updateUserExperienceDto.endDate)
+          : null,
       },
     );
 
@@ -357,7 +435,12 @@ export class UserUseCases implements OnModuleInit {
   async deleteUserSkill(
     userId: string,
     skillId: string,
-  ): Promise<ApiResponse<UserSkill>> {
+  ): Promise<
+    ApiResponse<{
+      skillId: string;
+      companyId: string | null;
+    }>
+  > {
     const result = (
       await this.userSkillRepository.delete({
         userId,
@@ -451,6 +534,83 @@ export class UserUseCases implements OnModuleInit {
         exists: !!user,
       },
       message: "Username existence checked successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+  async checkUserEnterOnboarding(
+    userId: string,
+  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[checkUserEnterOnboarding] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    const userOnboarding = await this.userOnboardingRepository.getByField({
+      userId,
+    });
+    console.log("User onboarding record:", userOnboarding);
+    const isOnboarded = userOnboarding.length > 0;
+    console.log("User onboarding status:", isOnboarded);
+    return {
+      data: {
+        isOnboarded,
+      },
+      message: "User onboarding status checked successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async completeUserOnboarding(
+    userOnboarding: UserOnboardingDto,
+    userId: string,
+  ): Promise<ApiResponse<void>> {
+    const onboarding: Partial<
+      Omit<UserOnboardingDto, "name" | "gender" | "dob">
+    > = {
+      ...userOnboarding,
+    };
+    const newOnboarding = {
+      ...onboarding,
+      userId,
+    } as Partial<UserOnboarding>;
+
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[completeUserOnboarding] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    await this.userOnboardingRepository.create(newOnboarding);
+    await this.userRepository.update(
+      { id: userId },
+      {
+        name: userOnboarding.name!,
+        gender: userOnboarding.gender,
+        dob: userOnboarding.dob,
+      },
+    );
+    return {
+      message: "User onboarding completed successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getAllUsers(
+    query: GetUserQuery,
+  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
+    const result = await this.userRepository.getAllWithOffset(query);
+    return {
+      data: {
+        data: result.data.map((user) => ({
+          ...user,
+          status: user.status as UserStatusEnum,
+        })),
+        pagination: result.pagination,
+      },
+      message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

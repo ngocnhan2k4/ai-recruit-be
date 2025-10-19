@@ -7,19 +7,31 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
   IAuthRepository,
   ICategoryRepository,
+  ICompanyRepository,
   IJobRepository,
+  ICvRepository,
   IProvinceRepository,
+  ISkillRepository,
   IUserExperienceRepository,
   IUserRepository,
   IUserSkillRepository,
+  IUniversityRepository,
+  IUserOnboardingRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
+import { CompanyRepository } from "./repositories/company.repository";
+import { CvRepository } from "./repositories/cv.repository";
 import { JobRepository } from "./repositories/job.repository";
 import { ProvinceRepository } from "./repositories/province.repository";
 import { UserExperienceRepository } from "./repositories/user-experience.repository";
 import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
+import { SkillRepository } from "./repositories/skill.repository";
+import { UniversityRepository } from "./repositories/university.repository";
+import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
 
 @Global()
 @Module({
@@ -66,7 +78,7 @@ import { UserRepository } from "./repositories/user.repository";
           }
           const db = drizzle(pool, {
             casing: "snake_case",
-            // logger: process.env.NODE_ENV === "development",
+            // logger: true,
           }) as DBDrizzle;
           return db;
         } catch (err) {
@@ -83,6 +95,10 @@ import { UserRepository } from "./repositories/user.repository";
     {
       provide: ICategoryRepository,
       useClass: CategoryRepository,
+    },
+    {
+      provide: ICompanyRepository,
+      useClass: CompanyRepository,
     },
     {
       provide: IJobRepository,
@@ -104,15 +120,41 @@ import { UserRepository } from "./repositories/user.repository";
       provide: IUserRepository,
       useClass: UserRepository,
     },
+    {
+      provide: ICvRepository,
+      useClass: CvRepository,
+    },
+    {
+      provide: ISkillRepository,
+      useClass: SkillRepository,
+    },
+    {
+      provide: IUniversityRepository,
+      useClass: UniversityRepository,
+    },
+    {
+      provide: IUserOnboardingRepository,
+      useClass: UserOnboardingRepository,
+    },
+    {
+      provide: IOrganizationMembersRepository,
+      useClass: OrganizationMembersRepository,
+    },
   ],
   exports: [
     IAuthRepository,
     ICategoryRepository,
+    ICompanyRepository,
+    ICvRepository,
     IJobRepository,
     IProvinceRepository,
+    ISkillRepository,
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,
+    IUniversityRepository,
+    IUserOnboardingRepository,
+    IOrganizationMembersRepository,
   ],
 })
 export class PostgresDataServicesModule {}
