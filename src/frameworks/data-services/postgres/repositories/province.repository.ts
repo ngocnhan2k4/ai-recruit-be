@@ -2,7 +2,7 @@ import { IProvinceRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
-import { provinces } from "../schema";
+import { provinces } from "../models";
 import { Province } from "@/core";
 
 @Injectable()

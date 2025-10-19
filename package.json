@@ -25,7 +25,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun drizzle/seed/index.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "casbin:init": "ts-node casbin_rule.config.ts init",
+    "casbin:clear": "ts-node casbin_rule.config.ts clear",
+    "casbin:verify": "ts-node casbin_rule.config.ts verify",
+    "casbin:list": "ts-node casbin_rule.config.ts list",
+    "casbin:migrate": "ts-node migrate-casbin.ts"
   },
   "husky": {
     "hooks": {

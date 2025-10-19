@@ -27,7 +27,13 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.addPolicy(subject, object, action, effect);
+    try {
+      await this.enforcer.addPolicy(subject, object, action, effect);
+      return true;
+    } catch (error) {
+      console.error("Failed to add policy:", error);
+      return false;
+    }
   }
 
   async removePolicy(
@@ -36,7 +42,13 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.removePolicy(subject, object, action, effect);
+    try {
+      await this.enforcer.removePolicy(subject, object, action, effect);
+      return true;
+    } catch (error) {
+      console.error("Failed to remove policy:", error);
+      return false;
+    }
   }
 
   // Policy management methods for ptype "p2" (domain-based policies)
@@ -47,13 +59,19 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.addPolicy(
-      subject,
-      domainType,
-      object,
-      action,
-      effect,
-    );
+    try {
+      await this.enforcer.addPolicy(
+        subject,
+        domainType,
+        object,
+        action,
+        effect,
+      );
+      return true;
+    } catch (error) {
+      console.error("Failed to add policy2:", error);
+      return false;
+    }
   }
 
   async removePolicy2(
@@ -63,22 +81,40 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.removePolicy(
-      subject,
-      domainType,
-      object,
-      action,
-      effect,
-    );
+    try {
+      await this.enforcer.removePolicy(
+        subject,
+        domainType,
+        object,
+        action,
+        effect,
+      );
+      return true;
+    } catch (error) {
+      console.error("Failed to remove policy2:", error);
+      return false;
+    }
   }
 
   // Role management methods for ptype "g" (basic role assignments)
   async addRoleForUser(user: string, role: string): Promise<boolean> {
-    return await this.enforcer.addRoleForUser(user, role);
+    try {
+      await this.enforcer.addRoleForUser(user, role);
+      return true;
+    } catch (error) {
+      console.error("Failed to add role for user:", error);
+      return false;
+    }
   }
 
   async deleteRoleForUser(user: string, role: string): Promise<boolean> {
-    return await this.enforcer.deleteRoleForUser(user, role);
+    try {
+      await this.enforcer.deleteRoleForUser(user, role);
+      return true;
+    } catch (error) {
+      console.error("Failed to delete role for user:", error);
+      return false;
+    }
   }
 
   // Role management methods for ptype "g2" (domain-based role assignments)
@@ -87,7 +123,13 @@ export class CasbinService {
     role: string,
     domain: string,
   ): Promise<boolean> {
-    return await this.enforcer.addGroupingPolicy(user, role, domain);
+    try {
+      await this.enforcer.addGroupingPolicy(user, role, domain);
+      return true;
+    } catch (error) {
+      console.error("Failed to add role for user in domain:", error);
+      return false;
+    }
   }
 
   async deleteRoleForUserInDomain(
@@ -95,7 +137,13 @@ export class CasbinService {
     role: string,
     domain: string,
   ): Promise<boolean> {
-    return await this.enforcer.removeGroupingPolicy(user, role, domain);
+    try {
+      await this.enforcer.removeGroupingPolicy(user, role, domain);
+      return true;
+    } catch (error) {
+      console.error("Failed to delete role for user in domain:", error);
+      return false;
+    }
   }
 
   async getRolesForUser(user: string): Promise<string[]> {
@@ -144,5 +192,14 @@ export class CasbinService {
     action: string,
   ): Promise<boolean> {
     return await this.enforcer.enforce(user, domain, object, action);
+  }
+
+  // Additional utility methods
+  clearAllPolicies(): void {
+    this.enforcer.clearPolicy();
+  }
+
+  async hasPolicy(ptype: string, rule: string[]): Promise<boolean> {
+    return await this.enforcer.hasPolicy(...rule);
   }
 }

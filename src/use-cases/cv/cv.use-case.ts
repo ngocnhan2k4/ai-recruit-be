@@ -28,10 +28,10 @@ export class CvUseCases {
       .map((cv) => ({
         id: cv.id,
         userId: cv.userId,
+        name: cv.name,
         fileUrl: cv.fileUrl,
         fileName: cv.fileName,
         mimeType: cv.mimeType,
-        fileSize: cv.fileSize,
         lastUsed: cv.lastUsed ? new Date(cv.lastUsed) : new Date(cv.createdAt),
         createdAt: new Date(cv.createdAt),
         updatedAt: cv.updatedAt ? new Date(cv.updatedAt) : null,
@@ -70,10 +70,10 @@ export class CvUseCases {
     // Save CV record to database
     const newCv = await this.cvRepository.create({
       userId: userId,
+      name: createCvDto.name,
       fileUrl: uploadResult.data.url,
       fileName: createCvDto.fileName,
       mimeType: createCvDto.mimeType,
-      fileSize: createCvDto.fileSize,
       lastUsed: new Date(),
     });
 
@@ -84,10 +84,10 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: newCv.id,
       userId: newCv.userId,
+      name: newCv.name,
       fileUrl: newCv.fileUrl,
       fileName: newCv.fileName,
       mimeType: newCv.mimeType,
-      fileSize: newCv.fileSize,
       lastUsed: newCv.lastUsed
         ? new Date(newCv.lastUsed)
         : new Date(newCv.createdAt),
@@ -133,9 +133,7 @@ export class CvUseCases {
     }
 
     // Prepare update data
-    const updateData: Partial<Cv> = {
-      updatedAt: new Date(),
-    };
+    const updateData: Partial<Cv> = {};
 
     if (fileUrl) {
       updateData.fileUrl = fileUrl;
@@ -149,20 +147,19 @@ export class CvUseCases {
       updateData.mimeType = updateCvDto.mimeType;
     }
 
-    if (updateCvDto?.fileSize !== undefined) {
-      updateData.fileSize = updateCvDto.fileSize;
+    if (updateCvDto?.name !== undefined) {
+      updateData.name = updateCvDto.name;
     }
 
-    // Update lastUsed when file is updated
     if (fileUrl) {
       updateData.lastUsed = new Date();
     }
-
     // Update CV record in database
-    const updatedCv = await this.cvRepository.update(
+    const updatedRows = await this.cvRepository.update(
       { id: cvId },
       updateData,
-    )[0];
+    );
+    const updatedCv = updatedRows[0];
     if (!updatedCv) {
       throw new BadRequestException({
         message: "Failed to update CV",
@@ -177,10 +174,10 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: updatedCv.id,
       userId: updatedCv.userId,
+      name: updatedCv.name,
       fileUrl: updatedCv.fileUrl,
       fileName: updatedCv.fileName,
       mimeType: updatedCv.mimeType,
-      fileSize: updatedCv.fileSize,
       lastUsed: updatedCv.lastUsed
         ? new Date(updatedCv.lastUsed)
         : new Date(updatedCv.createdAt),

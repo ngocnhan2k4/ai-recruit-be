@@ -16,6 +16,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
@@ -25,13 +26,15 @@ import {
   ApiResponse,
   ApiResponseDto,
   CheckUsernameResponseDto,
-  GetUserResponseDto,
   UpdateUserRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
   UserOnboardingStatusDto,
   UserPublicResponseDto,
   UserOnboardingDto,
+  GetUserQueryDto,
+  GetAllUserResponseDto,
+  GetUserResponseDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -42,13 +45,14 @@ import {
 } from "../dtos/users/user-experience.dto";
 import {
   CreateUserSkillRequestDto,
+  DeleteUserSkillResponseDto,
   UserSkillDto,
 } from "../dtos/users/user-skill.dto";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
+import { PaginatedResultDto } from "../dtos/common/query";
 
 @ApiTags("Users")
 @Controller("users")
@@ -74,7 +78,7 @@ export class UserController {
     return await this.userUseCases.checkUserByUsername(username);
   }
 
-  @UseGuards(GuestGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({
     summary: "Get current user",
     description: "Retrieve information about the currently authenticated user.",
@@ -108,7 +112,7 @@ export class UserController {
   async updateProfile(
     @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserRequestDto,
-  ): Promise<ApiResponse<UserDto>> {
+  ): Promise<ApiResponse<void>> {
     return await this.userUseCases.updateUserProfile(
       user.userId,
       updateUserDto,
@@ -140,15 +144,16 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Update user experience" })
   @CasbinPermission("/user-experiences", "PUT")
   @Put("user-experiences/:id")
-  @ApiBody({ type: UpdateUserExperienceRequestDto })
+  @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")
   async updateUserExperience(
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
-    @Body() updateUserExperienceDto: UpdateUserExperienceRequestDto,
+    @Body() updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
     return this.userUseCases.updateUserExperience(
       user.userId,
@@ -204,7 +209,7 @@ export class UserController {
   async deleteUserSkill(
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
-  ) {
+  ): Promise<ApiResponse<DeleteUserSkillResponseDto>> {
     return this.userUseCases.deleteUserSkill(user.userId, id);
   }
 
@@ -265,6 +270,7 @@ export class UserController {
   ): Promise<ApiResponse<UserOnboardingStatusDto>> {
     return this.userUseCases.checkUserEnterOnboarding(user.userId);
   }
+
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Complete user onboarding" })
   @CasbinPermission("/onboarding", "POST")
@@ -274,10 +280,20 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Body() userOnboardingDto: UserOnboardingDto,
   ): Promise<ApiResponse<void>> {
-    console.log("userOnboardingDto:", userOnboardingDto);
     return await this.userUseCases.completeUserOnboarding(
       userOnboardingDto,
       user.userId,
     );
+  }
+
+  // [TODO]: Admin only - add CasbinPermission
+  // @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Get all users (admin only)" })
+  @Get()
+  @ApiResponseDto(PaginatedResultDto<UserDto>)
+  async getUsers(
+    @Query() query: GetUserQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
+    return await this.userUseCases.getAllUsers(query);
   }
 }

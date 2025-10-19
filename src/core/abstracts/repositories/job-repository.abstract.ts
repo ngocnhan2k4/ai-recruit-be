@@ -1,10 +1,19 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Job, Province, Company, Skill } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Company,
+  Skill,
+  WorkTypeEnumType,
+} from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
+  JobStatus,
   UserInteractionResponseDto,
 } from "@/interfaces/dtos";
+import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 
 export interface RangeFilter {
   min?: number;
@@ -17,12 +26,12 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: string;
-  status?: string;
+  workType?: WorkTypeEnumType;
+  status?: JobStatus;
 }
 
 export interface CursorPaginationResult<T> {
-  data: T[];
+  paginationData: T[];
   nextCursor?: string;
   hasNextPage: boolean;
 }
@@ -106,4 +115,39 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract updateJob(jobId: string, job: Partial<Job>): Promise<Job | null>;
   abstract deleteJob(jobId: string): Promise<boolean>;
   abstract getJobById(jobId: string): Promise<Job | null>;
+
+  abstract getFullJobById(
+    jobId: string,
+    userId?: string,
+  ): Promise<{
+    job: Job;
+    provinces: Province[];
+    company: Company;
+    skills: Skill[];
+    isSaved?: boolean;
+    isApplied?: boolean;
+    applyStatus?: string;
+    applyId?: string;
+  } | null>;
+
+  abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
+
+  abstract getAllSavedJobs(
+    userId: string,
+    params: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+    }>
+  >;
 }

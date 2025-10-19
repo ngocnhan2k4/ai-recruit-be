@@ -10,6 +10,7 @@ import {
   ProvinceController,
   CvController,
   UniversityController,
+  MyOrganizationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -80,6 +81,7 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     SkillController,
     UniversityController,
     CasbinController,
+    MyOrganizationController,
   ],
   providers: [
     JwtStrategy,

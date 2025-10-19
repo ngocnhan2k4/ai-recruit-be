@@ -6,7 +6,7 @@ import {
   IUserOnboardingRepository,
 } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { AnonymousId, RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
@@ -45,61 +45,37 @@ export class AuthUseCases {
         code: RESPONSE_CODE.INVALID_CREDENTIALS,
       });
     }
-    let user: User | null = null;
-    console.log("decode", decode);
-    if (decode.provider_id !== "anonymous") {
-      user =
-        (
-          await this.userRepository.getByField({
-            firebaseUid: decode.uid,
-          })
-        )[0] || null;
-      if (!user) {
-        const newUser: NewUser = {
-          username: generateUsername(decode.name!), // [TODO]: check exist username here
-          email: decode.email ?? null,
-          avatarUrl: decode.picture ?? null,
+    let user =
+      (
+        await this.userRepository.getByField({
           firebaseUid: decode.uid,
-          // roles: [RoleEnum.USER],
-          name: decode.name ?? "",
-          gender: null,
-          dob: null,
-          phone: null,
-          provider: normalizeProvider(decode.provider_id || "email"),
-        };
-        user = await this.userRepository.create(newUser);
-      } else {
-        // Update user info if necessary
-        const user = await this.userRepository.getByField({
-          firebaseUid: decode.uid,
-        });
-        const userOnboarding = await this.userOnboardingRepository.getByField({
-          userId: user[0].id,
-        });
-        onboarded = userOnboarding.length > 0;
-      }
-    } else {
-      user = {
-        id: AnonymousId,
-        username: "Anonymous",
-        // roles: [RoleEnum.ANONYMOUS],
+        })
+      )[0] || null;
+    if (!user) {
+      const newUser: NewUser = {
+        username: generateUsername(decode.name!), // [TODO]: check exist username here
+        email: decode.email ?? null,
+        avatarUrl: decode.picture ?? null,
         firebaseUid: decode.uid,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        name: "Anonymous",
-        email: null,
-        avatarUrl: null,
-        phone: null,
-        dob: null,
-        deletedAt: null,
+        // roles: [RoleEnum.USER],
+        name: decode.name ?? "",
         gender: null,
-        emailVerified: false,
-        phoneVerified: false,
-        bio: null,
-        bannerUrl: null,
-        provider: "anonymous",
+        dob: null,
+        phone: null,
+        provider: normalizeProvider(decode.provider_id || "email"),
       };
+      user = await this.userRepository.create(newUser);
+    } else {
+      // Update user info if necessary
+      const user = await this.userRepository.getByField({
+        firebaseUid: decode.uid,
+      });
+      const userOnboarding = await this.userOnboardingRepository.getByField({
+        userId: user[0].id,
+      });
+      onboarded = userOnboarding.length > 0;
     }
+
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from(user);
     userDto.onboardingCompleted = onboarded;

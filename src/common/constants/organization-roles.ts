@@ -1,0 +1,17 @@
+export enum OrganizationRole {
+  ORGANIZATION_OWNER = "organization_owner",
+  ORGANIZATION_ADMIN = "organization_admin",
+  ORGANIZATION_EDITOR = "organization_editor",
+  ORGANIZATION_VIEWER = "organization_viewer",
+  ORGANIZATION_CONTENT_ADMIN = "organization_content_admin",
+  ORGANIZATION_CONTENT_EDITOR = "organization_content_editor",
+  ORGANIZATION_CONTENT_VIEWER = "organization_content_viewer",
+  ORGANIZATION_RECRUITER_ADMIN = "organization_recruiter_admin",
+  ORGANIZATION_RECRUITER_EDITOR = "organization_recruiter_editor",
+  ORGANIZATION_RECRUITER_VIEWER = "organization_recruiter_viewer",
+  ORGANIZATION_ANALYST_ADMIN = "organization_analyst_admin",
+  ORGANIZATION_ANALYST_EDITOR = "organization_analyst_editor",
+  ORGANIZATION_ANALYST_VIEWER = "organization_analyst_viewer",
+  ORGANIZATION_EMPLOYEE = "organization_employee",
+  ANONYMOUSLY = "anonymously",
+}

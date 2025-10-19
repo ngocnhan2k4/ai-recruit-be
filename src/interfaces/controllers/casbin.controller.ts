@@ -139,7 +139,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "write")
+  // @CasbinPermission("casbin", "POST")
   async addPolicy(@Body() addPolicyDto: AddPolicyDto) {
     const { subject, object, action, effect } = addPolicyDto;
     const result = await this.casbinService.addPolicy(
@@ -178,7 +178,7 @@ export class CasbinController {
     status: 200,
     description: "Policy removed successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "DELETE")
   async removePolicy(@Body() removePolicyDto: RemovePolicyDto) {
     const { subject, object, action, effect } = removePolicyDto;
     const result = await this.casbinService.removePolicy(
@@ -235,7 +235,7 @@ export class CasbinController {
     status: 201,
     description: "Domain-based policy added successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "POST")
   async addPolicy2(@Body() addPolicy2Dto: AddPolicy2Dto) {
     const { subject, domainType, object, action, effect } = addPolicy2Dto;
     const result = await this.casbinService.addPolicy2(
@@ -278,7 +278,7 @@ export class CasbinController {
     status: 200,
     description: "Domain-based policy removed successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "DELETE")
   async removePolicy2(@Body() removePolicy2Dto: RemovePolicy2Dto) {
     const { subject, domainType, object, action, effect } = removePolicy2Dto;
     const result = await this.casbinService.removePolicy2(
@@ -328,7 +328,7 @@ export class CasbinController {
     status: 201,
     description: "Role assigned successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "POST")
   async addRoleForUser(@Body() addRoleDto: AddRoleDto) {
     const { user, role } = addRoleDto;
     const result = await this.casbinService.addRoleForUser(user, role);
@@ -360,7 +360,7 @@ export class CasbinController {
     status: 200,
     description: "Role removed successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "DELETE")
   async removeRoleForUser(@Body() removeRoleDto: RemoveRoleDto) {
     const { user, role } = removeRoleDto;
     const result = await this.casbinService.deleteRoleForUser(user, role);
@@ -397,7 +397,7 @@ export class CasbinController {
     status: 201,
     description: "Domain-based role assigned successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "POST")
   async addRoleForUserInDomain(@Body() addRoleInDomainDto: AddRoleInDomainDto) {
     const { user, role, domain } = addRoleInDomainDto;
     const result = await this.casbinService.addRoleForUserInDomain(
@@ -437,7 +437,7 @@ export class CasbinController {
     status: 200,
     description: "Domain-based role removed successfully",
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "DELETE")
   async removeRoleForUserInDomain(
     @Body() removeRoleInDomainDto: RemoveRoleInDomainDto,
   ) {
@@ -479,7 +479,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "GET")
   async getAllPolicies() {
     const policies = await this.casbinService.getAllPolicies();
     return {
@@ -515,7 +515,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "GET")
   async getAllRoles() {
     const roles = await this.casbinService.getAllRoles();
     return {
@@ -549,7 +549,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "GET")
   async getRolesForUser(@Param("userId") userId: string) {
     const roles = await this.casbinService.getRolesForUser(userId);
     return {
@@ -590,7 +590,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "GET")
   async getRolesForUserInDomain(
     @Param("userId") userId: string,
     @Param("domain") domain: string,
@@ -662,7 +662,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "POST")
   async checkPermission(@Body() checkPermissionDto: CheckPermissionDto) {
     const { subject, object, action } = checkPermissionDto;
     const allowed = await this.casbinService
@@ -715,7 +715,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "read")
+  @CasbinPermission("casbin", "POST")
   async checkPermissionWithDomain(
     @Body() checkPermissionWithDomainDto: CheckPermissionWithDomainDto,
   ) {
@@ -755,7 +755,7 @@ export class CasbinController {
       },
     },
   })
-  @CasbinPermission("casbin", "write")
+  @CasbinPermission("casbin", "POST")
   async reloadPolicies() {
     await this.casbinService.loadPolicy();
     return {

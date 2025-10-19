@@ -30,7 +30,7 @@ export enum RoleEnum {
   ORGANIZATION_EMPLOYEE = "ORGANIZATION_EMPLOYEE",
 }
 
-export const AnonymousId = "00000000-0000-0000-0000-000000000000";
+// export const AnonymousId = "00000000-0000-0000-0000-000000000000";
 
 export enum GenderEnum {
   MALE = "Male",

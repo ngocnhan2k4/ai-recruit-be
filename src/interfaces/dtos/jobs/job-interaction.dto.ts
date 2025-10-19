@@ -43,7 +43,7 @@ export class ApplyJobDto {
   })
   @IsOptional()
   @IsUUID()
-  userCvId?: string;
+  cvId?: string;
 
   @ApiProperty({
     type: [JobAnswerDto],
@@ -113,6 +113,15 @@ export class HideJobDto {
     return value as boolean;
   })
   hide?: boolean;
+}
+
+export class ApplyJobQueryDto {
+  @ApiProperty({
+    example: "uuid-apply-id",
+    description: "Job ID",
+  })
+  @IsUUID()
+  jobId: string;
 }
 
 export class ApplyJobResponseDto {

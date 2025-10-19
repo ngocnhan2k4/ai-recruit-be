@@ -35,7 +35,7 @@ export class CasbinGuard implements CanActivate {
     }
 
     // Extract organization ID (priority: params → query → body)
-    const organizationId = this.extractOrganizationId(req);
+    const organizationId = this.extractKeyFromRequest(req, "organization_id");
 
     console.log("User roles:", user.roles);
     console.log("Casbin meta:", meta.act, meta.obj);
@@ -79,29 +79,38 @@ export class CasbinGuard implements CanActivate {
    * Extracts organizationId from request (params, query, or body)
    * Supports: organization_id, organizationId, orgId
    */
-  private extractOrganizationId(req: FastifyRequest): string | null {
-    const keys = ["organization_id", "organizationId", "orgId"];
 
-    // Check URL params
-    for (const key of keys) {
-      const value = (req.params as Record<string, any>)?.[key];
-      if (value) return String(value);
+  private extractKeyFromRequest(
+    req: FastifyRequest,
+    key: string,
+  ): string | undefined {
+    const lowerKey = key.toLowerCase();
+
+    // 1️⃣ Check headers
+    const headerValue = req.headers[lowerKey];
+    if (headerValue) {
+      return Array.isArray(headerValue) ? headerValue[0] : headerValue;
     }
 
-    // Check query params
-    for (const key of keys) {
-      const value = (req.query as Record<string, any>)?.[key];
-      if (value) return String(value);
-    }
+    // 2️⃣ Check route params
+    const paramsValue =
+      (req.params as Record<string, any>)?.[key] ??
+      (req.params as Record<string, any>)?.[lowerKey];
+    if (paramsValue) return String(paramsValue);
 
-    // Check body
-    if (req.body && typeof req.body === "object") {
-      for (const key of keys) {
-        const value = (req.body as Record<string, any>)?.[key];
-        if (value) return String(value);
-      }
-    }
+    // 3️⃣ Check query string
+    const queryValue =
+      (req.query as Record<string, any>)?.[key] ??
+      (req.query as Record<string, any>)?.[lowerKey];
+    if (queryValue) return String(queryValue);
 
-    return null;
+    // 4️⃣ Check request body
+    const bodyValue =
+      (req.body as Record<string, any>)?.[key] ??
+      (req.body as Record<string, any>)?.[lowerKey];
+    if (bodyValue) return String(bodyValue);
+
+    // ❌ Not found anywhere
+    return undefined;
   }
 }

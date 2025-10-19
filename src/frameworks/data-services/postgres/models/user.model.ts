@@ -30,7 +30,12 @@ export const ProviderEnum = pgEnum("provider", [
   "google",
   "facebook",
   "github",
-  "anonymous",
+]);
+
+export const UserStatusEnum = pgEnum("user_status", [
+  "active",
+  "inactive",
+  "banned",
 ]);
 
 export const users = pgTable(
@@ -47,9 +52,11 @@ export const users = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     dob: date("dob"),
     bio: varchar("bio", { length: 500 }),
+    address: varchar("address", { length: 255 }),
     phoneVerified: boolean("phone_verified").notNull().default(false),
     gender: GenderEnum("gender"),
     provider: ProviderEnum("provider").notNull().default("email"),
+    status: UserStatusEnum("status").notNull().default("active"),
     ...timestamps,
   },
   (table) => [

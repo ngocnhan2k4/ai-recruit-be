@@ -53,10 +53,10 @@ export const jobRaws = pgTable("job_raws", {
 	source: varchar({ length: 255 }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.companyId],
-			foreignColumns: [companyRaws.id],
-			name: "job_raws_company_id_company_raws_id_fk"
-		}),
+		columns: [table.companyId],
+		foreignColumns: [companyRaws.id],
+		name: "job_raws_company_id_company_raws_id_fk"
+	}),
 ]);
 
 export const categories = pgTable("categories", {
@@ -75,10 +75,10 @@ export const userOnboardings = pgTable("user_onboardings", {
 	currentGoal: varchar("current_goal", { length: 500 }),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "user_onboardings_user_id_users_id_fk"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_onboardings_user_id_users_id_fk"
+	}),
 	unique("user_onboardings_user_id_unique").on(table.userId),
 ]);
 
@@ -98,10 +98,10 @@ export const refreshTokens = pgTable("refresh_tokens", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "refresh_tokens_user_id_users_id_fk"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "refresh_tokens_user_id_users_id_fk"
+	}),
 ]);
 
 export const users = pgTable("users", {
@@ -143,15 +143,15 @@ export const userExperiences = pgTable("user_experiences", {
 	deletedAt: timestamp("deleted_at", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "user_experiences_user_id_users_id_fk"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_experiences_user_id_users_id_fk"
+	}),
 	foreignKey({
-			columns: [table.companyId],
-			foreignColumns: [companies.id],
-			name: "user_experiences_company_id_companies_id_fk"
-		}),
+		columns: [table.companyId],
+		foreignColumns: [companies.id],
+		name: "user_experiences_company_id_companies_id_fk"
+	}),
 ]);
 
 export const applyJobs = pgTable("apply_jobs", {
@@ -166,15 +166,15 @@ export const applyJobs = pgTable("apply_jobs", {
 	answers: jsonb(),
 }, (table) => [
 	foreignKey({
-			columns: [table.jobId],
-			foreignColumns: [jobs.id],
-			name: "apply_jobs_job_id_jobs_id_fk"
-		}),
+		columns: [table.jobId],
+		foreignColumns: [jobs.id],
+		name: "apply_jobs_job_id_jobs_id_fk"
+	}),
 	foreignKey({
-			columns: [table.userCvId],
-			foreignColumns: [userCv.id],
-			name: "apply_jobs_user_cv_id_user_cv_id_fk"
-		}),
+		columns: [table.userCvId],
+		foreignColumns: [userCv.id],
+		name: "apply_jobs_user_cv_id_user_cv_id_fk"
+	}),
 ]);
 
 export const userInteractions = pgTable("user_interactions", {
@@ -187,10 +187,10 @@ export const userInteractions = pgTable("user_interactions", {
 	deletedAt: timestamp("deleted_at", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.jobId],
-			foreignColumns: [jobs.id],
-			name: "user_interactions_job_id_jobs_id_fk"
-		}),
+		columns: [table.jobId],
+		foreignColumns: [jobs.id],
+		name: "user_interactions_job_id_jobs_id_fk"
+	}),
 ]);
 
 export const jobs = pgTable("jobs", {
@@ -201,8 +201,8 @@ export const jobs = pgTable("jobs", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }),
 	deletedAt: timestamp("deleted_at", { mode: 'string' }),
-	salaryMin: numeric("salary_min", { precision: 12, scale:  2 }),
-	salaryMax: numeric("salary_max", { precision: 12, scale:  2 }),
+	salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
+	salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),
 	datePosted: date("date_posted"),
 	experienceMin: integer("experience_min"),
 	experienceMax: integer("experience_max"),
@@ -216,15 +216,15 @@ export const jobs = pgTable("jobs", {
 	questions: jsonb(),
 }, (table) => [
 	foreignKey({
-			columns: [table.companyId],
-			foreignColumns: [companies.id],
-			name: "jobs_company_id_companies_id_fk"
-		}),
+		columns: [table.companyId],
+		foreignColumns: [companies.id],
+		name: "jobs_company_id_companies_id_fk"
+	}),
 	foreignKey({
-			columns: [table.provinceId],
-			foreignColumns: [provinces.id],
-			name: "jobs_province_id_provinces_id_fk"
-		}),
+		columns: [table.provinceId],
+		foreignColumns: [provinces.id],
+		name: "jobs_province_id_provinces_id_fk"
+	}),
 ]);
 
 export const userCv = pgTable("user_cv", {
@@ -242,16 +242,16 @@ export const jobCategories = pgTable("job_categories", {
 	categoryId: uuid("category_id").notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.jobId],
-			foreignColumns: [jobs.id],
-			name: "job_categories_job_id_jobs_id_fk"
-		}),
+		columns: [table.jobId],
+		foreignColumns: [jobs.id],
+		name: "job_categories_job_id_jobs_id_fk"
+	}),
 	foreignKey({
-			columns: [table.categoryId],
-			foreignColumns: [categories.id],
-			name: "job_categories_category_id_categories_id_fk"
-		}),
-	primaryKey({ columns: [table.jobId, table.categoryId], name: "job_categories_job_id_category_id_pk"}),
+		columns: [table.categoryId],
+		foreignColumns: [categories.id],
+		name: "job_categories_category_id_categories_id_fk"
+	}),
+	primaryKey({ columns: [table.jobId, table.categoryId], name: "job_categories_job_id_category_id_pk" }),
 ]);
 
 export const jobSkills = pgTable("job_skills", {
@@ -259,16 +259,16 @@ export const jobSkills = pgTable("job_skills", {
 	skillId: uuid("skill_id").notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.jobId],
-			foreignColumns: [jobs.id],
-			name: "job_skills_job_id_jobs_id_fk"
-		}),
+		columns: [table.jobId],
+		foreignColumns: [jobs.id],
+		name: "job_skills_job_id_jobs_id_fk"
+	}),
 	foreignKey({
-			columns: [table.skillId],
-			foreignColumns: [skills.id],
-			name: "job_skills_skill_id_skills_id_fk"
-		}),
-	primaryKey({ columns: [table.jobId, table.skillId], name: "job_skills_job_id_skill_id_pk"}),
+		columns: [table.skillId],
+		foreignColumns: [skills.id],
+		name: "job_skills_skill_id_skills_id_fk"
+	}),
+	primaryKey({ columns: [table.jobId, table.skillId], name: "job_skills_job_id_skill_id_pk" }),
 ]);
 
 export const userSkills = pgTable("user_skills", {
@@ -276,14 +276,25 @@ export const userSkills = pgTable("user_skills", {
 	skillId: uuid("skill_id").notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "user_skills_user_id_users_id_fk"
-		}),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_skills_user_id_users_id_fk"
+	}),
 	foreignKey({
-			columns: [table.skillId],
-			foreignColumns: [skills.id],
-			name: "user_skills_skill_id_skills_id_fk"
-		}),
-	primaryKey({ columns: [table.userId, table.skillId], name: "user_skills_user_id_skill_id_pk"}),
+		columns: [table.skillId],
+		foreignColumns: [skills.id],
+		name: "user_skills_skill_id_skills_id_fk"
+	}),
+	primaryKey({ columns: [table.userId, table.skillId], name: "user_skills_user_id_skill_id_pk" }),
 ]);
+
+export const casbinRule = pgTable("casbin_rule", {
+	id: uuid("id").defaultRandom().primaryKey().notNull(),
+	ptype: varchar("ptype", { length: 127 }).notNull(),
+	v0: varchar("v0", { length: 127 }),
+	v1: varchar("v1", { length: 127 }),
+	v2: varchar("v2", { length: 127 }),
+	v3: varchar("v3", { length: 127 }),
+	v4: varchar("v4", { length: 127 }),
+	v5: varchar("v5", { length: 127 }),
+});

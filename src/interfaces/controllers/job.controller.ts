@@ -15,6 +15,8 @@ import { ApiResponse, ApiResponseDto } from "../dtos";
 import {
   QueryJobDto,
   JobPaginationResponseDto,
+  SavedJobsResponseDto,
+  JobResponse,
 } from "../dtos/jobs/query-job.dto";
 import { CreateJobDto, UpdateJobDto, JobDto } from "../dtos/jobs/job.dto";
 import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
@@ -25,12 +27,13 @@ import {
   HideJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
+  ApplyJobQueryDto,
 } from "../dtos/jobs/job-interaction.dto";
-import { GuestGuard } from "@/frameworks/auth-services/guards/guest.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { AnonymousId } from "@/common/constants/roles";
+import { GeneralQueryDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../dtos/common/query";
 
 @ApiTags("Jobs")
 @Controller("jobs")
@@ -42,7 +45,6 @@ export class JobController {
     description:
       "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
   })
-  @UseGuards(GuestGuard)
   @ApiResponseDto(JobPaginationResponseDto)
   @Get()
   async getAll(
@@ -63,7 +65,7 @@ export class JobController {
       companyId: query.companyId,
       workType: query.workType,
       status: query.status,
-      userId: user?.userId !== AnonymousId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
+      userId: user?.userId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
     };
 
     return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
@@ -74,7 +76,6 @@ export class JobController {
     description:
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
-  @UseGuards(GuestGuard)
   @ApiResponseDto(StatisticsJobResponse)
   @Get("statistics")
   async getStatisticsJob(
@@ -129,6 +130,19 @@ export class JobController {
     @Param("applyId") applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     return await this.jobUseCases.getApplyJobById(user.userId, applyId);
+  }
+
+  @ApiOperation({
+    summary: "Get job applications by job ID",
+    description: "Retrieve a job applications by job ID",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(ApplyJobResponseDto)
+  @Get("apply")
+  async getApplyJobs(
+    @Query() query: ApplyJobQueryDto,
+  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
+    return await this.jobUseCases.getApplyJobs(query.jobId);
   }
 
   @ApiOperation({
@@ -210,10 +224,27 @@ export class JobController {
     summary: "Get job by ID",
     description: "Retrieve a specific job by its ID",
   })
-  @UseGuards(GuestGuard)
-  @ApiResponseDto(JobDto)
+  @ApiResponseDto(JobResponse)
   @Get(":id")
-  async getJobById(@Param("id") jobId: string): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.getJobById(jobId);
+  async getJobById(
+    @Param("id") jobId: string,
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<JobResponse>> {
+    const userId = user.userId;
+    return await this.jobUseCases.getJobById(jobId, userId);
+  }
+
+  @ApiOperation({
+    summary: "Get all saved jobs for the authenticated user",
+    description: "Retrieve a list of all jobs saved by the authenticated user.",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(SavedJobsResponseDto, { isArray: true })
+  @Get("saved")
+  async getAllSavedJobs(
+    @GetUser() user: TokenPayload,
+    @Param() params: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
+    return await this.jobUseCases.getAllSavedJobs(user.userId, params);
   }
 }

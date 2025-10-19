@@ -1,4 +1,4 @@
-import { AnonymousId } from "@/common/constants/roles";
+// import { AnonymousId } from "@/common/constants/roles";
 import { universities } from "@/frameworks/data-services/postgres/models";
 import { categories } from "@/frameworks/data-services/postgres/models/category.model";
 import { provinces } from "@/frameworks/data-services/postgres/models/province.model";
@@ -269,26 +269,6 @@ async function main() {
     .insert(provinces)
     .values(provincesData.map((name) => ({ name })))
     .onConflictDoNothing({ target: provinces.name });
-
-  // Insert users - skip if email already exists
-  await db
-    .insert(users)
-    .values({
-      id: AnonymousId,
-      username: "Anonymous",
-      firebaseUid: "anonymous",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      name: "Anonymous",
-      email: null,
-      avatarUrl: null,
-      phone: null,
-      dob: null,
-      deletedAt: null,
-      gender: null,
-      emailVerified: false,
-    })
-    .onConflictDoNothing({ target: users.email });
 
   console.log("✅ Seeded categories and skills!");
   await pool.end();
