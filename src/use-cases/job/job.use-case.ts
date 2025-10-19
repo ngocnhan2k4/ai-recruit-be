@@ -435,4 +435,12 @@ export class JobUseCases {
       data: transformedData,
     };
   }
+  async getNumberOfSavedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfSavedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
 }

@@ -250,4 +250,13 @@ export class JobController {
   ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
     return await this.jobUseCases.getAllSavedJobs(user.userId, query);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(Number)
+  @Get("saved/count")
+  async getNumberOfSavedJobs(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<number>> {
+    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  }
 }
