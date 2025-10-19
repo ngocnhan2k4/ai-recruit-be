@@ -67,7 +67,7 @@ export class JobController {
       companyId: query.companyId,
       workType: query.workType,
       status: query.status,
-      userId: user?.userId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
+      user: user ? user : undefined, // Pass user to filter hidden jobs and get isSaved status
     };
 
     return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);

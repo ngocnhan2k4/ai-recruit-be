@@ -15,6 +15,7 @@ import {
 } from "@/interfaces/dtos";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
+import { TokenPayload } from "@/common/types/token";
 
 export interface RangeFilter {
   min?: number;
@@ -43,7 +44,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
     cursor?: string,
-    filters?: JobFilters & { userId?: string },
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
     PaginatedResult<{
       job: Job;

@@ -34,6 +34,7 @@ import {
   GeneralQueryDto,
 } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { TokenPayload } from "@/common/types/token";
 
 @Injectable()
 export class JobUseCases {
@@ -43,7 +44,7 @@ export class JobUseCases {
   async getAllJobs(
     limit?: number,
     cursor?: string,
-    filters?: JobFilters & { userId?: string },
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
     ApiResponse<{
       data: {

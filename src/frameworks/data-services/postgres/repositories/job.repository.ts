@@ -46,6 +46,8 @@ import {
 import { app } from "firebase-admin";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
+import { TokenPayload } from "@/common/types/token";
+import { RoleEnum } from "@/common/constants/roles";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -65,7 +67,7 @@ export class JobRepository
   async getAllJobs(
     limit = 50,
     cursor?: string,
-    filters?: JobFilters & { userId?: string },
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
     PaginatedResult<{
       job: Job;
@@ -123,24 +125,30 @@ export class JobRepository
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
-
-    if (filters?.status) {
+    //apply status filter for only employer and admin
+    if (filters?.status && !filters?.user?.roles.includes(RoleEnum.USER)) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
-    if (filters?.userId) {
+    if (filters?.user?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (
           SELECT 1 FROM ${userInteractions} ui 
           WHERE ui.job_id = ${jobs.id} 
-          AND ui.user_id = ${filters.userId} 
+          AND ui.user_id = ${filters.user?.userId} 
           AND ui.type = 'hide'
         )`,
       );
     }
 
-    // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
+    // Cursor pagination
     if (cursor) {
+      // return empty array is user not logged in
+      if (!filters?.user?.userId)
+        return {
+          data: [],
+          pagination: { nextCursor: undefined, hasNextPage: false },
+        };
       whereConditions.push(gt(jobs.id, cursor));
     }
 
@@ -163,34 +171,34 @@ export class JobRepository
           INNER JOIN skills s ON js.skill_id = s.id
           WHERE js.job_id = ${jobs.id}
         )`.as("skills"),
-        isSaved: filters?.userId
+        isSaved: filters?.user?.userId
           ? sql`EXISTS (
               SELECT 1 FROM ${userInteractions} ui 
               WHERE ui.job_id = ${jobs.id} 
-              AND ui.user_id = ${filters.userId} 
+              AND ui.user_id = ${filters.user?.userId} 
               AND ui.type = 'save'
             )`.as("isSaved")
           : sql`false`.as("isSaved"),
-        isApplied: filters?.userId
+        isApplied: filters?.user?.userId
           ? sql`EXISTS (
               SELECT 1 FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
             )`.as("isApplied")
           : sql`false`.as("isApplied"),
-        applyStatus: filters?.userId
+        applyStatus: filters?.user?.userId
           ? sql`(
               SELECT aj.status FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
               LIMIT 1
             )`.as("applyStatus")
           : sql`NULL`.as("applyStatus"),
-        applyId: filters?.userId
+        applyId: filters?.user?.userId
           ? sql`(
               SELECT aj.id FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
               LIMIT 1
             )`.as("applyId")
           : sql`NULL`.as("applyId"),
@@ -368,7 +376,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.jobId, jobs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .where(and(eq(applyJobs.userId, userId), eq(applyJobs.jobId, jobId)))
       .limit(1);
 
@@ -471,7 +479,6 @@ export class JobRepository
       .from(applyJobs)
       .where(eq(applyJobs.jobId, jobId))
       .orderBy(desc(applyJobs.createdAt));
-    console.log(result);
     return result as ApplyJobResponseDto[];
   }
 
