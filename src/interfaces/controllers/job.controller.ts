@@ -243,8 +243,8 @@ export class JobController {
   @Get("saved")
   async getAllSavedJobs(
     @GetUser() user: TokenPayload,
-    @Param() params: GeneralQueryDto,
+    @Query() query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
-    return await this.jobUseCases.getAllSavedJobs(user.userId, params);
+    return await this.jobUseCases.getAllSavedJobs(user.userId, query);
   }
 }

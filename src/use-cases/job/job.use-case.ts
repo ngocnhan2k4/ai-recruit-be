@@ -417,9 +417,9 @@ export class JobUseCases {
 
   async getAllSavedJobs(
     userId: string,
-    params: GeneralQueryDto,
+    query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
-    const result = await this.jobRepository.getAllSavedJobs(userId, params);
+    const result = await this.jobRepository.getAllSavedJobs(userId, query);
     const transformedData: PaginatedResultDto<SavedJobsResponseDto> = {
       data: result.data.map((job) => ({
         ...job,
