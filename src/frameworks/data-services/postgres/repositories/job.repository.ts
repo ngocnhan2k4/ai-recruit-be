@@ -67,7 +67,7 @@ export class JobRepository
     cursor?: string,
     filters?: JobFilters & { userId?: string },
   ): Promise<
-    CursorPaginationResult<{
+    PaginatedResult<{
       job: Job;
       provinces: Province[];
       company: Company;
@@ -229,9 +229,11 @@ export class JobRepository
         : undefined;
 
     return {
-      paginationData: transformedData,
-      nextCursor,
-      hasNextPage,
+      data: transformedData,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+      },
     };
   }
 

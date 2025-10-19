@@ -60,9 +60,9 @@ export class JobUseCases {
     }>
   > {
     const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
-    this.logger.log(`Fetched ${result.paginationData.length} jobs`);
+    this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
-    const transformedJobData = result.paginationData.map((item) => ({
+    const transformedJobData = result.data.map((item) => ({
       ...item,
       job: {
         ...item.job,
@@ -75,10 +75,7 @@ export class JobUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data: {
         data: transformedJobData,
-        pagination: {
-          nextCursor: result.nextCursor,
-          hasNextPage: result.hasNextPage,
-        },
+        pagination: result.pagination,
       },
     };
   }

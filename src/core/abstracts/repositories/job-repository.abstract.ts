@@ -31,11 +31,6 @@ export interface JobFilters {
   status?: JobStatus;
 }
 
-export interface CursorPaginationResult<T> {
-  paginationData: T[];
-  nextCursor?: string;
-  hasNextPage: boolean;
-}
 export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
@@ -50,7 +45,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     cursor?: string,
     filters?: JobFilters & { userId?: string },
   ): Promise<
-    CursorPaginationResult<{
+    PaginatedResult<{
       job: Job;
       provinces: Province[];
       company: Company;
