@@ -43,6 +43,8 @@ export class GeneralQueryDto {
     const val = value.toLowerCase();
     return val === "asc" || val === "desc" ? val : "asc";
   })
+  @IsOptional()
+  @IsString()
   sortDirection?: SortDirection = "asc";
 
   @ApiProperty({
