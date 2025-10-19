@@ -58,23 +58,31 @@ export class UserPublicResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: String })
   avatarUrl: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: String })
   bannerUrl: string | null;
 
   @ApiProperty({ nullable: true, enum: GenderEnum })
   gender: GenderEnum | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: String })
   dob: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: String })
   bio: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: String })
   address: string | null;
+}
+
+export class UserSeoPublicResponseDto {
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  avatarUrl: string | null;
 }
 
 export class UserDto {
