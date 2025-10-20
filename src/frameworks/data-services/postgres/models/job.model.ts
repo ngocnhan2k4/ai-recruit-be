@@ -27,6 +27,7 @@ export const JobStatusEnum = pgEnum("job_status", [
   "active",
   "paused",
   "closed",
+  "rejected",
 ]);
 
 export const ApplyStatusEnum = pgEnum("apply_status", [
@@ -75,6 +76,7 @@ export const jobs = pgTable("jobs", {
   jobRawId: bigint("job_raw_id", { mode: "number" }).references(
     () => jobRaws.id,
   ),
+  rejectReason: text("reject_reason"),
   ...timestamps,
 });
 
