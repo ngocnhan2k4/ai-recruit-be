@@ -46,6 +46,8 @@ import {
 import { app } from "firebase-admin";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
+import { TokenPayload } from "@/common/types/token";
+import { RoleEnum } from "@/common/constants/roles";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -65,9 +67,9 @@ export class JobRepository
   async getAllJobs(
     limit = 50,
     cursor?: string,
-    filters?: JobFilters & { userId?: string },
+    filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
-    CursorPaginationResult<{
+    PaginatedResult<{
       job: Job;
       provinces: Province[];
       company: Company;
@@ -123,82 +125,88 @@ export class JobRepository
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
-
-    if (filters?.status) {
+    //apply status filter for only employer and admin
+    if (filters?.status && !filters?.user?.roles.includes(RoleEnum.USER)) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
-    if (filters?.userId) {
+    if (filters?.user?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (
           SELECT 1 FROM ${userInteractions} ui 
           WHERE ui.job_id = ${jobs.id} 
-          AND ui.user_id = ${filters.userId} 
+          AND ui.user_id = ${filters.user?.userId} 
           AND ui.type = 'hide'
         )`,
       );
     }
 
-    // Cursor pagination - using composite cursor (priority, id) for priority-based sorting
+    // Cursor pagination
     if (cursor) {
-      const [cursorPriority, cursorId] = cursor.split(":");
-      const cursorPriorityNum = parseInt(cursorPriority);
+      // return empty array is user not logged in
+      if (!filters?.user?.userId)
+        return {
+          data: [],
+          pagination: { nextCursor: undefined, hasNextPage: false },
+        };
+      whereConditions.push(gt(jobs.id, cursor));
     }
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
-        job: jobs,
-        provinces:
-          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
-            "provinces",
-          ),
+        job: {
+          ...jobs,
+          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+        },
+        provinces: sql`(
+          SELECT COALESCE(json_agg(p), '[]')
+          FROM provinces p
+          WHERE p.id = ${jobs.provinceId}
+        )`.as("provinces"),
         company: companies,
-        skills:
-          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
-            "skills",
-          ),
-        applyUrl: jobRaws.url,
-        isSaved: filters?.userId
+        skills: sql`(
+          SELECT COALESCE(json_agg(s), '[]')
+          FROM job_skills js
+          INNER JOIN skills s ON js.skill_id = s.id
+          WHERE js.job_id = ${jobs.id}
+        )`.as("skills"),
+        isSaved: filters?.user?.userId
           ? sql`EXISTS (
               SELECT 1 FROM ${userInteractions} ui 
               WHERE ui.job_id = ${jobs.id} 
-              AND ui.user_id = ${filters.userId} 
+              AND ui.user_id = ${filters.user?.userId} 
               AND ui.type = 'save'
             )`.as("isSaved")
           : sql`false`.as("isSaved"),
-        isApplied: filters?.userId
+        isApplied: filters?.user?.userId
           ? sql`EXISTS (
               SELECT 1 FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
             )`.as("isApplied")
           : sql`false`.as("isApplied"),
-        applyStatus: filters?.userId
+        applyStatus: filters?.user?.userId
           ? sql`(
               SELECT aj.status FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
               LIMIT 1
             )`.as("applyStatus")
           : sql`NULL`.as("applyStatus"),
-        applyId: filters?.userId
+        applyId: filters?.user?.userId
           ? sql`(
               SELECT aj.id FROM ${applyJobs} aj 
               WHERE aj.job_id = ${jobs.id} 
-              AND aj.user_id = ${filters.userId}
+              AND aj.user_id = ${filters.user?.userId}
               LIMIT 1
             )`.as("applyId")
           : sql`NULL`.as("applyId"),
       })
       .from(jobs)
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
-      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(jobs.id, companies.id, jobRaws.url)
       .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
       .limit(limit + 1)) as {
       job: Job;
@@ -219,7 +227,6 @@ export class JobRepository
     // Transform null values to undefined for optional fields
     const transformedData = data.map((item) => ({
       ...item,
-      applyUrl: item.applyUrl || undefined,
       applyStatus: item.applyStatus || undefined,
       applyId: item.applyId || undefined,
     }));
@@ -230,9 +237,11 @@ export class JobRepository
         : undefined;
 
     return {
-      paginationData: transformedData,
-      nextCursor,
-      hasNextPage,
+      data: transformedData,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+      },
     };
   }
 
@@ -367,7 +376,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.jobId, jobs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .where(and(eq(applyJobs.userId, userId), eq(applyJobs.jobId, jobId)))
       .limit(1);
 
@@ -470,7 +479,6 @@ export class JobRepository
       .from(applyJobs)
       .where(eq(applyJobs.jobId, jobId))
       .orderBy(desc(applyJobs.createdAt));
-    console.log(result);
     return result as ApplyJobResponseDto[];
   }
 
@@ -674,7 +682,7 @@ export class JobRepository
 
   async getAllSavedJobs(
     userId: string,
-    params: GeneralQuery,
+    query: GeneralQuery,
   ): Promise<
     PaginatedResult<{
       id: string;
@@ -690,9 +698,9 @@ export class JobRepository
       isApplied: boolean;
     }>
   > {
-    params.limit = params.limit ?? 10;
-    params.page = params.page ?? 1;
-    const offset = (params.page - 1) * params.limit;
+    query.limit = query.limit ?? 10;
+    query.page = query.page ?? 1;
+    const offset = (query.page - 1) * query.limit;
     const result = await this.db
       .select({
         id: jobs.id,
@@ -723,34 +731,16 @@ export class JobRepository
         ),
       )
       .orderBy(
-        params.sortDirection === "desc"
+        query.sortDirection === "desc"
           ? desc(jobs.createdAt)
           : asc(jobs.createdAt),
       )
       .offset(offset)
-      .limit(params.limit + 1);
+      .limit(query.limit + 1);
 
-    const hasNextPage = result.length > params.limit;
-    const data = hasNextPage ? result.slice(0, params.limit) : result;
-    const total = await this.db
-      .select({
-        count: sql`COUNT(*)`.as("count"),
-      })
-      .from(userInteractions)
-      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(
-        applyJobs,
-        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
-      )
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.type, "save"),
-          isNull(jobs.deletedAt),
-        ),
-      );
+    const hasNextPage = result.length > query.limit;
+    const data = hasNextPage ? result.slice(0, query.limit) : result;
+    const total = await this.getNumberOfSavedJobs(userId);
 
     return {
       data: data.map((item) => ({
@@ -759,7 +749,7 @@ export class JobRepository
       })),
       pagination: {
         hasNextPage,
-        total: Number(total[0]?.count ?? 0),
+        total: total,
       },
     };
   }
@@ -831,7 +821,7 @@ export class JobRepository
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, companies.id)
+      .groupBy(jobs.id, companies.id, provinces.id)
       .limit(1);
 
     if (!result || result.length === 0) {
@@ -851,5 +841,27 @@ export class JobRepository
       applyStatus: (data.applyStatus || undefined) as string | undefined,
       applyId: (data.applyId || undefined) as string | undefined,
     };
+  }
+  async getNumberOfSavedJobs(userId: string): Promise<number> {
+    const result = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(userInteractions)
+      .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .leftJoin(
+        applyJobs,
+        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(userInteractions.userId, userId),
+          eq(userInteractions.type, "save"),
+          isNull(jobs.deletedAt),
+        ),
+      );
+    return Number(result[0]?.count ?? 0);
   }
 }

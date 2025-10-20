@@ -30,6 +30,7 @@ import {
   ApplyJobQueryDto,
 } from "../dtos/jobs/job-interaction.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
+import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 import { GeneralQueryDto } from "../dtos/common/query";
@@ -45,6 +46,7 @@ export class JobController {
     description:
       "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
   })
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobPaginationResponseDto)
   @Get()
   async getAll(
@@ -65,7 +67,7 @@ export class JobController {
       companyId: query.companyId,
       workType: query.workType,
       status: query.status,
-      userId: user?.userId ? user?.userId : undefined, // Pass user ID to filter hidden jobs and get isSaved status (exclude anonymous users)
+      user: user ? user : undefined, // Pass user to filter hidden jobs and get isSaved status
     };
 
     return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
@@ -224,13 +226,14 @@ export class JobController {
     summary: "Get job by ID",
     description: "Retrieve a specific job by its ID",
   })
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobResponse)
   @Get(":id")
   async getJobById(
     @Param("id") jobId: string,
-    @GetUser() user: TokenPayload,
+    @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<JobResponse>> {
-    const userId = user.userId;
+    const userId = user ? user.userId : undefined;
     return await this.jobUseCases.getJobById(jobId, userId);
   }
 
@@ -243,8 +246,17 @@ export class JobController {
   @Get("saved")
   async getAllSavedJobs(
     @GetUser() user: TokenPayload,
-    @Param() params: GeneralQueryDto,
+    @Query() query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
-    return await this.jobUseCases.getAllSavedJobs(user.userId, params);
+    return await this.jobUseCases.getAllSavedJobs(user.userId, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(Number)
+  @Get("saved/count")
+  async getNumberOfSavedJobs(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<number>> {
+    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
   }
 }
