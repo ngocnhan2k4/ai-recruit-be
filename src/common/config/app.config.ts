@@ -18,6 +18,7 @@ export interface AppConfigProps {
   cloudinaryApiKey: string;
   cloudinaryApiSecret: string;
   nodeEnv: Environment;
+  databaseAdapterUrl: string;
 }
 
 export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
@@ -27,6 +28,7 @@ export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
     port: configService.get<number>("PORT")!,
     globalPrefix: configService.get<string>("GLOBAL_PREFIX")!,
     databaseUrl: configService.get<string>("DATABASE_URL")!,
+    databaseAdapterUrl: configService.get<string>("DATABASE_ADAPTER_URL")!,
     jwtSecret: configService.get<string>("JWT_SECRET")!,
     firebaseProjectId: configService.get<string>("FIREBASE_PROJECT_ID")!,
     firebaseClientEmail: configService.get<string>("FIREBASE_CLIENT_EMAIL")!,

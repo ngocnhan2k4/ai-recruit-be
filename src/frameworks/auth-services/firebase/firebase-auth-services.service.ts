@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import { IAuthService } from "@/core";
 import { JwtService } from "@nestjs/jwt";
 import { FIREBASE_ADMIN } from "@/common/constants/response";
+import { RoleEnum } from "@/common/constants/roles";
 @Injectable()
 export class FireBaseAuthService implements IAuthService {
   constructor(
@@ -15,6 +16,7 @@ export class FireBaseAuthService implements IAuthService {
     name?: string;
     picture?: string;
     provider_id?: string;
+    roles?: RoleEnum[];
   }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
 
@@ -25,6 +27,7 @@ export class FireBaseAuthService implements IAuthService {
       picture: decodedToken.picture,
       provider_id:
         decodedToken.provider_id || decodedToken.firebase.sign_in_provider,
+      roles: decodedToken.roles,
     };
   }
 

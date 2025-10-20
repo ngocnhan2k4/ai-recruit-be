@@ -2,7 +2,7 @@ import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { users, UserStatusEnum } from "../models";
-import { User } from "@/core/entities";
+import { NewUser, User } from "@/core/entities";
 import {
   ilike,
   or,
@@ -18,14 +18,18 @@ import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types/api";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
+import { PtypeEnum, RoleEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class UserRepository
   extends GenericRepository<User, typeof users>
   implements IUserRepository
 {
+  private readonly casbinAdapter: DrizzleCasbinAdapter;
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, users);
+    this.casbinAdapter = new DrizzleCasbinAdapter(db);
   }
 
   async getAllWithOffset(
@@ -114,5 +118,18 @@ export class UserRepository
         total: Number(total[0].count) || 0,
       },
     };
+  }
+
+  async createUser(user: NewUser): Promise<User> {
+    await this.db.transaction(async (tx) => {
+      const userData = await tx.insert(users).values(user).returning();
+
+      for (const role of user.roles as RoleEnum[]) {
+        await this.casbinAdapter.addPolicy(PtypeEnum.BASIC_ASSIGNMENT, role, [
+          userData[0].id,
+        ]);
+      }
+    });
+    return user as User;
   }
 }

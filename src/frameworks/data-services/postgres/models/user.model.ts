@@ -15,6 +15,7 @@ import {
 import { companies } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
+import { RoleEnum } from "@/common/constants/roles";
 
 export const GenderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
 export const EducationLevelEnum = pgEnum("education_level", [
@@ -50,6 +51,10 @@ export const users = pgTable(
     avatarUrl: varchar("avatar_url", { length: 500 }),
     bannerUrl: varchar("banner_url", { length: 500 }),
     name: varchar("name", { length: 255 }).notNull(),
+    roles: varchar("roles", { length: 255 })
+      .array()
+      .notNull()
+      .default([RoleEnum.USER]),
     dob: date("dob"),
     bio: varchar("bio", { length: 500 }),
     address: varchar("address", { length: 255 }),

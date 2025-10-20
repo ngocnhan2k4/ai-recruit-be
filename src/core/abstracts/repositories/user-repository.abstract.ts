@@ -1,6 +1,6 @@
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { User } from "@/core/entities";
+import { NewUser, User } from "@/core/entities";
 import { PaginatedResult } from "@/common/types/api";
 
 export abstract class IUserRepository extends IGenericRepository<User> {
@@ -24,4 +24,6 @@ export abstract class IUserRepository extends IGenericRepository<User> {
       >
     >
   >;
+
+  abstract createUser(user: NewUser): Promise<User>;
 }
