@@ -26,6 +26,7 @@ export enum JobStatus {
   ACTIVE = "active",
   PAUSED = "paused",
   CLOSED = "closed",
+  REJECTED = "rejected",
 }
 
 export enum ApplyStatus {
