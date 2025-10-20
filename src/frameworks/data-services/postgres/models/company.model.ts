@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import { users } from "../schema";
+import { provinces } from "drizzle/migrations/schema";
 
 export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -26,6 +27,7 @@ export const companies = pgTable("companies", {
   taxCode: varchar("tax_code", { length: 100 }),
   organizationCulture: text("organization_culture"),
   benefits: text("benefits"),
+  verifiedAt: timestamp("verified_at"),
   companyRawId: bigint("company_raw_id", { mode: "number" }).references(
     () => companyRaws.id,
   ),
@@ -54,5 +56,15 @@ export const organizationMembers = pgTable("organization_members", {
     .notNull()
     .references(() => companies.id),
   role: varchar("role", { length: 100 }).notNull(),
+  ...timestamps,
+});
+
+export const organizationLocations = pgTable("organization_locations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => companies.id),
+  address: text("address").notNull(),
+  provinceId: uuid("province_id").references(() => provinces.id),
   ...timestamps,
 });
