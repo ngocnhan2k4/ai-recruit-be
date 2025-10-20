@@ -5,14 +5,27 @@ import { PaginatedResult } from "@/common/types/api";
 export interface CreateCompanyData {
   name: string;
 }
+
+export interface EmployeeRange {
+  min?: number;
+  max?: number;
+}
+
+export interface CompanyFilters {
+  keyword?: string;
+  provinceIds?: string[];
+  employeeRange?: EmployeeRange;
+  verified?: boolean;
+}
+
 export abstract class ICompanyRepository extends IGenericRepository<Company> {
   abstract getAllCompanies(): Promise<
-    Pick<Company, "id" | "name" | "logoUrl" | "address">[]
+    Pick<Company, "id" | "name" | "logoUrl" | "address" | "locations">[]
   >;
 
   abstract getCompanies(
     limit: number,
-    keyword?: string,
+    filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
     PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>

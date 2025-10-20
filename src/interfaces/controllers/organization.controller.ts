@@ -8,7 +8,9 @@ import {
   Post,
   Query,
   UseGuards,
+  Req,
 } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
@@ -85,6 +87,7 @@ export class MyOrganizationController {
     isArray: true,
   })
   async getPaginationCompanies(
+    // @Req() req: Request,
     @Query() query: GetCompaniesQueryDto,
   ): Promise<
     ApiResponse<
@@ -93,7 +96,15 @@ export class MyOrganizationController {
   > {
     return await this.companyUseCase.getCompanies(
       query.limit,
-      query.keyword,
+      {
+        keyword: query.keyword,
+        provinceIds: query.provinceIds,
+        verified: query.verified,
+        employeeRange: {
+          min: query.employeeMin,
+          max: query.employeeMax,
+        },
+      },
       query.cursor,
     );
   }
