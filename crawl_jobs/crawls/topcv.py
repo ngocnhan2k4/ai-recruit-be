@@ -114,7 +114,7 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
             # company_website_url
             if item.has_attr("href"):
                 company_website = item["href"]
-                print(company_website)
+
 
             text = safe_text(item)
             if "nhân viên" in text:

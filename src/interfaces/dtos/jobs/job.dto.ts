@@ -26,6 +26,7 @@ export enum JobStatus {
   ACTIVE = "active",
   PAUSED = "paused",
   CLOSED = "closed",
+  REJECTED = "rejected",
 }
 
 export enum ApplyStatus {
@@ -90,7 +91,7 @@ export class CreateJobDto {
   })
   @IsOptional()
   @IsEnum(WorkType)
-  workType: string | null;
+  workType: WorkType;
 
   @ApiProperty({
     type: "string",
@@ -216,7 +217,7 @@ export class UpdateJobDto {
   })
   @IsOptional()
   @IsEnum(WorkType)
-  workType: string | null;
+  workType: WorkType;
 
   @ApiProperty({
     type: "string",
@@ -373,6 +374,14 @@ export class JobDto {
     description: "Job Raw ID from jobRaws table",
   })
   jobRawId?: number | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+    description: "Application URL for external applications",
+    example: "https://company.com/apply/job-123",
+  })
+  applyUrl?: string | null;
 
   @ApiProperty({
     type: "string",

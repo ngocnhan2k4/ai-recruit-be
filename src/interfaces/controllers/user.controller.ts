@@ -35,6 +35,7 @@ import {
   GetUserQueryDto,
   GetAllUserResponseDto,
   GetUserResponseDto,
+  UserSeoPublicResponseDto,
 } from "../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -100,6 +101,23 @@ export class UserController {
     @Param("username") username: string,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
     return await this.userUseCases.getUserByUsername(username);
+  }
+
+  @ApiOperation({ summary: "Get user by username for SEO" })
+  @Get(":username/public-seo")
+  @ApiResponseDto(UserSeoPublicResponseDto)
+  async getUserSEO(
+    @Param("username") username: string,
+  ): Promise<ApiResponse<UserSeoPublicResponseDto>> {
+    const res = await this.userUseCases.getUserByUsername(username);
+    return {
+      data: {
+        name: res.data?.name || "",
+        avatarUrl: res.data?.avatarUrl || "",
+      },
+      code: res.code,
+      message: res.message,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
