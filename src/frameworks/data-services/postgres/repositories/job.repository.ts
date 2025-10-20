@@ -849,12 +849,6 @@ export class JobRepository
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(
-        applyJobs,
-        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
-      )
       .where(
         and(
           eq(userInteractions.userId, userId),
@@ -863,5 +857,80 @@ export class JobRepository
         ),
       );
     return Number(result[0]?.count ?? 0);
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<number> {
+    const result = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(applyJobs)
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)));
+    return Number(result[0]?.count ?? 0);
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+      applyStatus: "pending" | "accepted" | "rejected";
+    }>
+  > {
+    query.limit = query.limit ?? 10;
+    query.page = query.page ?? 1;
+    const offset = (query.page - 1) * query.limit;
+    const result = await this.db
+      .select({
+        id: jobs.id,
+        title: jobs.title,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+        companyName: companies.name,
+        logoUrl: companies.logoUrl,
+        workType: jobs.workType,
+        createdAt: jobs.createdAt,
+        endedAt: jobs.endDate,
+        provinceName: provinces.name,
+        applyJobId: applyJobs.id,
+      })
+      .from(applyJobs)
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)))
+      .orderBy(
+        query.sortDirection === "desc"
+          ? desc(jobs.createdAt)
+          : asc(jobs.createdAt),
+      )
+      .offset(offset)
+      .limit(query.limit + 1);
+
+    const hasNextPage = result.length > query.limit;
+    const data = hasNextPage ? result.slice(0, query.limit) : result;
+    const total = await this.getNumberOfAppliedJobs(userId);
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        isApplied: item.applyJobId ? true : false,
+        applyStatus: item.applyJobId as "pending" | "accepted" | "rejected",
+      })),
+      pagination: {
+        hasNextPage,
+        total: total,
+      },
+    };
   }
 }

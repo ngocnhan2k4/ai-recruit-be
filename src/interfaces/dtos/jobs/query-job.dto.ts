@@ -216,6 +216,15 @@ export class SavedJobsResponseDto {
   isApplied: boolean;
 }
 
+export class AppliedJobsResponseDto extends SavedJobsResponseDto {
+  @ApiProperty({
+    example: "pending",
+    description: "Application status for the job",
+    required: true,
+  })
+  applyStatus: "pending" | "accepted" | "rejected";
+}
+
 export class JobPaginationResponseDto {
   @ApiProperty({
     type: [JobResponse],

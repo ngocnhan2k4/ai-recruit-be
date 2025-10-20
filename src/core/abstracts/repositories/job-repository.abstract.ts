@@ -148,4 +148,24 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     }>
   >;
   abstract getNumberOfSavedJobs(userId: string): Promise<number>;
+  abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
+  abstract getAllAppliedJobs(
+    userId: string,
+    params: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: string | null;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+      applyStatus: "pending" | "accepted" | "rejected";
+    }>
+  >;
 }
