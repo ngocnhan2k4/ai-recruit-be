@@ -3,23 +3,71 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from "@nestjs/common";
-import { ApiResponse, GetCompaniesQueryDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CheckOrganizationNameResponseDto,
+  GetCompaniesQueryDto,
+} from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { Company, CompanyFilters, ICompanyRepository } from "@/core";
+import {
+  Company,
+  CompanyFilters,
+  IBloomFilterService,
+  ICompanyRepository,
+} from "@/core";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import {
+  PaginatedResultDto,
+  PaginationResponseDto,
+} from "@/interfaces/dtos/common/query";
 
 @Injectable()
-export class CompanyUseCase {
+export class CompanyUseCase implements OnModuleInit {
+  private readonly logger = new Logger(CompanyUseCase.name);
+
   constructor(
     private readonly companyRepository: ICompanyRepository,
     private readonly organizationMembersRepository: IOrganizationMembersRepository,
+    public readonly bloomFilterService: IBloomFilterService,
   ) {}
 
-  private readonly logger = new Logger(CompanyUseCase.name);
+  async onModuleInit() {
+    await this.initializeBloomFilter();
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async refreshBloomFilterScheduled() {
+    this.logger.log(
+      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
+    );
+    await this.initializeBloomFilter();
+  }
+
+  private async initializeBloomFilter() {
+    try {
+      // Get all company names from database
+      const companies = await this.companyRepository.getAll();
+      const companyNames = companies.map((company) => company.name);
+
+      this.bloomFilterService.initialize(companyNames);
+
+      this.logger.log(
+        `[CompanyUseCases] [initializeBloomFilter] Bloom filter refreshed with ${companyNames.length} company names`,
+      );
+    } catch (error) {
+      this.logger.error(
+        "[CompanyUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
+        error,
+      );
+      throw error;
+    }
+  }
 
   async getAllCompanies(): Promise<
     ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
@@ -56,12 +104,36 @@ export class CompanyUseCase {
     };
   }
 
-  async checkNameExists(name: string): Promise<ApiResponse<boolean>> {
-    const result = await this.companyRepository.checkNameExists(name);
+  async checkOrganizationName(
+    orgName: string,
+  ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
+    const mightExist = this.bloomFilterService.mightContain(orgName);
+    if (!mightExist) {
+      return {
+        data: { exists: false },
+        message: "Organization name does not exist",
+        code: RESPONSE_CODE.SUCCESS,
+      };
+    }
+
+    this.logger.log(
+      `[CompanyUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
+    );
+
+    // Step 2: verify DB để loại false positive
+    const organization = await this.companyRepository.getByField({
+      name: orgName,
+    });
+    this.logger.log(
+      `[CompanyUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
+    );
+
     return {
-      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        exists: !!organization,
+      },
+      message: "Organization name existence checked successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 
@@ -100,7 +172,7 @@ export class CompanyUseCase {
   async getCompaniesByUserId(
     userId: string,
     query: GetCompaniesQueryDto,
-  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<Partial<Company>>>> {
     const res = await this.companyRepository.getCompaniesByUserId(
       userId,
       query.limit,
@@ -135,7 +207,7 @@ export class CompanyUseCase {
             member ? member.role : OrganizationRole.ANONYMOUSLY,
           )
       : OrganizationRole.ANONYMOUSLY;
-    console.log("[CompanyUseCase] - [getCompany]: ", {
+    this.logger.log("[CompanyUseCase] - [getCompany]: ", {
       userId,
       companyId,
       role,

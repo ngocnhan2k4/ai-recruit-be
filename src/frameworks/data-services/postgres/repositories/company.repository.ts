@@ -29,11 +29,12 @@ export class CompanyRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
   }
+
   async checkNameExists(name: string): Promise<boolean> {
     const result = await this.db
       .select({ count: count() })
       .from(companies)
-      .where(eq(companies.name, name))
+      .where(eq(companies.name, `${name}`))
       .limit(1);
 
     return result[0]?.count > 0;

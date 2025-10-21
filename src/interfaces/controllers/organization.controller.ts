@@ -15,6 +15,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
   ApiResponseDto,
+  CheckOrganizationNameResponseDto,
   CompanyDto,
   CreateCompanyDto,
   GetCompaniesQueryDto,
@@ -24,6 +25,8 @@ import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { PaginatedResult } from "@/common/types/api";
+import { boolean } from "drizzle-orm/gel-core";
+import { PaginatedResultDto } from "../dtos/common/query";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -43,7 +46,7 @@ export class MyOrganizationController {
   async getCompaniesByOwner(
     @GetUser() user: TokenPayload,
     @Query() query: GetCompaniesQueryDto,
-  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<Partial<Company>>>> {
     return await this.companyUseCase.getCompaniesByUserId(user.userId, query);
   }
 
@@ -74,7 +77,7 @@ export class MyOrganizationController {
   async getCompaniesByUserId(
     @Param("userId") userId: string,
     @Query() query: GetCompaniesQueryDto,
-  ): Promise<ApiResponse<PaginatedResult<Partial<Company>>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<Partial<Company>>>> {
     return await this.companyUseCase.getCompaniesByUserId(userId, query);
   }
 
@@ -109,18 +112,16 @@ export class MyOrganizationController {
     );
   }
 
-  @Get("/checkNameExists")
+  @Get("/check-name/:name")
   @ApiOperation({
     summary: "Check if a company name exists",
     description: "Check if a company name exists",
   })
-  @ApiResponseDto(CompanyDto, {
-    isArray: true,
-  })
+  @ApiResponseDto(CheckOrganizationNameResponseDto)
   async checkNameExists(
-    @Query() query: { name: string },
-  ): Promise<ApiResponse<boolean>> {
-    return await this.companyUseCase.checkNameExists(query.name);
+    @Param("name") name: string,
+  ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
+    return await this.companyUseCase.checkOrganizationName(name);
   }
 
   @Get("/all")
