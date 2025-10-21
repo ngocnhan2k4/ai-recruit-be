@@ -16,21 +16,4 @@ export class ProvinceController {
   async getProvinces(): Promise<ApiResponse<ProvinceDto[]>> {
     return this.provinceUseCases.getProvinces();
   }
-
-  @ApiOperation({
-    summary: "Get province by ID",
-    description: "Retrieve a specific province by its ID",
-  })
-  @ApiParam({
-    name: "id",
-    description: "Province ID",
-    type: String,
-  })
-  @ApiResponseDto(ProvinceDto)
-  @Get(":id")
-  async getProvinceById(
-    @Param("id") id: string,
-  ): Promise<ApiResponse<ProvinceDto>> {
-    return await this.provinceUseCases.getProvinceById(id);
-  }
 }
