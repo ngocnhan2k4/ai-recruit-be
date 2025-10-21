@@ -1,10 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import {
-  ICompanyRepository,
-  Company,
-  NewCompany,
-  CompanyFilters,
-} from "@/core";
+import { Company, ICompanyRepository } from "@/core";
 import {
   companies,
   organizationLocations,
@@ -16,6 +11,7 @@ import { asc, SQL, count, or, isNotNull, inArray, is } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, lt, desc, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
+import { CompanyFilters } from "@/core/entities/company.entity";
 
 @Injectable()
 export class CompanyRepository

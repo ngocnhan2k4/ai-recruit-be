@@ -1,22 +1,7 @@
 import { Company } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { PaginatedResult } from "@/common/types/api";
-
-export interface CreateCompanyData {
-  name: string;
-}
-
-export interface EmployeeRange {
-  min?: number;
-  max?: number;
-}
-
-export interface CompanyFilters {
-  keyword?: string;
-  provinceIds?: string[];
-  employeeRange?: EmployeeRange;
-  verified?: boolean;
-}
+import { CompanyFilters } from "@/core/entities/company.entity";
 
 export abstract class ICompanyRepository extends IGenericRepository<Company> {
   abstract getAllCompanies(): Promise<

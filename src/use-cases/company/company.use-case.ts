@@ -12,12 +12,6 @@ import {
 } from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import {
-  Company,
-  CompanyFilters,
-  IBloomFilterService,
-  ICompanyRepository,
-} from "@/core";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
@@ -26,6 +20,8 @@ import {
   PaginatedResultDto,
   PaginationResponseDto,
 } from "@/interfaces/dtos/common/query";
+import { Company, IBloomFilterService, ICompanyRepository } from "@/core";
+import { CompanyFilters } from "@/core/entities/company.entity";
 
 @Injectable()
 export class CompanyUseCase implements OnModuleInit {
