@@ -426,7 +426,7 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,
@@ -464,7 +464,7 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,

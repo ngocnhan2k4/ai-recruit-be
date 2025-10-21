@@ -16,6 +16,7 @@ import {
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
+import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface RangeFilter {
   min?: number;
@@ -140,7 +141,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -160,12 +161,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-      applyStatus: "pending" | "accepted" | "rejected";
+      applyStatus: ApplyStatusEnumType;
     }>
   >;
 }

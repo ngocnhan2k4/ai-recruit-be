@@ -31,7 +31,13 @@ import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
-import { Job, Province, Skill, Company } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Skill,
+  Company,
+  WorkTypeEnumType,
+} from "@/core/entities";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
@@ -48,6 +54,7 @@ import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
 import { RoleEnum } from "@/common/constants/roles";
+import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -691,7 +698,7 @@ export class JobRepository
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -745,6 +752,7 @@ export class JobRepository
     return {
       data: data.map((item) => ({
         ...item,
+        workType: item.workType as WorkTypeEnumType,
         isApplied: item.applyJobId ? true : false,
       })),
       pagination: {
@@ -879,12 +887,12 @@ export class JobRepository
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-      applyStatus: "pending" | "accepted" | "rejected";
+      applyStatus: ApplyStatusEnumType;
     }>
   > {
     query.limit = query.limit ?? 10;
@@ -903,6 +911,7 @@ export class JobRepository
         endedAt: jobs.endDate,
         provinceName: provinces.name,
         applyJobId: applyJobs.id,
+        applyStatus: applyJobs.status,
       })
       .from(applyJobs)
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
@@ -925,7 +934,8 @@ export class JobRepository
       data: data.map((item) => ({
         ...item,
         isApplied: item.applyJobId ? true : false,
-        applyStatus: item.applyJobId as "pending" | "accepted" | "rejected",
+        workType: item.workType as WorkTypeEnumType,
+        applyStatus: item.applyStatus as ApplyStatusEnumType,
       })),
       pagination: {
         hasNextPage,
