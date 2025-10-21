@@ -14,12 +14,8 @@ import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { asc, SQL, count, or, isNotNull, inArray, is } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
-import { eq, and, gt, desc, ilike } from "drizzle-orm";
+import { eq, and, lt, desc, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
-import { add } from "lodash";
-import { IsBtcAddress } from "class-validator";
-import { combineAll } from "rxjs";
-import { UnhealthyResponseCodeError } from "@nestjs/terminus";
 
 @Injectable()
 export class CompanyRepository
@@ -93,7 +89,9 @@ export class CompanyRepository
 
     // Add cursor condition if provided
     if (cursor) {
-      whereConditions.push(gt(companies.createdAt, new Date(cursor)));
+      // we're ordering by createdAt DESC, so to get the next page (older items)
+      // we must fetch rows with createdAt < cursor
+      whereConditions.push(lt(companies.createdAt, new Date(cursor)));
     }
 
     // Fetch limit + 1 to check if there's a next page
@@ -206,7 +204,8 @@ export class CompanyRepository
     }
 
     if (cursor) {
-      whereConditions.push(gt(companies.createdAt, new Date(cursor)));
+      // ordering desc -> fetch items older than the cursor
+      whereConditions.push(lt(companies.createdAt, new Date(cursor)));
     }
 
     const companyRows = await this.db
@@ -243,6 +242,9 @@ export class CompanyRepository
       hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
+
+    // log org ids
+    const orgIds = data.map((d) => d.id);
 
     return {
       data: data,

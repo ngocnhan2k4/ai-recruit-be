@@ -37,8 +37,12 @@ export class CompanyUseCase implements OnModuleInit {
     public readonly bloomFilterService: IBloomFilterService,
   ) {}
 
-  async onModuleInit() {
-    await this.initializeBloomFilter();
+  onModuleInit(): void {
+    // start initialization in background so Nest bootstrap is not blocked
+    // any requests arriving before bloom is ready will fallback to DB verification
+    this.initializeBloomFilter().catch((err) =>
+      this.logger.error("[CompanyUseCase] Bloom init failed (background)", err),
+    );
   }
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -107,7 +111,12 @@ export class CompanyUseCase implements OnModuleInit {
   async checkOrganizationName(
     orgName: string,
   ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
-    const mightExist = this.bloomFilterService.mightContain(orgName);
+    // if bloom is not ready, fallback to DB verification to avoid false-negatives
+    const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
+    const mightExist = bloomReady
+      ? this.bloomFilterService.mightContain(orgName)
+      : true;
+
     if (!mightExist) {
       return {
         data: { exists: false },
