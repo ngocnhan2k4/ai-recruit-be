@@ -420,7 +420,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
-      .where(and(eq(applyJobs.id, applyId), eq(applyJobs.userId, userId)))
+      .where(and(eq(applyJobs.id, applyId)))
       .limit(1);
 
     if (existingApplication.length === 0) {

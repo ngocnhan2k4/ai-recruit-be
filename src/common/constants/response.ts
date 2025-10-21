@@ -46,4 +46,5 @@ export const RESPONSE_MESSAGE = {
   USERNAME_ALREADY_EXISTS: "Username already exists.",
   PHONE_ALREADY_EXISTS: "Phone number already exists.",
   EMAIL_ALREADY_EXISTS: "Email already exists.",
+  CV_NOT_FOUND: "CV not found.",
 };

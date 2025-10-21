@@ -95,7 +95,7 @@ export class UserUseCases implements OnModuleInit {
     }
   }
 
-  async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
+  async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
       throw new NotFoundException(
