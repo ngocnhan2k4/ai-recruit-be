@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
@@ -43,6 +48,32 @@ export class CvUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data: { cvs: cvDtos },
     };
+  }
+
+  async getCvById(cvId: string): Promise<ApiResponse<CvDto>> {
+    this.logger.log(`[getCvById] [get] Getting CVs by id ${cvId}`);
+    const cv = await this.cvRepository.get(cvId);
+    if (!cv) {
+      throw new NotFoundException(
+        new ApiResponse({
+          message: RESPONSE_MESSAGE.CV_NOT_FOUND,
+          code: RESPONSE_CODE.CV_NOT_FOUND,
+        }),
+      );
+    }
+
+    const cvDto = {
+      ...cv,
+      lastUsed: cv.lastUsed ? new Date(cv.lastUsed) : undefined,
+      updatedAt: cv.updatedAt ? new Date(cv.updatedAt) : undefined,
+      createdAt: new Date(cv.createdAt),
+    } as CvDto;
+
+    return new ApiResponse<CvDto>({
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: cvDto,
+    });
   }
 
   async createCv(
