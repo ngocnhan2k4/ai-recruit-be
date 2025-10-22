@@ -89,7 +89,7 @@ export class CheckPermissionWithDomainDto {
 
 @ApiTags("Casbin Authorization")
 @ApiBearerAuth()
-@Controller("casbin")
+@Controller("admin/casbin")
 @UseGuards(JwtAuthGuard, CasbinGuard)
 export class CasbinController {
   constructor(private readonly casbinService: CasbinService) {}

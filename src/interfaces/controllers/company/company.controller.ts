@@ -27,9 +27,11 @@ import {
 import { Company, OrganizationWithDetails } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
+
+// this is public api company
 @ApiTags("Companies")
-@Controller("organizations/:organizationId/companies")
+@Controller("companies")
 export class CompanyController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 

@@ -10,8 +10,11 @@ import {
   CvController,
   UniversityController,
   MyOrganizationController,
+  CompanyController,
+  CompanyOrganizationController,
+  CompanyAdminController,
 } from "./interfaces/controllers";
-import { CasbinController } from "./interfaces/controllers/casbin.controller";
+import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -37,7 +40,7 @@ import { LoggerServiceModule } from "./frameworks/logger-services/logger.module"
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
-import { SkillController } from "./interfaces/controllers/skill.controller";
+import { SkillController } from "./interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 
@@ -66,6 +69,9 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
+    CompanyUseCasesModule,
+    CompanyUseCasesModule,
+    CompanyUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -80,6 +86,9 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     UniversityController,
     CasbinController,
     MyOrganizationController,
+    CompanyController,
+    CompanyOrganizationController,
+    CompanyAdminController,
   ],
   providers: [
     JwtStrategy,

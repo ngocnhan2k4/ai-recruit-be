@@ -11,21 +11,24 @@ import {
   Delete,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../dtos";
+import { ApiResponse, ApiResponseDto } from "../../dtos";
 import {
   QueryJobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
   JobResponse,
-} from "../dtos/jobs/query-job.dto";
+} from "../../dtos/jobs/query-job.dto";
 import {
   CreateJobDto,
   UpdateJobDto,
   JobDto,
   JobCountsDto,
-} from "../dtos/jobs/job.dto";
-import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
+} from "../../dtos/jobs/job.dto";
+import {
+  StatisticsJobFilterRequestDto,
+  StatisticsJobResponse,
+} from "../../dtos";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
@@ -34,13 +37,13 @@ import {
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
-} from "../dtos/jobs/job-interaction.dto";
+} from "../../dtos/jobs/job-interaction.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { GeneralQueryDto } from "../dtos/common/query";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { GeneralQueryDto } from "../../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Jobs")
 @Controller("jobs")

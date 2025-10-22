@@ -22,13 +22,13 @@ import {
   GetCompanyDto,
   CreateOrganizationDto,
   OrganizationDto,
-} from "../dtos";
+} from "../../dtos";
 import { Company } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { PaginatedResult } from "@/common/types/api";
 import { boolean } from "drizzle-orm/gel-core";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Organization")
 @Controller("organizations")
