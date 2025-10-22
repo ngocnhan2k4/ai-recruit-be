@@ -1,7 +1,8 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponseDto, ApiResponse, SkillDto } from "../dtos";
+import { ApiResponseDto, ApiResponse, SkillDto, CreateSkillDto } from "../dtos";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 
 @ApiTags("Skills")
 @Controller("skills")
@@ -15,5 +16,18 @@ export class SkillController {
   @Get("/all")
   async getSkills(): Promise<ApiResponse<SkillDto[]>> {
     return this.skillUseCases.getSkills();
+  }
+
+  @ApiOperation({
+    summary: "Create new skills",
+  })
+  @ApiResponseDto(SkillDto, { isArray: true })
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async createMany(
+    @Body() createSkillDto: CreateSkillDto,
+  ): Promise<ApiResponse<SkillDto[]>> {
+    console.log(createSkillDto);
+    return this.skillUseCases.createMany(createSkillDto);
   }
 }

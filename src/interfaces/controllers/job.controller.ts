@@ -16,6 +16,7 @@ import {
   QueryJobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
+  AppliedJobsResponseDto,
   JobResponse,
 } from "../dtos/jobs/query-job.dto";
 import {
@@ -279,5 +280,28 @@ export class JobController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<number>> {
     return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  }
+
+  @ApiOperation({
+    summary: "Get applied jobs for the authenticated user",
+    description:
+      "Retrieve a list of all jobs applied by the authenticated user.",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(AppliedJobsResponseDto, { isArray: true })
+  @Get("applied")
+  async getAllAppliedJobs(
+    @GetUser() user: TokenPayload,
+    @Query() query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
+  }
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(Number)
+  @Get("applied/count")
+  async getNumberOfAppliedJobs(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<number>> {
+    return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
   }
 }
