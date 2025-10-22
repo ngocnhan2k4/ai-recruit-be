@@ -36,24 +36,24 @@ import {
   GetAllUserResponseDto,
   GetUserResponseDto,
   UserSeoPublicResponseDto,
-} from "../dtos";
+} from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "../dtos/users/user-experience.dto";
+} from "../../dtos/users/user-experience.dto";
 import {
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
   UserSkillDto,
-} from "../dtos/users/user-skill.dto";
+} from "../../dtos/users/user-skill.dto";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Users")
 @Controller("users")

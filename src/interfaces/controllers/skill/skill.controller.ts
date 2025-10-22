@@ -1,6 +1,11 @@
 import { Controller, Get, Post, Body, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponseDto, ApiResponse, SkillDto, CreateSkillDto } from "../dtos";
+import {
+  ApiResponseDto,
+  ApiResponse,
+  SkillDto,
+  CreateSkillDto,
+} from "../../dtos";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 
