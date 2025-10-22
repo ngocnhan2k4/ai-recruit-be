@@ -13,6 +13,7 @@ interface BloomFilterConfig {
 export class BloomFilterService implements IBloomFilterService, OnModuleInit {
   private bloomFilter: BloomFilter;
   private config: Required<BloomFilterConfig>;
+  private ready = false;
   private readonly logger = new Logger(BloomFilterService.name);
 
   constructor() {
@@ -77,6 +78,9 @@ export class BloomFilterService implements IBloomFilterService, OnModuleInit {
 
     items.forEach((item) => this.add(item));
 
+    // mark ready after initialization
+    this.ready = true;
+
     this.logger.log(
       `[BloomFilterService] Bloom filter initialized with ${items.length} items`,
     );
@@ -92,5 +96,9 @@ export class BloomFilterService implements IBloomFilterService, OnModuleInit {
 
   mightContainAll(items: string[]): boolean {
     return items.every((item) => this.mightContain(item));
+  }
+
+  isReady(): boolean {
+    return this.ready;
   }
 }

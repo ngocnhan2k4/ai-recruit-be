@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { IJobRepository } from "@/core/abstracts";
-import { ApiResponse, JobStatus } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CompanyWithOrganizationResponseDto,
+  JobCountsDto,
+} from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -17,13 +21,17 @@ import {
 import {
   Skill,
   Job,
-  Company,
   Province,
-  JobStatusEnumType,
-  WorkTypeEnumType,
+  JobStatusEnum,
+  WorkTypeEnum,
+  OrganizationWithDetails,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
-import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
+import {
+  JobDto,
+  SavedJobsResponseDto,
+  AppliedJobsResponseDto,
+} from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
@@ -43,6 +51,7 @@ export class JobUseCases {
 
   async getAllJobs(
     limit?: number,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -50,7 +59,7 @@ export class JobUseCases {
       data: {
         job: JobDto;
         provinces: Province[];
-        company: Company;
+        company: CompanyWithOrganizationResponseDto;
         skills: Skill[];
         isSaved?: boolean;
         isApplied?: boolean;
@@ -60,7 +69,12 @@ export class JobUseCases {
       pagination: PaginationResponseDto;
     }>
   > {
-    const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
+    const result = await this.jobRepository.getAllJobs(
+      limit,
+      page,
+      cursor,
+      filters,
+    );
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
     const transformedJobData = result.data.map((item) => ({
@@ -69,6 +83,13 @@ export class JobUseCases {
         ...item.job,
         questions: item.job.questions || null,
       } as JobDto,
+      company: {
+        ...item.company,
+        companySize: item.company.companySize || 0,
+        taxCode: item.company.taxCode || "",
+        benefits: item.company.benefits || "",
+        companyRawId: item.company.companyRawId || 0,
+      } as CompanyWithOrganizationResponseDto,
     }));
 
     return {
@@ -228,6 +249,15 @@ export class JobUseCases {
     };
   }
 
+  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
+    const counts = await this.jobRepository.getJobCounts();
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: counts,
+    };
+  }
+
   async hideJob(
     userId: string,
     jobId: string,
@@ -251,7 +281,7 @@ export class JobUseCases {
         endDate: createJobDto.endDate
           ? convertDateToStr(new Date(createJobDto.endDate))
           : null,
-        workType: createJobDto.workType as WorkTypeEnumType,
+        workType: createJobDto.workType,
       };
 
       const newJob = await this.jobRepository.createJob(jobData);
@@ -260,7 +290,8 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...newJob,
         questions: newJob.questions || null,
-        status: newJob.status as JobStatus,
+        status: newJob.status as JobStatusEnum,
+        workType: newJob.workType as WorkTypeEnum,
       };
 
       this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
@@ -290,20 +321,8 @@ export class JobUseCases {
         ...updateJobDto,
         status: updateJobDto.status || undefined,
         questions: updateJobDto.questions || undefined,
-        workType: updateJobDto.workType as WorkTypeEnumType,
+        workType: updateJobDto.workType,
       };
-
-      // Convert date strings to date strings if provided
-      if (updateJobDto.datePosted) {
-        updateData.datePosted = new Date(updateJobDto.datePosted)
-          .toISOString()
-          .split("T")[0];
-      }
-      if (updateJobDto.endDate) {
-        updateData.endDate = new Date(updateJobDto.endDate)
-          .toISOString()
-          .split("T")[0];
-      }
 
       const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
       if (!updatedJob) {
@@ -314,7 +333,8 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...updatedJob,
         questions: updatedJob.questions || null,
-        status: updatedJob.status as JobStatus,
+        status: updatedJob.status as JobStatusEnum,
+        workType: updatedJob.workType as WorkTypeEnum,
       };
 
       this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
@@ -367,7 +387,7 @@ export class JobUseCases {
     const job: {
       job: Job;
       provinces: Province[];
-      company: Company;
+      company: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
@@ -390,8 +410,18 @@ export class JobUseCases {
       job: {
         ...job.job,
         questions: job.job.questions || null,
-        status: job.job.status as JobStatus,
+        status: job.job.status as JobStatusEnum,
+        workType: job.job.workType as WorkTypeEnum,
       },
+      company: {
+        id: job.company.id,
+        name: job.company.name,
+        slug: job.company.slug,
+        type: job.company.type,
+        description: job.company.description,
+        address: job.company.address,
+        logoUrl: job.company.logoUrl,
+      } as CompanyWithOrganizationResponseDto,
     };
 
     return {
@@ -422,7 +452,45 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
+        createdAt: job.createdAt.toISOString(),
+        endedAt: job.endedAt!,
+        isSaved: true,
+      })),
+      pagination: result.pagination,
+    };
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedData,
+    };
+  }
+  async getNumberOfSavedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfSavedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    const result = await this.jobRepository.getAllAppliedJobs(userId, query);
+    const transformedData: PaginatedResultDto<AppliedJobsResponseDto> = {
+      data: result.data.map((job) => ({
+        ...job,
+        logoUrl: job.logoUrl || "",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,

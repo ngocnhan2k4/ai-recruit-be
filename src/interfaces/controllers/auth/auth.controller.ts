@@ -13,7 +13,7 @@ import {
   LoginResponseDto,
   ApiResponseDto,
   AccessTokenResponseDto,
-} from "../dtos";
+} from "../../dtos";
 import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN } from "@/common/constants/token";

@@ -17,13 +17,14 @@ import {
   ApiConsumes,
   ApiQuery,
   ApiBody,
+  ApiParam,
 } from "@nestjs/swagger";
 // Remove Express file interceptor import
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { ApiResponse, ApiResponseDto } from "../dtos";
-import { CvDto, CvListResponseDto, CvRequestDto } from "../dtos/cv/cv.dto";
+import { ApiResponse, ApiResponseDto } from "../../dtos";
+import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv/cv.dto";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { FastifyRequest } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
@@ -57,6 +58,21 @@ export class CvController {
   ): Promise<ApiResponse<CvListResponseDto>> {
     const targetUserId = userId || user.userId;
     return this.cvUseCases.getUserCvs(targetUserId);
+  }
+
+  @ApiOperation({
+    summary: "Get CV by Id",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "CV ID",
+    example: "uuid-cv-id",
+  })
+  @ApiResponseDto(CvDto)
+  @Get(":id")
+  async getCvById(@Param("id") cvId: string): Promise<ApiResponse<CvDto>> {
+    return this.cvUseCases.getCvById(cvId);
   }
 
   @ApiOperation({

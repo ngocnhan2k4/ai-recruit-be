@@ -25,5 +25,5 @@ export class DeleteUserSkillResponseDto {
   skillId: string;
 
   @ApiProperty({ nullable: true })
-  companyId: string | null;
+  organizationId: string | null;
 }

@@ -29,6 +29,7 @@ export const RESPONSE_CODE = {
   FILE_NOT_PROVIDE: "FILE_NOT_PROVIDE",
   FILE_TYPE_NOT_SUPPORTED: "FILE_TYPE_NOT_SUPPORTED",
   JOB_NOT_FOUND: "JOB_NOT_FOUND",
+  ORGANIZATION_NOT_FOUND: "ORGANIZATION_NOT_FOUND",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -46,4 +47,6 @@ export const RESPONSE_MESSAGE = {
   USERNAME_ALREADY_EXISTS: "Username already exists.",
   PHONE_ALREADY_EXISTS: "Phone number already exists.",
   EMAIL_ALREADY_EXISTS: "Email already exists.",
+  CV_NOT_FOUND: "CV not found.",
+  ORGANIZATION_NOT_FOUND: "Organization not found.",
 };

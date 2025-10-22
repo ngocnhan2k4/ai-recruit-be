@@ -1,6 +1,9 @@
 export * from "./users/user.dto";
+export * from "./users/user-experience.dto";
+export * from "./users/user-skill.dto";
 export * from "./auth/login.dto";
 export * from "./common/api-response.dto";
+export * from "./common/query";
 export * from "./jobs/job.dto";
 export * from "./jobs/query-job.dto";
 export * from "./jobs/statistic-job.dto";
@@ -11,3 +14,6 @@ export * from "./provinces/province.dto";
 export * from "./cv/cv.dto";
 export * from "./users/user-onboarding.dto";
 export * from "./universities/university.dto";
+export * from "./organization/organization.dto";
+export * from "./category.dto";
+export * from "./upload.dto";

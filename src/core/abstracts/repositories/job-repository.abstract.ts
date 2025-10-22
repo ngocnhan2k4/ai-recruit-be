@@ -4,18 +4,21 @@ import {
   Province,
   Company,
   Skill,
-  WorkTypeEnumType,
+  OrganizationWithDetails,
+  WorkTypeEnum,
+  ApplyStatusEnum,
+  JobStatusEnum,
 } from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
-  JobStatus,
+  JobCountsDto,
   UserInteractionResponseDto,
-  WorkType,
 } from "@/interfaces/dtos";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
+import { PaginationType } from "@/interfaces/dtos/common/query";
 
 export interface RangeFilter {
   min?: number;
@@ -28,8 +31,9 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: WorkTypeEnumType;
-  status?: JobStatus;
+  workType?: WorkTypeEnum;
+  status?: JobStatusEnum;
+  pagination?: PaginationType;
 }
 
 export interface StatisticsJobFilter {
@@ -43,6 +47,7 @@ export interface StatisticsJobFilter {
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -119,7 +124,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   ): Promise<{
     job: Job;
     provinces: Province[];
-    company: Company;
+    company: OrganizationWithDetails;
     skills: Skill[];
     isSaved?: boolean;
     isApplied?: boolean;
@@ -128,6 +133,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   } | null>;
 
   abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
+
+  abstract getJobCounts(): Promise<JobCountsDto>;
 
   abstract getAllSavedJobs(
     userId: string,
@@ -140,11 +147,32 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
+    }>
+  >;
+  abstract getNumberOfSavedJobs(userId: string): Promise<number>;
+  abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
+  abstract getAllAppliedJobs(
+    userId: string,
+    params: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: WorkTypeEnum;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+      applyStatus: ApplyStatusEnum;
     }>
   >;
 }

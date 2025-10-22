@@ -11,15 +11,24 @@ import {
   Delete,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../dtos";
+import { ApiResponse, ApiResponseDto } from "../../dtos";
 import {
   QueryJobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
+  AppliedJobsResponseDto,
   JobResponse,
-} from "../dtos/jobs/query-job.dto";
-import { CreateJobDto, UpdateJobDto, JobDto } from "../dtos/jobs/job.dto";
-import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
+} from "../../dtos/jobs/query-job.dto";
+import {
+  CreateJobDto,
+  UpdateJobDto,
+  JobDto,
+  JobCountsDto,
+} from "../../dtos/jobs/job.dto";
+import {
+  StatisticsJobFilterRequestDto,
+  StatisticsJobResponse,
+} from "../../dtos";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
@@ -28,13 +37,13 @@ import {
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
-} from "../dtos/jobs/job-interaction.dto";
+} from "../../dtos/jobs/job-interaction.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { GeneralQueryDto } from "../dtos/common/query";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { GeneralQueryDto } from "../../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Jobs")
 @Controller("jobs")
@@ -68,9 +77,15 @@ export class JobController {
       workType: query.workType,
       status: query.status,
       user: user ? user : undefined, // Pass user to filter hidden jobs and get isSaved status
+      pagination: query.pagination,
     };
 
-    return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
+    return this.jobUseCases.getAllJobs(
+      query.limit,
+      query.page,
+      query.cursor,
+      filters,
+    );
   }
 
   @ApiOperation({
@@ -238,6 +253,16 @@ export class JobController {
   }
 
   @ApiOperation({
+    summary: "Get job counts",
+    description: "Return total number of jobs and counts grouped by job status",
+  })
+  @ApiResponseDto(JobCountsDto)
+  @Get("counts")
+  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
+    return await this.jobUseCases.getJobCounts();
+  }
+
+  @ApiOperation({
     summary: "Get all saved jobs for the authenticated user",
     description: "Retrieve a list of all jobs saved by the authenticated user.",
   })
@@ -249,5 +274,37 @@ export class JobController {
     @Query() query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SavedJobsResponseDto>>> {
     return await this.jobUseCases.getAllSavedJobs(user.userId, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(Number)
+  @Get("saved/count")
+  async getNumberOfSavedJobs(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<number>> {
+    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  }
+
+  @ApiOperation({
+    summary: "Get applied jobs for the authenticated user",
+    description:
+      "Retrieve a list of all jobs applied by the authenticated user.",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(AppliedJobsResponseDto, { isArray: true })
+  @Get("applied")
+  async getAllAppliedJobs(
+    @GetUser() user: TokenPayload,
+    @Query() query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
+  }
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(Number)
+  @Get("applied/count")
+  async getNumberOfAppliedJobs(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<number>> {
+    return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
   }
 }

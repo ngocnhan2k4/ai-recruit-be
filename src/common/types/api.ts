@@ -10,7 +10,7 @@ export interface GeneralResponse {
 export interface PaginatedResult<T> {
   data: T[];
   pagination: {
-    nextCursor?: string | null;
+    nextCursor?: string | number | null;
     hasNextPage?: boolean;
     total?: number;
   };

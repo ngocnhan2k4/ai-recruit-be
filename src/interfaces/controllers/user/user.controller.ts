@@ -36,24 +36,24 @@ import {
   GetAllUserResponseDto,
   GetUserResponseDto,
   UserSeoPublicResponseDto,
-} from "../dtos";
+} from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
   UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "../dtos/users/user-experience.dto";
+} from "../../dtos/users/user-experience.dto";
 import {
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
   UserSkillDto,
-} from "../dtos/users/user-skill.dto";
+} from "../../dtos/users/user-skill.dto";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
-import { PaginatedResultDto } from "../dtos/common/query";
+import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Users")
 @Controller("users")
@@ -101,6 +101,27 @@ export class UserController {
     @Param("username") username: string,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
     return await this.userUseCases.getUserByUsername(username);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Get user by ID",
+    description:
+      "Retrieve detailed user information by user ID. Requires authentication.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "User ID",
+    type: String,
+    required: true,
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  @ApiResponseDto(GetUserResponseDto)
+  @Get("id/:id")
+  async getUserById(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    return await this.userUseCases.getUserById(id);
   }
 
   @ApiOperation({ summary: "Get user by username for SEO" })

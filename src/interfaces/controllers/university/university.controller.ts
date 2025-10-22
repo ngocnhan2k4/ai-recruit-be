@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponseDto, ApiResponse, UniversityDto } from "../dtos";
+import { ApiResponseDto, ApiResponse, UniversityDto } from "../../dtos";
 import { UniversityUseCases } from "@/use-cases/university/university.use-case";
 
 @ApiTags("Universities")

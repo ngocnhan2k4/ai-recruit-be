@@ -25,7 +25,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun drizzle/seed/index.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "casbin:init": "ts-node casbin_rule.config.ts init",
+    "casbin:clear": "ts-node casbin_rule.config.ts clear",
+    "casbin:verify": "ts-node casbin_rule.config.ts verify",
+    "casbin:list": "ts-node casbin_rule.config.ts list",
+    "casbin:migrate": "ts-node migrate-casbin.ts"
   },
   "husky": {
     "hooks": {
@@ -61,6 +66,7 @@
     "bloom-filters": "^3.0.4",
     "casbin": "^5.38.0",
     "casbin-file-adapter": "^1.0.1",
+    "casbin-pg-adapter": "^1.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cloudinary": "^2.7.0",

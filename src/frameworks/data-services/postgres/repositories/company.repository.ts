@@ -1,13 +1,16 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { ICompanyRepository, Company, NewCompany } from "@/core";
-import { companies, organizationMembers } from "../models/company.model";
+import { Company, ICompanyRepository } from "@/core";
+import { companies, organizationLocations } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
+import { asc, count, gt } from "drizzle-orm";
+import { isNull } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
-import { asc, SQL } from "drizzle-orm";
-import { orderBy } from "lodash";
-import { eq, and, gt, desc, Or, is, not, ilike } from "drizzle-orm";
-import { OrganizationRole } from "@/common/constants/organization-roles";
+import { CompanyFilters } from "@/core/entities/company.entity";
+import { UpdateCompanyDto } from "@/interfaces/dtos";
+import { organizations } from "../models/organization.model";
+import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core";
 
 @Injectable()
 export class CompanyRepository
@@ -17,128 +20,199 @@ export class CompanyRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
   }
-
-  async getCompaniesByUserId(
-    userId: string,
-    limit: number,
-    cursor: string,
-  ): Promise<
-    PaginatedResult<
-      Pick<
-        Company,
-        "id" | "name" | "logoUrl" | "description" | "createdAt" | "foundingYear"
-      > & { role: string }
-    >
-  > {
-    const whereConditions = [eq(organizationMembers.userId, userId)];
-
-    // Add cursor condition if provided
-    if (cursor) {
-      whereConditions.push(gt(companies.createdAt, new Date(cursor)));
-    }
-
-    // Fetch limit + 1 to check if there's a next page
-    const results = await this.db
-      .select({
-        id: companies.id,
-        name: companies.name,
-        logoUrl: companies.logoUrl,
-        description: companies.description,
-        createdAt: companies.createdAt,
-        foundingYear: companies.foundingYear,
-        role: organizationMembers.role,
-      })
-      .from(companies)
-      .innerJoin(
-        organizationMembers,
-        eq(companies.id, organizationMembers.organizationId),
+  async checkNameExists(name: string): Promise<boolean> {
+    const result = await this.db
+      .select({ count: count() })
+      .from(organizations)
+      .where(
+        and(
+          eq(organizations.name, `${name}`),
+          eq(organizations.type, OrganizationTypeEnum.COMPANY),
+        ),
       )
-      .where(and(...whereConditions))
-      .orderBy(desc(companies.createdAt))
-      .limit(limit + 1);
+      .limit(1);
 
-    // Check if there's a next page
-    const hasNextPage = results.length > limit;
-    const data = hasNextPage ? results.slice(0, limit) : results;
+    return result[0]?.count > 0;
+  }
 
-    // Get the next cursor from the last item
-    const nextCursor =
-      hasNextPage && data.length > 0
-        ? data[data.length - 1].createdAt.toISOString()
-        : null;
+  async getCompanyByOrganizationId(
+    organizationId: string,
+    companyId: string,
+  ): Promise<OrganizationWithDetails | null> {
+    const result = await this.db
+      .select()
+      .from(companies)
+      .innerJoin(organizations, eq(companies.organizationId, organizations.id))
+      .where(
+        and(
+          eq(companies.organizationId, organizationId),
+          eq(companies.id, companyId),
+          eq(organizations.type, OrganizationTypeEnum.COMPANY),
+        ),
+      );
 
+    if (!result[0]) return null;
+
+    const row = result[0];
     return {
-      data: data,
-      pagination: {
-        nextCursor: nextCursor,
-        hasNextPage,
-      },
+      ...row.organizations,
+      companySize: row.companies?.companySize || null,
+      taxCode: row.companies?.taxCode || null,
+      benefits: row.companies?.benefits || null,
+      companyRawId: row.companies?.companyRawId || null,
     };
   }
-  async getAllSimple(): Promise<{ id: string; name: string }[]> {
-    const result = await this.db
-      .select({
-        id: companies.id,
-        name: companies.name,
-      })
-      .from(companies);
 
-    return result;
-  }
+  // async getCompaniesByUserId(
+  //   userId: string,
+  //   limit: number,
+  //   cursor: string,
+  // ): Promise<
+  //   PaginatedResult<
+  //     Pick<
+  //       OrganizationWithDetails,
+  //       "id" | "name" | "logoUrl" | "description" | "foundedYear"
+  //     > & { role: string }
+  //   >
+  // > {
+  //   const whereConditions = [eq(organizationMembers.userId, userId)];
+
+  //   // Add cursor condition if provided
+  //   if (cursor) {
+  //     whereConditions.push(gt(companies.createdAt, new Date(cursor)));
+  //   }
+
+  //   // Fetch limit + 1 to check if there's a next page
+  //   const results = await this.db
+  //     .select({
+  //       id: companies.organizationId,
+  //       name: organizations.name,
+  //       logoUrl: organizations.logoUrl,
+  //       description: organizations.description,
+  //       foundedYear: organizations.foundedYear,
+  //       role: organizationMembers.role,
+  //       createdAt: organizations.createdAt,
+  //     })
+  //     .from(companies)
+  //     .innerJoin(
+  //       organizations,
+  //       eq(companies.organizationId, organizations.id),
+  //     )
+  //     .where(and(...whereConditions))
+  //     .orderBy(desc(organizations.createdAt))
+  //     .limit(limit + 1);
+
+  //   // Check if there's a next page
+  //   const hasNextPage = results.length > limit;
+  //   const data = hasNextPage ? results.slice(0, limit) : results;
+
+  //   // Get the next cursor from the last item
+  //   const nextCursor =
+  //     hasNextPage && data.length > 0
+  //       ? data[data.length - 1].createdAt.toISOString()
+  //       : null;
+
+  //   return {
+  //     data: data,
+  //     pagination: {
+  //       nextCursor: nextCursor,
+  //       hasNextPage,
+  //     },
+  //   };
+  // }
   async getAllCompanies(): Promise<
-    Pick<Company, "id" | "name" | "logoUrl" | "address">[]
+    Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">[]
   > {
     const result = this.db
       .select({
-        id: companies.id,
-        name: companies.name,
-        logoUrl: companies.logoUrl,
-        address: companies.address,
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        address: organizations.address,
       })
-      .from(companies);
+      .from(organizations)
+      .where(eq(organizations.type, OrganizationTypeEnum.COMPANY))
+      .orderBy(asc(organizations.createdAt));
 
     return result;
   }
 
   async getCompanies(
     limit = 20,
-    keyword?: string,
+    filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    PaginatedResult<
+      Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
+    >
   > {
-    // Build where conditions
-    const whereConditions: SQL[] = [];
+    const whereConditions = [isNull(companies.deletedAt)];
 
-    if (keyword) {
-      whereConditions.push(ilike(companies.name, `%${keyword}%`));
+    if (filter?.keyword) {
+      whereConditions.push(ilike(organizations.name, `%${filter.keyword}%`));
     }
 
     if (cursor) {
-      whereConditions.push(gt(companies.id, cursor));
+      whereConditions.push(gt(organizations.id, cursor));
     }
 
-    const query = this.db
+    const companyRows = await this.db
       .select({
-        id: companies.id,
-        name: companies.name,
-        logoUrl: companies.logoUrl,
-        address: companies.address,
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        address: organizations.address,
+        createdAt: organizations.createdAt,
       })
-      .from(companies)
+      .from(organizations)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(companies.id))
+      .orderBy(asc(organizations.createdAt))
       .limit(limit + 1);
 
-    const rows = await query;
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
+    const [{ count: totalCount }] = await this.db
+      .select({ count: count() })
+      .from(companies)
+      .leftJoin(
+        organizationLocations,
+        eq(companies.id, organizationLocations.organizationId),
+      )
+      .where(and(...whereConditions));
+
+    const hasNextPage = companyRows.length > limit;
+    const data = hasNextPage ? companyRows.slice(0, limit) : companyRows;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    // log org ids
+    // const orgIds = data.map((d) => d.id);
+
     return {
-      data,
+      data: data,
       pagination: {
-        nextCursor: data.length > 0 ? data[data.length - 1].id : null,
+        nextCursor,
         hasNextPage,
+        total: totalCount,
       },
     };
+  }
+  async updateCompanyById(
+    organizationId: string,
+    companyId: string,
+    data: UpdateCompanyDto,
+  ): Promise<Company | null> {
+    const result = await this.db
+      .update(companies)
+      .set(data)
+      .where(
+        and(
+          eq(companies.organizationId, organizationId),
+          eq(companies.id, companyId),
+        ),
+      )
+      .returning();
+    return result[0] || null;
   }
 }

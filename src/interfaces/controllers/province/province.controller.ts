@@ -1,6 +1,6 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponseDto, ApiResponse, ProvinceDto } from "../dtos";
+import { Controller, Get, Param, UseGuards } from "@nestjs/common";
+import { ApiOperation, ApiTags, ApiParam } from "@nestjs/swagger";
+import { ApiResponseDto, ApiResponse, ProvinceDto } from "../../dtos";
 import { ProvinceUseCases } from "@/use-cases/province/province.use-case";
 
 @ApiTags("Provinces")

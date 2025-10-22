@@ -1,9 +1,9 @@
-import { ProviderEnumType } from "@/core";
+import { ProviderEnum } from "@/core";
 
-export const normalizeProvider = (providerId: string): ProviderEnumType => {
-  if (providerId.includes("password")) return "email";
-  if (providerId.includes("google")) return "google";
-  if (providerId.includes("facebook")) return "facebook";
-  if (providerId.includes("github")) return "github";
-  return "email";
+export const normalizeProvider = (providerId: string): ProviderEnum => {
+  if (providerId.includes("password")) return ProviderEnum.EMAIL;
+  if (providerId.includes("google")) return ProviderEnum.GOOGLE;
+  if (providerId.includes("facebook")) return ProviderEnum.FACEBOOK;
+  if (providerId.includes("github")) return ProviderEnum.GITHUB;
+  return ProviderEnum.EMAIL;
 };

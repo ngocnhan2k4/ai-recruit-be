@@ -5,14 +5,17 @@ import {
   UploadController,
   HealthController,
   CategoryController,
-  CompanyController,
   JobController,
   ProvinceController,
   CvController,
   UniversityController,
   MyOrganizationController,
   NotificationController,
+  CompanyController,
+  CompanyOrganizationController,
+  CompanyAdminController,
 } from "./interfaces/controllers";
+import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -38,7 +41,7 @@ import { LoggerServiceModule } from "./frameworks/logger-services/logger.module"
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
-import { SkillController } from "./interfaces/controllers/skill.controller";
+import { SkillController } from "./interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
@@ -71,21 +74,27 @@ import { NotificationUseCasesModule } from "./use-cases/notification/notificatio
     UniversityUseCasesModule,
     WebSocketModule,
     NotificationUseCasesModule,
+    CompanyUseCasesModule,
+    CompanyUseCasesModule,
+    CompanyUseCasesModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
     CategoryController,
-    CompanyController,
     UploadController,
     HealthController,
     ProvinceController,
     CvController,
     SkillController,
     UniversityController,
+    CasbinController,
     MyOrganizationController,
     NotificationController,
+    CompanyController,
+    CompanyOrganizationController,
+    CompanyAdminController,
   ],
   providers: [
     JwtStrategy,

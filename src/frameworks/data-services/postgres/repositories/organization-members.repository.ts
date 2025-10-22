@@ -35,6 +35,7 @@ export class OrganizationMembersRepository
       .limit(1);
     return member.length > 0 ? member[0] : null;
   }
+
   removeMember(userId: string, organizationId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
@@ -95,6 +96,9 @@ export class OrganizationMembersRepository
         id: organizationMembers.id,
         userId: organizationMembers.userId,
         organizationId: organizationMembers.organizationId,
+        organizationName: organizationMembers.organizationName,
+        organizationType: organizationMembers.organizationType,
+        organizationEmail: organizationMembers.organizationEmail,
         role: organizationMembers.role,
         createdAt: organizationMembers.createdAt,
         updatedAt: organizationMembers.updatedAt,

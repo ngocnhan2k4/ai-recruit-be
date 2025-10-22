@@ -4,35 +4,11 @@ import {
   IsOptional,
   IsNumber,
   IsDateString,
-  IsEnum,
   IsUUID,
   IsArray,
+  IsEnum,
 } from "class-validator";
-
-export enum WorkType {
-  REMOTE = "remote",
-  ONSITE = "onsite",
-  HYBRID = "hybrid",
-}
-
-export enum ApplyType {
-  ONSITE = "onsite",
-  GOTO_URL = "goto_url",
-}
-
-export enum JobStatus {
-  DRAFT = "draft",
-  PENDING_APPROVAL = "pending_approval",
-  ACTIVE = "active",
-  PAUSED = "paused",
-  CLOSED = "closed",
-}
-
-export enum ApplyStatus {
-  PENDING = "pending",
-  ACCEPTED = "accepted",
-  REJECTED = "rejected",
-}
+import { JobStatusEnum, WorkTypeEnum } from "@/core";
 
 export class CreateJobDto {
   @ApiProperty({ type: "string" })
@@ -86,34 +62,22 @@ export class CreateJobDto {
     nullable: true,
     description: "Work type",
     example: "remote",
-    enum: Object.values(WorkType),
+    enum: Object.values(WorkTypeEnum),
   })
   @IsOptional()
-  @IsEnum(WorkType)
-  workType: WorkType;
-
-  @ApiProperty({
-    type: "string",
-    description: "Application type",
-    example: "onsite",
-    enum: Object.values(ApplyType),
-    default: ApplyType.ONSITE,
-  })
-  @IsOptional()
-  @IsEnum(ApplyType)
-  applyType?: string;
+  @IsEnum(WorkTypeEnum)
+  workType: WorkTypeEnum;
 
   @ApiProperty({
     type: "string",
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(JobStatus),
-    default: JobStatus.ACTIVE,
+    enum: Object.values(JobStatusEnum),
   })
   @IsOptional()
-  @IsEnum(JobStatus)
-  status: JobStatus;
+  @IsEnum(JobStatusEnum)
+  status: JobStatusEnum;
 
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsOptional()
@@ -212,21 +176,11 @@ export class UpdateJobDto {
     nullable: true,
     description: "Work type",
     example: "remote",
-    enum: Object.values(WorkType),
+    enum: Object.values(WorkTypeEnum),
   })
   @IsOptional()
-  @IsEnum(WorkType)
-  workType: WorkType;
-
-  @ApiProperty({
-    type: "string",
-    description: "Application type",
-    example: "onsite",
-    enum: Object.values(ApplyType),
-  })
-  @IsOptional()
-  @IsEnum(ApplyType)
-  applyType?: string;
+  @IsEnum(WorkTypeEnum)
+  workType: WorkTypeEnum;
 
   @ApiProperty({
     type: "string",
@@ -243,11 +197,11 @@ export class UpdateJobDto {
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(JobStatus),
+    enum: Object.values(JobStatusEnum),
   })
   @IsOptional()
-  @IsEnum(JobStatus)
-  status: JobStatus;
+  @IsEnum(JobStatusEnum)
+  status: JobStatusEnum;
 
   @ApiProperty({
     type: "number",
@@ -294,6 +248,14 @@ export class UpdateJobDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds: string[] | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  rejectReason?: string | null;
 }
 
 export class JobDto {
@@ -355,9 +317,8 @@ export class JobDto {
     nullable: true,
     description: "Work type",
     example: "remote",
-    enum: Object.values(WorkType),
   })
-  workType: string | null;
+  workType: WorkTypeEnum | null;
 
   @ApiProperty({
     type: "number",
@@ -387,7 +348,22 @@ export class JobDto {
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(JobStatus),
   })
-  status: JobStatus;
+  status: JobStatusEnum;
+}
+
+export class JobStatusCountDto {
+  @ApiProperty({})
+  status: JobStatusEnum;
+
+  @ApiProperty()
+  count: number;
+}
+
+export class JobCountsDto {
+  @ApiProperty({ example: 0 })
+  total: number;
+
+  @ApiProperty({ type: [JobStatusCountDto] })
+  byStatus: JobStatusCountDto[];
 }
