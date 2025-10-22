@@ -17,4 +17,14 @@ export class SkillUseCases {
       data: data,
     };
   }
+
+  async createMany(createSkillDto): Promise<ApiResponse<SkillDto[]>> {
+    const data = await this.skillRepository.createMany(createSkillDto);
+    this.logger.log(`Created ${data.length} skills`);
+    return {
+      message: "Skills created successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: data,
+    };
+  }
 }

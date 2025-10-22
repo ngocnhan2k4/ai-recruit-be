@@ -31,13 +31,20 @@ import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
 import { IJobRepository } from "@/core";
-import { Job, Province, Skill, Company } from "@/core/entities";
+import {
+  Job,
+  Province,
+  Skill,
+  Company,
+  WorkTypeEnumType,
+} from "@/core/entities";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
   JobStatus,
   ApplyStatus,
+  JobCountsDto,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
@@ -48,6 +55,8 @@ import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
 import { RoleEnum } from "@/common/constants/roles";
+import { PaginationType } from "@/interfaces/dtos/common/query";
+import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -66,6 +75,7 @@ export class JobRepository
 
   async getAllJobs(
     limit = 50,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -126,7 +136,7 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
     //apply status filter for only employer and admin
-    if (filters?.status && !filters?.user?.roles.includes(RoleEnum.USER)) {
+    if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
@@ -141,9 +151,11 @@ export class JobRepository
       );
     }
 
-    // Cursor pagination
-    if (cursor) {
-      // return empty array is user not logged in
+    // Determine pagination mode (cursor by default)
+    const usePagePagination = filters?.pagination === PaginationType.PAGE;
+    // Cursor pagination: only apply gt filter when using cursor pagination
+    if (cursor && !usePagePagination) {
+      // return empty array if user not logged in
       if (!filters?.user?.userId)
         return {
           data: [],
@@ -151,6 +163,11 @@ export class JobRepository
         };
       whereConditions.push(gt(jobs.id, cursor));
     }
+
+    // If using page pagination, compute offset/limit from query (fallback to function limit)
+    const offset = usePagePagination
+      ? (Math.max(page || 1, 1) - 1) * limit
+      : undefined;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -207,7 +224,9 @@ export class JobRepository
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .innerJoin(companies, eq(jobs.companyId, companies.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
+      .orderBy(asc(jobs.id))
+      // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
+      .offset(offset ?? 0)
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -223,6 +242,20 @@ export class JobRepository
     // Check if there's a next page
     const hasNextPage = result.length > limit;
     const data = hasNextPage ? result.slice(0, limit) : result;
+    let total: number | undefined = undefined;
+    if (usePagePagination) {
+      total = (
+        await this.db
+          .select({
+            total: countDistinct(jobs.id).as("total"),
+          })
+          .from(jobs)
+          .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+          .where(
+            whereConditions.length > 0 ? and(...whereConditions) : undefined,
+          )
+      )[0]?.total;
+    }
 
     // Transform null values to undefined for optional fields
     const transformedData = data.map((item) => ({
@@ -230,9 +263,10 @@ export class JobRepository
       applyStatus: item.applyStatus || undefined,
       applyId: item.applyId || undefined,
     }));
-    // Create composite cursor: "priority:id"
+
+    // Next cursor is only applicable for cursor pagination
     const nextCursor =
-      hasNextPage && result[limit - 1]?.job
+      !usePagePagination && hasNextPage && result[limit - 1]?.job
         ? `${result[limit - 1].job.id}`
         : undefined;
 
@@ -241,6 +275,7 @@ export class JobRepository
       pagination: {
         nextCursor,
         hasNextPage,
+        total,
       },
     };
   }
@@ -366,6 +401,33 @@ export class JobRepository
     }));
   }
 
+  async getJobCounts(): Promise<JobCountsDto> {
+    // grouped counts by status excluding deleted jobs
+    const grouped = await this.db
+      .select({
+        status: jobs.status,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(isNull(jobs.deletedAt))
+      .groupBy(jobs.status);
+
+    const totalRes = await this.db
+      .select({ total: countDistinct(jobs.id).as("total") })
+      .from(jobs)
+      .where(isNull(jobs.deletedAt));
+
+    const total = Number(totalRes[0]?.total ?? 0);
+
+    return {
+      total,
+      byStatus: grouped.map((r: any) => ({
+        status: r.status,
+        count: Number(r.count ?? 0),
+      })),
+    };
+  }
+
   async applyJob(
     userId: string,
     jobId: string,
@@ -420,7 +482,7 @@ export class JobRepository
     const existingApplication = await this.db
       .select()
       .from(applyJobs)
-      .where(and(eq(applyJobs.id, applyId), eq(applyJobs.userId, userId)))
+      .where(and(eq(applyJobs.id, applyId)))
       .limit(1);
 
     if (existingApplication.length === 0) {
@@ -691,7 +753,7 @@ export class JobRepository
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -745,6 +807,7 @@ export class JobRepository
     return {
       data: data.map((item) => ({
         ...item,
+        workType: item.workType as WorkTypeEnumType,
         isApplied: item.applyJobId ? true : false,
       })),
       pagination: {
@@ -849,12 +912,6 @@ export class JobRepository
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(
-        applyJobs,
-        and(eq(applyJobs.jobId, jobs.id), eq(applyJobs.userId, userId)),
-      )
       .where(
         and(
           eq(userInteractions.userId, userId),
@@ -863,5 +920,82 @@ export class JobRepository
         ),
       );
     return Number(result[0]?.count ?? 0);
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<number> {
+    const result = await this.db
+      .select({
+        count: sql`COUNT(*)`.as("count"),
+      })
+      .from(applyJobs)
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)));
+    return Number(result[0]?.count ?? 0);
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: WorkTypeEnumType;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+      applyStatus: ApplyStatusEnumType;
+    }>
+  > {
+    query.limit = query.limit ?? 10;
+    query.page = query.page ?? 1;
+    const offset = (query.page - 1) * query.limit;
+    const result = await this.db
+      .select({
+        id: jobs.id,
+        title: jobs.title,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+        companyName: companies.name,
+        logoUrl: companies.logoUrl,
+        workType: jobs.workType,
+        createdAt: jobs.createdAt,
+        endedAt: jobs.endDate,
+        provinceName: provinces.name,
+        applyJobId: applyJobs.id,
+        applyStatus: applyJobs.status,
+      })
+      .from(applyJobs)
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
+      .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)))
+      .orderBy(
+        query.sortDirection === "desc"
+          ? desc(jobs.createdAt)
+          : asc(jobs.createdAt),
+      )
+      .offset(offset)
+      .limit(query.limit + 1);
+
+    const hasNextPage = result.length > query.limit;
+    const data = hasNextPage ? result.slice(0, query.limit) : result;
+    const total = await this.getNumberOfAppliedJobs(userId);
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        isApplied: item.applyJobId ? true : false,
+        workType: item.workType as WorkTypeEnumType,
+        applyStatus: item.applyStatus as ApplyStatusEnumType,
+      })),
+      pagination: {
+        hasNextPage,
+        total: total,
+      },
+    };
   }
 }

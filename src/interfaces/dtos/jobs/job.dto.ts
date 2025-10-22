@@ -21,10 +21,8 @@ export enum ApplyType {
 }
 
 export enum JobStatus {
-  DRAFT = "draft",
   PENDING_APPROVAL = "pending_approval",
   ACTIVE = "active",
-  PAUSED = "paused",
   CLOSED = "closed",
   REJECTED = "rejected",
 }
@@ -295,6 +293,14 @@ export class UpdateJobDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds: string[] | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  rejectReason?: string | null;
 }
 
 export class JobDto {
@@ -391,4 +397,20 @@ export class JobDto {
     enum: Object.values(JobStatus),
   })
   status: JobStatus;
+}
+
+export class JobStatusCountDto {
+  @ApiProperty({ enum: Object.values(JobStatus) })
+  status: JobStatus;
+
+  @ApiProperty()
+  count: number;
+}
+
+export class JobCountsDto {
+  @ApiProperty({ example: 0 })
+  total: number;
+
+  @ApiProperty({ type: [JobStatusCountDto] })
+  byStatus: JobStatusCountDto[];
 }

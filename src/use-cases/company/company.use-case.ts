@@ -3,23 +3,71 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from "@nestjs/common";
-import { ApiResponse } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CheckOrganizationNameResponseDto,
+  GetCompaniesQueryDto,
+} from "@/interfaces/dtos";
 import { CreateCompanyDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { Company, ICompanyRepository } from "@/core";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import {
+  PaginatedResultDto,
+  PaginationResponseDto,
+} from "@/interfaces/dtos/common/query";
+import { Company, IBloomFilterService, ICompanyRepository } from "@/core";
+import { CompanyFilters } from "@/core/entities/company.entity";
 
 @Injectable()
-export class CompanyUseCase {
+export class CompanyUseCase implements OnModuleInit {
+  private readonly logger = new Logger(CompanyUseCase.name);
+
   constructor(
     private readonly companyRepository: ICompanyRepository,
     private readonly organizationMembersRepository: IOrganizationMembersRepository,
+    public readonly bloomFilterService: IBloomFilterService,
   ) {}
 
-  private readonly logger = new Logger(CompanyUseCase.name);
+  onModuleInit(): void {
+    // start initialization in background so Nest bootstrap is not blocked
+    // any requests arriving before bloom is ready will fallback to DB verification
+    this.initializeBloomFilter().catch((err) =>
+      this.logger.error("[CompanyUseCase] Bloom init failed (background)", err),
+    );
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async refreshBloomFilterScheduled() {
+    this.logger.log(
+      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
+    );
+    await this.initializeBloomFilter();
+  }
+
+  private async initializeBloomFilter() {
+    try {
+      // Get all company names from database
+      const companies = await this.companyRepository.getAll();
+      const companyNames = companies.map((company) => company.name);
+
+      this.bloomFilterService.initialize(companyNames);
+
+      this.logger.log(
+        `[CompanyUseCases] [initializeBloomFilter] Bloom filter refreshed with ${companyNames.length} company names`,
+      );
+    } catch (error) {
+      this.logger.error(
+        "[CompanyUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
+        error,
+      );
+      throw error;
+    }
+  }
 
   async getAllCompanies(): Promise<
     ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
@@ -35,22 +83,62 @@ export class CompanyUseCase {
 
   async getCompanies(
     limit = 20,
-    keyword?: string,
+    filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
     ApiResponse<
-      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+      PaginatedResult<
+        Pick<Company, "id" | "name" | "logoUrl" | "address" | "locations">
+      >
     >
   > {
     const result = await this.companyRepository.getCompanies(
       limit,
-      keyword,
+      filter,
       cursor,
     );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
+    };
+  }
+
+  async checkOrganizationName(
+    orgName: string,
+  ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
+    // if bloom is not ready, fallback to DB verification to avoid false-negatives
+    const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
+    const mightExist = bloomReady
+      ? this.bloomFilterService.mightContain(orgName)
+      : true;
+
+    if (!mightExist) {
+      return {
+        data: { exists: false },
+        message: "Organization name does not exist",
+        code: RESPONSE_CODE.SUCCESS,
+      };
+    }
+
+    this.logger.log(
+      `[CompanyUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
+    );
+
+    // Step 2: verify DB để loại false positive
+    const organization = await this.companyRepository.getByField({
+      name: orgName,
+    });
+    this.logger.log(
+      `[CompanyUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
+    );
+
+    return {
+      data: {
+        exists: !!organization,
+      },
+      message: "Organization name existence checked successfully",
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 
@@ -88,25 +176,17 @@ export class CompanyUseCase {
 
   async getCompaniesByUserId(
     userId: string,
-    limit: number,
-    cursor: string,
-  ): Promise<ApiResponse<Partial<Company>[]>> {
+    query: GetCompaniesQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<Partial<Company>>>> {
     const res = await this.companyRepository.getCompaniesByUserId(
       userId,
-      limit,
-      cursor,
+      query.limit,
+      query.cursor,
     );
     return {
       message: "Companies fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: res.data.map((company) => ({
-        id: company.id,
-        name: company.name,
-        logoUrl: company.logoUrl,
-        description: company.description,
-        role: company.role,
-        foundingYear: company.foundingYear,
-      })),
+      data: res,
     };
   }
 
@@ -132,7 +212,11 @@ export class CompanyUseCase {
             member ? member.role : OrganizationRole.ANONYMOUSLY,
           )
       : OrganizationRole.ANONYMOUSLY;
-
+    this.logger.log("[CompanyUseCase] - [getCompany]: ", {
+      userId,
+      companyId,
+      role,
+    });
     return {
       data: { ...company, role },
       message: "Company fetched successfully",

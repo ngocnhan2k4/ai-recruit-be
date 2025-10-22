@@ -9,6 +9,7 @@ import {
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
+  JobCountsDto,
   JobStatus,
   UserInteractionResponseDto,
   WorkType,
@@ -16,6 +17,8 @@ import {
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
+import { PaginationType } from "@/interfaces/dtos/common/query";
+import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface RangeFilter {
   min?: number;
@@ -30,6 +33,7 @@ export interface JobFilters {
   companyId?: string;
   workType?: WorkTypeEnumType;
   status?: JobStatus;
+  pagination?: PaginationType;
 }
 
 export interface StatisticsJobFilter {
@@ -43,6 +47,7 @@ export interface StatisticsJobFilter {
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getAllJobs(
     limit?: number,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -129,6 +134,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getApplyJobs(jobId: string): Promise<ApplyJobResponseDto[]>;
 
+  abstract getJobCounts(): Promise<JobCountsDto>;
+
   abstract getAllSavedJobs(
     userId: string,
     params: GeneralQuery,
@@ -140,7 +147,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: string | null;
+      workType: WorkTypeEnumType;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -148,4 +155,24 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     }>
   >;
   abstract getNumberOfSavedJobs(userId: string): Promise<number>;
+  abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
+  abstract getAllAppliedJobs(
+    userId: string,
+    params: GeneralQuery,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      title: string;
+      salaryMin: string | null;
+      salaryMax: string | null;
+      companyName: string;
+      logoUrl: string | null;
+      workType: WorkTypeEnumType;
+      createdAt: Date;
+      endedAt: string | null;
+      provinceName: string;
+      isApplied: boolean;
+      applyStatus: ApplyStatusEnumType;
+    }>
+  >;
 }

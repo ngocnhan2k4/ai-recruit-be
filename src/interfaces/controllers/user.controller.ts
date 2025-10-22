@@ -103,6 +103,27 @@ export class UserController {
     return await this.userUseCases.getUserByUsername(username);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Get user by ID",
+    description:
+      "Retrieve detailed user information by user ID. Requires authentication.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "User ID",
+    type: String,
+    required: true,
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  @ApiResponseDto(GetUserResponseDto)
+  @Get("id/:id")
+  async getUserById(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    return await this.userUseCases.getUserById(id);
+  }
+
   @ApiOperation({ summary: "Get user by username for SEO" })
   @Get(":username/public-seo")
   @ApiResponseDto(UserSeoPublicResponseDto)

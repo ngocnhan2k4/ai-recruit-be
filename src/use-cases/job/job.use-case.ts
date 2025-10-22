@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { IJobRepository } from "@/core/abstracts";
-import { ApiResponse, JobStatus } from "@/interfaces/dtos";
+import { ApiResponse, JobCountsDto, JobStatus } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -23,7 +23,11 @@ import {
   WorkTypeEnumType,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
-import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
+import {
+  JobDto,
+  SavedJobsResponseDto,
+  AppliedJobsResponseDto,
+} from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
@@ -43,6 +47,7 @@ export class JobUseCases {
 
   async getAllJobs(
     limit?: number,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -60,7 +65,12 @@ export class JobUseCases {
       pagination: PaginationResponseDto;
     }>
   > {
-    const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
+    const result = await this.jobRepository.getAllJobs(
+      limit,
+      page,
+      cursor,
+      filters,
+    );
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
     const transformedJobData = result.data.map((item) => ({
@@ -228,6 +238,15 @@ export class JobUseCases {
     };
   }
 
+  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
+    const counts = await this.jobRepository.getJobCounts();
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: counts,
+    };
+  }
+
   async hideJob(
     userId: string,
     jobId: string,
@@ -292,18 +311,6 @@ export class JobUseCases {
         questions: updateJobDto.questions || undefined,
         workType: updateJobDto.workType as WorkTypeEnumType,
       };
-
-      // Convert date strings to date strings if provided
-      if (updateJobDto.datePosted) {
-        updateData.datePosted = new Date(updateJobDto.datePosted)
-          .toISOString()
-          .split("T")[0];
-      }
-      if (updateJobDto.endDate) {
-        updateData.endDate = new Date(updateJobDto.endDate)
-          .toISOString()
-          .split("T")[0];
-      }
 
       const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
       if (!updatedJob) {
@@ -422,7 +429,7 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,
@@ -441,6 +448,36 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: count,
+    };
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    const result = await this.jobRepository.getAllAppliedJobs(userId, query);
+    const transformedData: PaginatedResultDto<AppliedJobsResponseDto> = {
+      data: result.data.map((job) => ({
+        ...job,
+        logoUrl: job.logoUrl || "",
+        workType: job.workType ?? "onsite",
+        createdAt: job.createdAt.toISOString(),
+        endedAt: job.endedAt!,
+        isSaved: true,
+      })),
+      pagination: result.pagination,
+    };
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedData,
     };
   }
 }
