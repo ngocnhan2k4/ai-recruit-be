@@ -85,7 +85,7 @@ export class PaginationResponseDto {
     required: false,
     description: "Cursor for the next page",
   })
-  nextCursor?: string | null;
+  nextCursor?: string | number | null;
 
   @ApiProperty({
     example: true,

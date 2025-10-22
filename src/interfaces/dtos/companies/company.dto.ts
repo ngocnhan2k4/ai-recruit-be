@@ -7,9 +7,11 @@ import {
   Min,
   ArrayMinSize,
   Matches,
+  IsArray,
 } from "class-validator";
 import { GeneralQueryDto } from "../common/query";
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform, Type } from "class-transformer";
 
 export class CompanyDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -55,7 +57,32 @@ export class CompanyDto {
   benefits: string | null;
 }
 
-export class GetCompaniesQueryDto extends GeneralQueryDto {}
+export class GetCompaniesQueryDto extends GeneralQueryDto {
+  @ApiProperty({ type: "number", nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  employeeMin?: number;
+
+  @ApiProperty({ type: "number", nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  employeeMax?: number;
+
+  @ApiProperty({ type: "boolean", nullable: true })
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === "true" ? true : value === "false" ? false : undefined,
+  )
+  verified?: boolean;
+
+  @ApiProperty({ type: [String], nullable: true })
+  @IsArray()
+  @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : value ? [value] : undefined,
+  )
+  provinceIds?: string[];
+}
 
 export class CreateCompanyDto {
   @ApiProperty({
@@ -192,4 +219,9 @@ export class CreateCompanyDto {
 
 export class GetCompanyDto extends CompanyDto {
   role: string;
+}
+
+export class CheckOrganizationNameResponseDto {
+  @ApiProperty()
+  exists: boolean;
 }

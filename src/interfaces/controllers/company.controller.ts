@@ -6,6 +6,7 @@ import {
   UseGuards,
   Query,
   Param,
+  Req,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { CompanyUseCase } from "@/use-cases/company/company.use-case";
@@ -45,7 +46,15 @@ export class CompanyController {
   > {
     return await this.companyUseCase.getCompanies(
       query.limit,
-      query.keyword,
+      {
+        keyword: query.keyword,
+        provinceIds: query.provinceIds,
+        verified: query.verified,
+        employeeRange: {
+          min: query.employeeMin,
+          max: query.employeeMax,
+        },
+      },
       query.cursor,
     );
   }

@@ -25,8 +25,18 @@ import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
-export type NewCompany = InferInsertModel<typeof companies>;
-export type Company = InferSelectModel<typeof companies>;
+export type NewCompany = InferInsertModel<typeof companies> & {
+  locations?: {
+    address?: string;
+    provinceId?: string;
+  }[];
+};
+export type Company = InferSelectModel<typeof companies> & {
+  locations?: {
+    address?: string;
+    provinceId?: string;
+  }[];
+};
 
 export type NewCategory = InferInsertModel<typeof categories>;
 export type Category = InferSelectModel<typeof categories>;
