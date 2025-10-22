@@ -9,7 +9,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
-import { ApplyStatus } from "./job.dto";
+import { ApplyStatusEnum } from "@/core";
 
 export class JobAnswerDto {
   @ApiProperty({
@@ -185,12 +185,12 @@ export class UpdateApplyJobDto {
   @ApiProperty({
     example: "pending",
     description: "New application status",
-    enum: ApplyStatus,
+    enum: ApplyStatusEnum,
     required: false,
   })
   @IsOptional()
-  @IsEnum(ApplyStatus)
-  status?: ApplyStatus;
+  @IsEnum(ApplyStatusEnum)
+  status?: ApplyStatusEnum;
 
   @ApiProperty({
     example: "uuid-cv-id",

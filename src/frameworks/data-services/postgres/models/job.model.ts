@@ -20,23 +20,7 @@ import { categories } from "./category.model";
 import { provinces } from "./province.model";
 import { jsonb } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
-
-export const JobStatusEnum = pgEnum("job_status", [
-  "draft",
-  "pending_approval",
-  "active",
-  "paused",
-  "closed",
-  "rejected",
-]);
-
-export const ApplyStatusEnum = pgEnum("apply_status", [
-  "pending",
-  "accepted",
-  "rejected",
-]);
-
-export const WorkTypeEnum = pgEnum("work_type", ["remote", "onsite", "hybrid"]);
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "./enums";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

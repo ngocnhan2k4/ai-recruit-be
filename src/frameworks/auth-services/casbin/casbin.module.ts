@@ -14,18 +14,13 @@ import { Pool } from "pg";
       useFactory: async (configService: ConfigService) => {
         const modelPath = path.resolve(
           process.cwd(),
-          "casbin_conf/rbac_model.conf",
+          "src/common/config/rbac_model.conf",
         );
 
-        // Get database adapter URL
         const databaseAdapterUrl = configService.get<string>(
           "DATABASE_ADAPTER_URL",
         );
-        if (!databaseAdapterUrl) {
-          throw new Error("DATABASE_ADAPTER_URL is not configured");
-        }
 
-        // Create separate pool for Casbin adapter
         const pool = new Pool({
           connectionString: databaseAdapterUrl,
           ssl:
@@ -38,12 +33,10 @@ import { Pool } from "pg";
           connectionTimeoutMillis: 2000,
         });
 
-        // Create Drizzle instance for Casbin
         const db = drizzle(pool, {
           casing: "snake_case",
         });
 
-        // Create Drizzle adapter with existing casbin_rule table
         const adapter = new DrizzleCasbinAdapter(db);
 
         // Create enforcer with the adapter

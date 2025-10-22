@@ -4,22 +4,21 @@ import {
   Province,
   Company,
   Skill,
-  WorkTypeEnumType,
   OrganizationWithDetails,
+  WorkTypeEnum,
+  ApplyStatusEnum,
+  JobStatusEnum,
 } from "@/core/entities";
 import {
   ApplyJobResponseDto,
   JobAnswerDto,
   JobCountsDto,
-  JobStatus,
   UserInteractionResponseDto,
-  WorkType,
 } from "@/interfaces/dtos";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
 import { PaginationType } from "@/interfaces/dtos/common/query";
-import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface RangeFilter {
   min?: number;
@@ -32,8 +31,8 @@ export interface JobFilters {
   experienceRange?: RangeFilter;
   provinceId?: string;
   companyId?: string;
-  workType?: WorkTypeEnumType;
-  status?: JobStatus;
+  workType?: WorkTypeEnum;
+  status?: JobStatusEnum;
   pagination?: PaginationType;
 }
 
@@ -148,7 +147,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: WorkTypeEnumType;
+      workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -168,12 +167,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: WorkTypeEnumType;
+      workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-      applyStatus: ApplyStatusEnumType;
+      applyStatus: ApplyStatusEnum;
     }>
   >;
 }

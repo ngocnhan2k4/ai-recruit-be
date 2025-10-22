@@ -6,13 +6,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Max,
   MaxLength,
   MinLength,
 } from "class-validator";
-import { CreateCompanyDto } from "../companies/company.dto";
-import { UserStatusEnum } from "..";
-import { OrganizationTypeEnum } from "@/frameworks/data-services/postgres/models/enums";
+import { OrganizationTypeEnum, UserStatusEnum } from "@/core";
 import { IsEmail } from "class-validator";
 
 export class OrganizationDto {

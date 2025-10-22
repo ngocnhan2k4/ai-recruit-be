@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { IOrganizationRepository, OrganizationWithDetails } from "@/core";
-import { OrganizationTypeEnum } from "@/frameworks/data-services/postgres/models/enums";
+import { OrganizationTypeEnum } from "@/core";
 
 @Injectable()
 export class OrganizationUseCase {

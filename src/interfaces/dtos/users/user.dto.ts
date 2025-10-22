@@ -8,21 +8,8 @@ import {
 import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { GenderEnum } from "@/common/constants/roles";
-import { type ProviderEnumType } from "@/core";
 import { GeneralQueryDto } from "../common/query";
-import { Optional } from "@nestjs/common";
-
-export enum ProviderEnum {
-  EMAIL = "email",
-  GOOGLE = "google",
-  FACEBOOK = "facebook",
-  GITHUB = "github",
-}
-export enum UserStatusEnum {
-  ACTIVE = "active",
-  INACTIVE = "inactive",
-  BANNED = "banned",
-}
+import { ProviderEnum, UserStatusEnum } from "@/core";
 export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
@@ -126,7 +113,7 @@ export class UserDto {
   phoneVerified: boolean | null;
 
   @ApiProperty()
-  provider: ProviderEnumType;
+  provider: ProviderEnum;
 
   @ApiProperty({ type: "boolean" })
   onboardingCompleted: boolean;
@@ -170,7 +157,7 @@ export class GetUserResponseDto {
   emailVerified: boolean;
 
   @Expose()
-  provider: ProviderEnumType;
+  provider: ProviderEnum;
 
   @Expose()
   onboardingCompleted: boolean;

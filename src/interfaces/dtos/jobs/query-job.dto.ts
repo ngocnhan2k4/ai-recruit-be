@@ -9,12 +9,12 @@ import {
 import { Type } from "class-transformer";
 import { GeneralQueryDto, PaginationResponseDto } from "../common/query";
 import { CompanyDto } from "../companies/company.dto";
-import { JobDto, JobStatus, WorkType } from "./job.dto";
+import { JobDto } from "./job.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
 import { Province } from "@/core";
-import type { ApplyStatusEnumType, WorkTypeEnumType } from "@/core/entities";
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "@/core";
 
 export class QueryJobDto extends GeneralQueryDto {
   @ApiProperty({
@@ -81,8 +81,8 @@ export class QueryJobDto extends GeneralQueryDto {
     description: "Work type (remote, onsite)",
   })
   @IsOptional()
-  @IsEnum(WorkType)
-  workType?: WorkType;
+  @IsEnum(WorkTypeEnum)
+  workType?: WorkTypeEnum;
 
   @ApiProperty({
     example: "active",
@@ -90,8 +90,8 @@ export class QueryJobDto extends GeneralQueryDto {
     description: "Status (active, inactive)",
   })
   @IsOptional()
-  @IsEnum(JobStatus)
-  status?: JobStatus;
+  @IsEnum(JobStatusEnum)
+  status?: JobStatusEnum;
 }
 
 export class JobResponse {
@@ -183,7 +183,7 @@ export class SavedJobsResponseDto {
     description: "Work type (remote, onsite)",
     required: false,
   })
-  workType: WorkTypeEnumType;
+  workType: WorkTypeEnum;
   @ApiProperty({
     example: "2023-01-01T00:00:00Z",
     description: "Creation date of the job",
@@ -223,7 +223,8 @@ export class AppliedJobsResponseDto extends SavedJobsResponseDto {
     description: "Application status for the job",
     required: true,
   })
-  applyStatus: ApplyStatusEnumType;
+  @IsEnum(ApplyStatusEnum)
+  applyStatus: ApplyStatusEnum;
 }
 
 export class JobPaginationResponseDto {
