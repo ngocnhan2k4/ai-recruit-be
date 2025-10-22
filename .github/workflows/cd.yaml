@@ -10,17 +10,16 @@ jobs:
     environment: dev
     env:
       APP_URL: https://dev.airecruit.software
-      IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
+      IMAGE_NAME: tnnhan57/ai-recruit
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Login to Github Container Registry
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Push Docker Image (Prod)
         run: |
@@ -36,7 +35,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           source: "./docker-compose-main.yaml"
           target: "/var/www/my-app-main/"
-    
+
       - name: Deploy to Production Server
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -71,34 +70,34 @@ jobs:
       #         docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs backend
       #         exit 1
       #       fi
-            
+
       #       # Health check with retries
       #       MAX_RETRIES=5
       #       RETRY_COUNT=0
-            
+
       #       while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
       #         echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-              
+
       #         # Test simple health endpoint
       #         if curl -f -s ${{ env.APP_URL }}/api/v1/health > /dev/null 2>&1; then
       #           echo "✅ Health check passed!"
-                
+
       #           # Get health check response
       #           HEALTH_RESPONSE=$(curl -s ${{ env.APP_URL }}/api/v1/health)
       #           echo "📊 Health Status: $HEALTH_RESPONSE"
-            
+
       #           exit 0
       #         else
       #           echo "❌ Health check failed (attempt $((RETRY_COUNT + 1)))"
       #           RETRY_COUNT=$((RETRY_COUNT + 1))
-                
+
       #           if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
       #             echo "⏳ Waiting 15 seconds before retry..."
       #             sleep 15
       #           fi
       #         fi
       #       done
-            
+
       #       echo "❌ Health check failed after $MAX_RETRIES attempts"
       #       echo "📋 Container logs:"
       #       docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs --tail=20 backend
@@ -122,13 +121,12 @@ jobs:
             *Author:* ${{ github.event.head_commit.author.name }}
             *Status:* Deployed ✅
             *Prod URL:* ${{ env.APP_URL }}
-            
+
             **Checks Completed:**
             • Docker: ✅ Built & Pushed
             • Deploy: ✅ Successful
             • Health Check: ✅ Passed
-            
-      
+
       - name: Notify Slack on Prod Failure
         if: failure()
         uses: rtCamp/action-slack-notify@v2
@@ -142,7 +140,7 @@ jobs:
             *Repository:* ${{ github.repository }}
             *Branch:* ${{ github.ref_name }}
             *Status:* Pipeline failed ❌
-            
+
             Please fix the issues and push again.
   cd-dev:
     if: github.ref == 'refs/heads/dev'
@@ -150,18 +148,17 @@ jobs:
     environment: dev
     env:
       APP_URL: https://airecruit.software
-      IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
+      IMAGE_NAME: tnnhan57/ai-recruit
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      
-      - name: Login to Github Container Registry
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and Push Docker Image (Dev)
         run: |
@@ -177,7 +174,7 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           source: "./docker-compose-dev.yaml"
           target: "/var/www/my-app/"
-    
+
       - name: Deploy to Development Server
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -212,34 +209,34 @@ jobs:
       #         docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs backend
       #         exit 1
       #       fi
-            
+
       #       # Health check with retries
       #       MAX_RETRIES=5
       #       RETRY_COUNT=0
-            
+
       #       while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
       #         echo "🔄 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-              
+
       #         # Test simple health endpoint
       #         if curl -f -s ${{ env.APP_URL }}/api/v1/health > /dev/null 2>&1; then
       #           echo "✅ Health check passed!"
-                
+
       #           # Get health check response
       #           HEALTH_RESPONSE=$(curl -s ${{ env.APP_URL }}/api/v1/health)
       #           echo "📊 Health Status: $HEALTH_RESPONSE"
-            
+
       #           exit 0
       #         else
       #           echo "❌ Health check failed (attempt $((RETRY_COUNT + 1)))"
       #           RETRY_COUNT=$((RETRY_COUNT + 1))
-                
+
       #           if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
       #             echo "⏳ Waiting 15 seconds before retry..."
       #             sleep 15
       #           fi
       #         fi
       #       done
-            
+
       #       echo "❌ Health check failed after $MAX_RETRIES attempts"
       #       echo "📋 Container logs:"
       #       docker-compose -f /var/www/my-app/docker-compose-dev.yaml logs --tail=20 backend
@@ -263,13 +260,12 @@ jobs:
             *Author:* ${{ github.event.head_commit.author.name }}
             *Status:* Deployed ✅
             *Dev URL:* ${{ env.APP_URL }}/docs
-            
+
             **Checks Completed:**
             • Docker: ✅ Built & Pushed
             • Deploy: ✅ Successful
             • Health Check: ✅ Passed
-            
-      
+
       - name: Notify Slack on Failure
         if: failure()
         uses: rtCamp/action-slack-notify@v2
@@ -283,6 +279,5 @@ jobs:
             *Repository:* ${{ github.repository }}
             *Branch:* ${{ github.ref_name }}
             *Status:* Pipeline failed ❌
-            
+
             Please fix the issues and push again.
-  
