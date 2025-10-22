@@ -9,8 +9,14 @@ export class UniversityUseCases {
   constructor(private readonly universityRepository: IUniversityRepository) {}
 
   async getUniversities(): Promise<ApiResponse<UniversityDto[]>> {
-    const data = await this.universityRepository.getAll();
-    this.logger.log(`Fetched ${data.length} universities`);
+    const universities = await this.universityRepository.getAll();
+    this.logger.log(`Fetched ${universities.length} universities`);
+
+    const data: UniversityDto[] = universities.map((university) => ({
+      id: university.id,
+      name: university.name,
+    }));
+
     return {
       message: "Universities fetched successfully",
       code: RESPONSE_CODE.SUCCESS,

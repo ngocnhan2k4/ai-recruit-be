@@ -9,18 +9,21 @@ import {
   userExperiences,
   userSkills,
   cvs,
-  ProviderEnum,
-  EducationLevelEnum,
-  GenderEnum,
   universities,
   userOnboardings,
   organizationMembers,
   JobStatusEnum,
-  UserStatusEnum,
   WorkTypeEnum,
   UserInteractionTypeEnum,
   ApplyStatusEnum,
 } from "@/frameworks/data-services/postgres/models";
+import {
+  ProviderEnum,
+  EducationLevelEnum,
+  GenderEnum,
+  UserStatusEnum,
+} from "@/frameworks/data-services/postgres/models/enums";
+import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
@@ -87,3 +90,10 @@ export type OrganizationMember = InferSelectModel<typeof organizationMembers>;
 export type NewOrganizationMember = InferInsertModel<
   typeof organizationMembers
 >;
+export type Organization = InferSelectModel<typeof organizations>;
+export type OrganizationWithDetails = InferSelectModel<typeof organizations> & {
+  companySize: number | null;
+  taxCode: string | null;
+  benefits: string | null;
+  companyRawId: number | null;
+};

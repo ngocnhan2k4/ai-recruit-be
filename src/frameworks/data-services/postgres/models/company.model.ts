@@ -11,23 +11,17 @@ import {
 import { timestamps } from "./helpers";
 import { users } from "../schema";
 import { provinces } from "drizzle/migrations/schema";
+import { organizations } from "./organization.model";
+import { organizationTypeEnum } from "./enums";
 
 export const companies = pgTable("companies", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 255 }).notNull(),
-  logoUrl: varchar("logo_url", { length: 500 }),
-  description: text("description"),
-  address: text("address").array(),
-  employeesMin: integer("employees_min"),
-  employeesMax: integer("employees_max"),
-  websiteUrl: varchar("website_url", { length: 500 }),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
-  foundingYear: integer("founding_year"),
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .references(() => organizations.id, { onDelete: "cascade" })
+    .notNull(),
+  companySize: integer("company_size"),
   taxCode: varchar("tax_code", { length: 100 }),
-  organizationCulture: text("organization_culture"),
   benefits: text("benefits"),
-  verifiedAt: timestamp("verified_at"),
   companyRawId: bigint("company_raw_id", { mode: "number" }).references(
     () => companyRaws.id,
   ),
@@ -54,7 +48,10 @@ export const organizationMembers = pgTable("organization_members", {
     .references(() => users.id),
   organizationId: uuid("organization_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => organizations.id),
+  organizationName: varchar("organization_name", { length: 255 }).notNull(),
+  organizationType: organizationTypeEnum("organization_type").notNull(),
+  organizationEmail: varchar("organization_email", { length: 255 }),
   role: varchar("role", { length: 100 }).notNull(),
   ...timestamps,
 });
@@ -63,7 +60,7 @@ export const organizationLocations = pgTable("organization_locations", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => organizations.id),
   address: text("address").notNull(),
   provinceId: uuid("province_id").references(() => provinces.id),
   ...timestamps,

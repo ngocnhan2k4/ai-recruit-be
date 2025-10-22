@@ -3,6 +3,8 @@ import { ApiProperty } from "@nestjs/swagger";
 import { CompanyDto } from "../companies/company.dto";
 import { SkillDto } from "../skills/skill.dto";
 import { Type } from "class-transformer";
+import { OrganizationWithDetails } from "@/core/entities";
+import { OrganizationDto } from "..";
 
 export class UserExperienceDto {
   @ApiProperty()
@@ -37,12 +39,12 @@ export class CreateUserExperienceRequestDto {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  companyId?: string;
+  organizationId?: string;
 
   @ApiProperty()
   @IsOptional()
   @IsString()
-  companyName?: string;
+  organizationName?: string;
 
   @ApiProperty()
   @IsString()
@@ -124,8 +126,11 @@ export class UserExperiencesResponseDto {
   @ApiProperty({ type: UserExperienceDto })
   experience: Omit<UserExperienceDto, "createdAt" | "updatedAt" | "deletedAt">;
 
-  @ApiProperty({ type: CompanyDto })
-  company: Pick<CompanyDto, "id" | "name" | "logoUrl" | "address"> | null;
+  @ApiProperty({ type: OrganizationDto })
+  organization: Pick<
+    OrganizationDto,
+    "id" | "name" | "logoUrl" | "address"
+  > | null;
 
   @ApiProperty({ type: [SkillDto] })
   skills: SkillDto[];

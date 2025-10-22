@@ -1,14 +1,41 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Company, Skill, UserExperience } from "@/core/entities";
+import {
+  Organization,
+  OrganizationWithDetails,
+  Skill,
+  UserExperience,
+} from "@/core/entities";
 
 export abstract class IUserExperienceRepository extends IGenericRepository<UserExperience> {
   abstract getUserExperiencesByUsername(userName: string): Promise<
     {
       experience: Omit<
         UserExperience,
-        "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
+        "organizationId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
       >;
-      company: Pick<Company, "id" | "name" | "logoUrl" | "address"> | null;
+      organization: Pick<
+        Organization,
+        | "id"
+        | "name"
+        | "slug"
+        | "type"
+        | "description"
+        | "address"
+        | "logoUrl"
+        | "about"
+        | "websiteUrl"
+        | "email"
+        | "phone"
+        | "foundedYear"
+        | "verifiedAt"
+        | "organizationCulture"
+        | "employeesMin"
+        | "employeesMax"
+        | "status"
+        | "createdAt"
+        | "updatedAt"
+        | "deletedAt"
+      > | null;
       skills: Skill[];
     }[]
   >;

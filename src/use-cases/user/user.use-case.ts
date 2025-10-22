@@ -25,6 +25,8 @@ import {
   UserOnboardingDto,
   GetAllUserResponseDto,
   UserStatusEnum,
+  OrganizationDto,
+  SkillDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
@@ -32,6 +34,7 @@ import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
   ICompanyRepository,
+  IOrganizationRepository,
   UserSkill,
   UserOnboarding,
   ISkillRepository,
@@ -47,6 +50,7 @@ import {
   PaginatedResultDto,
   PaginationResponseDto,
 } from "@/interfaces/dtos/common/query";
+import { OrganizationTypeEnum } from "@/frameworks/data-services/postgres/models/enums";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -58,7 +62,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
-    private readonly companyRepository: ICompanyRepository,
+    private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillRepository: ISkillRepository,
   ) {}
@@ -243,10 +247,42 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
+    const userExperiencesDto = userExperiences.map((userExperience) => ({
+      experience: userExperience.experience,
+      organization: userExperience.organization
+        ? {
+            id: userExperience.organization.id,
+            name: userExperience.organization.name,
+            address: userExperience.organization.address,
+            logoUrl: userExperience.organization.logoUrl,
+            slug: userExperience.organization.slug,
+            type: userExperience.organization.type,
+            description: userExperience.organization.description,
+            websiteUrl: userExperience.organization.websiteUrl,
+            email: userExperience.organization.email,
+            phone: userExperience.organization.phone,
+            foundedYear: userExperience.organization.foundedYear,
+            verifiedAt: userExperience.organization.verifiedAt,
+            organizationCulture:
+              userExperience.organization.organizationCulture,
+            employeesMin: userExperience.organization.employeesMin,
+            employeesMax: userExperience.organization.employeesMax,
+            status: userExperience.organization.status,
+            createdAt: userExperience.organization.createdAt,
+            updatedAt: userExperience.organization.updatedAt,
+            deletedAt: userExperience.organization.deletedAt,
+          }
+        : null,
+      skills: userExperience.skills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+      })),
+    }));
     return {
       message: "User experiences fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: userExperiences,
+      data: userExperiencesDto as UserExperiencesResponseDto[],
     };
   }
 
@@ -254,12 +290,13 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     data: CreateUserExperienceRequestDto,
   ) {
-    let companyId = data.companyId;
-    if (!companyId) {
-      const company = await this.companyRepository.create({
-        name: data.companyName,
+    let organizationId = data.organizationId;
+    if (!organizationId) {
+      const organization = await this.organizationRepository.create({
+        name: data.organizationName,
+        type: OrganizationTypeEnum.COMPANY,
       });
-      companyId = company.id;
+      organizationId = organization.id;
     }
     const skillIds = data.skillIds || [];
     const skillNames = data.skillNames || [];
@@ -277,12 +314,12 @@ export class UserUseCases implements OnModuleInit {
       await this.userSkillRepository.createMany(
         skillIds.map((skillId) => ({
           userId,
+          organizationId: organizationId || null,
           skillId,
-          companyId,
         })),
       );
     return {
-      companyId,
+      organizationId,
     };
   }
 
@@ -292,7 +329,7 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+    const { organizationId } = await this.preCreateBeforeCreateUserExperience(
       userId,
       createUserExperienceDto,
     );
@@ -304,7 +341,7 @@ export class UserUseCases implements OnModuleInit {
       endDate: createUserExperienceDto.endDate
         ? convertDateToStr(createUserExperienceDto.endDate)
         : null,
-      companyId: companyId,
+      organizationId: organizationId,
     });
     if (!result) {
       throw new NotFoundException({
@@ -341,9 +378,9 @@ export class UserUseCases implements OnModuleInit {
     }
     await this.userSkillRepository.delete({
       userId,
-      companyId: userExperience.companyId,
+      organizationId: userExperience.organizationId,
     });
-    const { companyId } = await this.preCreateBeforeCreateUserExperience(
+    const { organizationId } = await this.preCreateBeforeCreateUserExperience(
       userId,
       updateUserExperienceDto,
     );
@@ -351,7 +388,7 @@ export class UserUseCases implements OnModuleInit {
     const updatedUserExperience = {
       ...userExperience,
       ...updateUserExperienceDto,
-      companyId,
+      organizationId,
     };
     await this.userExperienceRepository.update(
       { userId, id },
@@ -412,12 +449,12 @@ export class UserUseCases implements OnModuleInit {
   async createUserSkill(
     userId: string,
     skillId: string,
-    companyId: string,
+    organizationId: string,
   ): Promise<ApiResponse<UserSkill>> {
     const userSkill = await this.userSkillRepository.create({
       userId,
       skillId,
-      companyId,
+      organizationId,
     });
     if (!userSkill) {
       throw new NotFoundException({
@@ -438,7 +475,7 @@ export class UserUseCases implements OnModuleInit {
   ): Promise<
     ApiResponse<{
       skillId: string;
-      companyId: string | null;
+      organizationId: string | null;
     }>
   > {
     const result = (
@@ -456,7 +493,10 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User skill deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        skillId: result.skillId,
+        organizationId: result.organizationId,
+      },
     };
   }
 
