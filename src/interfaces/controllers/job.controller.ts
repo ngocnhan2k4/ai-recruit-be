@@ -19,7 +19,12 @@ import {
   AppliedJobsResponseDto,
   JobResponse,
 } from "../dtos/jobs/query-job.dto";
-import { CreateJobDto, UpdateJobDto, JobDto } from "../dtos/jobs/job.dto";
+import {
+  CreateJobDto,
+  UpdateJobDto,
+  JobDto,
+  JobCountsDto,
+} from "../dtos/jobs/job.dto";
 import { StatisticsJobFilterRequestDto, StatisticsJobResponse } from "../dtos";
 import {
   ApplyJobResponseDto,
@@ -69,9 +74,15 @@ export class JobController {
       workType: query.workType,
       status: query.status,
       user: user ? user : undefined, // Pass user to filter hidden jobs and get isSaved status
+      pagination: query.pagination,
     };
 
-    return this.jobUseCases.getAllJobs(query.limit, query.cursor, filters);
+    return this.jobUseCases.getAllJobs(
+      query.limit,
+      query.page,
+      query.cursor,
+      filters,
+    );
   }
 
   @ApiOperation({
@@ -236,6 +247,16 @@ export class JobController {
   ): Promise<ApiResponse<JobResponse>> {
     const userId = user ? user.userId : undefined;
     return await this.jobUseCases.getJobById(jobId, userId);
+  }
+
+  @ApiOperation({
+    summary: "Get job counts",
+    description: "Return total number of jobs and counts grouped by job status",
+  })
+  @ApiResponseDto(JobCountsDto)
+  @Get("counts")
+  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
+    return await this.jobUseCases.getJobCounts();
   }
 
   @ApiOperation({

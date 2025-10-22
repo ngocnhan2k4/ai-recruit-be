@@ -44,6 +44,7 @@ import {
   JobAnswerDto,
   JobStatus,
   ApplyStatus,
+  JobCountsDto,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
@@ -54,6 +55,7 @@ import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
 import { RoleEnum } from "@/common/constants/roles";
+import { PaginationType } from "@/interfaces/dtos/common/query";
 import { ApplyStatusEnumType } from "@/core/entities";
 
 export interface CursorPaginationResult<T> {
@@ -73,6 +75,7 @@ export class JobRepository
 
   async getAllJobs(
     limit = 50,
+    page?: number,
     cursor?: string,
     filters?: JobFilters & { user?: TokenPayload },
   ): Promise<
@@ -133,7 +136,7 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
     //apply status filter for only employer and admin
-    if (filters?.status && !filters?.user?.roles.includes(RoleEnum.USER)) {
+    if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
@@ -148,9 +151,11 @@ export class JobRepository
       );
     }
 
-    // Cursor pagination
-    if (cursor) {
-      // return empty array is user not logged in
+    // Determine pagination mode (cursor by default)
+    const usePagePagination = filters?.pagination === PaginationType.PAGE;
+    // Cursor pagination: only apply gt filter when using cursor pagination
+    if (cursor && !usePagePagination) {
+      // return empty array if user not logged in
       if (!filters?.user?.userId)
         return {
           data: [],
@@ -158,6 +163,11 @@ export class JobRepository
         };
       whereConditions.push(gt(jobs.id, cursor));
     }
+
+    // If using page pagination, compute offset/limit from query (fallback to function limit)
+    const offset = usePagePagination
+      ? (Math.max(page || 1, 1) - 1) * limit
+      : undefined;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -214,7 +224,9 @@ export class JobRepository
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .innerJoin(companies, eq(jobs.companyId, companies.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id)) // Sort by priority (desc) then ID for consistent cursor pagination
+      .orderBy(asc(jobs.id))
+      // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
+      .offset(offset ?? 0)
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -230,6 +242,20 @@ export class JobRepository
     // Check if there's a next page
     const hasNextPage = result.length > limit;
     const data = hasNextPage ? result.slice(0, limit) : result;
+    let total: number | undefined = undefined;
+    if (usePagePagination) {
+      total = (
+        await this.db
+          .select({
+            total: countDistinct(jobs.id).as("total"),
+          })
+          .from(jobs)
+          .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+          .where(
+            whereConditions.length > 0 ? and(...whereConditions) : undefined,
+          )
+      )[0]?.total;
+    }
 
     // Transform null values to undefined for optional fields
     const transformedData = data.map((item) => ({
@@ -237,9 +263,10 @@ export class JobRepository
       applyStatus: item.applyStatus || undefined,
       applyId: item.applyId || undefined,
     }));
-    // Create composite cursor: "priority:id"
+
+    // Next cursor is only applicable for cursor pagination
     const nextCursor =
-      hasNextPage && result[limit - 1]?.job
+      !usePagePagination && hasNextPage && result[limit - 1]?.job
         ? `${result[limit - 1].job.id}`
         : undefined;
 
@@ -248,6 +275,7 @@ export class JobRepository
       pagination: {
         nextCursor,
         hasNextPage,
+        total,
       },
     };
   }
@@ -371,6 +399,33 @@ export class JobRepository
       avgSalaryMax: Number(r.avgSalaryMax),
       jobCount: Number(r.jobCount),
     }));
+  }
+
+  async getJobCounts(): Promise<JobCountsDto> {
+    // grouped counts by status excluding deleted jobs
+    const grouped = await this.db
+      .select({
+        status: jobs.status,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(isNull(jobs.deletedAt))
+      .groupBy(jobs.status);
+
+    const totalRes = await this.db
+      .select({ total: countDistinct(jobs.id).as("total") })
+      .from(jobs)
+      .where(isNull(jobs.deletedAt));
+
+    const total = Number(totalRes[0]?.total ?? 0);
+
+    return {
+      total,
+      byStatus: grouped.map((r: any) => ({
+        status: r.status,
+        count: Number(r.count ?? 0),
+      })),
+    };
   }
 
   async applyJob(
