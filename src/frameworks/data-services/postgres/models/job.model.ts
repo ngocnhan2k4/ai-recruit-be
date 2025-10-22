@@ -62,7 +62,7 @@ export const jobs = pgTable("jobs", {
   description: json("description"),
   companyId: uuid("company_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => companies.organizationId),
   datePosted: date("date_posted"),
   salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
   salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),

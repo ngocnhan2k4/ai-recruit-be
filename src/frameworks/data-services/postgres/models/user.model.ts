@@ -3,7 +3,6 @@ import {
   bigserial,
   varchar,
   date,
-  pgEnum,
   uuid,
   text,
   boolean,
@@ -16,28 +15,13 @@ import { companies } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { RoleEnum } from "@/common/constants/roles";
-
-export const GenderEnum = pgEnum("gender", ["Male", "Female", "Other"]);
-export const EducationLevelEnum = pgEnum("education_level", [
-  "high_school",
-  "bachelor",
-  "master",
-  "phd",
-  "other",
-]);
-
-export const ProviderEnum = pgEnum("provider", [
-  "email",
-  "google",
-  "facebook",
-  "github",
-]);
-
-export const UserStatusEnum = pgEnum("user_status", [
-  "active",
-  "inactive",
-  "banned",
-]);
+import { organizations } from "./organization.model";
+import {
+  GenderEnum,
+  EducationLevelEnum,
+  ProviderEnum,
+  UserStatusEnum,
+} from "./enums";
 
 export const users = pgTable(
   "users",
@@ -76,9 +60,9 @@ export const userExperiences = pgTable("user_experiences", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  companyId: uuid("company_id")
+  organizationId: uuid("organization_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => organizations.id),
   position: varchar("position", { length: 255 }).notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
@@ -96,7 +80,7 @@ export const userSkills = pgTable(
     skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id),
-    companyId: uuid("company_id").references(() => companies.id),
+    organizationId: uuid("organization_id").references(() => organizations.id),
   },
   (table) => [primaryKey({ columns: [table.userId, table.skillId] })],
 );

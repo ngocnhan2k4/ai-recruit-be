@@ -5,6 +5,7 @@ import {
   Company,
   Skill,
   WorkTypeEnumType,
+  OrganizationWithDetails,
 } from "@/core/entities";
 import {
   ApplyJobResponseDto,
@@ -120,7 +121,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   ): Promise<{
     job: Job;
     provinces: Province[];
-    company: Company;
+    company: OrganizationWithDetails;
     skills: Skill[];
     isSaved?: boolean;
     isApplied?: boolean;

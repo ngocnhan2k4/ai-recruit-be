@@ -2,7 +2,7 @@ import { IUserExperienceRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { Company, Skill, UserExperience } from "@/core/entities";
+import { Skill, UserExperience, Organization } from "@/core/entities";
 import {
   companies,
   skills,
@@ -11,6 +11,7 @@ import {
   userSkills,
 } from "../models";
 import { and, eq } from "drizzle-orm";
+import { organizations } from "../models/organization.model";
 
 @Injectable()
 export class UserExperienceRepository
@@ -25,25 +26,50 @@ export class UserExperienceRepository
     {
       experience: Omit<
         UserExperience,
-        "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
+        "organizationId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
       >;
-      company: Pick<Company, "id" | "name" | "logoUrl" | "address"> | null;
+      organization: Pick<
+        Organization,
+        | "id"
+        | "name"
+        | "slug"
+        | "type"
+        | "description"
+        | "address"
+        | "logoUrl"
+        | "about"
+        | "websiteUrl"
+        | "email"
+        | "phone"
+        | "foundedYear"
+        | "verifiedAt"
+        | "organizationCulture"
+        | "employeesMin"
+        | "employeesMax"
+        | "status"
+        | "createdAt"
+        | "updatedAt"
+        | "deletedAt"
+      > | null;
       skills: Skill[];
     }[]
   > {
     const rows = await this.db
       .select({
         experience: userExperiences,
-        company: companies,
+        organization: organizations,
         skill: skills,
       })
       .from(userExperiences)
       .innerJoin(users, eq(users.id, userExperiences.userId))
-      .leftJoin(companies, eq(userExperiences.companyId, companies.id))
+      .leftJoin(
+        organizations,
+        eq(userExperiences.organizationId, organizations.id),
+      )
       .leftJoin(
         userSkills,
         and(
-          eq(userExperiences.companyId, userSkills.companyId),
+          eq(userExperiences.organizationId, userSkills.organizationId),
           eq(userExperiences.userId, userSkills.userId),
         ),
       )
@@ -58,18 +84,35 @@ export class UserExperienceRepository
             acc[expId] = {
               experience: {
                 id: row.experience.id,
+                organizationId: row.experience.organizationId,
                 position: row.experience.position,
                 startDate: row.experience.startDate,
                 endDate: row.experience.endDate,
                 jobTitle: row.experience.jobTitle,
                 description: row.experience.description,
               },
-              company: row.company
+              organization: row.organization
                 ? {
-                    id: row.company.id,
-                    name: row.company.name,
-                    logoUrl: row.company.logoUrl,
-                    address: row.company.address,
+                    id: row.organization.id,
+                    name: row.organization.name,
+                    slug: row.organization.slug,
+                    type: row.organization.type,
+                    description: row.organization.description,
+                    address: row.organization.address,
+                    logoUrl: row.organization.logoUrl,
+                    about: row.organization.about,
+                    websiteUrl: row.organization.websiteUrl,
+                    email: row.organization.email,
+                    phone: row.organization.phone,
+                    foundedYear: row.organization.foundedYear,
+                    verifiedAt: row.organization.verifiedAt,
+                    organizationCulture: row.organization.organizationCulture,
+                    employeesMin: row.organization.employeesMin,
+                    employeesMax: row.organization.employeesMax,
+                    status: row.organization.status,
+                    createdAt: row.organization.createdAt,
+                    updatedAt: row.organization.updatedAt,
+                    deletedAt: row.organization.deletedAt,
                   }
                 : null,
               skills: [],
@@ -92,9 +135,28 @@ export class UserExperienceRepository
               UserExperience,
               "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
             >;
-            company: Pick<
-              Company,
-              "id" | "name" | "logoUrl" | "address"
+            organization: Pick<
+              Organization,
+              | "id"
+              | "name"
+              | "slug"
+              | "type"
+              | "description"
+              | "address"
+              | "logoUrl"
+              | "about"
+              | "websiteUrl"
+              | "email"
+              | "phone"
+              | "foundedYear"
+              | "verifiedAt"
+              | "organizationCulture"
+              | "employeesMin"
+              | "employeesMax"
+              | "status"
+              | "createdAt"
+              | "updatedAt"
+              | "deletedAt"
             > | null;
             skills: Skill[];
           }

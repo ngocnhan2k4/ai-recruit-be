@@ -11,3 +11,4 @@ export * from "./cv-repository.abstract";
 export * from "./skill-repository.abstract";
 export * from "./university-repository.abstract";
 export * from "./user-onboarding-repository.abstract";
+export * from "./organization.abstract";

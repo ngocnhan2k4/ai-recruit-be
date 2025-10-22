@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { IJobRepository } from "@/core/abstracts";
-import { ApiResponse, JobStatus } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CompanyWithOrganizationResponseDto,
+  JobStatus,
+} from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -21,6 +25,7 @@ import {
   Province,
   JobStatusEnumType,
   WorkTypeEnumType,
+  OrganizationWithDetails,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -54,7 +59,7 @@ export class JobUseCases {
       data: {
         job: JobDto;
         provinces: Province[];
-        company: Company;
+        company: CompanyWithOrganizationResponseDto;
         skills: Skill[];
         isSaved?: boolean;
         isApplied?: boolean;
@@ -73,6 +78,13 @@ export class JobUseCases {
         ...item.job,
         questions: item.job.questions || null,
       } as JobDto,
+      company: {
+        ...item.company,
+        companySize: item.company.companySize || 0,
+        taxCode: item.company.taxCode || "",
+        benefits: item.company.benefits || "",
+        companyRawId: item.company.companyRawId || 0,
+      } as CompanyWithOrganizationResponseDto,
     }));
 
     return {
@@ -371,7 +383,7 @@ export class JobUseCases {
     const job: {
       job: Job;
       provinces: Province[];
-      company: Company;
+      company: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
@@ -396,6 +408,15 @@ export class JobUseCases {
         questions: job.job.questions || null,
         status: job.job.status as JobStatus,
       },
+      company: {
+        id: job.company.id,
+        name: job.company.name,
+        slug: job.company.slug,
+        type: job.company.type,
+        description: job.company.description,
+        address: job.company.address,
+        logoUrl: job.company.logoUrl,
+      } as CompanyWithOrganizationResponseDto,
     };
 
     return {
