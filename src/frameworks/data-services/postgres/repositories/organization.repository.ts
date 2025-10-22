@@ -2,6 +2,7 @@ import { Injectable, Inject } from "@nestjs/common";
 import {
   IOrganizationRepository,
   Organization,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
 } from "@/core";
 import { organizations } from "../models/organization.model";
@@ -11,7 +12,6 @@ import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { eq } from "drizzle-orm";
 import { UpdateOrganizationDto } from "@/interfaces/dtos";
-import { OrganizationTypeEnum } from "../models/enums";
 
 @Injectable()
 export class OrganizationRepository

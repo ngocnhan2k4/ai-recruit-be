@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsOptional, IsNumber, IsDate } from "class-validator";
-import { Transform, plainToInstance } from "class-transformer";
+import { Transform } from "class-transformer";
 
 export class CvRequestDto {
   @ApiProperty({

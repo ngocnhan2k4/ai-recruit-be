@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Skill, User } from "../../core/entities";
+import {
+  OrganizationTypeEnum,
+  ProviderEnum,
+  Skill,
+  User,
+  UserStatusEnum,
+} from "../../core/entities";
 import {
   IBloomFilterService,
   IUserRepository,
@@ -19,21 +25,16 @@ import {
   GetUserResponseDto,
   TypeAvatar,
   UpdateUserRequestDto,
-  UserDto,
   UserPublicResponseDto,
   UserOnboardingStatusDto,
   UserOnboardingDto,
   GetAllUserResponseDto,
-  UserStatusEnum,
-  OrganizationDto,
-  SkillDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
 import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
-  ICompanyRepository,
   IOrganizationRepository,
   UserSkill,
   UserOnboarding,
@@ -41,16 +42,11 @@ import {
 } from "@/core";
 import {
   CreateUserExperienceRequestDto,
-  UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
-import {
-  PaginatedResultDto,
-  PaginationResponseDto,
-} from "@/interfaces/dtos/common/query";
-import { OrganizationTypeEnum } from "@/frameworks/data-services/postgres/models/enums";
+import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -102,19 +98,20 @@ export class UserUseCases implements OnModuleInit {
   async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
-      throw new NotFoundException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-          code: RESPONSE_CODE.USER_NOT_FOUND,
-        }),
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
-    const userDto = GetUserResponseDto.from(user);
-    return new ApiResponse<GetUserResponseDto>({
+    const userDto = GetUserResponseDto.from({
+      ...user,
+      provider: user.provider as ProviderEnum,
+    });
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
-    });
+    };
   }
 
   async getUserByAccessToken(
@@ -123,25 +120,26 @@ export class UserUseCases implements OnModuleInit {
     const id: string = payload.userId;
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
-      throw new NotFoundException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-          code: RESPONSE_CODE.USER_NOT_FOUND,
-        }),
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
-    const userDto = GetUserResponseDto.from(user);
+    const userDto = GetUserResponseDto.from({
+      ...user,
+      provider: user.provider as ProviderEnum,
+    });
     const userOnboarding = await this.userOnboardingRepository.getByField({
       userId: id,
     });
     const isOnboarded = userOnboarding.length > 0;
     userDto.onboardingCompleted = isOnboarded;
 
-    return new ApiResponse<GetUserResponseDto>({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
-    });
+    };
   }
 
   async getUserByUsername(

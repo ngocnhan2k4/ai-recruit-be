@@ -1,6 +1,6 @@
 import { Adapter, Helper } from "casbin";
 import { eq, and, sql, SQL } from "drizzle-orm";
-import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin_rule.model";
+import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 type CasbinRuleRecord = {
@@ -105,9 +105,6 @@ export class DrizzleCasbinAdapter implements Adapter {
     return where;
   }
 
-  // -------------------------
-  // Casbin API
-  // -------------------------
   async loadPolicy(model: any) {
     this.filtered = false;
     const rows = await this.db.select().from(casbinRule);
@@ -182,7 +179,7 @@ export class DrizzleCasbinAdapter implements Adapter {
     oldRule: string[],
     newRule: string[],
   ) {
-    const oldRecord = this.ruleToRecord(ptype, oldRule);
+    // const oldRecord = this.ruleToRecord(ptype, oldRule);
     const newRecord = this.ruleToRecord(ptype, newRule);
     const where = this.buildWhereClause(ptype, oldRule);
     await this.db.update(casbinRule).set(newRecord).where(where);

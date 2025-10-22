@@ -1,11 +1,7 @@
-import { pgTable, boolean } from "drizzle-orm/pg-core";
+import { pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import {
-  UserStatusEnum,
-  OrganizationTypeEnum,
-  organizationTypeEnum,
-} from "./enums";
+import { UserStatusEnum, organizationTypeEnum } from "./enums";
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),

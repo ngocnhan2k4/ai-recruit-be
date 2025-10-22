@@ -30,34 +30,29 @@ import {
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
-import { IJobRepository } from "@/core";
+import { IJobRepository, WorkTypeEnum } from "@/core";
 import {
   Job,
   Province,
   Skill,
   Company,
-  WorkTypeEnumType,
   OrganizationWithDetails,
-} from "@/core/entities";
+  ApplyStatusEnum,
+} from "@/core";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
-  JobStatus,
-  ApplyStatus,
   JobCountsDto,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
-import { app } from "firebase-admin";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
-import { RoleEnum } from "@/common/constants/roles";
 import { PaginationType } from "@/interfaces/dtos/common/query";
-import { ApplyStatusEnumType } from "@/core/entities";
 import { organizations } from "../models/organization.model";
 
 export interface CursorPaginationResult<T> {
@@ -456,7 +451,7 @@ export class JobRepository
         jobId,
         cvId: userCvId,
         answers,
-        status: ApplyStatus.PENDING,
+        status: ApplyStatusEnum.PENDING,
       })
       .returning();
 
@@ -476,7 +471,7 @@ export class JobRepository
   async updateApplyJob(
     applyId: string,
     userId: string,
-    status?: ApplyStatus,
+    status?: ApplyStatusEnum,
     userCvId?: string,
     answers?: JobAnswerDto[],
   ): Promise<ApplyJobResponseDto | null> {
@@ -494,7 +489,7 @@ export class JobRepository
     // If user wants to change answers or userCvId, status must be APPLIED
     if (
       (answers || userCvId) &&
-      existingApplication[0].status !== ApplyStatus.PENDING
+      existingApplication[0].status !== ApplyStatusEnum.PENDING
     ) {
       throw new Error("Status must be 'applied' to change answers or userCvId");
     }
@@ -755,7 +750,7 @@ export class JobRepository
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: WorkTypeEnumType;
+      workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
@@ -809,7 +804,7 @@ export class JobRepository
     return {
       data: data.map((item) => ({
         ...item,
-        workType: item.workType as WorkTypeEnumType,
+        workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
       })),
       pagination: {
@@ -944,12 +939,12 @@ export class JobRepository
       salaryMax: string | null;
       companyName: string;
       logoUrl: string | null;
-      workType: WorkTypeEnumType;
+      workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
       provinceName: string;
       isApplied: boolean;
-      applyStatus: ApplyStatusEnumType;
+      applyStatus: ApplyStatusEnum;
     }>
   > {
     query.limit = query.limit ?? 10;
@@ -991,8 +986,8 @@ export class JobRepository
       data: data.map((item) => ({
         ...item,
         isApplied: item.applyJobId ? true : false,
-        workType: item.workType as WorkTypeEnumType,
-        applyStatus: item.applyStatus as ApplyStatusEnumType,
+        workType: item.workType as WorkTypeEnum,
+        applyStatus: item.applyStatus as ApplyStatusEnum,
       })),
       pagination: {
         hasNextPage,

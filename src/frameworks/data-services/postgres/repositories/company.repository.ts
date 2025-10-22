@@ -1,21 +1,16 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Company, ICompanyRepository } from "@/core";
-import {
-  companies,
-  organizationLocations,
-  organizationMembers,
-} from "../models/company.model";
+import { companies, organizationLocations } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { asc, SQL, count, or, isNotNull, inArray, is, gt } from "drizzle-orm";
+import { asc, count, gt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
-import { eq, and, lt, desc, ilike } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { UpdateCompanyDto } from "@/interfaces/dtos";
 import { organizations } from "../models/organization.model";
-import { OrganizationWithDetails } from "@/core/entities";
-import { OrganizationTypeEnum } from "../models/enums";
+import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core";
 
 @Injectable()
 export class CompanyRepository
@@ -192,7 +187,7 @@ export class CompanyRepository
         : null;
 
     // log org ids
-    const orgIds = data.map((d) => d.id);
+    // const orgIds = data.map((d) => d.id);
 
     return {
       data: data,

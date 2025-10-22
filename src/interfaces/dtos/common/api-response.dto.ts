@@ -12,24 +12,8 @@ export class ApiResponse<T> {
 
   @ApiProperty({ required: false })
   data?: T;
-
-  // maintain this constructor to compatible backward - DELETE LATER
-  constructor({
-    code,
-    message,
-    data,
-  }: {
-    code: string;
-    message: string;
-    data?: T;
-  }) {
-    this.code = code;
-    this.message = message;
-    this.data = data;
-  }
 }
 
-// Helper function to create ApiResponse Swagger with generic type
 export const ApiResponseDto = <
   TModel extends Type<any> | "string" | "number" | "boolean",
 >(

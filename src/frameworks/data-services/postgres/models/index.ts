@@ -7,4 +7,4 @@ export * from "./category.model";
 export * from "./refresh-token.model";
 export * from "./province.model";
 export * from "./university.model";
-export * from "./casbin_rule.model";
+export * from "./casbin-rule.model";

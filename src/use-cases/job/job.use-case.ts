@@ -4,7 +4,6 @@ import {
   ApiResponse,
   CompanyWithOrganizationResponseDto,
   JobCountsDto,
-  JobStatus,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
@@ -22,10 +21,9 @@ import {
 import {
   Skill,
   Job,
-  Company,
   Province,
-  JobStatusEnumType,
-  WorkTypeEnumType,
+  JobStatusEnum,
+  WorkTypeEnum,
   OrganizationWithDetails,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
@@ -283,7 +281,7 @@ export class JobUseCases {
         endDate: createJobDto.endDate
           ? convertDateToStr(new Date(createJobDto.endDate))
           : null,
-        workType: createJobDto.workType as WorkTypeEnumType,
+        workType: createJobDto.workType,
       };
 
       const newJob = await this.jobRepository.createJob(jobData);
@@ -292,7 +290,8 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...newJob,
         questions: newJob.questions || null,
-        status: newJob.status as JobStatus,
+        status: newJob.status as JobStatusEnum,
+        workType: newJob.workType as WorkTypeEnum,
       };
 
       this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
@@ -322,7 +321,7 @@ export class JobUseCases {
         ...updateJobDto,
         status: updateJobDto.status || undefined,
         questions: updateJobDto.questions || undefined,
-        workType: updateJobDto.workType as WorkTypeEnumType,
+        workType: updateJobDto.workType,
       };
 
       const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
@@ -334,7 +333,8 @@ export class JobUseCases {
       const transformedJob: JobDto = {
         ...updatedJob,
         questions: updatedJob.questions || null,
-        status: updatedJob.status as JobStatus,
+        status: updatedJob.status as JobStatusEnum,
+        workType: updatedJob.workType as WorkTypeEnum,
       };
 
       this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
@@ -410,7 +410,8 @@ export class JobUseCases {
       job: {
         ...job.job,
         questions: job.job.questions || null,
-        status: job.job.status as JobStatus,
+        status: job.job.status as JobStatusEnum,
+        workType: job.job.workType as WorkTypeEnum,
       },
       company: {
         id: job.company.id,

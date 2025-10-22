@@ -12,19 +12,10 @@ import {
   universities,
   userOnboardings,
   organizationMembers,
-  JobStatusEnum,
-  WorkTypeEnum,
-  UserInteractionTypeEnum,
-  ApplyStatusEnum,
 } from "@/frameworks/data-services/postgres/models";
-import {
-  ProviderEnum,
-  EducationLevelEnum,
-  GenderEnum,
-  UserStatusEnum,
-} from "@/frameworks/data-services/postgres/models/enums";
 import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+export * from "./enum.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -48,8 +39,8 @@ export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
   questions?: string[];
 };
-export type UserInteractionTypeEnumType =
-  (typeof UserInteractionTypeEnum.enumValues)[number];
+// export type UserInteractionTypeEnumType =
+//   (typeof UserInteractionTypeEnum.enumValues)[number];
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
@@ -74,14 +65,14 @@ export type University = InferSelectModel<typeof universities>;
 
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
-export type ProviderEnumType = (typeof ProviderEnum.enumValues)[number];
-export type EducationLevelEnumType =
-  (typeof EducationLevelEnum.enumValues)[number];
-export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
-export type JobStatusEnumType = (typeof JobStatusEnum.enumValues)[number];
-export type UserStatusEnumType = (typeof UserStatusEnum.enumValues)[number];
-export type WorkTypeEnumType = (typeof WorkTypeEnum.enumValues)[number];
-export type ApplyStatusEnumType = (typeof ApplyStatusEnum.enumValues)[number];
+// export type ProviderEnumType = (typeof ProviderEnum.enumValues)[number];
+// export type EducationLevelEnumType =
+//   (typeof EducationLevelEnum.enumValues)[number];
+// export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
+// export type JobStatusEnumType = (typeof JobStatusEnum.enumValues)[number];
+// export type UserStatusEnumType = (typeof UserStatusEnum.enumValues)[number];
+// export type WorkTypeEnumType = (typeof WorkTypeEnum.enumValues)[number];
+// export type ApplyStatusEnumType = (typeof ApplyStatusEnum.enumValues)[number];
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;

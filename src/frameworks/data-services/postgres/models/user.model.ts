@@ -11,7 +11,6 @@ import {
   integer,
   jsonb,
 } from "drizzle-orm/pg-core";
-import { companies } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { RoleEnum } from "@/common/constants/roles";
