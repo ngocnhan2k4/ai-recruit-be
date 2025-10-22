@@ -11,3 +11,4 @@ export * from "./provinces/province.dto";
 export * from "./cv/cv.dto";
 export * from "./users/user-onboarding.dto";
 export * from "./universities/university.dto";
+export * from "./organization/organization.dto";

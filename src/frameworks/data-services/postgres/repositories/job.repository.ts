@@ -37,6 +37,7 @@ import {
   Skill,
   Company,
   WorkTypeEnumType,
+  OrganizationWithDetails,
 } from "@/core/entities";
 import {
   ApplyJobResponseDto,
@@ -57,6 +58,7 @@ import { TokenPayload } from "@/common/types/token";
 import { RoleEnum } from "@/common/constants/roles";
 import { PaginationType } from "@/interfaces/dtos/common/query";
 import { ApplyStatusEnumType } from "@/core/entities";
+import { organizations } from "../models/organization.model";
 
 export interface CursorPaginationResult<T> {
   paginationData: T[];
@@ -769,8 +771,8 @@ export class JobRepository
         title: jobs.title,
         salaryMin: jobs.salaryMin,
         salaryMax: jobs.salaryMax,
-        companyName: companies.name,
-        logoUrl: companies.logoUrl,
+        companyName: organizations.name,
+        logoUrl: organizations.logoUrl,
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
@@ -779,7 +781,7 @@ export class JobRepository
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
       .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(
         applyJobs,
@@ -822,7 +824,7 @@ export class JobRepository
   ): Promise<{
     job: Job;
     provinces: Province[];
-    company: Company;
+    company: OrganizationWithDetails;
     skills: Skill[];
     isSaved?: boolean;
     isApplied?: boolean;
@@ -840,7 +842,7 @@ export class JobRepository
           sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
             "provinces",
           ),
-        company: companies,
+        company: organizations,
         skills:
           sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
             "skills",
@@ -879,12 +881,12 @@ export class JobRepository
           : sql`NULL`.as("applyId"),
       })
       .from(jobs)
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
       .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, companies.id, provinces.id)
+      .groupBy(jobs.id, organizations.id, provinces.id)
       .limit(1);
 
     if (!result || result.length === 0) {
@@ -897,7 +899,7 @@ export class JobRepository
     return {
       job: data.job as Job,
       provinces: data.provinces as Province[],
-      company: data.company as Company,
+      company: data.company as OrganizationWithDetails,
       skills: data.skills as Skill[],
       isSaved: (data.isSaved || undefined) as boolean | undefined,
       isApplied: (data.isApplied || undefined) as boolean | undefined,
@@ -959,8 +961,8 @@ export class JobRepository
         title: jobs.title,
         salaryMin: jobs.salaryMin,
         salaryMax: jobs.salaryMax,
-        companyName: companies.name,
-        logoUrl: companies.logoUrl,
+        companyName: organizations.name,
+        logoUrl: organizations.logoUrl,
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
@@ -970,7 +972,7 @@ export class JobRepository
       })
       .from(applyJobs)
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
       .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)))
       .orderBy(

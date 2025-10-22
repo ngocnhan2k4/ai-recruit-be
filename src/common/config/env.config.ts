@@ -88,6 +88,7 @@ export default (): Record<string, any> => ({
 
   // PostgreSQL
   DATABASE_URL: process.env.DATABASE_URL,
+  DATABASE_ADAPTER_URL: process.env.DATABASE_ADAPTER_URL,
 
   JWT_SECRET: process.env.JWT_SECRET,
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,

@@ -35,6 +35,7 @@ export class AuthUseCases {
       name?: string;
       picture?: string;
       provider_id?: string;
+      roles?: RoleEnum[];
     };
     let onboarded = false;
     try {
@@ -52,19 +53,20 @@ export class AuthUseCases {
         })
       )[0] || null;
     if (!user) {
+      console.log("decode", decode);
       const newUser: NewUser = {
         username: generateUsername(decode.name!), // [TODO]: check exist username here
         email: decode.email ?? null,
         avatarUrl: decode.picture ?? null,
         firebaseUid: decode.uid,
-        // roles: [RoleEnum.USER],
+        roles: decode.roles,
         name: decode.name ?? "",
         gender: null,
         dob: null,
         phone: null,
         provider: normalizeProvider(decode.provider_id || "email"),
       };
-      user = await this.userRepository.create(newUser);
+      user = await this.userRepository.createUser(newUser);
     } else {
       // Update user info if necessary
       const user = await this.userRepository.getByField({
@@ -93,7 +95,7 @@ export class AuthUseCases {
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload: TokenPayload = {
       userId: user.id,
-      roles: [RoleEnum.USER], // [TODO]: get roles from user
+      roles: user.roles as RoleEnum[],
     };
     const accessToken = this.authService.signJwt(payload);
     const refreshToken = randomBytes(48).toString("hex");
