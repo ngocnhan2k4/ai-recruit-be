@@ -23,7 +23,11 @@ import {
   WorkTypeEnumType,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
-import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
+import {
+  JobDto,
+  SavedJobsResponseDto,
+  AppliedJobsResponseDto,
+} from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
@@ -422,7 +426,7 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,
@@ -441,6 +445,36 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: count,
+    };
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    const result = await this.jobRepository.getAllAppliedJobs(userId, query);
+    const transformedData: PaginatedResultDto<AppliedJobsResponseDto> = {
+      data: result.data.map((job) => ({
+        ...job,
+        logoUrl: job.logoUrl || "",
+        workType: job.workType ?? "onsite",
+        createdAt: job.createdAt.toISOString(),
+        endedAt: job.endedAt!,
+        isSaved: true,
+      })),
+      pagination: result.pagination,
+    };
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedData,
     };
   }
 }

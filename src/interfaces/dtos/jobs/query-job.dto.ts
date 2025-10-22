@@ -14,6 +14,7 @@ import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
 import { Province } from "@/core";
+import type { ApplyStatusEnumType, WorkTypeEnumType } from "@/core/entities";
 
 export class QueryJobDto extends GeneralQueryDto {
   @ApiProperty({
@@ -182,7 +183,7 @@ export class SavedJobsResponseDto {
     description: "Work type (remote, onsite)",
     required: false,
   })
-  workType: "remote" | "onsite";
+  workType: WorkTypeEnumType;
   @ApiProperty({
     example: "2023-01-01T00:00:00Z",
     description: "Creation date of the job",
@@ -214,6 +215,15 @@ export class SavedJobsResponseDto {
     required: true,
   })
   isApplied: boolean;
+}
+
+export class AppliedJobsResponseDto extends SavedJobsResponseDto {
+  @ApiProperty({
+    example: "pending",
+    description: "Application status for the job",
+    required: true,
+  })
+  applyStatus: ApplyStatusEnumType;
 }
 
 export class JobPaginationResponseDto {

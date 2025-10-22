@@ -17,6 +17,7 @@ import {
   ApiConsumes,
   ApiQuery,
   ApiBody,
+  ApiParam,
 } from "@nestjs/swagger";
 // Remove Express file interceptor import
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -57,6 +58,21 @@ export class CvController {
   ): Promise<ApiResponse<CvListResponseDto>> {
     const targetUserId = userId || user.userId;
     return this.cvUseCases.getUserCvs(targetUserId);
+  }
+
+  @ApiOperation({
+    summary: "Get CV by Id",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "CV ID",
+    example: "uuid-cv-id",
+  })
+  @ApiResponseDto(CvDto)
+  @Get(":id")
+  async getCvById(@Param("id") cvId: string): Promise<ApiResponse<CvDto>> {
+    return this.cvUseCases.getCvById(cvId);
   }
 
   @ApiOperation({

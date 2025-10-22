@@ -175,7 +175,6 @@ export class GetUserResponseDto {
   @Expose()
   onboardingCompleted: boolean;
 
-  //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {
       excludeExtraneousValues: true,
