@@ -20,6 +20,11 @@ import {
   WorkTypeEnum,
   UserInteractionTypeEnum,
 } from "@/frameworks/data-services/postgres/models";
+import {
+  notifications,
+  NotificationTypeEnum,
+  userNotifications,
+} from "@/frameworks/data-services/postgres/models/notification.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
@@ -75,3 +80,12 @@ export type OrganizationMember = InferSelectModel<typeof organizationMembers>;
 export type NewOrganizationMember = InferInsertModel<
   typeof organizationMembers
 >;
+
+export type NewUserNotification = InferInsertModel<typeof userNotifications>;
+export type UserNotification = InferSelectModel<typeof userNotifications>;
+
+export type NewNotification = InferInsertModel<typeof notifications>;
+export type Notification = InferSelectModel<typeof notifications> &
+  UserNotification;
+
+export type NotificationType = (typeof NotificationTypeEnum.enumValues)[number];

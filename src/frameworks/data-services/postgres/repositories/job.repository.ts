@@ -36,24 +36,16 @@ import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   JobAnswerDto,
-  JobStatus,
   ApplyStatus,
 } from "@/interfaces/dtos";
 import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core/abstracts/repositories/job-repository.abstract";
-import { app } from "firebase-admin";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 import { TokenPayload } from "@/common/types/token";
 import { RoleEnum } from "@/common/constants/roles";
-
-export interface CursorPaginationResult<T> {
-  paginationData: T[];
-  nextCursor?: string;
-  hasNextPage: boolean;
-}
 
 @Injectable()
 export class JobRepository

@@ -19,7 +19,6 @@ import {
   GetUserResponseDto,
   TypeAvatar,
   UpdateUserRequestDto,
-  UserDto,
   UserPublicResponseDto,
   UserOnboardingStatusDto,
   UserOnboardingDto,
@@ -38,15 +37,11 @@ import {
 } from "@/core";
 import {
   CreateUserExperienceRequestDto,
-  UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
 import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
-import {
-  PaginatedResultDto,
-  PaginationResponseDto,
-} from "@/interfaces/dtos/common/query";
+import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {

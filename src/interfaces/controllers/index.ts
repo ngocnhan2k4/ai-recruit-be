@@ -10,3 +10,4 @@ export * from "./cv.controller";
 export * from "./skill.controller";
 export * from "./university.controller";
 export * from "./organization.controller";
+export * from "./notification.controller";

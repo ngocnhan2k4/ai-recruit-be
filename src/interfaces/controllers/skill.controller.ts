@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponseDto, ApiResponse, SkillDto } from "../dtos";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";

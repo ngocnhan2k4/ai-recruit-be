@@ -11,6 +11,7 @@ import {
   CvController,
   UniversityController,
   MyOrganizationController,
+  NotificationController,
 } from "./interfaces/controllers";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -40,6 +41,8 @@ import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 import { SkillController } from "./interfaces/controllers/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
+import { WebSocketModule } from "./frameworks/websocket/websocket.module";
+import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
 
 @Module({
   imports: [
@@ -66,6 +69,8 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
+    WebSocketModule,
+    NotificationUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -80,6 +85,7 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     SkillController,
     UniversityController,
     MyOrganizationController,
+    NotificationController,
   ],
   providers: [
     JwtStrategy,
