@@ -12,3 +12,4 @@ export * from "./organization/organization.controller";
 export * from "./company/company.controller";
 export * from "./company/company-organization.controller";
 export * from "./company/company-admin.controller";
+export * from "./notification/notification.controller";

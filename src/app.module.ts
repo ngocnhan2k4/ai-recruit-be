@@ -9,7 +9,8 @@ import {
   ProvinceController,
   CvController,
   UniversityController,
-  MyOrganizationController,
+  // MyOrganizationController,
+  NotificationController,
   CompanyController,
   CompanyOrganizationController,
   CompanyAdminController,
@@ -43,6 +44,8 @@ import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 import { SkillController } from "./interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
+import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
+import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 
 @Module({
   imports: [
@@ -69,9 +72,11 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
+    NotificationUseCasesModule,
     CompanyUseCasesModule,
     CompanyUseCasesModule,
     CompanyUseCasesModule,
+    WebSocketModule,
   ],
   controllers: [
     UserController,
@@ -85,7 +90,8 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     SkillController,
     UniversityController,
     CasbinController,
-    MyOrganizationController,
+    // MyOrganizationController,
+    NotificationController,
     CompanyController,
     CompanyOrganizationController,
     CompanyAdminController,

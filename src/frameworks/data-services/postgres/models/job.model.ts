@@ -21,6 +21,7 @@ import { provinces } from "./province.model";
 import { jsonb } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "./enums";
+import { organizations } from "./organization.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -44,9 +45,9 @@ export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: json("description"),
-  companyId: uuid("company_id")
+  organizationId: uuid("organization_id")
     .notNull()
-    .references(() => companies.organizationId),
+    .references(() => organizations.id),
   datePosted: date("date_posted"),
   salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
   salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),

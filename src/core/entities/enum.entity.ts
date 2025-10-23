@@ -45,3 +45,11 @@ export enum UserStatusEnum {
   INACTIVE = "inactive",
   BANNED = "banned",
 }
+export enum NotificationType {
+  JOB_POSTED = "job_posted",
+  JOB_APPROVED = "job_approved",
+  JOB_APPLIED = "job_applied",
+  JOB_MATCHED = "job_matched",
+  PROFILE_VIEWED = "profile_viewed",
+  SYSTEM = "system",
+}

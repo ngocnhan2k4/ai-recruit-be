@@ -55,12 +55,6 @@ import { TokenPayload } from "@/common/types/token";
 import { PaginationType } from "@/interfaces/dtos/common/query";
 import { organizations } from "../models/organization.model";
 
-export interface CursorPaginationResult<T> {
-  paginationData: T[];
-  nextCursor?: string;
-  hasNextPage: boolean;
-}
-
 @Injectable()
 export class JobRepository
   extends GenericRepository<Job, typeof jobs>
@@ -125,8 +119,8 @@ export class JobRepository
       whereConditions.push(eq(jobs.provinceId, filters.provinceId));
     }
 
-    if (filters?.companyId) {
-      whereConditions.push(eq(jobs.companyId, filters.companyId));
+    if (filters?.organizationId) {
+      whereConditions.push(eq(jobs.organizationId, filters.organizationId));
     }
 
     if (filters?.workType) {
@@ -219,7 +213,7 @@ export class JobRepository
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
-      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .innerJoin(companies, eq(jobs.organizationId, companies.organizationId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
       // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
@@ -652,7 +646,7 @@ export class JobRepository
   async createJob(job: Partial<Job> & { skillIds?: string[] }): Promise<Job> {
     const jobData = {
       title: job.title!,
-      companyId: job.companyId!,
+      organizationId: job.organizationId!,
       description: job.description,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
@@ -776,7 +770,7 @@ export class JobRepository
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
-      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
+      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(
         applyJobs,
@@ -876,7 +870,7 @@ export class JobRepository
           : sql`NULL`.as("applyId"),
       })
       .from(jobs)
-      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
+      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
@@ -967,7 +961,7 @@ export class JobRepository
       })
       .from(applyJobs)
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-      .innerJoin(organizations, eq(jobs.companyId, organizations.id))
+      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .where(and(eq(applyJobs.userId, userId), isNull(jobs.deletedAt)))
       .orderBy(

@@ -51,3 +51,11 @@ export const SchoolTypeEnum = pgEnum("school_type", [
   "secondary",
   "primary",
 ]);
+export const NotificationTypeEnum = pgEnum("notification_type", [
+  "job_posted",
+  "job_approved",
+  "job_applied",
+  "job_matched",
+  "profile_viewed",
+  "system",
+]);

@@ -17,6 +17,7 @@ import {
   IUserSkillRepository,
   IUniversityRepository,
   IUserOnboardingRepository,
+  INotificationRepository,
   IOrganizationRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
@@ -33,6 +34,7 @@ import { UniversityRepository } from "./repositories/university.repository";
 import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
 import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
+import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 
 @Global()
@@ -143,6 +145,10 @@ import { OrganizationRepository } from "./repositories/organization.repository";
       useClass: OrganizationMembersRepository,
     },
     {
+      provide: INotificationRepository,
+      useClass: NotificationRepository,
+    },
+    {
       provide: IOrganizationRepository,
       useClass: OrganizationRepository,
     },
@@ -161,6 +167,7 @@ import { OrganizationRepository } from "./repositories/organization.repository";
     IUniversityRepository,
     IUserOnboardingRepository,
     IOrganizationMembersRepository,
+    INotificationRepository,
     IOrganizationRepository,
   ],
 })
