@@ -1,6 +1,6 @@
 services:
   backend:
-    image: tnnhan57/ai-recruit:dev
+    image: ghcr.io/ngocnhan2k4/ai-recruit-be:dev
     restart: always
     env_file:
       - .env
