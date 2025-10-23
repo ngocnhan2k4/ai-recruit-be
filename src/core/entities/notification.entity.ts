@@ -1,6 +1,7 @@
-import { Company, User } from ".";
+import { GeneralQuery } from "@/common/types/api";
+import { Organization, User } from ".";
 
-export interface NotificationFilter {
+export interface NotificationFilter extends GeneralQuery {
   userId: User["id"];
-  organizationId?: Company["id"];
+  organizationId?: Organization["id"];
 }

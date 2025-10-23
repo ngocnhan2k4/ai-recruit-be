@@ -9,15 +9,8 @@ import {
 
 import { users } from "./user.model";
 import { companies } from "./company.model";
-
-export const NotificationTypeEnum = pgEnum("notification_type", [
-  "job_posted",
-  "job_approved",
-  "job_applied",
-  "job_matched",
-  "profile_viewed",
-  "system",
-]);
+import { NotificationTypeEnum } from "./enums";
+import { organizations } from "./organization.model";
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -51,7 +44,7 @@ export const userNotifications = pgTable("user_notifications", {
     .notNull()
     .references(() => users.id),
 
-  organizationId: uuid("organization_id").references(() => companies.id, {
+  organizationId: uuid("organization_id").references(() => organizations.id, {
     onDelete: "set null",
   }),
 

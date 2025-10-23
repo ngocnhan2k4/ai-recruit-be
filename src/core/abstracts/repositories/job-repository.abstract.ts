@@ -30,7 +30,7 @@ export interface JobFilters {
   salaryRange?: RangeFilter;
   experienceRange?: RangeFilter;
   provinceId?: string;
-  companyId?: string;
+  organizationId?: string;
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   pagination?: PaginationType;

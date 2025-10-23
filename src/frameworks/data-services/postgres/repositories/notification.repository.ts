@@ -55,7 +55,6 @@ export class NotificationRepository
   }
 
   async getNotificationsByUser(
-    query: GeneralQuery,
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>> {
     const whereConditions = [
@@ -69,8 +68,10 @@ export class NotificationRepository
       );
     }
 
-    if (query.cursor) {
-      whereConditions.push(lt(notifications.createdAt, new Date(query.cursor)));
+    if (filter.cursor) {
+      whereConditions.push(
+        lt(notifications.createdAt, new Date(filter.cursor)),
+      );
     }
 
     const notificationsResult = await this.db
@@ -85,12 +86,12 @@ export class NotificationRepository
       )
       .where(and(...whereConditions))
       .orderBy(desc(notifications.createdAt))
-      .limit(query.limit + 1);
+      .limit(filter.limit + 1);
 
-    const hasNextPage = notificationsResult.length > query.limit;
+    const hasNextPage = notificationsResult.length > filter.limit;
 
     const slicedResults = hasNextPage
-      ? notificationsResult.slice(0, query.limit)
+      ? notificationsResult.slice(0, filter.limit)
       : notificationsResult;
 
     const nextCursor = hasNextPage

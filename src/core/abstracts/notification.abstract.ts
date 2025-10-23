@@ -1,15 +1,11 @@
-import { NotificationType } from "../entities";
+import { NewNotification, Notification } from "../entities";
 
 export abstract class INotificationService {
   abstract createAndSendToUser(
-    userId: string,
-    notificationData: {
-      title: string;
-      message: string;
-      type: NotificationType;
-      senderId?: string;
-      payload?: any;
+    newNotification: NewNotification,
+    recipient: {
+      userId: string;
+      organizationId?: string;
     },
-    organizationId?: string,
   ): Promise<{ success: boolean; notification?: Notification }>;
 }

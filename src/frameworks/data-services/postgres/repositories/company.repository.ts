@@ -37,19 +37,12 @@ export class CompanyRepository
 
   async getCompanyByOrganizationId(
     organizationId: string,
-    companyId: string,
   ): Promise<OrganizationWithDetails | null> {
     const result = await this.db
       .select()
       .from(companies)
       .innerJoin(organizations, eq(companies.organizationId, organizations.id))
-      .where(
-        and(
-          eq(companies.organizationId, organizationId),
-          eq(companies.id, companyId),
-          eq(organizations.type, OrganizationTypeEnum.COMPANY),
-        ),
-      );
+      .where(and(eq(organizations.type, OrganizationTypeEnum.COMPANY)));
 
     if (!result[0]) return null;
 
@@ -174,7 +167,7 @@ export class CompanyRepository
       .from(companies)
       .leftJoin(
         organizationLocations,
-        eq(companies.id, organizationLocations.organizationId),
+        eq(organizations.id, organizationLocations.organizationId),
       )
       .where(and(...whereConditions));
 
@@ -206,12 +199,7 @@ export class CompanyRepository
     const result = await this.db
       .update(companies)
       .set(data)
-      .where(
-        and(
-          eq(companies.organizationId, organizationId),
-          eq(companies.id, companyId),
-        ),
-      )
+      .where(and(eq(companies.organizationId, organizationId)))
       .returning();
     return result[0] || null;
   }

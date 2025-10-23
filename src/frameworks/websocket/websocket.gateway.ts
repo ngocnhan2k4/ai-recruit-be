@@ -13,6 +13,7 @@ import { ConfigService } from "@nestjs/config";
 import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
+import { TokenPayload } from "@/common/types/token";
 
 interface AuthenticatedSocket extends Socket, IdentityUser {}
 
@@ -43,6 +44,7 @@ export class WebSocketGateway
       // Extract token from handshake query or headers
       const token =
         (client.handshake.query.token as string) ||
+        (client.handshake.auth.token as string) ||
         client.handshake.headers.authorization?.replace("Bearer ", "");
 
       if (!token) {
@@ -54,8 +56,8 @@ export class WebSocketGateway
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>("JWT_SECRET"),
       });
+      client.userId = payload.userId;
 
-      client.userId = payload.sub;
       if (!client.userId) {
         this.logger.warn("Token invalid");
         client.disconnect();

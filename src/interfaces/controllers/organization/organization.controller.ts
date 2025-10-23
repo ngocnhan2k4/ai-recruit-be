@@ -32,7 +32,7 @@ import { PaginatedResultDto } from "../../dtos/common/query";
 
 @ApiTags("Organization")
 @Controller("organizations")
-export class MyOrganizationController {
+export class OrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
   // @UseGuards(JwtAuthGuard)

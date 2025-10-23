@@ -13,7 +13,6 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
   ): Promise<Notification[]>;
 
   abstract getNotificationsByUser(
-    query: GeneralQuery,
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>>;
   abstract markAsRead(userNotificationIds: string[]): Promise<void>;

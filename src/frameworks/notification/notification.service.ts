@@ -1,9 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { Notification, NewNotification, INotificationRepository } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 
 @Injectable()
-export class NotificationService {
+export class NotificationService implements INotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
   constructor(

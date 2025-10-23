@@ -1,28 +1,51 @@
 import { relations } from "drizzle-orm/relations";
-import { companyRaws, jobRaws, users, userOnboardings, refreshTokens, userExperiences, companies, jobs, applyJobs, userCv, userInteractions, provinces, jobCategories, categories, jobSkills, skills, userSkills } from "./schema";
+import { provinces, organizationLocations, companyRaws, companies, jobRaws, users, userExperiences, refreshTokens, userOnboardings, jobs, applyJobs, cvs, userInteractions, organizationMembers, jobSkills, skills, jobCategories, categories, userSkills } from "./schema";
 
-export const jobRawsRelations = relations(jobRaws, ({one}) => ({
+export const organizationLocationsRelations = relations(organizationLocations, ({one}) => ({
+	province: one(provinces, {
+		fields: [organizationLocations.provinceId],
+		references: [provinces.id]
+	}),
+}));
+
+export const provincesRelations = relations(provinces, ({many}) => ({
+	organizationLocations: many(organizationLocations),
+	jobs: many(jobs),
+}));
+
+export const companiesRelations = relations(companies, ({one}) => ({
 	companyRaw: one(companyRaws, {
-		fields: [jobRaws.companyId],
+		fields: [companies.companyRawId],
 		references: [companyRaws.id]
 	}),
 }));
 
 export const companyRawsRelations = relations(companyRaws, ({many}) => ({
+	companies: many(companies),
 	jobRaws: many(jobRaws),
 }));
 
-export const userOnboardingsRelations = relations(userOnboardings, ({one}) => ({
+export const jobRawsRelations = relations(jobRaws, ({one, many}) => ({
+	companyRaw: one(companyRaws, {
+		fields: [jobRaws.companyId],
+		references: [companyRaws.id]
+	}),
+	jobs: many(jobs),
+}));
+
+export const userExperiencesRelations = relations(userExperiences, ({one}) => ({
 	user: one(users, {
-		fields: [userOnboardings.userId],
+		fields: [userExperiences.userId],
 		references: [users.id]
 	}),
 }));
 
 export const usersRelations = relations(users, ({many}) => ({
-	userOnboardings: many(userOnboardings),
-	refreshTokens: many(refreshTokens),
 	userExperiences: many(userExperiences),
+	refreshTokens: many(refreshTokens),
+	userOnboardings: many(userOnboardings),
+	cvs: many(cvs),
+	organizationMembers: many(organizationMembers),
 	userSkills: many(userSkills),
 }));
 
@@ -33,20 +56,11 @@ export const refreshTokensRelations = relations(refreshTokens, ({one}) => ({
 	}),
 }));
 
-export const userExperiencesRelations = relations(userExperiences, ({one}) => ({
+export const userOnboardingsRelations = relations(userOnboardings, ({one}) => ({
 	user: one(users, {
-		fields: [userExperiences.userId],
+		fields: [userOnboardings.userId],
 		references: [users.id]
 	}),
-	company: one(companies, {
-		fields: [userExperiences.companyId],
-		references: [companies.id]
-	}),
-}));
-
-export const companiesRelations = relations(companies, ({many}) => ({
-	userExperiences: many(userExperiences),
-	jobs: many(jobs),
 }));
 
 export const applyJobsRelations = relations(applyJobs, ({one}) => ({
@@ -54,29 +68,33 @@ export const applyJobsRelations = relations(applyJobs, ({one}) => ({
 		fields: [applyJobs.jobId],
 		references: [jobs.id]
 	}),
-	userCv: one(userCv, {
-		fields: [applyJobs.userCvId],
-		references: [userCv.id]
+	cv: one(cvs, {
+		fields: [applyJobs.cvId],
+		references: [cvs.id]
 	}),
 }));
 
 export const jobsRelations = relations(jobs, ({one, many}) => ({
 	applyJobs: many(applyJobs),
 	userInteractions: many(userInteractions),
-	company: one(companies, {
-		fields: [jobs.companyId],
-		references: [companies.id]
-	}),
 	province: one(provinces, {
 		fields: [jobs.provinceId],
 		references: [provinces.id]
 	}),
-	jobCategories: many(jobCategories),
+	jobRaw: one(jobRaws, {
+		fields: [jobs.jobRawId],
+		references: [jobRaws.id]
+	}),
 	jobSkills: many(jobSkills),
+	jobCategories: many(jobCategories),
 }));
 
-export const userCvRelations = relations(userCv, ({many}) => ({
+export const cvsRelations = relations(cvs, ({one, many}) => ({
 	applyJobs: many(applyJobs),
+	user: one(users, {
+		fields: [cvs.userId],
+		references: [users.id]
+	}),
 }));
 
 export const userInteractionsRelations = relations(userInteractions, ({one}) => ({
@@ -86,23 +104,11 @@ export const userInteractionsRelations = relations(userInteractions, ({one}) => 
 	}),
 }));
 
-export const provincesRelations = relations(provinces, ({many}) => ({
-	jobs: many(jobs),
-}));
-
-export const jobCategoriesRelations = relations(jobCategories, ({one}) => ({
-	job: one(jobs, {
-		fields: [jobCategories.jobId],
-		references: [jobs.id]
+export const organizationMembersRelations = relations(organizationMembers, ({one}) => ({
+	user: one(users, {
+		fields: [organizationMembers.userId],
+		references: [users.id]
 	}),
-	category: one(categories, {
-		fields: [jobCategories.categoryId],
-		references: [categories.id]
-	}),
-}));
-
-export const categoriesRelations = relations(categories, ({many}) => ({
-	jobCategories: many(jobCategories),
 }));
 
 export const jobSkillsRelations = relations(jobSkills, ({one}) => ({
@@ -119,6 +125,21 @@ export const jobSkillsRelations = relations(jobSkills, ({one}) => ({
 export const skillsRelations = relations(skills, ({many}) => ({
 	jobSkills: many(jobSkills),
 	userSkills: many(userSkills),
+}));
+
+export const jobCategoriesRelations = relations(jobCategories, ({one}) => ({
+	job: one(jobs, {
+		fields: [jobCategories.jobId],
+		references: [jobs.id]
+	}),
+	category: one(categories, {
+		fields: [jobCategories.categoryId],
+		references: [categories.id]
+	}),
+}));
+
+export const categoriesRelations = relations(categories, ({many}) => ({
+	jobCategories: many(jobCategories),
 }));
 
 export const userSkillsRelations = relations(userSkills, ({one}) => ({
