@@ -254,22 +254,6 @@ export class UserUseCases implements OnModuleInit {
             name: userExperience.organization.name,
             address: userExperience.organization.address,
             logoUrl: userExperience.organization.logoUrl,
-            slug: userExperience.organization.slug,
-            type: userExperience.organization.type,
-            description: userExperience.organization.description,
-            websiteUrl: userExperience.organization.websiteUrl,
-            email: userExperience.organization.email,
-            phone: userExperience.organization.phone,
-            foundedYear: userExperience.organization.foundedYear,
-            verifiedAt: userExperience.organization.verifiedAt,
-            organizationCulture:
-              userExperience.organization.organizationCulture,
-            employeesMin: userExperience.organization.employeesMin,
-            employeesMax: userExperience.organization.employeesMax,
-            status: userExperience.organization.status,
-            createdAt: userExperience.organization.createdAt,
-            updatedAt: userExperience.organization.updatedAt,
-            deletedAt: userExperience.organization.deletedAt,
           }
         : null,
       skills: userExperience.skills.map((skill) => ({
@@ -284,63 +268,17 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  private async preCreateBeforeCreateUserExperience(
-    userId: string,
-    data: CreateUserExperienceRequestDto,
-  ) {
-    let organizationId = data.organizationId;
-    if (!organizationId) {
-      const organization = await this.organizationRepository.create({
-        name: data.organizationName,
-        type: OrganizationTypeEnum.COMPANY,
-      });
-      organizationId = organization.id;
-    }
-    const skillIds = data.skillIds || [];
-    const skillNames = data.skillNames || [];
-
-    // Process skill names to get or create skill IDs
-    if (skillNames.length > 0) {
-      const newSkills = await this.skillRepository.createMany(
-        skillNames.map((name) => ({ name })),
-      );
-      skillIds.push(...newSkills.map((skill) => skill.id));
-    }
-
-    // Create user-skill associations
-    if (skillIds.length > 0)
-      await this.userSkillRepository.createMany(
-        skillIds.map((skillId) => ({
-          userId,
-          organizationId: organizationId || null,
-          skillId,
-        })),
-      );
-    return {
-      organizationId,
-    };
-  }
-
   // Create user experience, along with creating new company (if needed) and skills (if needed)
   // [TODO]: It will not reasonable if user work a company twice, need to handle this case later
   async createUserExperience(
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    const { organizationId } = await this.preCreateBeforeCreateUserExperience(
-      userId,
-      createUserExperienceDto,
-    );
-
-    const result = await this.userExperienceRepository.create({
-      ...createUserExperienceDto,
-      userId,
-      startDate: convertDateToStr(createUserExperienceDto.startDate),
-      endDate: createUserExperienceDto.endDate
-        ? convertDateToStr(createUserExperienceDto.endDate)
-        : null,
-      organizationId: organizationId,
-    });
+    const result =
+      await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
+        userId,
+        createUserExperienceDto,
+      );
     if (!result) {
       throw new NotFoundException({
         message: "[createUserExperience] - [create] User experience not found",
@@ -359,45 +297,22 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    const userExperience = (
-      await this.userExperienceRepository.getByField({
+    const result =
+      await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-      })
-    )[0];
-    if (!userExperience) {
+        updateUserExperienceDto,
+      );
+
+    if (!result) {
       this.logger.error(
-        "[updateUserExperience] - [get] userExperience not found",
+        "[updateUserExperience] - [updateUserExperienceWithCompanyAndSkills] User experience not found",
       );
       throw new NotFoundException({
-        message: "[updateUserExperience] - [get] User experience not found",
+        message: "User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
-    await this.userSkillRepository.delete({
-      userId,
-      organizationId: userExperience.organizationId,
-    });
-    const { organizationId } = await this.preCreateBeforeCreateUserExperience(
-      userId,
-      updateUserExperienceDto,
-    );
-
-    const updatedUserExperience = {
-      ...userExperience,
-      ...updateUserExperienceDto,
-      organizationId,
-    };
-    await this.userExperienceRepository.update(
-      { userId, id },
-      {
-        ...updatedUserExperience,
-        startDate: convertDateToStr(updateUserExperienceDto.startDate),
-        endDate: updateUserExperienceDto.endDate
-          ? convertDateToStr(updateUserExperienceDto.endDate)
-          : null,
-      },
-    );
 
     return {
       message: "User experience updated successfully",
