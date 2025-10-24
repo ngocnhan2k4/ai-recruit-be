@@ -10,6 +10,7 @@ import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import {
   GetNotificationRequestDto,
+  GetNotificationResponseDto,
   NotificationDto,
 } from "@/interfaces/dtos/notifications/notification.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
@@ -23,18 +24,19 @@ export class NotificationController {
     summary: "Get notification by user id, org id",
   })
   @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(NotificationDto)
+  @ApiResponseDto(GetNotificationResponseDto)
   @Get()
   async getNotificationsByUser(
     @Query() query: GetNotificationRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<PaginatedResultDto<NotificationDto>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<GetNotificationResponseDto>>> {
     return this.notificationUseCase.getNotificationsByUser({
       ...query,
       userId: user.userId,
     });
   }
 
+  // [TEST]: Only for testing purposes
   @Post()
   async create() {
     return this.notificationUseCase.createNotification();
