@@ -7,7 +7,7 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
   abstract createNotificationWithRecipients(
     notification: NewNotification,
     recipients: {
-      userId: string;
+      receiverId: string;
       organizationId?: string;
     }[],
   ): Promise<Notification[]>;

@@ -24,7 +24,7 @@ export class NotificationRepository
   async createNotificationWithRecipients(
     notification: NewNotification,
     recipients: {
-      userId: string;
+      receiverId: string;
       organizationId?: string;
     }[],
   ): Promise<Notification[]> {
@@ -37,7 +37,7 @@ export class NotificationRepository
       const userNotificationData: NewUserNotification[] = recipients.map(
         (d) => ({
           notificationId: createdNotification.id,
-          userId: d.userId,
+          receiverId: d.receiverId,
           organizationId: d.organizationId,
         }),
       );
@@ -58,7 +58,7 @@ export class NotificationRepository
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>> {
     const whereConditions = [
-      eq(userNotifications.userId, filter.userId),
+      eq(userNotifications.receiverId, filter.userId),
       isNull(userNotifications.deletedAt),
     ];
 
@@ -145,7 +145,7 @@ export class NotificationRepository
     organizationId?: string,
   ): Promise<number> {
     const whereConditions = [
-      eq(userNotifications.userId, userId),
+      eq(userNotifications.receiverId, userId),
       isNull(userNotifications.readAt),
       isNull(userNotifications.deletedAt),
     ];

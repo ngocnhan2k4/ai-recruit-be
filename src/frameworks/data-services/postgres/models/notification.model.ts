@@ -8,12 +8,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { users } from "./user.model";
-import { companies } from "./company.model";
 import { NotificationTypeEnum } from "./enums";
 import { organizations } from "./organization.model";
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   senderId: uuid("sender_id").references(() => users.id, {
     onDelete: "set null",
   }),
@@ -40,7 +40,7 @@ export const userNotifications = pgTable("user_notifications", {
     .notNull()
     .references(() => notifications.id, { onDelete: "cascade" }),
 
-  userId: uuid("user_id")
+  receiverId: uuid("receiver_id")
     .notNull()
     .references(() => users.id),
 

@@ -45,3 +45,8 @@ export class NotificationDto {
   @ApiProperty({ type: Date, nullable: true })
   readAt: Date | null;
 }
+
+export class GetNotificationResponseDto {
+  @ApiProperty({ type: NotificationDto })
+  notification: NotificationDto;
+}
