@@ -25,7 +25,7 @@ export class NotificationService implements INotificationService {
           newNotification,
           [
             {
-              userId: recipient.userId,
+              receiverId: recipient.userId,
               organizationId: recipient.organizationId,
             },
           ],
@@ -34,7 +34,7 @@ export class NotificationService implements INotificationService {
       // Send via WebSocket
       const sent = this.webSocketGateway.sendToUser(
         {
-          userId: notification.userId,
+          userId: notification.receiverId,
           organizationId: notification.organizationId || undefined,
         },
         notification,
@@ -42,11 +42,11 @@ export class NotificationService implements INotificationService {
 
       if (sent) {
         this.logger.log(
-          `Notification created and sent to user ${notification.userId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
+          `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
         );
       } else {
         this.logger.warn(
-          `Notification created but user ${notification.userId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
+          `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
         );
       }
 

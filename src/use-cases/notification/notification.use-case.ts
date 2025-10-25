@@ -6,7 +6,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { Injectable, Logger } from "@nestjs/common";
 import { Notification, NotificationType } from "@/core/entities";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
-import { NotificationDto } from "@/interfaces/dtos/notifications/notification.dto";
+import { GetNotificationResponseDto } from "@/interfaces/dtos/notifications/notification.dto";
 
 @Injectable()
 export class NotificationUseCase {
@@ -18,7 +18,7 @@ export class NotificationUseCase {
 
   async getNotificationsByUser(
     filter: NotificationFilter,
-  ): Promise<ApiResponse<PaginatedResult<NotificationDto>>> {
+  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
     const result =
       await this.notificationRepository.getNotificationsByUser(filter);
     this.logger.log(
@@ -28,8 +28,10 @@ export class NotificationUseCase {
       code: RESPONSE_CODE.SUCCESS,
       data: {
         data: result.data.map((d) => ({
-          ...d,
-          type: d.type as NotificationType,
+          notification: {
+            ...d,
+            type: d.type as NotificationType,
+          },
         })),
         pagination: result.pagination,
       },
