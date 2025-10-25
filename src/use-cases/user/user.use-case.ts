@@ -105,6 +105,7 @@ export class UserUseCases implements OnModuleInit {
     }
     const userDto = GetUserResponseDto.from({
       ...user,
+      onboardingCompleted: user.onboardingCompleted ?? false,
       provider: user.provider as ProviderEnum,
     });
     return {
@@ -127,6 +128,7 @@ export class UserUseCases implements OnModuleInit {
     }
     const userDto = GetUserResponseDto.from({
       ...user,
+      onboardingCompleted: user.onboardingCompleted ?? false,
       provider: user.provider as ProviderEnum,
     });
     const userOnboarding = await this.userOnboardingRepository.getByField({
