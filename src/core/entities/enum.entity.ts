@@ -27,6 +27,13 @@ export enum OrganizationTypeEnum {
   NONPROFIT = "nonprofit",
   UNIVERSITY = "university",
 }
+export enum SchoolTypeEnum {
+  COLLEGE = "college",
+  UNIVERSITY = "university",
+  HIGH_SCHOOL = "highschool",
+  SECONDARY = "secondary",
+  PRIMARY = "primary",
+}
 export enum EducationLevelEnum {
   HIGH_SCHOOL = "high_school",
   BACHELOR = "bachelor",

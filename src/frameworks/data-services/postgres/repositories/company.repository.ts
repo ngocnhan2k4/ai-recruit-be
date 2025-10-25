@@ -1,13 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Company, ICompanyRepository } from "@/core";
-import { companies, organizationLocations } from "../models/company.model";
+import { companies } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { asc, count, gt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
-import { CompanyFilters } from "@/core/entities/company.entity";
 import { UpdateCompanyDto } from "@/interfaces/dtos";
 import { organizations } from "../models/organization.model";
 import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core";
@@ -130,67 +129,67 @@ export class CompanyRepository
     return result;
   }
 
-  async getCompanies(
-    limit = 20,
-    filter?: CompanyFilters,
-    cursor?: string,
-  ): Promise<
-    PaginatedResult<
-      Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
-    >
-  > {
-    const whereConditions = [isNull(companies.deletedAt)];
+  // async getCompanies(
+  //   limit = 20,
+  //   filter?: CompanyFilters,
+  //   cursor?: string,
+  // ): Promise<
+  //   PaginatedResult<
+  //     Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
+  //   >
+  // > {
+  //   const whereConditions = [isNull(companies.deletedAt)];
 
-    if (filter?.keyword) {
-      whereConditions.push(ilike(organizations.name, `%${filter.keyword}%`));
-    }
+  //   if (filter?.keyword) {
+  //     whereConditions.push(ilike(organizations.name, `%${filter.keyword}%`));
+  //   }
 
-    if (cursor) {
-      whereConditions.push(gt(organizations.id, cursor));
-    }
+  //   if (cursor) {
+  //     whereConditions.push(gt(organizations.id, cursor));
+  //   }
 
-    const companyRows = await this.db
-      .select({
-        id: organizations.id,
-        name: organizations.name,
-        logoUrl: organizations.logoUrl,
-        address: organizations.address,
-        createdAt: organizations.createdAt,
-      })
-      .from(organizations)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(organizations.createdAt))
-      .limit(limit + 1);
+  //   const companyRows = await this.db
+  //     .select({
+  //       id: organizations.id,
+  //       name: organizations.name,
+  //       logoUrl: organizations.logoUrl,
+  //       address: organizations.address,
+  //       createdAt: organizations.createdAt,
+  //     })
+  //     .from(organizations)
+  //     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+  //     .orderBy(asc(organizations.createdAt))
+  //     .limit(limit + 1);
 
-    const [{ count: totalCount }] = await this.db
-      .select({ count: count() })
-      .from(companies)
-      .leftJoin(
-        organizationLocations,
-        eq(organizations.id, organizationLocations.organizationId),
-      )
-      .where(and(...whereConditions));
+  //   const [{ count: totalCount }] = await this.db
+  //     .select({ count: count() })
+  //     .from(companies)
+  //     .leftJoin(
+  //       organizationLocations,
+  //       eq(organizations.id, organizationLocations.organizationId),
+  //     )
+  //     .where(and(...whereConditions));
 
-    const hasNextPage = companyRows.length > limit;
-    const data = hasNextPage ? companyRows.slice(0, limit) : companyRows;
+  //   const hasNextPage = companyRows.length > limit;
+  //   const data = hasNextPage ? companyRows.slice(0, limit) : companyRows;
 
-    const nextCursor =
-      hasNextPage && data.length > 0
-        ? data[data.length - 1].createdAt.toISOString()
-        : null;
+  //   const nextCursor =
+  //     hasNextPage && data.length > 0
+  //       ? data[data.length - 1].createdAt.toISOString()
+  //       : null;
 
-    // log org ids
-    // const orgIds = data.map((d) => d.id);
+  //   // log org ids
+  //   // const orgIds = data.map((d) => d.id);
 
-    return {
-      data: data,
-      pagination: {
-        nextCursor,
-        hasNextPage,
-        total: totalCount,
-      },
-    };
-  }
+  //   return {
+  //     data: data,
+  //     pagination: {
+  //       nextCursor,
+  //       hasNextPage,
+  //       total: totalCount,
+  //     },
+  //   };
+  // }
   async updateCompanyById(
     organizationId: string,
     companyId: string,

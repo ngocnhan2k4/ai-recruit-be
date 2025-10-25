@@ -12,6 +12,7 @@ import {
   universities,
   userOnboardings,
   organizationMembers,
+  schools,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -20,22 +21,16 @@ import {
 import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { NotificationType } from "./enum.entity";
+import { organizationLocations } from "drizzle/migrations/schema";
 export * from "./enum.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
-export type NewCompany = InferInsertModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
-};
-export type Company = InferSelectModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
-};
+export type NewCompany = InferInsertModel<typeof companies>;
+export type Company = InferSelectModel<typeof companies>;
+
+export type NewSchool = InferInsertModel<typeof schools>;
+export type School = InferSelectModel<typeof schools>;
 
 export type NewCategory = InferInsertModel<typeof categories>;
 export type Category = InferSelectModel<typeof categories>;
@@ -84,6 +79,11 @@ export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification;
 
+export type NewOrganization = InferInsertModel<typeof organizations> & {
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+  companyDetails?: Omit<NewCompany, "organizationId">;
+  schoolDetails?: Omit<NewSchool, "organizationId">;
+};
 export type Organization = InferSelectModel<typeof organizations>;
 export type OrganizationWithDetails = InferSelectModel<typeof organizations> & {
   companySize: number | null;
@@ -91,3 +91,9 @@ export type OrganizationWithDetails = InferSelectModel<typeof organizations> & {
   benefits: string | null;
   companyRawId: number | null;
 };
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
+export type NewOrganizationLocation = InferInsertModel<
+  typeof organizationLocations
+>;

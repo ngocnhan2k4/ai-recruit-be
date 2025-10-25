@@ -26,7 +26,6 @@ import {
   ICompanyRepository,
   IOrganizationRepository,
 } from "@/core";
-import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationRole } from "@/common/constants/organization-roles";
@@ -92,28 +91,28 @@ export class CompanyUseCase implements OnModuleInit {
   //   };
   // }
 
-  async getCompanies(
-    limit = 20,
-    filter?: CompanyFilters,
-    cursor?: string,
-  ): Promise<
-    ApiResponse<
-      PaginatedResult<
-        Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
-      >
-    >
-  > {
-    const result = await this.companyRepository.getCompanies(
-      limit,
-      filter,
-      cursor,
-    );
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: result,
-    };
-  }
+  // async getCompanies(
+  //   limit = 20,
+  //   filter?: CompanyFilters,
+  //   cursor?: string,
+  // ): Promise<
+  //   ApiResponse<
+  //     PaginatedResult<
+  //       Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
+  //     >
+  //   >
+  // > {
+  //   const result = await this.companyRepository.getCompanies(
+  //     limit,
+  //     filter,
+  //     cursor,
+  //   );
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: result,
+  //   };
+  // }
 
   // TODO: fix logic organization here
   async checkOrganizationName(

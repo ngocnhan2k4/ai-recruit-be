@@ -9,8 +9,15 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { OrganizationTypeEnum, UserStatusEnum } from "@/core";
+import {
+  OrganizationLocation,
+  OrganizationTypeEnum,
+  UserStatusEnum,
+} from "@/core";
 import { IsEmail } from "class-validator";
+import { GeneralQueryDto } from "../common/query";
+import { CreateCompanyDto } from "../companies/company.dto";
+import { CreateSchoolDto } from "../schools/school.dto";
 
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -165,13 +172,36 @@ export class CreateOrganizationDto {
   @IsNumber()
   employeesMax: number;
 
-  @ApiProperty({ enum: UserStatusEnum })
-  @IsEnum(UserStatusEnum)
-  status: UserStatusEnum;
+  // @ApiProperty({ enum: UserStatusEnum })
+  // @IsEnum(UserStatusEnum)
+  // status: UserStatusEnum;
 
-  @ApiProperty({ type: "string" })
-  @IsString()
-  verifiedAt: string;
+  // @ApiProperty({ type: "string" })
+  // @IsString()
+  // verifiedAt: string;
+
+  // At least one location is required
+  @ApiProperty({
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        address: { type: "string" },
+        provinceId: { type: "string", format: "uuid" },
+      },
+    },
+  })
+  @IsArray()
+  @IsNotEmpty({ message: "At least one location is required" })
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+
+  @ApiProperty({ type: CreateCompanyDto, required: false })
+  @IsOptional()
+  companyDetails?: CreateCompanyDto;
+
+  @ApiProperty({ type: CreateSchoolDto, required: false })
+  @IsOptional()
+  schoolDetails?: CreateSchoolDto;
 }
 
 export class UpdateOrganizationDto {

@@ -1,5 +1,4 @@
-import { CasbinGuard, JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { CompanyUseCase } from "@/use-cases/company/company.use-case";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import {
   Body,
   Controller,
@@ -10,44 +9,86 @@ import {
   UseGuards,
   Req,
 } from "@nestjs/common";
-import type { Request } from "express";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
   ApiResponseDto,
-  CheckOrganizationNameResponseDto,
-  CompanyDto,
-  CreateCompanyDto,
   GetCompaniesQueryDto,
-  GetCompanyDto,
   CreateOrganizationDto,
   OrganizationDto,
 } from "../../dtos";
-import { Company } from "@/core/entities";
+import { Organization, OrganizationWithDetails } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
-import { PaginatedResult } from "@/common/types/api";
-import { boolean } from "drizzle-orm/gel-core";
 import { PaginatedResultDto } from "../../dtos/common/query";
+import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
 
 @ApiTags("Organization")
 @Controller("organizations")
 export class OrganizationController {
-  constructor(private readonly companyUseCase: CompanyUseCase) {}
+  constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
-  // @UseGuards(JwtAuthGuard)
-  // @Post()
-  // @ApiOperation({
-  //   summary: "Create a new company",
-  //   description: "Create a new company",
-  // })
-  // @ApiResponseDto(CompanyDto)
-  // async createCompany(
-  //   @GetUser() user: TokenPayload,
-  //   @Body() data: CreateCompanyDto,
-  // ): Promise<ApiResponse<Company>> {
-  //   return await this.companyUseCase.createCompany(user.userId, data);
-  // }
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  @ApiOperation({
+    summary: "Create a new organization",
+    description: "Create a new organization",
+  })
+  @ApiResponseDto(OrganizationDto)
+  async createOrganization(
+    @GetUser() user: TokenPayload,
+    @Body() data: CreateOrganizationDto,
+  ): Promise<ApiResponse<Organization>> {
+    return await this.organizationUseCase.createOrganization(user.userId, data);
+  }
+
+  @Get(":organizationId")
+  @ApiOperation({
+    summary: "Get organization by ID with details",
+    description: "Retrieve an organization by its ID with detailed information",
+  })
+  @ApiResponseDto(OrganizationDto)
+  async getOrganizationById(
+    @Param("organizationId") organizationId: string,
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    return await this.organizationUseCase.getOrganizationWithDetails(
+      organizationId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("users/:userId")
+  @ApiOperation({
+    summary: "Get organizations by user ID",
+    description:
+      "Retrieve a list of organizations associated with a specific user",
+  })
+  @ApiResponseDto(OrganizationDto, {
+    isArray: true,
+  })
+  async getOrganizationsByUserId(
+    @GetUser() user: TokenPayload,
+    @Param("userId") userId: string,
+  ): Promise<ApiResponse<PaginatedResultDto<Organization>>> {
+    return await this.organizationUseCase.getOrganizationsByUserId(
+      userId || user.userId,
+    );
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: "Get organizations with cursor pagination",
+    description:
+      "Retrieve a list of organizations with cursor-based pagination",
+  })
+  @ApiResponseDto(OrganizationDto, {
+    isArray: true,
+  })
+  async getOrganizations(
+    @Query() query: GetCompaniesQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<Organization>>> {
+    return await this.organizationUseCase.getOrganizations(query);
+  }
 
   // @UseGuards(JwtAuthGuard)
   // @Get("users/:userId")
