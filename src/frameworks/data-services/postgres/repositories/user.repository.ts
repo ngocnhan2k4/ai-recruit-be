@@ -121,8 +121,10 @@ export class UserRepository
   }
 
   async createUser(user: NewUser): Promise<User> {
+    let createdUser: User;
     await this.db.transaction(async (tx) => {
       const userData = await tx.insert(users).values(user).returning();
+      createdUser = userData[0];
 
       for (const role of user.roles as RoleEnum[]) {
         await this.casbinAdapter.addPolicy(PtypeEnum.BASIC_ASSIGNMENT, role, [
@@ -130,6 +132,6 @@ export class UserRepository
         ]);
       }
     });
-    return user as User;
+    return createdUser!;
   }
 }

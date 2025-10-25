@@ -55,11 +55,11 @@ export class AuthUseCases {
     if (!user) {
       console.log("decode", decode);
       const newUser: NewUser = {
-        username: generateUsername(decode.name!), // [TODO]: check exist username here
+        username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
         email: decode.email ?? null,
         avatarUrl: decode.picture ?? null,
         firebaseUid: decode.uid,
-        roles: decode.roles,
+        roles: decode.roles || [RoleEnum.USER],
         name: decode.name ?? "",
         gender: null,
         dob: null,
@@ -67,6 +67,11 @@ export class AuthUseCases {
         provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
       };
       user = await this.userRepository.createUser(newUser);
+
+      // Set custom user claims in Firebase
+      await this.authService.updateUserClaims(decode.uid, {
+        roles: decode.roles as RoleEnum[],
+      });
     } else {
       // Update user info if necessary
       const user = await this.userRepository.getByField({
@@ -84,6 +89,15 @@ export class AuthUseCases {
       provider: user.provider as ProviderEnum,
     });
     userDto.onboardingCompleted = onboarded;
+
+    const customToken = await this.authService.customTokenWithClaims(
+      user.firebaseUid!,
+      {
+        roles: user.roles as RoleEnum[],
+      },
+    );
+
+    console.log("customToken", customToken);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

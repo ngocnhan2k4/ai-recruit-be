@@ -100,7 +100,7 @@ export class CompanyOrganizationController {
   //   return await this.companyUseCase.getAllCompanies();
   // }
 
-  @Get(":companyId")
+  @Get("")
   @ApiOperation({
     summary: "Get company by ID",
     description: "Retrieve a company by its ID",
@@ -108,12 +108,11 @@ export class CompanyOrganizationController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async getCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
-    return await this.companyUseCase.getCompanyById(organizationId, companyId);
+    return await this.companyUseCase.getCompanyById(organizationId);
   }
 
-  @Patch(":companyId")
+  @Patch("")
   @ApiOperation({
     summary: "Update company",
     description: "Update a company",
@@ -121,12 +120,10 @@ export class CompanyOrganizationController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async updateCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
     @Body() updateCompanyWithOrganizationDto: UpdateCompanyWithOrganizationDto,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
     return await this.companyUseCase.updateCompanyById(
       organizationId,
-      companyId,
       updateCompanyWithOrganizationDto,
     );
   }

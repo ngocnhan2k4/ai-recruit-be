@@ -227,3 +227,10 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
     });
   }
 }
+
+export class AdminUpdateUserRequestDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  roles?: string[];
+}

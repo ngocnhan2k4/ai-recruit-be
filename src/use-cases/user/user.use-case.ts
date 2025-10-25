@@ -16,6 +16,7 @@ import {
   IUserExperienceRepository,
   IUserSkillRepository,
   IUserOnboardingRepository,
+  IAuthService,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -29,6 +30,7 @@ import {
   UserOnboardingStatusDto,
   UserOnboardingDto,
   GetAllUserResponseDto,
+  AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
@@ -61,6 +63,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillRepository: ISkillRepository,
+    private readonly authService: IAuthService,
   ) {}
 
   async onModuleInit() {
@@ -650,6 +653,59 @@ export class UserUseCases implements OnModuleInit {
       },
       message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminUpdateUser(
+    userId: string,
+    updateUserDto: AdminUpdateUserRequestDto,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    let updateUserClaims = {};
+    if (updateUserDto.roles) {
+      updateUserClaims = {
+        ...updateUserClaims,
+        roles: updateUserDto.roles,
+      };
+    }
+
+    if (Object.keys(updateUserClaims).length > 0) {
+      await this.authService.updateUserClaims(
+        user.firebaseUid!,
+        updateUserClaims,
+      );
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updateUserDto,
+    };
+
+    const updatedUserResult = await this.userRepository.update(
+      { id: userId },
+      updatedUser,
+    );
+    if (!updatedUserResult) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        code: RESPONSE_CODE.USER_NOT_UPDATED,
+      });
+    }
+    const userDto = GetUserResponseDto.from({
+      ...updatedUser,
+      provider: updatedUser.provider as ProviderEnum,
+    });
+    return {
+      message: "User updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: userDto,
     };
   }
 }

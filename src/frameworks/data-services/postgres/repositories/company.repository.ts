@@ -37,7 +37,6 @@ export class CompanyRepository
 
   async getCompanyByOrganizationId(
     organizationId: string,
-    companyId: string,
   ): Promise<OrganizationWithDetails | null> {
     const result = await this.db
       .select()
@@ -46,7 +45,6 @@ export class CompanyRepository
       .where(
         and(
           eq(companies.organizationId, organizationId),
-          eq(companies.id, companyId),
           eq(organizations.type, OrganizationTypeEnum.COMPANY),
         ),
       );
@@ -174,7 +172,7 @@ export class CompanyRepository
       .from(companies)
       .leftJoin(
         organizationLocations,
-        eq(companies.id, organizationLocations.organizationId),
+        eq(companies.organizationId, organizationLocations.organizationId),
       )
       .where(and(...whereConditions));
 
@@ -200,18 +198,12 @@ export class CompanyRepository
   }
   async updateCompanyById(
     organizationId: string,
-    companyId: string,
     data: UpdateCompanyDto,
   ): Promise<Company | null> {
     const result = await this.db
       .update(companies)
       .set(data)
-      .where(
-        and(
-          eq(companies.organizationId, organizationId),
-          eq(companies.id, companyId),
-        ),
-      )
+      .where(and(eq(companies.organizationId, organizationId)))
       .returning();
     return result[0] || null;
   }

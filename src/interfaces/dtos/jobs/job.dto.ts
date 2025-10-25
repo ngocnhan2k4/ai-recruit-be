@@ -280,7 +280,7 @@ export class JobDto {
   questions: string[] | null;
 
   @ApiProperty({ type: "string" })
-  companyId: string;
+  organizationId: string;
 
   @ApiProperty({ type: "string", nullable: true })
   salaryMin: string | null;

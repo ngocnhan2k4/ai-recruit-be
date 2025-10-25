@@ -30,7 +30,7 @@ export interface JobFilters {
   salaryRange?: RangeFilter;
   experienceRange?: RangeFilter;
   provinceId?: string;
-  companyId?: string;
+  organizationId?: string;
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   pagination?: PaginationType;
@@ -54,7 +54,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     PaginatedResult<{
       job: Job;
       provinces: Province[];
-      company: Company;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
