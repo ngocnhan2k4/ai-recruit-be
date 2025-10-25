@@ -84,7 +84,6 @@ export class AuthUseCases {
       onboardingCompleted: user.onboardingCompleted ?? false,
       provider: user.provider as ProviderEnum,
     });
-    userDto.onboardingCompleted = onboarded;
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
