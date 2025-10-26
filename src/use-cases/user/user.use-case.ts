@@ -543,13 +543,14 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
-    await this.userOnboardingRepository.create(newOnboarding);
-    await this.userRepository.update(
-      { id: userId },
+
+    await this.userOnboardingRepository.createOnboardingForUser(
+      userId,
+      { ...newOnboarding } as UserOnboarding,
       {
         name: userOnboarding.name!,
-        gender: userOnboarding.gender,
-        dob: userOnboarding.dob,
+        gender: userOnboarding.gender!,
+        dob: userOnboarding.dob!,
       },
     );
     return {
