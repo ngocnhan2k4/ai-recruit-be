@@ -95,6 +95,7 @@ export class AuthUseCases {
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
+      onboardingCompleted: user.onboardingCompleted ?? false,
       provider: user.provider as ProviderEnum,
     });
     userDto.onboardingCompleted = onboarded;
@@ -105,6 +106,7 @@ export class AuthUseCases {
         roles: user.roles as RoleEnum[],
       },
     );
+
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

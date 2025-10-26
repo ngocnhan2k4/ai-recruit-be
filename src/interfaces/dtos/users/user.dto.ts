@@ -36,7 +36,12 @@ export class CreateUserRequestDto {
   gender: GenderEnum;
 }
 
-export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
+  @ApiProperty({ required: false, type: "boolean" })
+  @IsOptional()
+  @IsBoolean()
+  onboardingCompleted?: boolean;
+}
 
 export class UserPublicResponseDto {
   @ApiProperty()

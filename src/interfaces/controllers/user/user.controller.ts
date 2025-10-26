@@ -310,9 +310,8 @@ export class UserController {
     return this.userUseCases.checkUserEnterOnboarding(user.userId);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Complete user onboarding" })
-  @CasbinPermission("/onboarding", "POST")
   @Post("onboarding")
   @ApiResponseDto(UserDto)
   async completeUserOnboarding(
