@@ -13,5 +13,5 @@ export const generateUsername = (name: string, suffix?: number): string => {
     username = `${username}${suffix}`;
   }
 
-  return username;
+  return username + "-" + Date.now();
 };

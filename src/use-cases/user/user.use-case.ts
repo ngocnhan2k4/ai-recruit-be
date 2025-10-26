@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { ProviderEnum, Skill, User, UserStatusEnum } from "../../core/entities";
+import {
+  GenderEnum,
+  ProviderEnum,
+  Skill,
+  User,
+  UserStatusEnum,
+} from "../../core";
 import {
   IBloomFilterService,
   IUserRepository,
@@ -27,7 +33,6 @@ import {
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
-import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
   IOrganizationRepository,

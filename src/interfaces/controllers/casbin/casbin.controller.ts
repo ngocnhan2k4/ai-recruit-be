@@ -18,7 +18,6 @@ import {
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
-import { OrganizationAuthorizeGuard } from "@/frameworks/auth-services/guards/organization-authorize.guard";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
 import {
   AddPolicyDto,

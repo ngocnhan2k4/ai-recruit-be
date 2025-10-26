@@ -17,9 +17,9 @@ export enum WorkTypeEnum {
   HYBRID = "hybrid",
 }
 export enum GenderEnum {
-  MALE = "male",
-  FEMALE = "female",
-  OTHER = "other",
+  MALE = "Male",
+  FEMALE = "Female",
+  OTHER = "Other",
 }
 export enum OrganizationTypeEnum {
   COMPANY = "company",
