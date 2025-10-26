@@ -16,12 +16,12 @@ export const generateUsername = (name: string, suffix?: number): string => {
   return username;
 };
 
-export function slugifyVN(text: string): string {
+export function slugify(text: string, separator: string): string {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^a-z0-9]+/g, separator)
     .replace(/^-+|-+$/g, "");
 }

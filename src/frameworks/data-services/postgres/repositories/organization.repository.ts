@@ -15,11 +15,23 @@ import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { eq, inArray, isNotNull, lt, and, desc, count, or } from "drizzle-orm";
+import {
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+  and,
+  desc,
+  count,
+  or,
+  sql,
+  ilike,
+} from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
-import { slugifyVN } from "@/common/utils/string";
+import { slugify } from "@/common/utils/string";
 import { UpdateOrganizationDto } from "@/interfaces/dtos";
+import { filter } from "compression";
 
 @Injectable()
 export class OrganizationRepository
@@ -40,6 +52,14 @@ export class OrganizationRepository
         : undefined,
     ].filter(Boolean);
 
+    // Search by keyword using slugified comparison
+    const keywordConditions = query.keyword
+      ? [
+          ilike(organizations.slug, `%${slugify(query.keyword, "-")}%`),
+          ilike(organizations.name, `%${query.keyword}%`),
+        ].filter(Boolean)
+      : [];
+
     // apply cursor and limit pagination
     const limit = Math.min(query.limit, 20);
     const cursorCondition = query.cursor
@@ -48,7 +68,7 @@ export class OrganizationRepository
     const orgs = await this.db
       .select()
       .from(organizations)
-      .where(and(...whereConditions, ...cursorCondition))
+      .where(and(...whereConditions, ...cursorCondition, ...keywordConditions))
       .limit(limit)
       .orderBy(desc(organizations.createdAt))
       .execute();
@@ -56,7 +76,7 @@ export class OrganizationRepository
     const [totalRecord] = await this.db
       .select({ count: count() })
       .from(organizations)
-      .where(and(...whereConditions))
+      .where(and(...whereConditions, ...keywordConditions))
       .execute();
 
     return {
@@ -334,7 +354,7 @@ export class OrganizationRepository
   }
 
   async createSlug(name: string): Promise<string> {
-    const slugBase = slugifyVN(name);
+    const slugBase = slugify(name, "-");
     let slug = slugBase;
     let suffix = 1;
 
