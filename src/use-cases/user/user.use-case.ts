@@ -497,30 +497,30 @@ export class UserUseCases implements OnModuleInit {
       code: RESPONSE_CODE.SUCCESS,
     };
   }
-  async checkUserEnterOnboarding(
-    userId: string,
-  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
-    const user = await this.userRepository.get(userId);
-    if (!user) {
-      throw new NotFoundException({
-        message: "[checkUserEnterOnboarding] - User not found",
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
-    }
-    const userOnboarding = await this.userOnboardingRepository.getByField({
-      userId,
-    });
-    console.log("User onboarding record:", userOnboarding);
-    const isOnboarded = userOnboarding.length > 0;
-    console.log("User onboarding status:", isOnboarded);
-    return {
-      data: {
-        isOnboarded,
-      },
-      message: "User onboarding status checked successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
+  // async checkUserEnterOnboarding(
+  //   userId: string,
+  // ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+  //   const user = await this.userRepository.get(userId);
+  //   if (!user) {
+  //     throw new NotFoundException({
+  //       message: "[checkUserEnterOnboarding] - User not found",
+  //       code: RESPONSE_CODE.USER_NOT_FOUND,
+  //     });
+  //   }
+  //   const userOnboarding = await this.userOnboardingRepository.getByField({
+  //     userId,
+  //   });
+  //   console.log("User onboarding record:", userOnboarding);
+  //   const isOnboarded = userOnboarding.length > 0;
+  //   console.log("User onboarding status:", isOnboarded);
+  //   return {
+  //     data: {
+  //       isOnboarded,
+  //     },
+  //     message: "User onboarding status checked successfully",
+  //     code: RESPONSE_CODE.SUCCESS,
+  //   };
+  // }
 
   async completeUserOnboarding(
     userOnboarding: UserOnboardingDto,
