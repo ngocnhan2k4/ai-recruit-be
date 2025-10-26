@@ -17,79 +17,27 @@ import {
 } from "@nestjs/swagger";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { CasbinGuard } from "@/frameworks/auth-services/guards/casbin.guard";
+import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
+import { OrganizationAuthorizeGuard } from "@/frameworks/auth-services/guards/organization-authorize.guard";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
-
-// DTOs for API requests
-export class AddPolicyDto {
-  subject: string;
-  object: string;
-  action: string;
-  effect?: string = "allow";
-}
-
-export class AddPolicy2Dto {
-  subject: string;
-  domainType: string;
-  object: string;
-  action: string;
-  effect?: string = "allow";
-}
-
-export class RemovePolicyDto {
-  subject: string;
-  object: string;
-  action: string;
-  effect?: string = "allow";
-}
-
-export class RemovePolicy2Dto {
-  subject: string;
-  domainType: string;
-  object: string;
-  action: string;
-  effect?: string = "allow";
-}
-
-export class AddRoleDto {
-  user: string;
-  role: string;
-}
-
-export class AddRoleInDomainDto {
-  user: string;
-  role: string;
-  domain: string;
-}
-
-export class RemoveRoleDto {
-  user: string;
-  role: string;
-}
-
-export class RemoveRoleInDomainDto {
-  user: string;
-  role: string;
-  domain: string;
-}
-
-export class CheckPermissionDto {
-  subject: string;
-  object: string;
-  action: string;
-}
-
-export class CheckPermissionWithDomainDto {
-  subject: string;
-  domain: string;
-  object: string;
-  action: string;
-}
+import {
+  AddPolicyDto,
+  RemovePolicyDto,
+  AddPolicy2Dto,
+  RemovePolicy2Dto,
+  AddRoleDto,
+  RemoveRoleDto,
+  AddRoleInDomainDto,
+  RemoveRoleInDomainDto,
+  CheckPermissionDto,
+  CheckPermissionWithDomainDto,
+} from "../../dtos";
+import { PtypeEnum } from "@/common/constants/roles";
 
 @ApiTags("Casbin Authorization")
 @ApiBearerAuth()
 @Controller("admin/casbin")
-@UseGuards(JwtAuthGuard, CasbinGuard)
+@UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class CasbinController {
   constructor(private readonly casbinService: CasbinService) {}
 
@@ -140,8 +88,9 @@ export class CasbinController {
   })
   // @CasbinPermission("casbin", "POST")
   async addPolicy(@Body() addPolicyDto: AddPolicyDto) {
-    const { subject, object, action, effect } = addPolicyDto;
+    const { subject, object, action, effect = "allow" } = addPolicyDto;
     const result = await this.casbinService.addPolicy(
+      PtypeEnum.BASIC,
       subject,
       object,
       action,
@@ -181,6 +130,7 @@ export class CasbinController {
   async removePolicy(@Body() removePolicyDto: RemovePolicyDto) {
     const { subject, object, action, effect } = removePolicyDto;
     const result = await this.casbinService.removePolicy(
+      PtypeEnum.BASIC,
       subject,
       object,
       action,
@@ -236,8 +186,15 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async addPolicy2(@Body() addPolicy2Dto: AddPolicy2Dto) {
-    const { subject, domainType, object, action, effect } = addPolicy2Dto;
+    const {
+      subject,
+      domainType,
+      object,
+      action,
+      effect = "allow",
+    } = addPolicy2Dto;
     const result = await this.casbinService.addPolicy2(
+      PtypeEnum.DOMAIN,
       subject,
       domainType,
       object,
@@ -279,8 +236,15 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "DELETE")
   async removePolicy2(@Body() removePolicy2Dto: RemovePolicy2Dto) {
-    const { subject, domainType, object, action, effect } = removePolicy2Dto;
+    const {
+      subject,
+      domainType,
+      object,
+      action,
+      effect = "allow",
+    } = removePolicy2Dto;
     const result = await this.casbinService.removePolicy2(
+      PtypeEnum.DOMAIN,
       subject,
       domainType,
       object,
@@ -387,7 +351,8 @@ export class CasbinController {
         value: {
           user: "04iT59Ryz0v8eD54Omir5JNjCcdq",
           role: "ORGANIZATION_OWNER",
-          domain: "68512664fb59bbeddef04047",
+          domainType: "org",
+          domainId: "68512664fb59bbeddef04047",
         },
       },
     },
@@ -398,11 +363,11 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async addRoleForUserInDomain(@Body() addRoleInDomainDto: AddRoleInDomainDto) {
-    const { user, role, domain } = addRoleInDomainDto;
+    const { user, role, domainId } = addRoleInDomainDto;
     const result = await this.casbinService.addRoleForUserInDomain(
       user,
       role,
-      domain,
+      domainId,
     );
     await this.casbinService.savePolicy();
     return {
@@ -440,11 +405,11 @@ export class CasbinController {
   async removeRoleForUserInDomain(
     @Body() removeRoleInDomainDto: RemoveRoleInDomainDto,
   ) {
-    const { user, role, domain } = removeRoleInDomainDto;
+    const { user, role, domainId } = removeRoleInDomainDto;
     const result = await this.casbinService.deleteRoleForUserInDomain(
       user,
       role,
-      domain,
+      domainId,
     );
     await this.casbinService.savePolicy();
     return {
@@ -718,10 +683,12 @@ export class CasbinController {
   async checkPermissionWithDomain(
     @Body() checkPermissionWithDomainDto: CheckPermissionWithDomainDto,
   ) {
-    const { subject, domain, object, action } = checkPermissionWithDomainDto;
+    const { subject, domainType, domainId, object, action } =
+      checkPermissionWithDomainDto;
     const allowed = await this.casbinService.canWithDomain(
       subject,
-      domain,
+      domainType,
+      domainId,
       object,
       action,
     );
@@ -729,7 +696,8 @@ export class CasbinController {
       success: true,
       allowed,
       subject,
-      domain,
+      domainType,
+      domainId,
       object,
       action,
     };

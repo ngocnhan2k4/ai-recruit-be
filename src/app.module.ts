@@ -9,6 +9,7 @@ import {
   ProvinceController,
   CvController,
   UniversityController,
+  AdminUserController,
   // MyOrganizationController,
   NotificationController,
   CompanyController,
@@ -95,6 +96,7 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     CompanyController,
     CompanyOrganizationController,
     CompanyAdminController,
+    AdminUserController,
   ],
   providers: [
     JwtStrategy,

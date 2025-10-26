@@ -54,7 +54,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     PaginatedResult<{
       job: Job;
       provinces: Province[];
-      company: Company;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;

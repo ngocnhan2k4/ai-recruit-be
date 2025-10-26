@@ -28,10 +28,13 @@ import { Company, OrganizationWithDetails } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { PaginatedResultDto } from "../../dtos/common/query";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
+import { OrganizationAuthorizeGuard } from "@/frameworks/auth-services/guards/organization-authorize.guard";
 
 // this is private api company
 @ApiTags("Companies Organization")
 @Controller("organizations/:organizationId/companies")
+@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 export class CompanyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
@@ -100,7 +103,7 @@ export class CompanyOrganizationController {
   //   return await this.companyUseCase.getAllCompanies();
   // }
 
-  @Get(":companyId")
+  @Get("")
   @ApiOperation({
     summary: "Get company by ID",
     description: "Retrieve a company by its ID",
@@ -108,12 +111,11 @@ export class CompanyOrganizationController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async getCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
-    return await this.companyUseCase.getCompanyById(organizationId, companyId);
+    return await this.companyUseCase.getCompanyById(organizationId);
   }
 
-  @Patch(":companyId")
+  @Patch("")
   @ApiOperation({
     summary: "Update company",
     description: "Update a company",
@@ -121,12 +123,10 @@ export class CompanyOrganizationController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async updateCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
     @Body() updateCompanyWithOrganizationDto: UpdateCompanyWithOrganizationDto,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
     return await this.companyUseCase.updateCompanyById(
       organizationId,
-      companyId,
       updateCompanyWithOrganizationDto,
     );
   }

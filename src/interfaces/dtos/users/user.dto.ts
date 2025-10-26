@@ -7,7 +7,7 @@ import {
 } from "class-validator";
 import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
-import { GenderEnum } from "@/common/constants/roles";
+import { GenderEnum, RoleEnum } from "@/common/constants/roles";
 import { GeneralQueryDto } from "../common/query";
 import { ProviderEnum, UserStatusEnum } from "@/core";
 export class CreateUserRequestDto {
@@ -36,12 +36,7 @@ export class CreateUserRequestDto {
   gender: GenderEnum;
 }
 
-export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
-  @ApiProperty({ required: false, type: "boolean" })
-  @IsOptional()
-  @IsBoolean()
-  onboardingCompleted?: boolean;
-}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
 
 export class UserPublicResponseDto {
   @ApiProperty()
@@ -231,4 +226,10 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
       excludeExtraneousValues: true,
     });
   }
+}
+
+export class AdminUpdateUserRequestDto {
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  roles?: RoleEnum[];
 }

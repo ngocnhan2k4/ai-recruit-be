@@ -37,11 +37,9 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
 
   abstract getCompanyByOrganizationId(
     organizationId: string,
-    companyId: string,
   ): Promise<OrganizationWithDetails | null>;
   abstract updateCompanyById(
     organizationId: string,
-    companyId: string,
     data: UpdateCompanyDto,
   ): Promise<Company | null>;
 }
