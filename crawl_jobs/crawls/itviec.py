@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from helpers import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
+from crawl_jobs.helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -113,7 +113,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
     }
 
 
-def scrape_page(scraper, page_num, headers=[]):
+def scrape_page(scraper, page_num):
     base_url = "https://itviec.com/it-jobs"
     listing_url = f"{base_url}?page={page_num}"
 

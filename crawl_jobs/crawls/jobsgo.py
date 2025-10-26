@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from helpers import (
+from crawl_jobs.helpers.helper import (
     safe_text, 
     extract_salary, 
     vn_parse_posted_date, 
