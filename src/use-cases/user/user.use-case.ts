@@ -111,6 +111,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
+      onboardingCompleted: (user as any).onboardingCompleted ?? undefined,
     });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -133,6 +134,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
+      onboardingCompleted: undefined,
     });
     const userOnboarding = await this.userOnboardingRepository.getByField({
       userId: id,
@@ -709,6 +711,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...updatedUser,
       provider: updatedUser.provider as ProviderEnum,
+      onboardingCompleted: updatedUser.onboardingCompleted ?? undefined,
     });
     return {
       message: "User updated successfully",
