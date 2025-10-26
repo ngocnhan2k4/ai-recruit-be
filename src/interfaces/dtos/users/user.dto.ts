@@ -160,7 +160,7 @@ export class GetUserResponseDto {
   provider: ProviderEnum;
 
   @Expose()
-  onboardingCompleted: boolean;
+  onboardingCompleted: boolean | undefined;
 
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {
