@@ -103,6 +103,7 @@ export class CompanyWithOrganizationDto {
   @IsNotEmpty()
   company: CompanyDto;
   @ApiProperty({ type: OrganizationDto })
+  @IsNotEmpty()
   organization: OrganizationDto;
 }
 

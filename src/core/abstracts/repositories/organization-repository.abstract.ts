@@ -1,4 +1,3 @@
-import { UpdateOrganizationDto } from "@/interfaces/dtos";
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   NewOrganization,
@@ -25,6 +24,6 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   ): Promise<Organization>;
   abstract updateOrganizationById(
     id: string,
-    data: UpdateOrganizationDto,
+    data: Partial<Organization>,
   ): Promise<Organization | null>;
 }

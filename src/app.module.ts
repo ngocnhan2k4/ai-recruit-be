@@ -14,6 +14,7 @@ import {
   CompanyController,
   CompanyOrganizationController,
   CompanyAdminController,
+  OrganizationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -39,13 +40,14 @@ import { ILoggerServices } from "./core/abstracts/logger-services.abstract";
 import { AppConfigProps } from "./common/config/app.config";
 import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
-import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
 import { SkillController } from "./interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
+import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
+import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 
 @Module({
   imports: [
@@ -68,14 +70,12 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     HttpModule,
     LoggerServiceModule,
     ProvinceUseCasesModule,
-    CompanyUseCasesModule,
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
     NotificationUseCasesModule,
     CompanyUseCasesModule,
-    CompanyUseCasesModule,
-    CompanyUseCasesModule,
+    OrganizationUseCasesModule,
     WebSocketModule,
   ],
   controllers: [
@@ -90,11 +90,11 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     SkillController,
     UniversityController,
     CasbinController,
-    // MyOrganizationController,
     NotificationController,
     CompanyController,
     CompanyOrganizationController,
     CompanyAdminController,
+    OrganizationController,
   ],
   providers: [
     JwtStrategy,

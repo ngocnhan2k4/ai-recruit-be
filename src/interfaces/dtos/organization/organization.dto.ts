@@ -9,15 +9,13 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import {
-  OrganizationLocation,
-  OrganizationTypeEnum,
-  UserStatusEnum,
-} from "@/core";
 import { IsEmail } from "class-validator";
-import { GeneralQueryDto } from "../common/query";
 import { CreateCompanyDto } from "../companies/company.dto";
 import { CreateSchoolDto } from "../schools/school.dto";
+import {
+  OrganizationTypeEnum,
+  UserStatusEnum,
+} from "@/core/entities/enum.entity";
 
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -38,47 +36,47 @@ export class OrganizationDto {
 
   @ApiProperty({ type: "string" })
   @IsString()
-  description: string;
+  description?: string | null;
 
   @ApiProperty({ type: "array", items: { type: "string" } })
   @IsArray()
-  address: string[];
+  address?: string[] | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  logoUrl: string;
+  logoUrl?: string | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  about: string;
+  about?: string | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  websiteUrl: string;
+  websiteUrl?: string | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  email: string;
+  email?: string | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  phone: string;
+  phone?: string | null;
 
   @ApiProperty({ type: "number" })
   @IsNumber()
-  foundedYear: number;
+  foundedYear?: number | null;
 
   @ApiProperty({ type: "string" })
   @IsString()
-  organizationCulture: string;
+  organizationCulture?: string | null;
 
   @ApiProperty({ type: "number" })
   @IsNumber()
-  employeesMin: number;
+  employeesMin?: number | null;
 
   @ApiProperty({ type: "number" })
   @IsNumber()
-  employeesMax: number;
+  employeesMax?: number | null;
 
   @ApiProperty({ enum: UserStatusEnum })
   @IsEnum(UserStatusEnum)
@@ -88,14 +86,35 @@ export class OrganizationDto {
   createdAt: Date;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  updatedAt: Date;
+  updatedAt?: Date | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  deletedAt: Date;
+  deletedAt?: Date | null;
 
-  @ApiProperty({ type: "string" })
+  @ApiProperty({ type: "string", format: "date-time" })
+  verifiedAt?: Date | null;
+}
+
+export class OrganizationWithDetailsDto extends OrganizationDto {
+  @ApiProperty({ type: "number", nullable: true })
+  @IsOptional()
+  @IsNumber()
+  companySize?: number | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  @IsOptional()
   @IsString()
-  verifiedAt: string;
+  taxCode?: string | null;
+
+  @ApiProperty({ type: "string", nullable: true })
+  @IsOptional()
+  @IsString()
+  benefits?: string | null;
+
+  @ApiProperty({ type: "number", nullable: true })
+  @IsOptional()
+  @IsNumber()
+  companyRawId?: number | null;
 }
 
 export class CreateOrganizationDto {
@@ -113,7 +132,8 @@ export class CreateOrganizationDto {
   @MinLength(2, { message: "Slug must be at least 2 characters long" })
   slug: string;
 
-  @ApiProperty({ enum: OrganizationTypeEnum })
+  // @ApiProperty({ enum: OrganizationTypeEnum })
+  @ApiProperty({ type: "string" })
   @IsNotEmpty({ message: "Type is required" })
   @IsString({ message: "Type must be a string" })
   @IsEnum(OrganizationTypeEnum, {
@@ -193,13 +213,16 @@ export class CreateOrganizationDto {
   })
   @IsArray()
   @IsNotEmpty({ message: "At least one location is required" })
-  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+  locations: {
+    address: string;
+    provinceId: string;
+  }[];
 
-  @ApiProperty({ type: CreateCompanyDto, required: false })
+  // use lazy type function to avoid circular metadata resolution
+  @ApiProperty({ type: () => CreateCompanyDto, required: false })
   @IsOptional()
   companyDetails?: CreateCompanyDto;
-
-  @ApiProperty({ type: CreateSchoolDto, required: false })
+  @ApiProperty({ type: () => CreateSchoolDto, required: false })
   @IsOptional()
   schoolDetails?: CreateSchoolDto;
 }

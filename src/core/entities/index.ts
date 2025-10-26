@@ -13,15 +13,14 @@ import {
   userOnboardings,
   organizationMembers,
   schools,
+  organizationLocations,
+  organizations,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
   userNotifications,
 } from "@/frameworks/data-services/postgres/models/notification.model";
-import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { NotificationType } from "./enum.entity";
-import { organizationLocations } from "drizzle/migrations/schema";
 export * from "./enum.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
@@ -78,7 +77,12 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification;
-
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
+export type NewOrganizationLocation = InferInsertModel<
+  typeof organizationLocations
+>;
 export type NewOrganization = InferInsertModel<typeof organizations> & {
   locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
   companyDetails?: Omit<NewCompany, "organizationId">;
@@ -91,9 +95,3 @@ export type OrganizationWithDetails = InferSelectModel<typeof organizations> & {
   benefits: string | null;
   companyRawId: number | null;
 };
-export type OrganizationLocation = InferSelectModel<
-  typeof organizationLocations
->;
-export type NewOrganizationLocation = InferInsertModel<
-  typeof organizationLocations
->;

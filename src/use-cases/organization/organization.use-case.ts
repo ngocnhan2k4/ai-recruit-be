@@ -2,16 +2,17 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   ApiResponse,
   CreateOrganizationDto,
+  OrganizationDto,
+  OrganizationWithDetailsDto,
   PaginatedResultDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   IOrganizationRepository,
-  NewOrganization,
-  Organization,
-  OrganizationWithDetails,
+  OrganizationTypeEnum,
+  User,
+  UserStatusEnum,
 } from "@/core";
-import { OrganizationTypeEnum } from "@/core";
 import { GetOrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
 
 @Injectable()
@@ -28,7 +29,7 @@ export class OrganizationUseCase {
    */
   async getOrganizationWithDetails(
     organizationId: string,
-  ): Promise<ApiResponse<OrganizationWithDetails>> {
+  ): Promise<ApiResponse<OrganizationWithDetailsDto>> {
     this.logger.log(
       `Fetching organization with details for ID: ${organizationId}`,
     );
@@ -49,26 +50,39 @@ export class OrganizationUseCase {
     return {
       message: "Organization fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: organization,
+      data: {
+        ...organization,
+        status: organization.status as UserStatusEnum,
+      },
     };
   }
 
   async getOrganizationsByUserId(
     userId: string,
-  ): Promise<ApiResponse<PaginatedResultDto<Organization>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<OrganizationDto>>> {
     const result =
       await this.organizationRepository.getOrganizationsByUserId(userId);
+
+    this.logger.log(
+      `Fetched ${result.data.length} organizations for user ID: ${userId}`,
+    );
 
     return {
       message: "Organizations fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: {
+        data: result.data.map((org) => ({
+          ...org,
+          status: org.status as UserStatusEnum,
+        })),
+        pagination: result.pagination,
+      },
     };
   }
 
   async getOrganizations(
     query: GetOrganizationQueryDto,
-  ): Promise<ApiResponse<PaginatedResultDto<Organization>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<OrganizationDto>>> {
     const result = await this.organizationRepository.getOrganizations({
       ...query,
       verified: query.verified,
@@ -79,26 +93,38 @@ export class OrganizationUseCase {
     return {
       message: "Organizations fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: {
+        data: result.data.map((org) => ({
+          ...org,
+          status: org.status as UserStatusEnum,
+        })),
+        pagination: result.pagination,
+      },
     };
   }
 
   async createOrganization(
     userId: string,
     organizationData: CreateOrganizationDto,
-  ): Promise<ApiResponse<Organization>> {
+  ): Promise<ApiResponse<OrganizationDto>> {
     const newOrganization =
-      await this.organizationRepository.createOrganization(
-        userId,
-        organizationData,
-      );
+      await this.organizationRepository.createOrganization(userId, {
+        ...organizationData,
+        locations: organizationData.locations?.map((loc) => ({
+          address: loc.address,
+          provinceId: loc.provinceId,
+        })),
+      });
 
     // Add user to organization members logic can be added here
 
     return {
       message: "Organization created successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: newOrganization,
+      data: {
+        ...newOrganization,
+        status: newOrganization.status as UserStatusEnum,
+      },
     };
   }
 

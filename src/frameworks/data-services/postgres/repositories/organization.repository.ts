@@ -27,11 +27,9 @@ import {
   sql,
   ilike,
 } from "drizzle-orm";
-import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { slugify } from "@/common/utils/string";
-import { UpdateOrganizationDto } from "@/interfaces/dtos";
-import { filter } from "compression";
+import { PaginatedResult } from "@/common/types/api";
 
 @Injectable()
 export class OrganizationRepository
@@ -343,7 +341,7 @@ export class OrganizationRepository
 
   async updateOrganizationById(
     id: string,
-    data: Partial<UpdateOrganizationDto>,
+    data: Partial<Organization>,
   ): Promise<Organization | null> {
     const result = await this.db
       .update(organizations)
