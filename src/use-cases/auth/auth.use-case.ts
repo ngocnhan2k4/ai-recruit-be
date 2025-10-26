@@ -85,7 +85,7 @@ export class AuthUseCases {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
-      onboardingCompleted: undefined,
+      onboardingCompleted: user.onboardingCompleted,
     });
 
     // const customToken = await this.authService.customTokenWithClaims(
