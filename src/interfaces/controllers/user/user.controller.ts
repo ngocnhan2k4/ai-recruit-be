@@ -299,16 +299,16 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
-  @ApiOperation({ summary: "Get user onboarding status" })
-  @CasbinPermission("/onboarding", "GET")
-  @Get("onboarding")
-  @ApiResponseDto(UserOnboardingStatusDto)
-  async getUserOnboardingStatus(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
-    return this.userUseCases.checkUserEnterOnboarding(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard, CasbinGuard)
+  // @ApiOperation({ summary: "Get user onboarding status" })
+  // @CasbinPermission("/onboarding", "GET")
+  // @Get("onboarding")
+  // @ApiResponseDto(UserOnboardingStatusDto)
+  // async getUserOnboardingStatus(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+  //   return this.userUseCases.checkUserEnterOnboarding(user.userId);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Complete user onboarding" })

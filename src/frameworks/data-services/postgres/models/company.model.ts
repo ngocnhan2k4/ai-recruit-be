@@ -9,8 +9,7 @@ import {
   bigint,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import { users } from "../schema";
-import { provinces } from "drizzle/migrations/schema";
+import { provinces, users } from "../schema";
 import { organizations } from "./organization.model";
 import { organizationTypeEnum } from "./enums";
 
