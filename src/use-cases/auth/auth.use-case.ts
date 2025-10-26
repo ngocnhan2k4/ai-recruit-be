@@ -6,13 +6,15 @@ import {
   IUserOnboardingRepository,
 } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum, PtypeEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
 import { generateUsername } from "@/common/utils/string";
 import { normalizeProvider } from "@/common/utils/firebase";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+
 @Injectable()
 export class AuthUseCases {
   constructor(
@@ -21,6 +23,7 @@ export class AuthUseCases {
     private readonly userRepository: IUserRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly configService: ConfigService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async logIn(idToken: string): Promise<
@@ -72,6 +75,12 @@ export class AuthUseCases {
       await this.authService.updateUserClaims(decode.uid, {
         roles: decode.roles as RoleEnum[],
       });
+
+      // Assign roles in Casbin (ptype "g")
+      for (const role of decode.roles || [RoleEnum.USER]) {
+        await this.casbinService.addRoleForUser(user.id, role);
+      }
+      await this.casbinService.savePolicy();
     } else {
       // Update user info if necessary
       const user = await this.userRepository.getByField({
@@ -97,7 +106,6 @@ export class AuthUseCases {
       },
     );
 
-    console.log("customToken", customToken);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

@@ -34,7 +34,7 @@ import {
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
-import { GenderEnum } from "@/common/constants/roles";
+import { GenderEnum, RoleEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
   IOrganizationRepository,
@@ -49,6 +49,7 @@ import {
 import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -64,6 +65,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillRepository: ISkillRepository,
     private readonly authService: IAuthService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async onModuleInit() {
@@ -698,6 +700,12 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_UPDATED,
       });
     }
+    const rolesToUpdate = updateUserDto.roles || user.roles;
+
+    for (const role of rolesToUpdate) {
+      await this.casbinService.addRoleForUser(userId, role);
+    }
+    await this.casbinService.savePolicy();
     const userDto = GetUserResponseDto.from({
       ...updatedUser,
       provider: updatedUser.provider as ProviderEnum,

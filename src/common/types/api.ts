@@ -17,7 +17,7 @@ export interface PaginatedResult<T> {
 }
 
 export interface GeneralQuery {
-  limit?: number;
+  limit: number;
   cursor?: string;
   page?: number;
   sortBy?: string;

@@ -42,12 +42,7 @@ export class CompanyRepository
       .select()
       .from(companies)
       .innerJoin(organizations, eq(companies.organizationId, organizations.id))
-      .where(
-        and(
-          eq(companies.organizationId, organizationId),
-          eq(organizations.type, OrganizationTypeEnum.COMPANY),
-        ),
-      );
+      .where(and(eq(organizations.type, OrganizationTypeEnum.COMPANY)));
 
     if (!result[0]) return null;
 
@@ -172,7 +167,7 @@ export class CompanyRepository
       .from(companies)
       .leftJoin(
         organizationLocations,
-        eq(companies.organizationId, organizationLocations.organizationId),
+        eq(organizations.id, organizationLocations.organizationId),
       )
       .where(and(...whereConditions));
 

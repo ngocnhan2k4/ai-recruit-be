@@ -1,19 +1,38 @@
-import { Controller, Get, Param, Put, UseGuards, Body } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Param,
+  Put,
+  UseGuards,
+  Body,
+  Query,
+} from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
-import { ApiOperation, ApiParam, ApiTags, ApiBody } from "@nestjs/swagger";
-import { CasbinGuard } from "@/frameworks/auth-services/guards/casbin.guard";
+import {
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiBody,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
+import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { GetUserResponseDto } from "@/interfaces/dtos/users/user.dto";
+import {
+  GetAllUserResponseDto,
+  GetUserQueryDto,
+  GetUserResponseDto,
+} from "@/interfaces/dtos/users/user.dto";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { AdminUpdateUserRequestDto } from "@/interfaces/dtos/users/user.dto";
 
 @ApiTags("Admin Users")
+@ApiBearerAuth()
 @Controller("admin/users")
+@UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class AdminUserController {
   constructor(private readonly userUseCases: UserUseCases) {}
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
-  @ApiOperation({ summary: "Refresh bloom filter" })
+  @ApiOperation({ summary: "Get user by ID" })
   @Get(":userId")
   @ApiParam({ name: "userId", description: "User ID", example: "123" })
   @ApiResponseDto(GetUserResponseDto)
@@ -21,7 +40,13 @@ export class AdminUserController {
     return await this.userUseCases.getUserById(userId);
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
+  @ApiOperation({ summary: "Get all users" })
+  @Get()
+  @ApiResponseDto(GetAllUserResponseDto)
+  async getAllUsers(@Query() query: GetUserQueryDto) {
+    return await this.userUseCases.getAllUsers(query);
+  }
+
   @ApiOperation({ summary: "Update user" })
   @Put(":userId")
   @ApiParam({ name: "userId", description: "User ID", example: "123" })

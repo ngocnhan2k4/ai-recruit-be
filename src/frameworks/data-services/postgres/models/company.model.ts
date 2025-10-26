@@ -16,8 +16,7 @@ import { organizationTypeEnum } from "./enums";
 
 export const companies = pgTable("companies", {
   organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id)
+    .references(() => organizations.id, { onDelete: "cascade" })
     .primaryKey(),
   companySize: integer("company_size"),
   taxCode: varchar("tax_code", { length: 100 }),

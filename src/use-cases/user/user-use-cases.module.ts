@@ -6,6 +6,7 @@ import { UserUseCases } from "./user.use-case";
 import { CloudinaryModule } from "@/frameworks/storage/cloudinary/cloudinary.module";
 import { PostgresDataServicesModule } from "../../frameworks/data-services/postgres/postgres-data-services.module";
 import { FireBaseAuthServicesModule } from "@/frameworks/auth-services/firebase/firebase-auth-services.module";
+import { CasbinModule } from "@/frameworks/auth-services/casbin/casbin.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { FireBaseAuthServicesModule } from "@/frameworks/auth-services/firebase/
     CloudinaryModule,
     PostgresDataServicesModule,
     FireBaseAuthServicesModule,
+    CasbinModule,
   ],
   providers: [
     UserUseCases,

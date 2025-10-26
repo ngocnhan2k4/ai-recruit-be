@@ -55,12 +55,6 @@ import { TokenPayload } from "@/common/types/token";
 import { PaginationType } from "@/interfaces/dtos/common/query";
 import { organizations } from "../models/organization.model";
 
-export interface CursorPaginationResult<T> {
-  paginationData: T[];
-  nextCursor?: string;
-  hasNextPage: boolean;
-}
-
 @Injectable()
 export class JobRepository
   extends GenericRepository<Job, typeof jobs>

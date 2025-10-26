@@ -28,10 +28,13 @@ import { Company, OrganizationWithDetails } from "@/core/entities";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { PaginatedResultDto } from "../../dtos/common/query";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
+import { OrganizationAuthorizeGuard } from "@/frameworks/auth-services/guards/organization-authorize.guard";
 
 // this is private api company
 @ApiTags("Companies Organization")
 @Controller("organizations/:organizationId/companies")
+@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 export class CompanyOrganizationController {
   constructor(private readonly companyUseCase: CompanyUseCase) {}
 
