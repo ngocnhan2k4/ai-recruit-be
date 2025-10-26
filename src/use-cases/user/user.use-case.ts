@@ -16,6 +16,7 @@ import {
   IUserExperienceRepository,
   IUserSkillRepository,
   IUserOnboardingRepository,
+  IAuthService,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -29,10 +30,11 @@ import {
   UserOnboardingStatusDto,
   UserOnboardingDto,
   GetAllUserResponseDto,
+  AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
-import { GenderEnum } from "@/common/constants/roles";
+import { GenderEnum, RoleEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
   IOrganizationRepository,
@@ -47,6 +49,7 @@ import {
 import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -61,6 +64,8 @@ export class UserUseCases implements OnModuleInit {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillRepository: ISkillRepository,
+    private readonly authService: IAuthService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async onModuleInit() {
@@ -106,6 +111,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
+      onboardingCompleted: (user as any).onboardingCompleted ?? undefined,
     });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -128,6 +134,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
+      onboardingCompleted: undefined,
     });
     const userOnboarding = await this.userOnboardingRepository.getByField({
       userId: id,
@@ -565,6 +572,66 @@ export class UserUseCases implements OnModuleInit {
       },
       message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminUpdateUser(
+    userId: string,
+    updateUserDto: AdminUpdateUserRequestDto,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    let updateUserClaims = {};
+    if (updateUserDto.roles) {
+      updateUserClaims = {
+        ...updateUserClaims,
+        roles: updateUserDto.roles,
+      };
+    }
+
+    if (Object.keys(updateUserClaims).length > 0) {
+      await this.authService.updateUserClaims(
+        user.firebaseUid!,
+        updateUserClaims,
+      );
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updateUserDto,
+    };
+
+    const updatedUserResult = await this.userRepository.update(
+      { id: userId },
+      updatedUser,
+    );
+    if (!updatedUserResult) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        code: RESPONSE_CODE.USER_NOT_UPDATED,
+      });
+    }
+    const rolesToUpdate = updateUserDto.roles || user.roles;
+
+    for (const role of rolesToUpdate) {
+      await this.casbinService.addRoleForUser(userId, role);
+    }
+    await this.casbinService.savePolicy();
+    const userDto = GetUserResponseDto.from({
+      ...updatedUser,
+      provider: updatedUser.provider as ProviderEnum,
+      onboardingCompleted: updatedUser.onboardingCompleted ?? undefined,
+    });
+    return {
+      message: "User updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: userDto,
     };
   }
 }

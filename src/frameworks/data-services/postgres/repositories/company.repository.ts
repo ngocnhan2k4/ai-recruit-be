@@ -193,7 +193,6 @@ export class CompanyRepository
   }
   async updateCompanyById(
     organizationId: string,
-    companyId: string,
     data: UpdateCompanyDto,
   ): Promise<Company | null> {
     const result = await this.db

@@ -108,9 +108,8 @@ export class CompanyAdminController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async getCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
-    return await this.companyUseCase.getCompanyById(organizationId, companyId);
+    return await this.companyUseCase.getCompanyById(organizationId);
   }
 
   @Patch(":companyId")
@@ -121,12 +120,10 @@ export class CompanyAdminController {
   @ApiResponseDto(CompanyWithOrganizationResponseDto)
   async updateCompany(
     @Param("organizationId") organizationId: string,
-    @Param("companyId") companyId: string,
     @Body() updateCompanyWithOrganizationDto: UpdateCompanyWithOrganizationDto,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
     return await this.companyUseCase.updateCompanyById(
       organizationId,
-      companyId,
       updateCompanyWithOrganizationDto,
     );
   }

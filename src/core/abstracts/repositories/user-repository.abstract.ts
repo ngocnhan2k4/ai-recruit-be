@@ -26,4 +26,5 @@ export abstract class IUserRepository extends IGenericRepository<User> {
   >;
 
   abstract createUser(user: NewUser): Promise<User>;
+  abstract adminUpdateUser(userId: string, user: Partial<User>): Promise<User>;
 }

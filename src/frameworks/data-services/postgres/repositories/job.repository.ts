@@ -73,7 +73,7 @@ export class JobRepository
     PaginatedResult<{
       job: Job;
       provinces: Province[];
-      company: Company;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
@@ -172,7 +172,7 @@ export class JobRepository
           FROM provinces p
           WHERE p.id = ${jobs.provinceId}
         )`.as("provinces"),
-        company: companies,
+        organization: organizations,
         skills: sql`(
           SELECT COALESCE(json_agg(s), '[]')
           FROM job_skills js
@@ -213,7 +213,8 @@ export class JobRepository
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
-      .innerJoin(companies, eq(jobs.organizationId, companies.organizationId))
+      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .leftJoin(companies, eq(organizations.id, companies.organizationId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
       // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
@@ -221,7 +222,7 @@ export class JobRepository
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
-      company: Company;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       applyUrl: string | null;
       isSaved: boolean;
