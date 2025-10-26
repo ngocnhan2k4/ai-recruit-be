@@ -3,13 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  OrganizationTypeEnum,
-  ProviderEnum,
-  Skill,
-  User,
-  UserStatusEnum,
-} from "../../core/entities";
+import { ProviderEnum, Skill, User, UserStatusEnum } from "../../core/entities";
 import {
   IBloomFilterService,
   IUserRepository,
@@ -27,14 +21,13 @@ import {
   TypeAvatar,
   UpdateUserRequestDto,
   UserPublicResponseDto,
-  UserOnboardingStatusDto,
   UserOnboardingDto,
   GetAllUserResponseDto,
   AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
-import { GenderEnum, RoleEnum } from "@/common/constants/roles";
+import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
   IOrganizationRepository,
@@ -46,7 +39,6 @@ import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
-import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";

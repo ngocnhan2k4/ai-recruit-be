@@ -56,7 +56,6 @@ export class AuthUseCases {
         })
       )[0] || null;
     if (!user) {
-      console.log("decode", decode);
       const newUser: NewUser = {
         username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
         email: decode.email ?? null,
