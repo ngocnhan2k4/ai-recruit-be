@@ -40,7 +40,6 @@ export class AuthUseCases {
       provider_id?: string;
       roles?: RoleEnum[];
     };
-    let onboarded = false;
     try {
       decode = await this.authService.verifyIdToken(idToken);
     } catch {
@@ -56,7 +55,6 @@ export class AuthUseCases {
         })
       )[0] || null;
     if (!user) {
-      console.log("decode", decode);
       const newUser: NewUser = {
         username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
         email: decode.email ?? null,
@@ -81,31 +79,21 @@ export class AuthUseCases {
         await this.casbinService.addRoleForUser(user.id, role);
       }
       await this.casbinService.savePolicy();
-    } else {
-      // Update user info if necessary
-      const user = await this.userRepository.getByField({
-        firebaseUid: decode.uid,
-      });
-      const userOnboarding = await this.userOnboardingRepository.getByField({
-        userId: user[0].id,
-      });
-      onboarded = userOnboarding.length > 0;
     }
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
-      onboardingCompleted: undefined,
+      onboardingCompleted: user.onboardingCompleted,
     });
-    userDto.onboardingCompleted = onboarded;
 
-    const customToken = await this.authService.customTokenWithClaims(
-      user.firebaseUid!,
-      {
-        roles: user.roles as RoleEnum[],
-      },
-    );
+    // const customToken = await this.authService.customTokenWithClaims(
+    //   user.firebaseUid!,
+    //   {
+    //     roles: user.roles as RoleEnum[],
+    //   },
+    // );
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

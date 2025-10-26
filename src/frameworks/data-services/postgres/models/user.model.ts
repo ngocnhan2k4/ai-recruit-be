@@ -46,7 +46,9 @@ export const users = pgTable(
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
     ...timestamps,
-    onboardingCompleted: boolean("onboarding_completed").default(false),
+    onboardingCompleted: boolean("onboarding_completed")
+      .notNull()
+      .default(false),
   },
   (table) => [
     uniqueIndex("idx_users_email").on(table.email),
