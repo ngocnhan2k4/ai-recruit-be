@@ -64,7 +64,6 @@ export class UserExperienceRepository
         | "organizationCulture"
         | "employeesMin"
         | "employeesMax"
-        | "status"
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
@@ -127,7 +126,6 @@ export class UserExperienceRepository
                     organizationCulture: row.organization.organizationCulture,
                     employeesMin: row.organization.employeesMin,
                     employeesMax: row.organization.employeesMax,
-                    status: row.organization.status,
                     createdAt: row.organization.createdAt,
                     updatedAt: row.organization.updatedAt,
                     deletedAt: row.organization.deletedAt,
@@ -171,7 +169,6 @@ export class UserExperienceRepository
               | "organizationCulture"
               | "employeesMin"
               | "employeesMax"
-              | "status"
               | "createdAt"
               | "updatedAt"
               | "deletedAt"

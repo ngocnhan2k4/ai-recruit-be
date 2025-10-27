@@ -272,7 +272,6 @@ export class CompanyUseCase implements OnModuleInit {
       organizationCulture: organization.organizationCulture || "",
       employeesMin: organization.employeesMin || 0,
       employeesMax: organization.employeesMax || 0,
-      status: organization.status,
       createdAt: new Date(organization.createdAt),
       updatedAt: organization.updatedAt
         ? new Date(organization.updatedAt)
