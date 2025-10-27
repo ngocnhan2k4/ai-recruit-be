@@ -28,6 +28,8 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       "https://airecruit-frontend.vercel.app",
       "https://airecruit-frontend-git-dev-nhankhtns-projects.vercel.app",
       "https://dev.airecruit.software",
+      "https://airecruit-frontend-admin.vercel.app",
+      "https://airecruit-frontend-ashen.vercel.app",
     ],
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
