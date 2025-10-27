@@ -5,9 +5,9 @@ from crawls.topcv import topcv_crawl
 from crawls.jobsgo import jobsgo_crawl
 from crawls.linkedin import linkedin_crawl
 
-from helpers import vietnam_time_now, is_safe_db_url
+from helpers.helper import vietnam_time_now, is_safe_db_url
 
-from database import insert_to_db, get_all_category
+from database.database import insert_to_db, get_all_category
 
 
 def main():
