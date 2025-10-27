@@ -2,7 +2,8 @@ import psycopg2
 from psycopg2.extras import Json
 import json
 
-from models.enums import OrganizationType, WorkType, JobStatus
+from database.models.enums import OrganizationType, WorkType, JobStatus
+from helpers.helper import slugify
 
 
 def _get_or_create_company_raw(cur, name, cdata):
@@ -30,20 +31,17 @@ def _get_or_create_company_raw(cur, name, cdata):
     """
     cur.execute(query, (
         name,
-        cdata.get("logo"),
-        cdata.get("description"),
-        cdata.get("address"),
-        cdata.get("website_url"),
-        cdata.get("employees_min"),
-        cdata.get("employees_max"),
-        cdata.get("source"),
-        cdata.get("crawled_at")
+        cdata.get("logo"), cdata.get("description"), cdata.get("address"),
+        cdata.get("website_url"), cdata.get("employees_min"), cdata.get("employees_max"),
+        cdata.get("source"), cdata.get("crawled_at")
     ))
     return cur.fetchone()[0]
 
 
 def _get_or_create_organization(cur, name, cdata):
-    cur.execute("SELECT organization_id FROM organizations WHERE name = %s LIMIT 1", (name,))
+    slug = slugify(name)
+
+    cur.execute("SELECT id FROM organizations WHERE name = %s LIMIT 1", (name,))
     row = cur.fetchone()
     if row:
         return row[0]
@@ -51,13 +49,13 @@ def _get_or_create_organization(cur, name, cdata):
     cur.execute(
         """
         INSERT INTO organizations
-            (name, logo_url, description, address, website_url, employees_min, employees_max, created_at
+            (name, slug, logo_url, description, address, website_url, employees_min, employees_max, created_at,
                 type, verified_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s ,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
         (
-            name, cdata.get("logo"), 
+            name, slug, cdata.get("logo"), 
             cdata.get("description"), cdata.get("address") or [], 
             cdata.get("website_url"), cdata.get("employees_min"), 
             cdata.get("employees_max"), cdata.get("crawled_at"), 
@@ -70,11 +68,11 @@ def _get_or_create_organization(cur, name, cdata):
     return inserted[0]
 
 
-def _insert_organization_location(cur, organization_id, province_id, cdata):
-    if not cdata.get("address"):
+def _insert_organization_location(cur, organization_id, province_id, locations):
+    if not locations:
         return
 
-    address_text = ", ".join(cdata.get("address"))
+    address_text = ", ".join(locations)
     cur.execute(
         """
         INSERT INTO organization_locations (organization_id, province_id, address)
@@ -86,7 +84,7 @@ def _insert_organization_location(cur, organization_id, province_id, cdata):
 
 
 def _insert_company(cur, name, cdata, organization_id, company_raw_id):
-    cur.execute("SELECT organization_id FROM companies WHERE name = %s LIMIT 1", (name,))
+    cur.execute("SELECT organization_id FROM companies WHERE organization_id = %s LIMIT 1", (organization_id,))
     row = cur.fetchone()
     if row:
         return row[0]
@@ -94,18 +92,18 @@ def _insert_company(cur, name, cdata, organization_id, company_raw_id):
     cur.execute(
         """
         INSERT INTO companies
-            (name, created_at, company_raw_id, organization_id, company_size)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id
+            (organization_id, created_at, company_raw_id, company_size)
+        VALUES (%s, %s, %s, %s)
+        RETURNING organization_id
         """,
         (
-            name, cdata.get("logo"), cdata.get("crawled_at"), company_raw_id,
-            organization_id, cdata.get("employees_min")
+            organization_id, cdata.get("crawled_at"),
+            company_raw_id, cdata.get("employees_min")
         ),
     )
     inserted = cur.fetchone()
     if not inserted:
-        raise RuntimeError(f"No id returned for company {name}")
+        raise RuntimeError(f"No organization_id returned for company {name}")
     return inserted[0]
 
 
@@ -136,18 +134,10 @@ def _get_or_create_job_raw(cur, title, jdata, company_raw_id):
         RETURNING id;
     """
     cur.execute(query, (
-        title,
-        json.dumps(jdata.get("description")),
-        jdata.get("job_url"),
-        jdata.get("date_posted"),
-        jdata.get("skills"),
-        jdata.get("crawled_at"),
-        company_raw_id,
-        jdata.get("salary_min"),
-        jdata.get("salary_max"),
-        jdata.get("locations"),
-        jdata.get("category"),
-        jdata.get("source")
+        title, json.dumps(jdata.get("description")), jdata.get("job_url"),
+        jdata.get("date_posted"), jdata.get("skills"), jdata.get("crawled_at"),
+        company_raw_id, jdata.get("salary_min"), jdata.get("salary_max"),
+        jdata.get("locations"), jdata.get("category"), jdata.get("source")
     ))
     return cur.fetchone()[0]
 
@@ -256,10 +246,14 @@ def insert_to_db(db_url: str, companies: dict):
                     job_raw_id = _get_or_create_job_raw(cur, title, jdata, company_raw_id)
 
                     province_id = None
-                    if cdata.get("address"):
-                        province_name = cdata["address"][0]
+                    locations = cdata.get("address")
+                    if not locations:
+                        locations = jdata.get("locations")
+
+                    if locations:
+                        province_name = locations[0]
                         province_id = _get_or_create_province(cur, province_name)
-                        _insert_organization_location(cur, organization_id, province_id, cdata)
+                        _insert_organization_location(cur, organization_id, province_id, locations)
 
                     job_id = _insert_job(cur, title, jdata, company_id, province_id, job_raw_id)
                     if not job_id:

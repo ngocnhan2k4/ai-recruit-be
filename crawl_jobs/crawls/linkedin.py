@@ -2,7 +2,7 @@ import requests
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
-from crawl_jobs.helpers.helper import (
+from helpers.helper import (
     get_headers, 
     safe_text, 
     process_province, 
