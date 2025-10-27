@@ -32,7 +32,6 @@ export abstract class IUserExperienceRepository extends IGenericRepository<UserE
         | "organizationCulture"
         | "employeesMin"
         | "employeesMax"
-        | "status"
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
