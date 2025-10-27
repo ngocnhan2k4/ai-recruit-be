@@ -91,7 +91,6 @@ export class CompanyWithOrganizationResponseDto {
   organizationCulture: string;
   employeesMin: number;
   employeesMax: number;
-  status: string;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date;

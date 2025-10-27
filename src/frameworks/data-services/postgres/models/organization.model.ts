@@ -21,6 +21,5 @@ export const organizations = pgTable("organizations", {
   employeesMin: integer("employees_min"),
   employeesMax: integer("employees_max"),
   // isVerified: boolean("is_verified").notNull().default(false),
-  status: UserStatusEnum("status").notNull().default("active"),
   ...timestamps,
 });
