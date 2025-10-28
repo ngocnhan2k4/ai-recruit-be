@@ -35,7 +35,6 @@ import {
   Job,
   Province,
   Skill,
-  Company,
   OrganizationWithDetails,
   ApplyStatusEnum,
 } from "@/core";

@@ -1,5 +1,6 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { Notification, NewNotification, INotificationRepository } from "@/core";
+import { Injectable, Logger } from "@nestjs/common";
+import { Notification, NewNotification } from "@/core";
+import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 

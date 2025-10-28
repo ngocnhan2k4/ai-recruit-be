@@ -1,17 +1,13 @@
 import {
-  CanActivate,
   ExecutionContext,
   Injectable,
   ForbiddenException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { PERM_KEY } from "@/common/constants/response";
 import { CasbinService } from "../casbin/casbin.service";
 import { FastifyRequest } from "fastify";
 import { TokenPayload } from "@/common/types/token";
-import { Enforcer } from "casbin";
-import { PtypeEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class CasbinGuard {

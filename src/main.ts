@@ -24,7 +24,7 @@ async function bootstrap() {
     // and ignore to fallback to console logging.
     globalLoggerService = app.get(LoggerService);
   } catch (e) {
-    // ignore - we'll fallback to console
+    this.logger.error("[main] [bootstrap] Failed to get LoggerService", e);
   }
 
   enableSwaggerDoc(app);
