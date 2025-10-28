@@ -1,5 +1,4 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq, and, isNull, desc } from "drizzle-orm";
 import { cvs } from "../models";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { GenericRepository } from "./generic-repository";

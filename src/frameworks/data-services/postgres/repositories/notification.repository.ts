@@ -10,7 +10,7 @@ import {
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { eq, and, isNull, desc, count, lt, inArray } from "drizzle-orm";
 import { NotificationFilter } from "@/core/entities/notification.entity";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 
 @Injectable()
 export class NotificationRepository

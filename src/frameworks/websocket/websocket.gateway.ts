@@ -13,7 +13,6 @@ import { ConfigService } from "@nestjs/config";
 import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
-import { TokenPayload } from "@/common/types/token";
 
 interface AuthenticatedSocket extends Socket, IdentityUser {}
 

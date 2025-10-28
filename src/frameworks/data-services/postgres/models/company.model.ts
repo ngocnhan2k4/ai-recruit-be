@@ -16,6 +16,7 @@ export const companies = pgTable("companies", {
     .references(() => organizations.id, { onDelete: "cascade" })
     .primaryKey(),
   companySize: integer("company_size"),
+  culture: text("culture"),
   taxCode: varchar("tax_code", { length: 100 }),
   benefits: text("benefits"),
   companyRawId: bigint("company_raw_id", { mode: "number" }).references(

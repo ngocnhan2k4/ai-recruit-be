@@ -1,5 +1,5 @@
 import { GeneralQuery } from "@/common/types/api";
-import { Job, Organization, Skill } from ".";
+import { Job, OrganizationWithDetails, Skill } from ".";
 
 export interface GetUserQuery extends GeneralQuery {
   isActive?: boolean;
@@ -7,8 +7,8 @@ export interface GetUserQuery extends GeneralQuery {
 }
 
 export class CreateUserExperience {
-  organizationId?: Organization["id"];
-  organizationName?: Organization["name"];
+  organizationId?: OrganizationWithDetails["id"];
+  organizationName?: OrganizationWithDetails["name"];
   jobTitle: Job["title"];
   position: string;
   startDate: Date;

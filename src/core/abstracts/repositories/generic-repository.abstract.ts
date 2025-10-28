@@ -1,5 +1,5 @@
 export abstract class IGenericRepository<T> {
-  abstract getAll(): Promise<T[]>;
+  abstract getAll<K extends keyof T>(fields: K[]): Promise<Pick<T, K>[]>;
 
   abstract get(id: string | number): Promise<T | null>;
 

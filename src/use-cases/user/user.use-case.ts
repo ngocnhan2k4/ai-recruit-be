@@ -80,7 +80,7 @@ export class UserUseCases implements OnModuleInit {
   private async initializeBloomFilter() {
     try {
       // Get all usernames from database
-      const users = await this.userRepository.getAll();
+      const users = await this.userRepository.getAll(["username"]);
       const usernames = users.map((user) => user.username);
 
       this.bloomFilterService.initialize(usernames);

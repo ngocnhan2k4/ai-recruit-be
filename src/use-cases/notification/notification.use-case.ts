@@ -1,5 +1,5 @@
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";

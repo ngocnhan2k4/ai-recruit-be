@@ -1,7 +1,6 @@
 import { CreateUserExperience } from "@/core/entities/user.entity";
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
-  Organization,
   OrganizationWithDetails,
   Skill,
   UserExperience,
@@ -15,27 +14,9 @@ export abstract class IUserExperienceRepository extends IGenericRepository<UserE
         "organizationId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
       >;
       organization: Pick<
-        Organization,
-        | "id"
-        | "name"
-        | "slug"
-        | "type"
-        | "description"
-        | "address"
-        | "logoUrl"
-        | "about"
-        | "websiteUrl"
-        | "email"
-        | "phone"
-        | "foundedYear"
-        | "verifiedAt"
-        | "organizationCulture"
-        | "employeesMin"
-        | "employeesMax"
-        | "createdAt"
-        | "updatedAt"
-        | "deletedAt"
-      > | null;
+        OrganizationWithDetails,
+        "id" | "name" | "address" | "logoUrl"
+      >;
       skills: Skill[];
     }[]
   >;

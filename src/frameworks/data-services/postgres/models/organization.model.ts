@@ -1,7 +1,7 @@
 import { pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import { UserStatusEnum, organizationTypeEnum } from "./enums";
+import { OrganizationRoleEnum, organizationTypeEnum } from "./enums";
 import { users } from "./user.model";
 import { provinces } from "./province.model";
 
@@ -19,7 +19,6 @@ export const organizations = pgTable("organizations", {
   phone: varchar("phone", { length: 20 }),
   foundedYear: integer("founded_year"),
   verifiedAt: timestamp("verified_at"),
-  organizationCulture: text("organization_culture"),
   employeesMin: integer("employees_min"),
   employeesMax: integer("employees_max"),
   // isVerified: boolean("is_verified").notNull().default(false),
@@ -34,7 +33,7 @@ export const organizationMembers = pgTable("organization_members", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id),
-  role: varchar("role", { length: 100 }).notNull(),
+  role: OrganizationRoleEnum("role").notNull(),
   ...timestamps,
 });
 

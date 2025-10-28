@@ -1,10 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { IJobRepository } from "@/core/abstracts";
-import {
-  ApiResponse,
-  CompanyWithOrganizationResponseDto,
-  JobCountsDto,
-} from "@/interfaces/dtos";
+import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -59,7 +55,7 @@ export class JobUseCases {
       data: {
         job: JobDto;
         provinces: Province[];
-        company: CompanyWithOrganizationResponseDto;
+        company: CompanyDto;
         skills: Skill[];
         isSaved?: boolean;
         isApplied?: boolean;
@@ -92,7 +88,7 @@ export class JobUseCases {
         benefits: item.organization.benefits || "",
         companyRawId: item.organization.companyRawId || 0,
         verifiedAt: item.organization.verifiedAt?.toISOString() || null,
-      } as CompanyWithOrganizationResponseDto,
+      } as CompanyDto,
     }));
 
     return {
@@ -424,7 +420,7 @@ export class JobUseCases {
         description: job.company.description,
         address: job.company.address,
         logoUrl: job.company.logoUrl,
-      } as CompanyWithOrganizationResponseDto,
+      } as CompanyDto,
     };
 
     return {

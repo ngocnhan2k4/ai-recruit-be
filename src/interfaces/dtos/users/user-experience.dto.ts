@@ -1,9 +1,7 @@
 import { IsDate, IsOptional, IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
-import { CompanyDto } from "../companies/company.dto";
 import { SkillDto } from "../skills/skill.dto";
 import { Type } from "class-transformer";
-import { OrganizationWithDetails } from "@/core/entities";
 import { OrganizationDto } from "..";
 
 export class UserExperienceDto {
