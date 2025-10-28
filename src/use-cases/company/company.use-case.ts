@@ -55,7 +55,7 @@ export class CompanyUseCase implements OnModuleInit {
   private async initializeBloomFilter() {
     try {
       // Get all company names from database
-      const companies = await this.companyRepository.getAll();
+      const companies = await this.companyRepository.getAll(["name"]);
       // TODO: fix logic organization here
       const companyNames = companies.map((company) => company.name);
 
