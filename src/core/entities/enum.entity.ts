@@ -53,3 +53,10 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   SYSTEM = "system",
 }
+export enum SchoolTypeEnum {
+  COLLEGE = "college",
+  UNIVERSITY = "university",
+  HIGH_SCHOOL = "high_school",
+  SECONDARY = "secondary",
+  PRIMARY = "primary",
+}

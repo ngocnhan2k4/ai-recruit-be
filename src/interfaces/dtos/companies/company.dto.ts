@@ -17,30 +17,21 @@ import {
   UpdateOrganizationDto,
 } from "../organization/organization.dto";
 
-export class CompanyDto {
+export class CompanyDto extends OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
-  @IsString()
-  id: string;
-
-  @ApiProperty({ type: "string", format: "uuid" })
-  @IsString()
   organizationId: string;
 
   @ApiProperty({ type: "number" })
-  @IsNumber()
   companySize: number;
 
   @ApiProperty({ type: "string", nullable: true })
-  @IsString()
-  taxCode?: string;
+  taxCode: string | null;
 
   @ApiProperty({ type: "string", nullable: true })
-  @IsString()
-  benefits?: string;
+  benefits: string | null;
 
-  @ApiProperty({ type: "number", nullable: true })
-  @IsNumber()
-  companyRawId?: number;
+  @ApiProperty({ type: "string", nullable: true })
+  culture: string | null;
 }
 
 export class GetCompaniesQueryDto extends GeneralQueryDto {
@@ -68,33 +59,6 @@ export class GetCompaniesQueryDto extends GeneralQueryDto {
     Array.isArray(value) ? value : value ? [value] : undefined,
   )
   provinceIds?: string[];
-}
-
-export class CompanyWithOrganizationResponseDto {
-  id: string;
-  organizationId: string;
-  companySize: number;
-  taxCode: string;
-  benefits: string;
-  companyRawId: number;
-  name: string;
-  slug: string;
-  type: string;
-  description: string;
-  address: string[] | null;
-  logoUrl: string;
-  about: string;
-  websiteUrl: string;
-  email: string;
-  phone: string;
-  foundedYear: number;
-  organizationCulture: string;
-  employeesMin: number;
-  employeesMax: number;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date;
-  verifiedAt: string;
 }
 
 export class CompanyWithOrganizationDto {

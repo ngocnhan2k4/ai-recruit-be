@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,17 +8,12 @@ import {
 import {
   ApiResponse,
   CheckOrganizationNameResponseDto,
-  CompanyWithOrganizationResponseDto,
-  GetCompaniesQueryDto,
   UpdateCompanyWithOrganizationDto,
   CreateCompanyDto,
-  GetCompanyDto,
+  CompanyDto,
 } from "@/interfaces/dtos";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import {
-  PaginatedResultDto,
-  PaginationResponseDto,
-} from "@/interfaces/dtos/common/query";
+
 import {
   Company,
   IBloomFilterService,
@@ -64,7 +58,7 @@ export class CompanyUseCase implements OnModuleInit {
       // Get all company names from database
       const companies = await this.companyRepository.getAll();
       // TODO: fix logic organization here
-      const companyNames = companies.map((company) => company.organizationId);
+      const companyNames = companies.map((company) => company.name);
 
       this.bloomFilterService.initialize(companyNames);
 
@@ -98,9 +92,7 @@ export class CompanyUseCase implements OnModuleInit {
     cursor?: string,
   ): Promise<
     ApiResponse<
-      PaginatedResult<
-        Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
-      >
+      PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
     >
   > {
     const result = await this.companyRepository.getCompanies(
@@ -154,6 +146,7 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
+  // [TODO-PHAT]: move this logic into repository layer to using transaction
   async createCompany(
     userId: string,
     data: CreateCompanyDto,
@@ -168,12 +161,12 @@ export class CompanyUseCase implements OnModuleInit {
     }
     const organizationMember = await this.organizationMembersRepository.create({
       userId: userId,
-      organizationId: organization.organizationId,
+      organizationId: organization.id,
       role: OrganizationRole.ORGANIZATION_OWNER,
     });
     if (!organizationMember) {
       await this.companyRepository.delete({
-        organizationId: organization.organizationId,
+        organizationId: organization.id,
       });
       throw new BadRequestException(
         "[CompanyUseCase] - [createCompany] Create organization member failed",
@@ -226,7 +219,7 @@ export class CompanyUseCase implements OnModuleInit {
 
   async getCompanyById(
     organizationId: string,
-  ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
+  ): Promise<ApiResponse<CompanyDto>> {
     if (!organizationId) {
       throw new NotFoundException(
         "[CompanyUseCase] - [getCompany] Organization ID is required",
@@ -248,28 +241,25 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
-  private mapToCompanyDto(
-    organization: OrganizationWithDetails,
-  ): CompanyWithOrganizationResponseDto {
+  private mapToCompanyDto(organization: OrganizationWithDetails): CompanyDto {
     return {
       id: organization.id,
       organizationId: organization.id,
       companySize: organization.companySize || 0,
       taxCode: organization.taxCode || "",
       benefits: organization.benefits || "",
-      companyRawId: organization.companyRawId || 0,
       name: organization.name,
       slug: organization.slug,
       type: organization.type,
       description: organization.description || "",
-      address: organization.address,
+      address: organization.address || [],
       logoUrl: organization.logoUrl || "",
       about: organization.about || "",
       websiteUrl: organization.websiteUrl || "",
       email: organization.email || "",
       phone: organization.phone || "",
       foundedYear: organization.foundedYear || 0,
-      organizationCulture: organization.organizationCulture || "",
+      culture: organization.culture || "",
       employeesMin: organization.employeesMin || 0,
       employeesMax: organization.employeesMax || 0,
       createdAt: new Date(organization.createdAt),
@@ -285,10 +275,11 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
+  // [TODO-PHAT]: move this logic into organization repository layer to using transaction
   async updateCompanyById(
     organizationId: string,
-    data: UpdateCompanyWithOrganizationDto,
-  ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
+    _data: UpdateCompanyWithOrganizationDto,
+  ): Promise<ApiResponse<CompanyDto>> {
     const company =
       await this.companyRepository.getCompanyByOrganizationId(organizationId);
     if (!company) {
@@ -297,19 +288,15 @@ export class CompanyUseCase implements OnModuleInit {
       );
     }
 
-    const [updatedOrganization, updatedCompany] = await Promise.all([
-      this.organizationRepository.updateOrganizationById(
-        organizationId,
-        data.organization,
-      ),
-      this.companyRepository.updateCompanyById(organizationId, data.company),
-    ]);
+    // const [updatedOrganization, updatedCompany] = await Promise.all([
+    //   this.companyRepository.updateCompanyById(organizationId, data.company),
+    // ]);
 
-    if (!updatedOrganization || !updatedCompany) {
-      throw new BadRequestException(
-        "[CompanyUseCase] - [updateCompanyById] Update failed",
-      );
-    }
+    // if (!updatedOrganization || !updatedCompany) {
+    //   throw new BadRequestException(
+    //     "[CompanyUseCase] - [updateCompanyById] Update failed",
+    //   );
+    // }
 
     const updatedCompanyWithOrg =
       await this.companyRepository.getCompanyByOrganizationId(organizationId);

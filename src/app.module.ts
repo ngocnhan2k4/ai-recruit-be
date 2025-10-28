@@ -13,8 +13,8 @@ import {
   // MyOrganizationController,
   NotificationController,
   CompanyController,
-  CompanyOrganizationController,
   CompanyAdminController,
+  OrganizationAdminController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -94,8 +94,8 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     // MyOrganizationController,
     NotificationController,
     CompanyController,
-    CompanyOrganizationController,
     CompanyAdminController,
+    OrganizationAdminController,
     AdminUserController,
   ],
   providers: [

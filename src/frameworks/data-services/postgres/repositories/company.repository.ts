@@ -8,12 +8,11 @@ import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
 import { CompanyFilters } from "@/core/entities/company.entity";
-import { UpdateCompanyDto } from "@/interfaces/dtos";
 import {
   organizationLocations,
   organizations,
 } from "../models/organization.model";
-import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core";
+import { OrganizationTypeEnum } from "@/core";
 
 @Injectable()
 export class CompanyRepository
@@ -40,22 +39,29 @@ export class CompanyRepository
 
   async getCompanyByOrganizationId(
     organizationId: string,
-  ): Promise<OrganizationWithDetails | null> {
+  ): Promise<Company | null> {
     const result = await this.db
       .select()
       .from(companies)
       .innerJoin(organizations, eq(companies.organizationId, organizations.id))
-      .where(and(eq(organizations.type, OrganizationTypeEnum.COMPANY)));
+      .where(
+        and(
+          eq(organizations.type, OrganizationTypeEnum.COMPANY),
+          eq(companies.organizationId, organizationId),
+        ),
+      );
 
     if (!result[0]) return null;
 
     const row = result[0];
     return {
       ...row.organizations,
-      companySize: row.companies?.companySize || null,
-      taxCode: row.companies?.taxCode || null,
-      benefits: row.companies?.benefits || null,
-      companyRawId: row.companies?.companyRawId || null,
+      organizationId: row.organizations.id,
+      companySize: row.companies.companySize || null,
+      taxCode: row.companies.taxCode || null,
+      benefits: row.companies.benefits || null,
+      companyRawId: row.companies.companyRawId || null,
+      culture: row.companies.culture || null,
     };
   }
 
@@ -116,31 +122,13 @@ export class CompanyRepository
   //     },
   //   };
   // }
-  async getAllCompanies(): Promise<
-    Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">[]
-  > {
-    const result = this.db
-      .select({
-        id: organizations.id,
-        name: organizations.name,
-        logoUrl: organizations.logoUrl,
-        address: organizations.address,
-      })
-      .from(organizations)
-      .where(eq(organizations.type, OrganizationTypeEnum.COMPANY))
-      .orderBy(asc(organizations.createdAt));
-
-    return result;
-  }
 
   async getCompanies(
     limit = 20,
     filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
-    PaginatedResult<
-      Pick<OrganizationWithDetails, "id" | "name" | "logoUrl" | "address">
-    >
+    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
   > {
     const whereConditions = [isNull(companies.deletedAt)];
 
@@ -194,15 +182,23 @@ export class CompanyRepository
       },
     };
   }
-  async updateCompanyById(
-    organizationId: string,
-    data: UpdateCompanyDto,
-  ): Promise<Company | null> {
-    const result = await this.db
-      .update(companies)
-      .set(data)
-      .where(and(eq(companies.organizationId, organizationId)))
-      .returning();
-    return result[0] || null;
-  }
+  // async updateCompanyById(
+  //   organizationId: string,
+  //   data: UpdateCompanyDto,
+  // ): Promise<Company | null> {
+  //   const result = await this.db
+  //     .update(companies)
+  //     .set(data)
+  //     .where(and(eq(companies.organizationId, organizationId)))
+  //     .returning();
+  //   if (!result[0]) return null;
+  //   return {
+  //     ...result[0],
+  //     companySize: result[0].companySize || null,
+  //     taxCode: result[0].taxCode || null,
+  //     benefits: result[0].benefits || null,
+  //     companyRawId: result[0].companyRawId || null,
+  //     culture: result[0].culture || null,
+  //   };
+  // }
 }

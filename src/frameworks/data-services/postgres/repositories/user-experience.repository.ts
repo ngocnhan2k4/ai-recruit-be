@@ -10,21 +10,15 @@ import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import {
   Skill,
   UserExperience,
-  Organization,
   OrganizationTypeEnum,
+  OrganizationWithDetails,
 } from "@/core/entities";
-import {
-  companies,
-  skills,
-  userExperiences,
-  users,
-  userSkills,
-} from "../models";
+import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
 import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
 import { convertDateToStr } from "@/common/utils/date";
-import { generateUsername } from "@/common/utils/string";
+import { slugify } from "@/common/utils/string";
 
 @Injectable()
 export class UserExperienceRepository
@@ -47,27 +41,9 @@ export class UserExperienceRepository
         "organizationId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
       >;
       organization: Pick<
-        Organization,
-        | "id"
-        | "name"
-        | "slug"
-        | "type"
-        | "description"
-        | "address"
-        | "logoUrl"
-        | "about"
-        | "websiteUrl"
-        | "email"
-        | "phone"
-        | "foundedYear"
-        | "verifiedAt"
-        | "organizationCulture"
-        | "employeesMin"
-        | "employeesMax"
-        | "createdAt"
-        | "updatedAt"
-        | "deletedAt"
-      > | null;
+        OrganizationWithDetails,
+        "id" | "name" | "address" | "logoUrl"
+      >;
       skills: Skill[];
     }[]
   > {
@@ -108,29 +84,12 @@ export class UserExperienceRepository
                 jobTitle: row.experience.jobTitle,
                 description: row.experience.description,
               },
-              organization: row.organization
-                ? {
-                    id: row.organization.id,
-                    name: row.organization.name,
-                    slug: row.organization.slug,
-                    type: row.organization.type,
-                    description: row.organization.description,
-                    address: row.organization.address,
-                    logoUrl: row.organization.logoUrl,
-                    about: row.organization.about,
-                    websiteUrl: row.organization.websiteUrl,
-                    email: row.organization.email,
-                    phone: row.organization.phone,
-                    foundedYear: row.organization.foundedYear,
-                    verifiedAt: row.organization.verifiedAt,
-                    organizationCulture: row.organization.organizationCulture,
-                    employeesMin: row.organization.employeesMin,
-                    employeesMax: row.organization.employeesMax,
-                    createdAt: row.organization.createdAt,
-                    updatedAt: row.organization.updatedAt,
-                    deletedAt: row.organization.deletedAt,
-                  }
-                : null,
+              organization: {
+                id: row.organization?.id || "",
+                name: row.organization?.name || "",
+                address: row.organization?.address || [],
+                logoUrl: row.organization?.logoUrl || "",
+              },
               skills: [],
             };
           }
@@ -152,27 +111,9 @@ export class UserExperienceRepository
               "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
             >;
             organization: Pick<
-              Organization,
-              | "id"
-              | "name"
-              | "slug"
-              | "type"
-              | "description"
-              | "address"
-              | "logoUrl"
-              | "about"
-              | "websiteUrl"
-              | "email"
-              | "phone"
-              | "foundedYear"
-              | "verifiedAt"
-              | "organizationCulture"
-              | "employeesMin"
-              | "employeesMax"
-              | "createdAt"
-              | "updatedAt"
-              | "deletedAt"
-            > | null;
+              OrganizationWithDetails,
+              "id" | "name" | "address" | "logoUrl"
+            >;
             skills: Skill[];
           }
         >,
@@ -194,7 +135,7 @@ export class UserExperienceRepository
         .values({
           name: data.organizationName || "",
           type: OrganizationTypeEnum.COMPANY,
-          slug: generateUsername(data.organizationName || ""),
+          slug: slugify(data.organizationName || ""),
         })
         .returning();
       organizationId = organization.id;
