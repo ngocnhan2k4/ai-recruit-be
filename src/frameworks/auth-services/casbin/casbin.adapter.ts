@@ -1,7 +1,9 @@
-import { Adapter, Helper } from "casbin";
-import { eq, and, sql, SQL } from "drizzle-orm";
+import { Adapter, Helper, Model } from "casbin";
+import { eq, and, or, sql, SQL } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { PtypeEnum } from "@/common/constants/roles";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
 type CasbinRuleRecord = {
   ptype: string;
@@ -16,7 +18,7 @@ type CasbinRuleRecord = {
 export class DrizzleCasbinAdapter implements Adapter {
   private filtered = false;
 
-  constructor(private readonly db: NodePgDatabase<Record<string, never>>) {}
+  constructor(private readonly db: DBDrizzle) {}
 
   // -------------------------
   // Helpers
@@ -105,7 +107,7 @@ export class DrizzleCasbinAdapter implements Adapter {
     return where;
   }
 
-  async loadPolicy(model: any) {
+  async loadPolicy(model: Model) {
     this.filtered = false;
     const rows = await this.db.select().from(casbinRule);
 
@@ -117,7 +119,46 @@ export class DrizzleCasbinAdapter implements Adapter {
     }
   }
 
-  async savePolicy(model: any) {
+  async loadFilteredPolicy(
+    model: Model,
+    filter: Array<{ ptype?: string; v0?: string }>,
+  ) {
+    this.filtered = true;
+
+    // Build OR conditions: (ptype="p") OR (ptype="g" AND v0=userId)
+    const conditions: SQL[] = [];
+
+    for (const f of filter) {
+      if (f.ptype && f.v0) {
+        // Both specified: ptype="g" AND v0=userId
+        conditions.push(
+          and(eq(casbinRule.ptype, f.ptype), eq(casbinRule.v0, f.v0))!,
+        );
+      } else if (f.ptype) {
+        // Only ptype specified
+        conditions.push(eq(casbinRule.ptype, f.ptype));
+      }
+    }
+
+    if (conditions.length > 0) {
+      // Combine with OR
+      let finalWhere = conditions[0];
+      for (let i = 1; i < conditions.length; i++) {
+        finalWhere = or(finalWhere, conditions[i])!;
+      }
+
+      const rows = await this.db.select().from(casbinRule).where(finalWhere);
+
+      for (const line of rows) {
+        if (line.ptype) {
+          const text = this.lineToText(line as CasbinRuleRecord);
+          Helper.loadPolicyLine(text, model);
+        }
+      }
+    }
+  }
+
+  async savePolicy(model: Model) {
     if (this.filtered) throw new Error("cannot save a filtered policy");
 
     // Clear table
@@ -132,8 +173,8 @@ export class DrizzleCasbinAdapter implements Adapter {
       const astMap = model.model.get(sec);
       if (!astMap) return;
       astMap.forEach((ast, ptype) => {
-        ast.policy.forEach((rule: string[]) => {
-          lines.push(this.ruleToRecord(ptype as string, rule));
+        ast.policy.forEach((rule) => {
+          lines.push(this.ruleToRecord(String(ptype), rule));
         });
       });
     });

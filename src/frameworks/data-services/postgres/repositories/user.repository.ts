@@ -1,6 +1,6 @@
 import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { users, UserStatusEnum } from "../models";
 import { NewUser, User } from "@/core/entities";
 import {
@@ -121,15 +121,24 @@ export class UserRepository
   }
 
   async createUser(user: NewUser): Promise<User> {
-    await this.db.transaction(async (tx) => {
-      const userData = await tx.insert(users).values(user).returning();
+    const userData = await this.db.insert(users).values(user).returning();
+    return userData[0];
+  }
 
-      for (const role of user.roles as RoleEnum[]) {
-        await this.casbinAdapter.addPolicy(PtypeEnum.BASIC_ASSIGNMENT, role, [
-          userData[0].id,
-        ]);
-      }
-    });
-    return user as User;
+  async adminUpdateUser(userId: string, user: Partial<User>): Promise<User> {
+    const updatedUser = (
+      await this.db
+        .update(users)
+        .set({
+          ...user,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId))
+        .returning()
+    )[0];
+    if (!updatedUser) {
+      throw new NotFoundException("User not found");
+    }
+    return updatedUser;
   }
 }

@@ -82,13 +82,16 @@ export class JobUseCases {
       job: {
         ...item.job,
         questions: item.job.questions || null,
+        organizationId: item.organization.id,
       } as JobDto,
       company: {
-        ...item.company,
-        companySize: item.company.companySize || 0,
-        taxCode: item.company.taxCode || "",
-        benefits: item.company.benefits || "",
-        companyRawId: item.company.companyRawId || 0,
+        ...item.organization,
+        organizationId: item.organization.id,
+        companySize: item.organization.companySize || 0,
+        taxCode: item.organization.taxCode || "",
+        benefits: item.organization.benefits || "",
+        companyRawId: item.organization.companyRawId || 0,
+        verifiedAt: item.organization.verifiedAt?.toISOString() || null,
       } as CompanyWithOrganizationResponseDto,
     }));
 

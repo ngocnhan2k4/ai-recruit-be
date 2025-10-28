@@ -10,4 +10,7 @@ export abstract class IAuthService {
     roles?: RoleEnum[];
   }>;
   abstract signJwt(payload: any): string;
+  abstract overlapUserClaims(uid: string, claims: any): Promise<any>;
+  abstract customTokenWithClaims(uid: string, claims: any): Promise<string>;
+  abstract updateUserClaims(uid: string, claims: any): Promise<void>;
 }

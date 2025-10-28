@@ -17,3 +17,4 @@ export * from "./universities/university.dto";
 export * from "./organization/organization.dto";
 export * from "./category.dto";
 export * from "./upload.dto";
+export * from "./casbin/casbin.dto";

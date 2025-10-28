@@ -64,13 +64,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         code: code,
       };
     }
-    this.logger.error(
-      `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,
-    );
 
     const stack = (exception as any).stack || "";
 
-    if (this.appConfigs.nodeEnv === Environment.Development) {
+    this.logger.error(
+      `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,
+      stack,
+    );
+
+    if (this.appConfigs.nodeEnv === Environment.Local) {
       assign(resContent, { stack });
     }
 

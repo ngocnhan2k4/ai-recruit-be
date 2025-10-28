@@ -5,11 +5,11 @@ import re
 from typing import Callable, Any, Tuple, Optional
 from urllib.parse import urlparse
 import math
+import unicodedata
 import socket
 import ipaddress
 import socket
 import ipaddress
-
 import cloudscraper
 
 USER_AGENTS = [
@@ -320,3 +320,10 @@ def is_safe_db_url(url_string: str) -> bool:
 def vietnam_time_now():
     vn_tz = timezone(timedelta(hours=7))
     return datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+
+def slugify(text):
+    # Normalize and remove accents (Vietnamese, etc.)
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    return text.strip("-")

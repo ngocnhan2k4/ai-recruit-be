@@ -1,3 +1,4 @@
+import { Type } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import { IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
@@ -108,4 +109,18 @@ export class PaginatedResultDto<T> {
 
   @ApiProperty({ type: PaginationResponseDto })
   pagination: PaginationResponseDto;
+}
+
+export function PaginatedResultDecorator<TModel extends Type<any>>(
+  model: TModel,
+) {
+  class PaginatedResult {
+    @ApiProperty({ isArray: true, type: model })
+    data: InstanceType<TModel>[];
+
+    @ApiProperty({ type: PaginationResponseDto })
+    pagination: PaginationResponseDto;
+  }
+
+  return PaginatedResult;
 }

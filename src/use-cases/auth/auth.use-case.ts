@@ -6,13 +6,15 @@ import {
   IUserOnboardingRepository,
 } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum, PtypeEnum } from "@/common/constants/roles";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { TokenPayload } from "@/common/types/token";
 import { generateUsername } from "@/common/utils/string";
 import { normalizeProvider } from "@/common/utils/firebase";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+
 @Injectable()
 export class AuthUseCases {
   constructor(
@@ -21,6 +23,7 @@ export class AuthUseCases {
     private readonly userRepository: IUserRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly configService: ConfigService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async logIn(idToken: string): Promise<
@@ -37,7 +40,6 @@ export class AuthUseCases {
       provider_id?: string;
       roles?: RoleEnum[];
     };
-    let onboarded = false;
     try {
       decode = await this.authService.verifyIdToken(idToken);
     } catch {
@@ -53,13 +55,12 @@ export class AuthUseCases {
         })
       )[0] || null;
     if (!user) {
-      console.log("decode", decode);
       const newUser: NewUser = {
-        username: generateUsername(decode.name!), // [TODO]: check exist username here
+        username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
         email: decode.email ?? null,
         avatarUrl: decode.picture ?? null,
         firebaseUid: decode.uid,
-        roles: decode.roles,
+        roles: decode.roles || [RoleEnum.USER],
         name: decode.name ?? "",
         gender: null,
         dob: null,
@@ -67,23 +68,33 @@ export class AuthUseCases {
         provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
       };
       user = await this.userRepository.createUser(newUser);
-    } else {
-      // Update user info if necessary
-      const user = await this.userRepository.getByField({
-        firebaseUid: decode.uid,
+
+      // Set custom user claims in Firebase
+      await this.authService.updateUserClaims(decode.uid, {
+        roles: decode.roles as RoleEnum[],
       });
-      const userOnboarding = await this.userOnboardingRepository.getByField({
-        userId: user[0].id,
-      });
-      onboarded = userOnboarding.length > 0;
+
+      // Assign roles in Casbin (ptype "g")
+      for (const role of decode.roles || [RoleEnum.USER]) {
+        await this.casbinService.addRoleForUser(user.id, role);
+      }
+      await this.casbinService.savePolicy();
     }
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
+      onboardingCompleted: user.onboardingCompleted,
     });
-    userDto.onboardingCompleted = onboarded;
+
+    // const customToken = await this.authService.customTokenWithClaims(
+    //   user.firebaseUid!,
+    //   {
+    //     roles: user.roles as RoleEnum[],
+    //   },
+    // );
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

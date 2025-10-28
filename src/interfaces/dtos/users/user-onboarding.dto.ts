@@ -1,4 +1,4 @@
-import { GenderEnum } from "@/common/constants/roles";
+import { GenderEnum } from "@/core";
 import { ApiProperty } from "@nestjs/swagger";
 import { IsNumber, IsString } from "class-validator";
 

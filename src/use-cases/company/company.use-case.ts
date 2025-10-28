@@ -226,7 +226,6 @@ export class CompanyUseCase implements OnModuleInit {
 
   async getCompanyById(
     organizationId: string,
-    companyId: string,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
     if (!organizationId) {
       throw new NotFoundException(
@@ -234,10 +233,7 @@ export class CompanyUseCase implements OnModuleInit {
       );
     }
     const organization =
-      await this.companyRepository.getCompanyByOrganizationId(
-        organizationId,
-        companyId,
-      );
+      await this.companyRepository.getCompanyByOrganizationId(organizationId);
 
     if (!organization) {
       throw new NotFoundException(
@@ -276,7 +272,6 @@ export class CompanyUseCase implements OnModuleInit {
       organizationCulture: organization.organizationCulture || "",
       employeesMin: organization.employeesMin || 0,
       employeesMax: organization.employeesMax || 0,
-      status: organization.status,
       createdAt: new Date(organization.createdAt),
       updatedAt: organization.updatedAt
         ? new Date(organization.updatedAt)
@@ -292,13 +287,10 @@ export class CompanyUseCase implements OnModuleInit {
 
   async updateCompanyById(
     organizationId: string,
-    companyId: string,
     data: UpdateCompanyWithOrganizationDto,
   ): Promise<ApiResponse<CompanyWithOrganizationResponseDto>> {
-    const company = await this.companyRepository.getCompanyByOrganizationId(
-      organizationId,
-      companyId,
-    );
+    const company =
+      await this.companyRepository.getCompanyByOrganizationId(organizationId);
     if (!company) {
       throw new NotFoundException(
         "[CompanyUseCase] - [updateCompanyById] Company not found",
@@ -310,11 +302,7 @@ export class CompanyUseCase implements OnModuleInit {
         organizationId,
         data.organization,
       ),
-      this.companyRepository.updateCompanyById(
-        organizationId,
-        companyId,
-        data.company,
-      ),
+      this.companyRepository.updateCompanyById(organizationId, data.company),
     ]);
 
     if (!updatedOrganization || !updatedCompany) {
@@ -324,10 +312,7 @@ export class CompanyUseCase implements OnModuleInit {
     }
 
     const updatedCompanyWithOrg =
-      await this.companyRepository.getCompanyByOrganizationId(
-        organizationId,
-        companyId,
-      );
+      await this.companyRepository.getCompanyByOrganizationId(organizationId);
     return {
       data: this.mapToCompanyDto(updatedCompanyWithOrg!),
       message: "Company updated successfully",

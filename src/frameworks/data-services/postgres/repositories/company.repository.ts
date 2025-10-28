@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Company, ICompanyRepository } from "@/core";
-import { companies, organizationLocations } from "../models/company.model";
+import { companies } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { asc, count, gt } from "drizzle-orm";
@@ -9,7 +9,10 @@ import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { UpdateCompanyDto } from "@/interfaces/dtos";
-import { organizations } from "../models/organization.model";
+import {
+  organizationLocations,
+  organizations,
+} from "../models/organization.model";
 import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core";
 
 @Injectable()
@@ -193,7 +196,6 @@ export class CompanyRepository
   }
   async updateCompanyById(
     organizationId: string,
-    companyId: string,
     data: UpdateCompanyDto,
   ): Promise<Company | null> {
     const result = await this.db
