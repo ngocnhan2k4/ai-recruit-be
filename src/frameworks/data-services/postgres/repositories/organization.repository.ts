@@ -4,12 +4,17 @@ import {
   OrganizationWithDetails,
   SchoolTypeEnum,
 } from "@/core";
-import { organizations } from "../models/organization.model";
+import {
+  organizationMembers,
+  organizations,
+} from "../models/organization.model";
 import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { eq } from "drizzle-orm";
+import { eq, desc, and, gt, SQL } from "drizzle-orm";
+import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types/api";
 
 @Injectable()
 export class OrganizationRepository
@@ -68,6 +73,54 @@ export class OrganizationRepository
       benefits: row.benefits,
       culture: row.culture,
       schoolType: row.schoolType as SchoolTypeEnum,
+    };
+  }
+
+  async getAllOrganizations(
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        OrganizationWithDetails,
+        "id" | "name" | "logoUrl" | "description" | "foundedYear"
+      >
+    >
+  > {
+    const whereConditions: SQL<unknown>[] = [];
+
+    if (query.cursor) {
+      whereConditions.push(gt(organizations.createdAt, new Date(query.cursor)));
+    }
+
+    const results = await this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        description: organizations.description,
+        foundedYear: organizations.foundedYear,
+        role: organizationMembers.role,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations)
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
+      .limit(query.limit + 1);
+
+    const hasNextPage = results.length > query.limit;
+    const data = hasNextPage ? results.slice(0, query.limit) : results;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data: data,
+      pagination: {
+        nextCursor: nextCursor,
+        hasNextPage,
+      },
     };
   }
 }

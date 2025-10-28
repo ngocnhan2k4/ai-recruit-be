@@ -65,64 +65,6 @@ export class CompanyRepository
     };
   }
 
-  // async getCompaniesByUserId(
-  //   userId: string,
-  //   limit: number,
-  //   cursor: string,
-  // ): Promise<
-  //   PaginatedResult<
-  //     Pick<
-  //       OrganizationWithDetails,
-  //       "id" | "name" | "logoUrl" | "description" | "foundedYear"
-  //     > & { role: string }
-  //   >
-  // > {
-  //   const whereConditions = [eq(organizationMembers.userId, userId)];
-
-  //   // Add cursor condition if provided
-  //   if (cursor) {
-  //     whereConditions.push(gt(companies.createdAt, new Date(cursor)));
-  //   }
-
-  //   // Fetch limit + 1 to check if there's a next page
-  //   const results = await this.db
-  //     .select({
-  //       id: companies.organizationId,
-  //       name: organizations.name,
-  //       logoUrl: organizations.logoUrl,
-  //       description: organizations.description,
-  //       foundedYear: organizations.foundedYear,
-  //       role: organizationMembers.role,
-  //       createdAt: organizations.createdAt,
-  //     })
-  //     .from(companies)
-  //     .innerJoin(
-  //       organizations,
-  //       eq(companies.organizationId, organizations.id),
-  //     )
-  //     .where(and(...whereConditions))
-  //     .orderBy(desc(organizations.createdAt))
-  //     .limit(limit + 1);
-
-  //   // Check if there's a next page
-  //   const hasNextPage = results.length > limit;
-  //   const data = hasNextPage ? results.slice(0, limit) : results;
-
-  //   // Get the next cursor from the last item
-  //   const nextCursor =
-  //     hasNextPage && data.length > 0
-  //       ? data[data.length - 1].createdAt.toISOString()
-  //       : null;
-
-  //   return {
-  //     data: data,
-  //     pagination: {
-  //       nextCursor: nextCursor,
-  //       hasNextPage,
-  //     },
-  //   };
-  // }
-
   async getCompanies(
     limit = 20,
     filter?: CompanyFilters,

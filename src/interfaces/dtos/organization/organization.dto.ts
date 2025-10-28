@@ -212,3 +212,8 @@ export class UpdateOrganizationDto {
   @IsNumber()
   employeesMax?: number;
 }
+
+export class CheckOrganizationNameResponseDto {
+  @ApiProperty()
+  exists: boolean;
+}

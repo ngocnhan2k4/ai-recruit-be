@@ -7,7 +7,6 @@ import {
 } from "@nestjs/common";
 import {
   ApiResponse,
-  CheckOrganizationNameResponseDto,
   UpdateCompanyWithOrganizationDto,
   CreateCompanyDto,
   CompanyDto,
@@ -103,45 +102,6 @@ export class CompanyUseCase implements OnModuleInit {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
-    };
-  }
-
-  // TODO: fix logic organization here
-  async checkOrganizationName(
-    orgName: string,
-  ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
-    // if bloom is not ready, fallback to DB verification to avoid false-negatives
-    const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
-    const mightExist = bloomReady
-      ? this.bloomFilterService.mightContain(orgName)
-      : true;
-
-    if (!mightExist) {
-      return {
-        data: { exists: false },
-        message: "Organization name does not exist",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    }
-
-    this.logger.log(
-      `[CompanyUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
-    );
-
-    // Step 2: verify DB để loại false positive
-    const organization = await this.organizationRepository.getByField({
-      name: orgName,
-    });
-    this.logger.log(
-      `[CompanyUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
-    );
-
-    return {
-      data: {
-        exists: !!organization,
-      },
-      message: "Organization name existence checked successfully",
-      code: RESPONSE_CODE.SUCCESS,
     };
   }
 

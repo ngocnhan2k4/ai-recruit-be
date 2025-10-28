@@ -157,8 +157,3 @@ export class UpdateCompanyWithOrganizationDto {
 export class GetCompanyDto extends CompanyDto {
   role: string;
 }
-
-export class CheckOrganizationNameResponseDto {
-  @ApiProperty()
-  exists: boolean;
-}

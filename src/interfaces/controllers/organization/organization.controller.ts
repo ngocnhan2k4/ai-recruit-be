@@ -19,10 +19,14 @@ import {
   GetCompanyDto,
   CreateOrganizationDto,
   UpdateOrganizationDto,
+  GeneralQueryDto,
+  ApiResponse,
+  PaginatedResultDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
+import { OrganizationWithDetails } from "@/core";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -112,14 +116,24 @@ export class OrganizationController {
     return await this.organizationUseCase.deleteOrganization(orgId);
   }
 
-  // [TODO-PHAT]: check api
   @Get("/all")
   @ApiOperation({
     summary: "Get all organizations",
     description: "Get all organizations (only basic information)",
   })
   @ApiResponseDto(String)
-  async getAllOrganizations() {
-    return await this.organizationUseCase.getAllOrganizations();
+  async getAllOrganizations(
+    @Query() query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResultDto<
+        Pick<
+          OrganizationWithDetails,
+          "id" | "name" | "description" | "logoUrl" | "foundedYear"
+        >
+      >
+    >
+  > {
+    return await this.organizationUseCase.getAllOrganizations(query);
   }
 }
