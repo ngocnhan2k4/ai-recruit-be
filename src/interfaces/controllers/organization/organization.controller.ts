@@ -30,7 +30,7 @@ export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
   @UseGuards(JwtAuthGuard)
-  @Get("users/:userId")
+  @Get("/me")
   @ApiOperation({
     summary: "Get organizations by user ID with cursor pagination",
     description:
@@ -110,5 +110,16 @@ export class OrganizationController {
   @ApiResponseDto(String)
   async deleteOrganization(@Param("orgId") orgId: string) {
     return await this.organizationUseCase.deleteOrganization(orgId);
+  }
+
+  // [TODO-PHAT]: check api
+  @Get("/all")
+  @ApiOperation({
+    summary: "Get all organizations",
+    description: "Get all organizations (only basic information)",
+  })
+  @ApiResponseDto(String)
+  async getAllOrganizations() {
+    return await this.organizationUseCase.getAllOrganizations();
   }
 }

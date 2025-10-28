@@ -21,4 +21,6 @@ export class OrganizationUseCase {
   async getOrganizationById(_id: string, _userId: string) {}
 
   async getOrganizationsByOwner(_userId: string, _query: any) {}
+
+  async getAllOrganizations() {}
 }

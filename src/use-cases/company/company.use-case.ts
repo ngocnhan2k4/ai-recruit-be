@@ -23,9 +23,8 @@ import {
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
-import { OrganizationRole } from "@/common/constants/organization-roles";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
-import { OrganizationWithDetails } from "@/core/entities";
+import { OrganizationRoleEnum, OrganizationWithDetails } from "@/core/entities";
 @Injectable()
 export class CompanyUseCase implements OnModuleInit {
   private readonly logger = new Logger(CompanyUseCase.name);
@@ -162,7 +161,7 @@ export class CompanyUseCase implements OnModuleInit {
     const organizationMember = await this.organizationMembersRepository.create({
       userId: userId,
       organizationId: organization.id,
-      role: OrganizationRole.ORGANIZATION_OWNER,
+      role: OrganizationRoleEnum.ORGANIZATION_OWNER,
     });
     if (!organizationMember) {
       await this.companyRepository.delete({
