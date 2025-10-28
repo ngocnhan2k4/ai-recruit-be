@@ -3,7 +3,8 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { skills } from "../models";
-
+import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { count, ilike, and, SQL } from "drizzle-orm";
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
@@ -23,5 +24,44 @@ export class SkillRepository
       .returning();
 
     return result;
+  }
+
+  async getPaginatedSkills(
+    query: GeneralQuery,
+  ): Promise<PaginatedResult<Skill>> {
+    const limit = Math.max(query.limit ?? 20, 1);
+    const page = Math.max(query.page ?? 1, 1);
+    const keyword = query.keyword ?? "";
+
+    const whereConditions: SQL[] = [];
+
+    if (keyword) {
+      whereConditions.push(ilike(skills.name, `%${keyword}%`));
+    }
+
+    const offset = (page - 1) * limit;
+
+    const items = await this.db
+      .select()
+      .from(skills)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .limit(limit)
+      .offset(offset);
+
+    const totalRow = await this.db
+      .select({ count: count(skills.id) })
+      .from(skills)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+    const total = Number(totalRow[0]?.count ?? 0);
+
+    const hasNext = offset + items.length < total;
+
+    return {
+      data: items,
+      pagination: {
+        hasNextPage: hasNext,
+        total,
+      },
+    } as PaginatedResult<Skill>;
   }
 }
