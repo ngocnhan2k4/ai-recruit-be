@@ -1,7 +1,7 @@
 import { pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import { organizationTypeEnum } from "./enums";
+import { OrganizationRoleEnum, organizationTypeEnum } from "./enums";
 import { users } from "./user.model";
 import { provinces } from "./province.model";
 
@@ -33,7 +33,7 @@ export const organizationMembers = pgTable("organization_members", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id),
-  role: varchar("role", { length: 100 }).notNull(),
+  role: OrganizationRoleEnum("role").notNull(),
   ...timestamps,
 });
 

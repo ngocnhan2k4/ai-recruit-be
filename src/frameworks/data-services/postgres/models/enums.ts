@@ -59,3 +59,20 @@ export const NotificationTypeEnum = pgEnum("notification_type", [
   "profile_viewed",
   "system",
 ]);
+export const OrganizationRoleEnum = pgEnum("organization_role", [
+  "organization_owner",
+  "organization_admin",
+  "organization_editor",
+  "organization_viewer",
+  "organization_content_admin",
+  "organization_content_editor",
+  "organization_content_viewer",
+  "organization_recruiter_admin",
+  "organization_recruiter_editor",
+  "organization_recruiter_viewer",
+  "organization_analyst_admin",
+  "organization_analyst_editor",
+  "organization_analyst_viewer",
+  "organization_employee",
+  "anonymously",
+]);
