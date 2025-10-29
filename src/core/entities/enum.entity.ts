@@ -51,6 +51,8 @@ export enum NotificationType {
   JOB_APPLIED = "job_applied",
   JOB_MATCHED = "job_matched",
   PROFILE_VIEWED = "profile_viewed",
+  CV_APPROVED = "cv_approved",
+  CV_REJECTED = "cv_rejected",
   SYSTEM = "system",
 }
 export enum SchoolTypeEnum {
