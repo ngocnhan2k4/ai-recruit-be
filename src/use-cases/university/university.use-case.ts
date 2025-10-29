@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IOrganizationRepository } from "@/core";
-import { ApiResponse, UniversityDto } from "@/interfaces/dtos";
+import { ApiResponse, OrganizationDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
 
@@ -11,13 +11,13 @@ export class UniversityUseCases {
     private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
-  async getUniversities(): Promise<ApiResponse<UniversityDto[]>> {
+  async getUniversities(): Promise<ApiResponse<Partial<OrganizationDto>[]>> {
     const universities = await this.organizationRepository.getByField({
       type: OrganizationTypeEnum.UNIVERSITY,
     });
     this.logger.log(`Fetched ${universities.length} universities`);
 
-    const data: UniversityDto[] = universities.map((university) => ({
+    const data: Partial<OrganizationDto>[] = universities.map((university) => ({
       id: university.id,
       name: university.name,
     }));

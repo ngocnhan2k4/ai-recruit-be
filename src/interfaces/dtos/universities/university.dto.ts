@@ -1,9 +1,3 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { OrganizationDto } from "../organization/organization.dto";
 
-export class UniversityDto {
-  @ApiProperty({ type: "string", format: "uuid" })
-  id: string;
-
-  @ApiProperty({ type: "string" })
-  name: string;
-}
+export class UniversityDto extends OrganizationDto {}
