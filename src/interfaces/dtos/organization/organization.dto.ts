@@ -170,6 +170,11 @@ export class UpdateOrganizationDto {
   @ApiProperty({ type: "string" })
   @IsOptional()
   @IsString()
+  slug?: string;
+
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiProperty({ type: "array", items: { type: "string" } })

@@ -6,7 +6,11 @@ import {
   OrganizationWithDetails,
 } from "@/core";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { ApiResponse, CreateOrganizationDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CreateOrganizationDto,
+  UpdateOrganizationDto,
+} from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
@@ -119,11 +123,16 @@ export class OrganizationUseCase {
 
   async updateOrganization(
     orgId: string,
-    data: OrganizationWithDetails,
+    data: UpdateOrganizationDto,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
+    const { company, school, ...rest } = data;
     const result = await this.organizationRepository.updateOrganizationById(
       orgId,
-      data,
+      {
+        ...rest,
+        ...company,
+        ...school,
+      },
     );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
