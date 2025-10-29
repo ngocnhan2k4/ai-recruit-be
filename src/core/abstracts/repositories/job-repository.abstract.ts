@@ -2,7 +2,6 @@ import { IGenericRepository } from "./generic-repository.abstract";
 import {
   Job,
   Province,
-  Company,
   Skill,
   OrganizationWithDetails,
   WorkTypeEnum,

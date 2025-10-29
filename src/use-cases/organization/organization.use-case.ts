@@ -1,74 +1,130 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  IBloomFilterService,
+  IOrganizationRepository,
+  OrganizationWithDetails,
+} from "@/core";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { IOrganizationRepository, OrganizationWithDetails } from "@/core";
-import { OrganizationTypeEnum } from "@/core";
+import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
+import { RESPONSE_CODE } from "@/common/constants/response";
+import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 
+// [TODO-PHAT]: check logic organization here
 @Injectable()
 export class OrganizationUseCase {
   private readonly logger = new Logger(OrganizationUseCase.name);
 
   constructor(
+    public readonly bloomFilterService: IBloomFilterService,
     private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
-  /**
-   * Get organization with attached sub-table data (company/school/nonprofit) using JOIN
-   * This method demonstrates how to use the JOIN-based query instead of multiple queries
-   */
-  async getOrganizationWithDetails(
-    organizationId: string,
-  ): Promise<ApiResponse<OrganizationWithDetails>> {
-    this.logger.log(
-      `Fetching organization with details for ID: ${organizationId}`,
+  onModuleInit(): void {
+    // start initialization in background so Nest bootstrap is not blocked
+    // any requests arriving before bloom is ready will fallback to DB verification
+    this.initializeBloomFilter().catch((err) =>
+      this.logger.error(
+        "[OrganizationUseCase] Bloom init failed (background)",
+        err,
+      ),
     );
+  }
 
-    const organization =
-      await this.organizationRepository.getOrganizationWithDetails(
-        organizationId,
+  @Cron(CronExpression.EVERY_HOUR)
+  async refreshBloomFilterScheduled() {
+    this.logger.log(
+      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
+    );
+    await this.initializeBloomFilter();
+  }
+
+  private async initializeBloomFilter() {
+    try {
+      const organizations = await this.organizationRepository.getAll(["name"]);
+      const organizationNames = organizations.map(
+        (organization) => organization.name,
       );
 
-    if (!organization) {
-      throw new NotFoundException(RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND);
+      this.bloomFilterService.initialize(organizationNames);
+
+      this.logger.log(
+        `[CompanyUseCases] [initializeBloomFilter] Bloom filter refreshed with ${organizationNames.length} organization names`,
+      );
+    } catch (error) {
+      this.logger.error(
+        "[CompanyUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async checkOrganizationName(
+    orgName: string,
+  ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
+    // if bloom is not ready, fallback to DB verification to avoid false-negatives
+    const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
+    const mightExist = bloomReady
+      ? this.bloomFilterService.mightContain(orgName)
+      : true;
+
+    if (!mightExist) {
+      return {
+        data: { exists: false },
+        message: "Organization name does not exist",
+        code: RESPONSE_CODE.SUCCESS,
+      };
     }
 
     this.logger.log(
-      `Successfully fetched organization: ${organization.name} (${organization.type})`,
+      `[OrganizationUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
+    );
+
+    // Step 2: verify DB để loại false positive
+    const organization = await this.organizationRepository.getByField({
+      name: orgName,
+    });
+    this.logger.log(
+      `[OrganizationUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
     );
 
     return {
-      message: "Organization fetched successfully",
+      data: {
+        exists: !!organization,
+      },
+      message: "Organization name existence checked successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: organization,
     };
   }
 
-  /**
-   * Example method showing how the JOIN query works for different organization types
-   */
-  async demonstrateJoinQuery(organizationId: string): Promise<void> {
-    const organization =
-      await this.organizationRepository.getOrganizationWithDetails(
-        organizationId,
-      );
+  async createOrganization(_data: any) {}
 
-    if (!organization) {
-      this.logger.warn(`Organization not found: ${organizationId}`);
-      return;
-    }
+  async updateOrganization(_orgId: string, _data: any) {}
 
-    this.logger.log(`Organization: ${organization.name}`);
-    this.logger.log(`Type: ${organization.type}`);
+  async deleteOrganization(_id: string) {}
 
-    // The JOIN query automatically attaches the appropriate sub-table data based on type
-    switch (organization.type) {
-      case OrganizationTypeEnum.COMPANY:
-        if (organization.companySize) {
-          this.logger.log(`Company Size: ${organization.companySize}`);
-          this.logger.log(`Tax Code: ${organization.taxCode}`);
-          this.logger.log(`Benefits: ${organization.benefits || ""}`);
-        }
-        break;
-    }
+  async getOrganizationById(_id: string, _userId: string) {}
+
+  async getOrganizationsByOwner(_userId: string, _query: any) {}
+
+  async getAllOrganizations(
+    query: GeneralQuery,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<
+        Pick<
+          OrganizationWithDetails,
+          "id" | "name" | "description" | "logoUrl" | "foundedYear"
+        >
+      >
+    >
+  > {
+    const result = await this.organizationRepository.getAllOrganizations(query);
+    return {
+      message: "Get organization of owner",
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 }

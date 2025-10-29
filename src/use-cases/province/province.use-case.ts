@@ -9,7 +9,7 @@ export class ProvinceUseCases {
   constructor(private readonly provinceRepository: IProvinceRepository) {}
 
   async getProvinces(): Promise<ApiResponse<ProvinceDto[]>> {
-    const data = await this.provinceRepository.getAll();
+    const data = await this.provinceRepository.getAll(["id", "name"]);
     this.logger.log(`Fetched ${data.length} provinces`);
     return {
       message: "Provinces fetched successfully",

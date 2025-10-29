@@ -29,7 +29,6 @@ import {
   UpdateUserRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
-  UserOnboardingStatusDto,
   UserPublicResponseDto,
   UserOnboardingDto,
   GetUserQueryDto,
@@ -41,7 +40,6 @@ import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
-  UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "../../dtos/users/user-experience.dto";
 import {

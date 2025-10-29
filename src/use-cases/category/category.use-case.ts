@@ -10,7 +10,7 @@ export class CategoryUseCases {
   constructor(private readonly categoryRepository: ICategoryRepository) {}
 
   async getCategories(): Promise<ApiResponse<CategoryDto[]>> {
-    const data = await this.categoryRepository.getAll();
+    const data = await this.categoryRepository.getAll(["id", "name"]);
     this.logger.log(`Fetched ${data.length} categories`);
     return {
       message: "Categories fetched successfully",

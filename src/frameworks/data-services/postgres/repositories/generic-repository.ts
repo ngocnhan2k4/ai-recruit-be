@@ -14,8 +14,14 @@ export class GenericRepository<T, TTable extends object>
     this._table = table;
   }
 
-  async getAll(): Promise<T[]> {
-    return (await this.db.select().from(this._table as any)) as T[];
+  async getAll<K extends keyof T>(fields: K[]): Promise<Pick<T, K>[]> {
+    return (await this.db
+      .select(
+        Object.fromEntries(
+          fields.map((field) => [field, (this._table as any)[field as string]]),
+        ),
+      )
+      .from(this._table as any)) as Pick<T, K>[];
   }
 
   async get(id: string | number): Promise<T | null> {

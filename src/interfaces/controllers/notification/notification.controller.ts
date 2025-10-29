@@ -1,6 +1,6 @@
 import { NotificationUseCase } from "@/use-cases/notification/notification.use-case";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import {
   ApiResponse,
   ApiResponseDto,

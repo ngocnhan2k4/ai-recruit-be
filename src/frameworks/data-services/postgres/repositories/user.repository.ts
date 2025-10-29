@@ -1,25 +1,14 @@
 import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { users, UserStatusEnum } from "../models";
+import { users } from "../models";
 import { NewUser, User } from "@/core/entities";
-import {
-  ilike,
-  or,
-  eq,
-  count,
-  isNotNull,
-  and,
-  SQL,
-  SQLWrapper,
-  sql,
-} from "drizzle-orm";
+import { ilike, or, eq, count, isNotNull, and, sql } from "drizzle-orm";
 import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types/api";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
-import { PtypeEnum, RoleEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class UserRepository

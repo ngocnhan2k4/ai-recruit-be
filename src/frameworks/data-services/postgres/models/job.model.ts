@@ -13,7 +13,7 @@ import {
   integer,
   pgEnum,
 } from "drizzle-orm/pg-core";
-import { companies, companyRaws } from "./company.model";
+import { companyRaws } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { categories } from "./category.model";
