@@ -132,12 +132,6 @@ export class ApplyJobResponseDto {
   id: string;
 
   @ApiProperty({
-    example: "uuid-user-id",
-    description: "User ID",
-  })
-  userId: string;
-
-  @ApiProperty({
     example: "uuid-job-id",
     description: "Job ID",
   })
@@ -169,16 +163,6 @@ export class ApplyJobResponseDto {
     ],
   })
   answers?: JobAnswerDto[];
-
-  @ApiProperty({
-    description: "Created at timestamp",
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    description: "Updated at timestamp",
-  })
-  updatedAt: Date;
 }
 
 export class UpdateApplyJobDto {
@@ -250,14 +234,4 @@ export class UserInteractionResponseDto {
     description: "Interaction type (save or hide)",
   })
   type: string;
-
-  @ApiProperty({
-    description: "Created at timestamp",
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    description: "Updated at timestamp",
-  })
-  updatedAt: Date;
 }

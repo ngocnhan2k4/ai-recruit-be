@@ -12,7 +12,6 @@ import {
   UpdateJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
-  JobResponse,
 } from "@/interfaces/dtos";
 import {
   Skill,
@@ -27,18 +26,13 @@ import {
   JobDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
+  JobResponseDto,
 } from "@/interfaces/dtos";
-import {
-  JobFilters,
-  StatisticsJobFilter,
-} from "@/core/abstracts/repositories/job-repository.abstract";
+import { JobFilters, StatisticsJobFilter } from "@/core/entities/job.entity";
 import { convertDateToStr } from "@/common/utils/date";
-import {
-  PaginationResponseDto,
-  GeneralQueryDto,
-} from "@/interfaces/dtos/common/query";
+import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { TokenPayload } from "@/common/types/token";
+import { PaginatedResult } from "@/common/types/api";
 
 @Injectable()
 export class JobUseCases {
@@ -46,38 +40,16 @@ export class JobUseCases {
   constructor(private readonly jobRepository: IJobRepository) {}
 
   async getAllJobs(
-    limit?: number,
-    page?: number,
-    cursor?: string,
-    filters?: JobFilters & { user?: TokenPayload },
-  ): Promise<
-    ApiResponse<{
-      data: {
-        job: JobDto;
-        provinces: Province[];
-        company: CompanyDto;
-        skills: Skill[];
-        isSaved?: boolean;
-        isApplied?: boolean;
-        applyStatus?: string;
-        applyId?: string;
-      }[];
-      pagination: PaginationResponseDto;
-    }>
-  > {
-    const result = await this.jobRepository.getAllJobs(
-      limit,
-      page,
-      cursor,
-      filters,
-    );
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    const result = await this.jobRepository.getAllJobs(filters);
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
     const transformedJobData = result.data.map((item) => ({
       ...item,
       job: {
         ...item.job,
-        questions: item.job.questions || null,
+        questions: item.job.questions,
         organizationId: item.organization.id,
       } as JobDto,
       company: {
@@ -151,7 +123,6 @@ export class JobUseCases {
       }
 
       const result = await this.jobRepository.applyJob(
-        userId,
         applyJobDto.jobId,
         applyJobDto.cvId,
         applyJobDto.answers,
@@ -180,7 +151,6 @@ export class JobUseCases {
     try {
       const result = await this.jobRepository.updateApplyJob(
         applyId,
-        userId,
         updateApplyJobDto.status,
         updateApplyJobDto.userCvId,
         updateApplyJobDto.answers,
@@ -208,11 +178,10 @@ export class JobUseCases {
   }
 
   async getApplyJobById(
-    userId: string,
     applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     try {
-      const result = await this.jobRepository.getApplyJobById(applyId, userId);
+      const result = await this.jobRepository.getApplyJobById(applyId);
 
       if (!result) {
         throw new BadRequestException("Application not found");
@@ -382,11 +351,11 @@ export class JobUseCases {
   async getJobById(
     jobId: string,
     userId?: string,
-  ): Promise<ApiResponse<JobResponse>> {
+  ): Promise<ApiResponse<JobResponseDto>> {
     const job: {
       job: Job;
       provinces: Province[];
-      company: OrganizationWithDetails;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
@@ -404,7 +373,7 @@ export class JobUseCases {
     }
 
     // Transform questions field
-    const transformedJob: JobResponse = {
+    const transformedJob: JobResponseDto = {
       ...job,
       job: {
         ...job.job,
@@ -413,13 +382,13 @@ export class JobUseCases {
         workType: job.job.workType as WorkTypeEnum,
       },
       company: {
-        id: job.company.id,
-        name: job.company.name,
-        slug: job.company.slug,
-        type: job.company.type,
-        description: job.company.description,
-        address: job.company.address,
-        logoUrl: job.company.logoUrl,
+        id: job.organization.id,
+        name: job.organization.name,
+        slug: job.organization.slug,
+        type: job.organization.type,
+        description: job.organization.description,
+        address: job.organization.address,
+        logoUrl: job.organization.logoUrl,
       } as CompanyDto,
     };
 

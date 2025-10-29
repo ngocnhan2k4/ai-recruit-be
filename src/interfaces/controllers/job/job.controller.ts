@@ -14,16 +14,16 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
 import {
   QueryJobDto,
+  CreateJobDto,
+  UpdateJobDto,
+} from "../../dtos/jobs/job-query.dto";
+import {
+  JobDto,
+  JobCountsDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
-  JobResponse,
-} from "../../dtos/jobs/query-job.dto";
-import {
-  CreateJobDto,
-  UpdateJobDto,
-  JobDto,
-  JobCountsDto,
+  JobResponseDto,
 } from "../../dtos/jobs/job.dto";
 import {
   StatisticsJobFilterRequestDto,
@@ -62,30 +62,7 @@ export class JobController {
     @Query() query: QueryJobDto,
     @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
-    const filters = {
-      keyword: query.keyword,
-      salaryRange:
-        query.salaryMin !== undefined || query.salaryMax !== undefined
-          ? { min: query.salaryMin, max: query.salaryMax }
-          : undefined,
-      experienceRange:
-        query.experienceMin !== undefined || query.experienceMax !== undefined
-          ? { min: query.experienceMin, max: query.experienceMax }
-          : undefined,
-      provinceId: query.provinceId,
-      companyId: query.companyId,
-      workType: query.workType,
-      status: query.status,
-      user: user ? user : undefined, // Pass user to filter hidden jobs and get isSaved status
-      pagination: query.pagination,
-    };
-
-    return this.jobUseCases.getAllJobs(
-      query.limit,
-      query.page,
-      query.cursor,
-      filters,
-    );
+    return this.jobUseCases.getAllJobs({ ...query, user });
   }
 
   @ApiOperation({
@@ -143,10 +120,9 @@ export class JobController {
   @ApiResponseDto(ApplyJobResponseDto)
   @Get("apply/:applyId")
   async getApplyJobById(
-    @GetUser() user: TokenPayload,
     @Param("applyId") applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    return await this.jobUseCases.getApplyJobById(user.userId, applyId);
+    return await this.jobUseCases.getApplyJobById(applyId);
   }
 
   @ApiOperation({
@@ -242,12 +218,12 @@ export class JobController {
     description: "Retrieve a specific job by its ID",
   })
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiResponseDto(JobResponse)
+  @ApiResponseDto(JobResponseDto)
   @Get(":id")
   async getJobById(
     @Param("id") jobId: string,
     @GetUser() user?: TokenPayload,
-  ): Promise<ApiResponse<JobResponse>> {
+  ): Promise<ApiResponse<JobResponseDto>> {
     const userId = user ? user.userId : undefined;
     return await this.jobUseCases.getJobById(jobId, userId);
   }
