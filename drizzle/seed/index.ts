@@ -1,9 +1,7 @@
 // import { AnonymousId } from "@/common/constants/roles";
-import { universities } from "@/frameworks/data-services/postgres/models";
 import { categories } from "@/frameworks/data-services/postgres/models/category.model";
 import { provinces } from "@/frameworks/data-services/postgres/models/province.model";
 import { skills } from "@/frameworks/data-services/postgres/models/skill.model";
-import { users } from "@/frameworks/data-services/postgres/models/user.model";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { organizations } from "@/frameworks/data-services/postgres/models";
