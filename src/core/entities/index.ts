@@ -9,7 +9,6 @@ import {
   userExperiences,
   userSkills,
   cvs,
-  universities,
   userOnboardings,
   organizationMembers,
   schools,
@@ -52,9 +51,6 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
-
-export type NewUniversity = InferInsertModel<typeof universities>;
-export type University = InferSelectModel<typeof universities>;
 
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
