@@ -4,13 +4,21 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
 } from "class-validator";
-import { OrganizationTypeEnum, UserStatusEnum } from "@/core";
+import { OrganizationRoleEnum, OrganizationTypeEnum } from "@/core";
 import { IsEmail } from "class-validator";
+import { CreateCompanyDto } from "../companies/company.dto";
+import { CreateSchoolDto } from "../schools/school.dto";
+
+interface OrganizationLocation {
+  address: string;
+  provinceId: string;
+}
 
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -76,16 +84,15 @@ export class CreateOrganizationDto {
   @MinLength(2, { message: "Name must be at least 2 characters long" })
   name: string;
 
-  @ApiProperty({ type: "string" })
-  @IsNotEmpty({ message: "Slug is required" })
-  @IsString({ message: "Slug must be a string" })
-  @MaxLength(255, { message: "Slug must not exceed 255 characters" })
-  @MinLength(2, { message: "Slug must be at least 2 characters long" })
-  slug: string;
+  // @ApiProperty({ type: "string" })
+  // @IsNotEmpty({ message: "Slug is required" })
+  // @IsString({ message: "Slug must be a string" })
+  // @MaxLength(255, { message: "Slug must not exceed 255 characters" })
+  // @MinLength(2, { message: "Slug must be at least 2 characters long" })
+  // slug: string;
 
   @ApiProperty({ enum: OrganizationTypeEnum })
   @IsNotEmpty({ message: "Type is required" })
-  @IsString({ message: "Type must be a string" })
   @IsEnum(OrganizationTypeEnum, {
     message: "Type must be a valid organization type",
   })
@@ -94,10 +101,6 @@ export class CreateOrganizationDto {
   @ApiProperty({ type: "string" })
   @IsString()
   description: string;
-
-  @ApiProperty({ type: "array", items: { type: "string" } })
-  @IsArray()
-  address: string[];
 
   @ApiProperty({ type: "string" })
   @IsString()
@@ -142,13 +145,20 @@ export class CreateOrganizationDto {
   @IsNumber()
   employeesMax: number;
 
-  @ApiProperty({ enum: UserStatusEnum })
-  @IsEnum(UserStatusEnum)
-  status: UserStatusEnum;
+  @ApiProperty({ type: "array", items: { type: "object" } })
+  @IsNotEmpty({ message: "Locations is required" })
+  @IsArray()
+  locations: OrganizationLocation[];
 
-  @ApiProperty({ type: "string" })
-  @IsString()
-  verifiedAt: string;
+  @ApiProperty({ type: CreateCompanyDto })
+  @IsNotEmpty({ message: "Company is required" })
+  @IsObject()
+  company: CreateCompanyDto;
+
+  @ApiProperty({ type: CreateSchoolDto })
+  @IsNotEmpty({ message: "School is required" })
+  @IsObject()
+  school: CreateSchoolDto;
 }
 
 export class UpdateOrganizationDto {
@@ -211,9 +221,22 @@ export class UpdateOrganizationDto {
   @IsOptional()
   @IsNumber()
   employeesMax?: number;
+
+  @ApiProperty({ type: CreateCompanyDto })
+  company?: Partial<CreateCompanyDto>;
+
+  @ApiProperty({ type: CreateSchoolDto })
+  school?: Partial<CreateSchoolDto>;
 }
 
 export class CheckOrganizationNameResponseDto {
   @ApiProperty()
   exists: boolean;
+}
+
+export class GetOrganizationDto extends OrganizationDto {
+  @ApiProperty()
+  @IsEnum(OrganizationRoleEnum)
+  @IsOptional()
+  role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
 }

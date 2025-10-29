@@ -2,13 +2,16 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   IBloomFilterService,
   IOrganizationRepository,
+  OrganizationRoleEnum,
   OrganizationWithDetails,
 } from "@/core";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, CreateOrganizationDto } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { PaginatedResult } from "@/common/types/api";
+import { OrganizationQuery } from "@/core/entities/organization.entity";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 
 // [TODO-PHAT]: check logic organization here
 @Injectable()
@@ -18,6 +21,7 @@ export class OrganizationUseCase {
   constructor(
     public readonly bloomFilterService: IBloomFilterService,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly organizationMembersRepository: IOrganizationMembersRepository,
   ) {}
 
   onModuleInit(): void {
@@ -49,11 +53,11 @@ export class OrganizationUseCase {
       this.bloomFilterService.initialize(organizationNames);
 
       this.logger.log(
-        `[CompanyUseCases] [initializeBloomFilter] Bloom filter refreshed with ${organizationNames.length} organization names`,
+        `[OrganizationUseCases] [initializeBloomFilter] Bloom filter refreshed with ${organizationNames.length} organization names`,
       );
     } catch (error) {
       this.logger.error(
-        "[CompanyUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
+        "[OrganizationUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
         error,
       );
       throw error;
@@ -98,31 +102,125 @@ export class OrganizationUseCase {
     };
   }
 
-  async createOrganization(_data: any) {}
+  async createOrganization(
+    data: CreateOrganizationDto,
+    userId: string,
+  ): Promise<OrganizationWithDetails> {
+    const { company, school, ...rest } = data;
+    return this.organizationRepository.createOrganization(
+      {
+        ...rest,
+        ...company,
+        ...school,
+      },
+      userId,
+    );
+  }
 
-  async updateOrganization(_orgId: string, _data: any) {}
+  async updateOrganization(
+    orgId: string,
+    data: OrganizationWithDetails,
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    const result = await this.organizationRepository.updateOrganizationById(
+      orgId,
+      data,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
 
-  async deleteOrganization(_id: string) {}
+  async deleteOrganization(id: string): Promise<ApiResponse<boolean>> {
+    const result = await this.organizationRepository.deleteOrganizationById(id);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
 
-  async getOrganizationById(_id: string, _userId: string) {}
+  async getOrganizationById(
+    id: string,
+    userId?: string,
+  ): Promise<ApiResponse<OrganizationWithDetails | null>> {
+    const org = await this.organizationRepository.getOrganizationById(id);
+    if (!org) {
+      return {
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+        data: null,
+      };
+    }
 
-  async getOrganizationsByOwner(_userId: string, _query: any) {}
+    // get role of user
+    if (!userId) {
+      (org as any).userRole = OrganizationRoleEnum.ANONYMOUSLY;
+    } else {
+      const userRole = await this.organizationMembersRepository.getMemberRole(
+        id,
+        userId,
+      );
+      (org as any).userRole = userRole;
+    }
 
-  async getAllOrganizations(
-    query: GeneralQuery,
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: org,
+    };
+  }
+
+  async getOrganizationsByOwner(
+    userId: string,
+    query: OrganizationQuery,
   ): Promise<
     ApiResponse<
       PaginatedResult<
         Pick<
           OrganizationWithDetails,
-          "id" | "name" | "description" | "logoUrl" | "foundedYear"
+          | "id"
+          | "name"
+          | "logoUrl"
+          | "description"
+          | "foundedYear"
+          | "verifiedAt"
+        >
+      >
+    >
+  > {
+    const result = await this.organizationRepository.getAllOrganizations({
+      ...query,
+      userId: userId,
+    });
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async getAllOrganizations(
+    query: OrganizationQuery,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<
+        Pick<
+          OrganizationWithDetails,
+          | "id"
+          | "name"
+          | "description"
+          | "logoUrl"
+          | "foundedYear"
+          | "verifiedAt"
         >
       >
     >
   > {
     const result = await this.organizationRepository.getAllOrganizations(query);
     return {
-      message: "Get organization of owner",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
     };

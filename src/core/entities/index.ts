@@ -82,18 +82,15 @@ export type OrganizationWithDetails = Organization & {
   companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
+  locations?:
+    | {
+        id?: string | null;
+        address?: string | null;
+        provinceId?: string | null;
+      }[]
+    | null;
 };
 
-// export type NewCompany = InferInsertModel<typeof companies> & {
-//   locations?: {
-//     address?: string;
-//     provinceId?: string;
-//   }[];
-// };
 export type Company = InferSelectModel<typeof companies> & {
   locations?: {
     address?: string;
