@@ -8,7 +8,6 @@ import {
   Body,
   Put,
   Param,
-  Delete,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
@@ -19,7 +18,6 @@ import {
 } from "../../dtos/jobs/job-query.dto";
 import {
   JobDto,
-  JobCountsDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
@@ -44,6 +42,7 @@ import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 import { GeneralQueryDto } from "../../dtos/common/query";
 import { PaginatedResultDto } from "../../dtos/common/query";
+import { RoleEnum } from "@/common/constants/roles";
 
 @ApiTags("Jobs")
 @Controller("jobs")
@@ -58,11 +57,17 @@ export class JobController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobPaginationResponseDto)
   @Get()
-  async getAll(
+  async getJobs(
     @Query() query: QueryJobDto,
     @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
-    return this.jobUseCases.getAllJobs({ ...query, user });
+    return this.jobUseCases.getJobs({
+      ...query,
+      user: user && {
+        ...user,
+        roles: [RoleEnum.USER],
+      },
+    });
   }
 
   @ApiOperation({
@@ -92,11 +97,6 @@ export class JobController {
     return await this.jobUseCases.applyJob(user.userId, applyJobDto);
   }
 
-  @ApiOperation({
-    summary: "Update job application",
-    description:
-      "Update application status, answers, and CV. To change answers or userCvId, status must be 'applied'",
-  })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(ApplyJobResponseDto)
   @Put("apply/:applyId")
@@ -174,10 +174,6 @@ export class JobController {
     );
   }
 
-  @ApiOperation({
-    summary: "Create a new job",
-    description: "Create a new job posting",
-  })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(JobDto)
   @Post()
@@ -202,18 +198,6 @@ export class JobController {
   }
 
   @ApiOperation({
-    summary: "Delete a job",
-    description: "Delete a job posting (soft delete)",
-  })
-  @UseGuards(JwtAuthGuard)
-  @Delete(":id")
-  async deleteJob(
-    @Param("id") jobId: string,
-  ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(jobId);
-  }
-
-  @ApiOperation({
     summary: "Get job by ID",
     description: "Retrieve a specific job by its ID",
   })
@@ -226,16 +210,6 @@ export class JobController {
   ): Promise<ApiResponse<JobResponseDto>> {
     const userId = user ? user.userId : undefined;
     return await this.jobUseCases.getJobById(jobId, userId);
-  }
-
-  @ApiOperation({
-    summary: "Get job counts",
-    description: "Return total number of jobs and counts grouped by job status",
-  })
-  @ApiResponseDto(JobCountsDto)
-  @Get("counts")
-  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
-    return await this.jobUseCases.getJobCounts();
   }
 
   @ApiOperation({

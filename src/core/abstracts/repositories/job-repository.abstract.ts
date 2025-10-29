@@ -20,7 +20,9 @@ import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
-  abstract getAllJobs(
+  abstract getJobs(filters?: JobFilters): Promise<PaginatedResult<JobResponse>>;
+
+  abstract getJobsByAdmin(
     filters?: JobFilters,
   ): Promise<PaginatedResult<JobResponse>>;
 

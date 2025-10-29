@@ -28,21 +28,36 @@ import {
   AppliedJobsResponseDto,
   JobResponseDto,
 } from "@/interfaces/dtos";
-import { JobFilters, StatisticsJobFilter } from "@/core/entities/job.entity";
+import {
+  JobFilters,
+  JobResponse,
+  StatisticsJobFilter,
+} from "@/core/entities/job.entity";
 import { convertDateToStr } from "@/common/utils/date";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult } from "@/common/types/api";
+import { RoleEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
   constructor(private readonly jobRepository: IJobRepository) {}
 
-  async getAllJobs(
+  async getJobs(
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
-    const result = await this.jobRepository.getAllJobs(filters);
+    let result: PaginatedResult<JobResponse>;
+    // Decide which method to call based on user role
+    console.log("User Roles:", filters.user);
+    if (filters.user?.roles.includes(RoleEnum.ADMIN)) {
+      this.logger.log("Fetching jobs for admin user");
+      result = await this.jobRepository.getJobsByAdmin(filters);
+    } else {
+      this.logger.log("Fetching jobs for regular user");
+      result = await this.jobRepository.getJobs(filters);
+    }
+
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
     const transformedJobData = result.data.map((item) => ({

@@ -63,7 +63,136 @@ export class JobRepository
     super(db, jobs);
   }
 
-  async getAllJobs(filters: JobFilters): Promise<PaginatedResult<JobResponse>> {
+  async getJobsByAdmin(
+    filters: JobFilters,
+  ): Promise<PaginatedResult<JobResponse>> {
+    // Build where conditions
+    const whereConditions: SQL[] = [];
+    const { cursor, limit, page } = filters;
+    if (filters?.keyword) {
+      whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
+    }
+    if (filters?.salaryMin !== undefined) {
+      whereConditions.push(gte(jobs.salaryMin, filters.salaryMin.toString()));
+    }
+
+    if (filters?.salaryMax !== undefined) {
+      whereConditions.push(lte(jobs.salaryMax, filters.salaryMax.toString()));
+    }
+
+    if (filters?.experienceMin !== undefined) {
+      whereConditions.push(gte(jobs.experienceMin, filters.experienceMin));
+    }
+
+    if (filters?.experienceMax !== undefined) {
+      whereConditions.push(lte(jobs.experienceMax, filters.experienceMax));
+    }
+
+    if (filters?.provinceId) {
+      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+    }
+
+    if (filters?.organizationId) {
+      whereConditions.push(eq(jobs.organizationId, filters.organizationId));
+    }
+
+    if (filters?.workType) {
+      whereConditions.push(eq(jobs.workType, filters.workType));
+    }
+    //apply status filter for only employer and admin
+    if (filters?.status) {
+      whereConditions.push(eq(jobs.status, filters.status));
+    }
+
+    // Determine pagination mode (cursor by default)
+    const usePagePagination = filters?.pagination === PaginationType.PAGE;
+    if (cursor && !usePagePagination) {
+      whereConditions.push(gt(jobs.id, cursor));
+    }
+
+    // If using page pagination, compute offset/limit from query (fallback to function limit)
+    const offset = usePagePagination
+      ? (Math.max(page || 1, 1) - 1) * limit
+      : undefined;
+
+    // Add one extra item to check if there's a next page
+    const result = (await this.db
+      .select({
+        job: {
+          ...jobs,
+          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+        },
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
+        organization: organizations,
+        skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
+      })
+      .from(jobs)
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
+      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .leftJoin(companies, eq(organizations.id, companies.organizationId))
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(p) AS provinces
+          FROM ${provinces} p
+          WHERE p.id = ${jobs.provinceId}
+        ) p_lateral`,
+        sql`TRUE`,
+      )
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(s) AS skills
+          FROM ${jobSkills} js
+          INNER JOIN ${skills} s ON js.skill_id = s.id
+          WHERE js.job_id = ${jobs.id}
+        ) s_lateral`,
+        sql`TRUE`,
+      )
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .orderBy(asc(jobs.id))
+      // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
+      .offset(offset ?? 0)
+      .limit(limit + 1)) as {
+      job: Job;
+      provinces: Province[];
+      organization: OrganizationWithDetails;
+      skills: Skill[];
+    }[];
+
+    // Check if there's a next page
+    const hasNextPage = result.length > limit;
+    const data = hasNextPage ? result.slice(0, limit) : result;
+    let total: number | undefined = undefined;
+    if (usePagePagination) {
+      total = (
+        await this.db
+          .select({
+            total: countDistinct(jobs.id).as("total"),
+          })
+          .from(jobs)
+          .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+          .where(
+            whereConditions.length > 0 ? and(...whereConditions) : undefined,
+          )
+      )[0]?.total;
+    }
+
+    // Next cursor is only applicable for cursor pagination
+    const nextCursor =
+      !usePagePagination && hasNextPage && result[limit - 1]?.job
+        ? `${result[limit - 1].job.id}`
+        : undefined;
+
+    return {
+      data,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+        total,
+      },
+    };
+  }
+
+  async getJobs(filters: JobFilters): Promise<PaginatedResult<JobResponse>> {
     // Build where conditions
     const whereConditions: SQL[] = [];
     const { cursor, limit, page } = filters;
@@ -98,10 +227,6 @@ export class JobRepository
 
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
-    }
-    //apply status filter for only employer and admin
-    if (filters?.status) {
-      whereConditions.push(eq(jobs.status, filters.status));
     }
 
     if (filters?.user?.userId) {
