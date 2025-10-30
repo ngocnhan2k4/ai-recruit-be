@@ -1,7 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
 import {
+  Company,
   IOrganizationRepository,
+  NewOrganizationWithDetails,
+  OrganizationLocation,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
+  School,
   SchoolTypeEnum,
 } from "@/core";
 import {
@@ -90,11 +95,7 @@ export class OrganizationRepository
       benefits: row.benefits,
       culture: row.culture,
       schoolType: row.schoolType as SchoolTypeEnum,
-      locations: locations.map((loc) => ({
-        id: loc.id,
-        address: loc.address,
-        provinceId: loc.provinceId,
-      })),
+      locations: locations,
     };
   }
 
@@ -185,11 +186,11 @@ export class OrganizationRepository
   }
 
   async createOrganization(
-    data: OrganizationWithDetails,
+    data: NewOrganizationWithDetails,
     userId: string,
   ): Promise<OrganizationWithDetails> {
     const dt = await this.db.transaction(async (tx) => {
-      const org = await tx
+      const [org] = await tx
         .insert(organizations)
         .values({
           name: data.name,
@@ -205,55 +206,59 @@ export class OrganizationRepository
           foundedYear: data.foundedYear,
           employeesMin: data.employeesMin,
           employeesMax: data.employeesMax,
-          createdAt: new Date(),
         })
         .returning();
 
       const locationValues = data.locations?.map((location) => ({
-        organizationId: org[0].id,
+        organizationId: org.id,
         address: location.address ?? "",
         provinceId: location.provinceId ?? "",
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }));
-      await tx
+
+      const orgLocations = await tx
         .insert(organizationLocations)
         .values(locationValues ?? [])
         .returning();
 
+      let company: Company = {} as Company;
+      let school: School = {} as School;
+
+      if (org.type === OrganizationTypeEnum.COMPANY) {
+        company = await tx
+          .insert(companies)
+          .values({
+            organizationId: org.id,
+            companySize: data.companySize,
+            taxCode: data.taxCode,
+            benefits: data.benefits,
+          })
+          .returning()[0];
+      } else if (org.type === OrganizationTypeEnum.SCHOOL) {
+        school = await tx
+          .insert(schools)
+          .values({
+            organizationId: org.id,
+            schoolType: (data.schoolType as any) ?? SchoolTypeEnum.UNIVERSITY,
+          })
+          .returning()[0];
+      }
+
       await tx
         .insert(organizationMembers)
         .values({
-          organizationId: org[0].id,
+          organizationId: org.id,
           userId: userId,
           role: "organization_owner",
-          createdAt: new Date(),
         })
         .execute();
 
-      await tx
-        .insert(companies)
-        .values({
-          organizationId: org[0].id,
-          createdAt: new Date(),
-          companySize: data.companySize,
-          taxCode: data.taxCode,
-          benefits: data.benefits,
-        })
-        .returning();
-
-      await tx
-        .insert(schools)
-        .values({
-          organizationId: org[0].id,
-          createdAt: new Date(),
-          schoolType: (data.schoolType as any) ?? SchoolTypeEnum.UNIVERSITY,
-        })
-        .returning();
-
-      return this.getOrganizationById(
-        org[0].id,
-      ) as Promise<OrganizationWithDetails>;
+      return {
+        ...org,
+        ...company,
+        ...school,
+        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
+        locations: orgLocations,
+      };
     });
 
     return dt;
@@ -264,64 +269,68 @@ export class OrganizationRepository
     data: Partial<OrganizationWithDetails>,
   ): Promise<OrganizationWithDetails> {
     const dt = this.db.transaction(async (tx) => {
-      const org = await tx
+      const [org] = await tx
         .update(organizations)
         .set(data)
         .where(eq(organizations.id, id))
         .returning();
 
-      if (data.locations) {
-        data.locations.map(async (loc) => {
-          if (loc.id == null) {
-            return;
-          }
-          const res = await tx
-            .update(organizationLocations)
-            .set({
-              address: loc.address ?? "",
-              provinceId: loc.provinceId ?? "",
-            })
-            .where(eq(organizationLocations.id, loc.id))
-            .returning();
+      const allLocations: OrganizationLocation[] = [];
 
-          if (res.length === 0) {
-            await tx
-              .insert(organizationLocations)
-              .values({
-                organizationId: id,
+      if (data.locations && data.locations.length > 0) {
+        // for-each location, if it has id then update, else insert, then return all locations
+        for (const loc of data.locations) {
+          if (loc.id) {
+            const [updatedLoc] = await tx
+              .update(organizationLocations)
+              .set({
                 address: loc.address ?? "",
-                provinceId: loc.provinceId ?? "",
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                provinceId: loc.provinceId,
               })
+              .where(eq(organizationLocations.id, loc.id))
               .returning();
+            if (updatedLoc) {
+              allLocations.push(updatedLoc);
+            } else {
+              const [newLoc] = await tx
+                .insert(organizationLocations)
+                .values({
+                  organizationId: id,
+                  address: loc.address ?? "",
+                  provinceId: loc.provinceId,
+                })
+                .returning();
+              allLocations.push(newLoc);
+            }
           }
-        });
+        }
       }
+      const [[company], [school]] = await Promise.all([
+        tx
+          .update(companies)
+          .set({
+            companySize: data.companySize,
+            taxCode: data.taxCode,
+            benefits: data.benefits,
+          })
+          .where(eq(companies.organizationId, org.id))
+          .returning(),
+        tx
+          .update(schools)
+          .set({
+            schoolType: data.schoolType as any,
+          })
+          .where(eq(schools.organizationId, org.id))
+          .returning(),
+      ]);
 
-      // update companies table
-      await tx
-        .update(companies)
-        .set({
-          companySize: data.companySize,
-          taxCode: data.taxCode,
-          benefits: data.benefits,
-        })
-        .where(eq(companies.organizationId, org[0].id))
-        .execute();
-
-      // update schools table
-      await tx
-        .update(schools)
-        .set({
-          schoolType: data.schoolType as any,
-        })
-        .where(eq(schools.organizationId, org[0].id))
-        .execute();
-
-      return this.getOrganizationById(
-        org[0].id,
-      ) as Promise<OrganizationWithDetails>;
+      return {
+        ...org,
+        ...company,
+        ...school,
+        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
+        locations: allLocations,
+      };
     });
 
     return dt;

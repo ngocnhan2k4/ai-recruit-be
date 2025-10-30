@@ -1,6 +1,9 @@
 import { PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { OrganizationWithDetails } from "@/core/entities";
+import {
+  NewOrganizationWithDetails,
+  OrganizationWithDetails,
+} from "@/core/entities";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 
 export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
@@ -20,7 +23,7 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   >;
 
   abstract createOrganization(
-    data: Partial<OrganizationWithDetails>,
+    data: NewOrganizationWithDetails,
     userId: string,
   ): Promise<OrganizationWithDetails>;
 

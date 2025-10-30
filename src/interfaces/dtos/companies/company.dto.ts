@@ -13,6 +13,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 
 import {
+  CreateOrganizationDto,
   OrganizationDto,
   UpdateOrganizationDto,
 } from "../organization/organization.dto";
@@ -98,6 +99,17 @@ export class CreateCompanyDto {
   })
   @IsOptional()
   benefits?: string;
+}
+
+export class CreateCompanyWithOrganizationDto {
+  @ApiProperty({ type: CreateCompanyDto })
+  @IsNotEmpty({ message: "Company is required" })
+  @IsString()
+  company: CreateCompanyDto;
+  @ApiProperty({ type: CreateOrganizationDto })
+  @IsNotEmpty({ message: "Organization is required" })
+  @IsString()
+  organization: CreateOrganizationDto;
 }
 
 export class UpdateCompanyDto {

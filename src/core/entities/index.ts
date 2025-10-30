@@ -17,7 +17,10 @@ import {
   notifications,
   userNotifications,
 } from "@/frameworks/data-services/postgres/models/notification.model";
-import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
+import {
+  organizationLocations,
+  organizations,
+} from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
@@ -70,6 +73,14 @@ export type Notification = InferSelectModel<typeof notifications> &
   UserNotification;
 
 type Organization = InferSelectModel<typeof organizations>;
+type NewOrganization = InferInsertModel<typeof organizations>;
+
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
+export type NewOrganizationLocation = InferInsertModel<
+  typeof organizationLocations
+>;
 
 export type OrganizationWithDetails = Organization & {
   companySize?: number | null;
@@ -78,20 +89,30 @@ export type OrganizationWithDetails = Organization & {
   companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
-  locations?:
-    | {
-        id?: string | null;
-        address?: string | null;
-        provinceId?: string | null;
-      }[]
-    | null;
+  locations?: OrganizationLocation[];
+};
+
+export type NewOrganizationWithDetails = NewOrganization & {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  companyRawId?: number | null;
+  schoolType?: SchoolTypeEnum | null;
+  culture?: string | null;
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
 };
 
 export type Company = InferSelectModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
+  locations?: OrganizationLocation[];
 } & Organization;
 
-export type School = InferSelectModel<typeof schools> & Organization;
+export type NewCompany = Omit<
+  InferInsertModel<typeof companies>,
+  "organizationId"
+> & {
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+} & NewOrganization;
+
+export type School = InferSelectModel<typeof schools> & {
+  locations?: OrganizationLocation[];
+} & Organization;

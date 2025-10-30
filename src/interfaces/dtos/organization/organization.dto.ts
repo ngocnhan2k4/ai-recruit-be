@@ -15,11 +15,6 @@ import { IsEmail } from "class-validator";
 import { CreateCompanyDto } from "../companies/company.dto";
 import { CreateSchoolDto } from "../schools/school.dto";
 
-interface OrganizationLocation {
-  address: string;
-  provinceId: string;
-}
-
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;
@@ -148,7 +143,10 @@ export class CreateOrganizationDto {
   @ApiProperty({ type: "array", items: { type: "object" } })
   @IsNotEmpty({ message: "Locations is required" })
   @IsArray()
-  locations: OrganizationLocation[];
+  locations: {
+    address: string;
+    provinceId: string | null;
+  }[];
 
   @ApiProperty({ type: CreateCompanyDto })
   @IsNotEmpty({ message: "Company is required" })
