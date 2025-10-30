@@ -156,6 +156,13 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
       });
     }
+
+    const onboardingRecord = await this.userOnboardingRepository.getByField({
+      userId: user.id,
+    });
+    const school: string | null =
+      onboardingRecord.length > 0 ? onboardingRecord[0].school : null;
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -168,6 +175,7 @@ export class UserUseCases implements OnModuleInit {
         bio: user.bio,
         bannerUrl: user.bannerUrl,
         address: user.address,
+        school: school,
       },
     };
   }
