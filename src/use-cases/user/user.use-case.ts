@@ -156,6 +156,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
       });
     }
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -168,6 +169,7 @@ export class UserUseCases implements OnModuleInit {
         bio: user.bio,
         bannerUrl: user.bannerUrl,
         address: user.address,
+        school: null,
       },
     };
   }
