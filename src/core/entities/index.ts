@@ -31,7 +31,8 @@ export type Category = InferSelectModel<typeof categories>;
 
 export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
-  questions?: string[];
+  questions: string[] | null;
+  applyUrl?: string | null;
 };
 
 export type NewProvince = InferInsertModel<typeof provinces>;

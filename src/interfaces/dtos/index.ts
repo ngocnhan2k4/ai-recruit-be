@@ -5,7 +5,7 @@ export * from "./auth/login.dto";
 export * from "./common/api-response.dto";
 export * from "./common/query";
 export * from "./jobs/job.dto";
-export * from "./jobs/query-job.dto";
+export * from "./jobs/job-query.dto";
 export * from "./jobs/statistic-job.dto";
 export * from "./jobs/job-interaction.dto";
 export * from "./companies/company.dto";
