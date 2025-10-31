@@ -12,6 +12,7 @@ import {
   userOnboardings,
   organizationMembers,
   schools,
+  userEducations,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -117,3 +118,6 @@ export type NewCompany = Omit<
 export type School = InferSelectModel<typeof schools> & {
   locations?: OrganizationLocation[];
 } & Organization;
+
+export type NewUserEducation = InferInsertModel<typeof userEducations>;
+export type UserEducation = InferSelectModel<typeof userEducations>;
