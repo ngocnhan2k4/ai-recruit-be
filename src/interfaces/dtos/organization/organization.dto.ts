@@ -79,13 +79,6 @@ export class CreateOrganizationDto {
   @MinLength(2, { message: "Name must be at least 2 characters long" })
   name: string;
 
-  // @ApiProperty({ type: "string" })
-  // @IsNotEmpty({ message: "Slug is required" })
-  // @IsString({ message: "Slug must be a string" })
-  // @MaxLength(255, { message: "Slug must not exceed 255 characters" })
-  // @MinLength(2, { message: "Slug must be at least 2 characters long" })
-  // slug: string;
-
   @ApiProperty({ enum: OrganizationTypeEnum })
   @IsNotEmpty({ message: "Type is required" })
   @IsEnum(OrganizationTypeEnum, {
@@ -148,12 +141,12 @@ export class CreateOrganizationDto {
     provinceId: string | null;
   }[];
 
-  @ApiProperty({ type: CreateCompanyDto })
+  @ApiProperty({ type: () => CreateCompanyDto })
   @IsNotEmpty({ message: "Company is required" })
   @IsObject()
   company: CreateCompanyDto;
 
-  @ApiProperty({ type: CreateSchoolDto })
+  @ApiProperty({ type: () => CreateSchoolDto })
   @IsNotEmpty({ message: "School is required" })
   @IsObject()
   school: CreateSchoolDto;
