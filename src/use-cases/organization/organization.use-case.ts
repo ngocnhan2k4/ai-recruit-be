@@ -117,7 +117,7 @@ export class OrganizationUseCase {
     userId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const { company, school, ...rest } = data;
-    const slug = await this.generateSlug(rest.name);
+    const slug = this.generateSlug(rest.name, new Date());
     const result = await this.organizationRepository.createOrganization(
       {
         ...rest,
@@ -261,21 +261,11 @@ export class OrganizationUseCase {
     };
   }
 
-  async generateSlug(name: string): Promise<string> {
+  generateSlug(name: string, time: Date): string {
     const baseSlug = slugify(name);
-    let slug = baseSlug;
-    let suffix;
+    // base36
+    const shortTime = time.getTime().toString(36).slice(-5);
 
-    while (true) {
-      const existingOrg = await this.organizationRepository.getByField({
-        slug,
-      });
-      if (!existingOrg) {
-        break;
-      }
-      suffix = suffix ? suffix + 1 : 1;
-      slug = `${baseSlug}-${suffix}`;
-    }
-    return slug;
+    return `${baseSlug}-${shortTime}`;
   }
 }
