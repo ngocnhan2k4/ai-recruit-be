@@ -18,6 +18,7 @@ import {
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
+  IUserEducationRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -34,6 +35,7 @@ import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/or
 import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
 import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
+import { UserEducationRepository } from "./repositories/user-education.repository";
 
 @Global()
 @Module({
@@ -146,6 +148,10 @@ import { OrganizationRepository } from "./repositories/organization.repository";
       provide: IOrganizationRepository,
       useClass: OrganizationRepository,
     },
+    {
+      provide: IUserEducationRepository,
+      useClass: UserEducationRepository,
+    },
   ],
   exports: [
     IAuthRepository,
@@ -162,6 +168,7 @@ import { OrganizationRepository } from "./repositories/organization.repository";
     IOrganizationMembersRepository,
     INotificationRepository,
     IOrganizationRepository,
+    IUserEducationRepository,
   ],
 })
 export class PostgresDataServicesModule {}
