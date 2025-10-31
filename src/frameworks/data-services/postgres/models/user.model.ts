@@ -21,7 +21,6 @@ import {
   ProviderEnum,
   UserStatusEnum,
 } from "./enums";
-import { schools } from "./school.model";
 
 export const users = pgTable(
   "users",
@@ -110,7 +109,7 @@ export const userEducations = pgTable("user_educations", {
     .references(() => users.id),
   schoolId: uuid("school_id")
     .notNull()
-    .references(() => schools.organizationId),
+    .references(() => organizations.id),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   educationLevel: EducationLevelEnum("education_level"),
