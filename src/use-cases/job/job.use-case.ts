@@ -49,7 +49,6 @@ export class JobUseCases {
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
     let result: PaginatedResult<JobResponse>;
     // Decide which method to call based on user role
-    console.log("User Roles:", filters.user);
     if (filters.user?.roles.includes(RoleEnum.ADMIN)) {
       this.logger.log("Fetching jobs for admin user");
       result = await this.jobRepository.getJobsByAdmin(filters);
