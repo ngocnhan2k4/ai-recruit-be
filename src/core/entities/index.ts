@@ -78,8 +78,9 @@ type NewOrganization = InferInsertModel<typeof organizations>;
 export type OrganizationLocation = InferSelectModel<
   typeof organizationLocations
 >;
-export type NewOrganizationLocation = InferInsertModel<
-  typeof organizationLocations
+export type NewOrganizationLocation = Omit<
+  InferInsertModel<typeof organizationLocations>,
+  "organizationId"
 >;
 
 export type OrganizationWithDetails = Organization & {
@@ -99,7 +100,7 @@ export type NewOrganizationWithDetails = NewOrganization & {
   companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
-  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+  locations?: NewOrganizationLocation[];
 };
 
 export type Company = InferSelectModel<typeof companies> & {

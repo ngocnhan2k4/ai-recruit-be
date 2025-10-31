@@ -1,28 +1,16 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import {
-  ApiResponse,
-  UpdateCompanyWithOrganizationDto,
-  CompanyDto,
-  CreateCompanyWithOrganizationDto,
-} from "@/interfaces/dtos";
+import { ApiResponse, CompanyDto } from "@/interfaces/dtos";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
-import {
-  Company,
-  IBloomFilterService,
-  ICompanyRepository,
-  IOrganizationRepository,
-} from "@/core";
+import { Company, IBloomFilterService, ICompanyRepository } from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
-import { slugify } from "@/common/utils/string";
 @Injectable()
 export class CompanyUseCase implements OnModuleInit {
   private readonly logger = new Logger(CompanyUseCase.name);
@@ -30,7 +18,6 @@ export class CompanyUseCase implements OnModuleInit {
   constructor(
     private readonly companyRepository: ICompanyRepository,
     public readonly bloomFilterService: IBloomFilterService,
-    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   onModuleInit(): void {
@@ -103,32 +90,6 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
-  // [TODO-PHAT]: move this logic into repository layer to using transaction
-  async createCompany(
-    userId: string,
-    data: CreateCompanyWithOrganizationDto,
-  ): Promise<ApiResponse<Company>> {
-    const slug = await this.generateSlug(data.organization.name);
-    const company = await this.companyRepository.createCompany(
-      {
-        ...data.company,
-        ...data.organization,
-        slug,
-      },
-      userId,
-    );
-    if (!company) {
-      throw new BadRequestException(
-        "[CompanyUseCase] - [createCompany] Failed to create company",
-      );
-    }
-    return {
-      message: "Company created successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: company,
-    };
-  }
-
   async getCompanyById(
     organizationId: string,
   ): Promise<ApiResponse<CompanyDto>> {
@@ -185,45 +146,5 @@ export class CompanyUseCase implements OnModuleInit {
         ? organization.verifiedAt.toISOString()
         : "",
     };
-  }
-
-  // [TODO-PHAT]: move this logic into organization repository layer to using transaction
-  async updateCompanyById(
-    organizationId: string,
-    data: UpdateCompanyWithOrganizationDto,
-  ): Promise<ApiResponse<CompanyDto>> {
-    const updatedCompanyWithOrg =
-      await this.companyRepository.updateCompanyById(organizationId, {
-        ...data.company,
-        ...data.organization,
-      });
-    if (!updatedCompanyWithOrg) {
-      throw new NotFoundException(
-        `[CompanyUseCase] - [updateCompanyById] Company with Organization ID ${organizationId} not found`,
-      );
-    }
-    return {
-      data: this.mapToCompanyDto(updatedCompanyWithOrg),
-      message: "Company updated successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
-
-  async generateSlug(name: string): Promise<string> {
-    const baseSlug = slugify(name);
-    let slug = baseSlug;
-    let suffix;
-
-    while (true) {
-      const existingOrg = await this.organizationRepository.getByField({
-        slug,
-      });
-      if (!existingOrg) {
-        break;
-      }
-      suffix = suffix ? suffix + 1 : 1;
-      slug = `${baseSlug}-${suffix}`;
-    }
-    return slug;
   }
 }
