@@ -24,13 +24,11 @@ import {
   and,
   gt,
   SQL,
-  ilike,
   isNotNull,
   inArray,
   isNull,
+  sql,
 } from "drizzle-orm";
-import { PaginatedResult } from "@/common/types/api";
-import { slugify } from "@/common/utils/string";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 
 @Injectable()
@@ -99,23 +97,11 @@ export class OrganizationRepository
     };
   }
 
-  async getAllOrganizations(
-    query: OrganizationQuery,
-  ): Promise<
-    PaginatedResult<
-      Pick<
-        OrganizationWithDetails,
-        "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
-      >
-    >
-  > {
+  async getAllOrganizations(query: OrganizationQuery) {
     const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
 
     if (query.keyword) {
-      whereConditions.push(ilike(organizations.name, `%${query.keyword}%`));
-      whereConditions.push(
-        ilike(organizations.slug, `%${slugify(query.keyword)}%`),
-      );
+      whereConditions.push(sql`${organizations.name} % ${query.keyword}`);
     }
 
     if (query.employeeMin !== undefined) {
@@ -130,7 +116,7 @@ export class OrganizationRepository
       whereConditions.push(isNotNull(organizations.verifiedAt));
     }
 
-    if (query.provinceIds && query.provinceIds.length > 0) {
+    if (query.provinceIds?.length) {
       whereConditions.push(
         inArray(organizationLocations.provinceId, query.provinceIds),
       );
@@ -144,17 +130,29 @@ export class OrganizationRepository
       whereConditions.push(gt(organizations.createdAt, new Date(query.cursor)));
     }
 
+    const baseSelect = {
+      id: organizations.id,
+      name: organizations.name,
+      logoUrl: organizations.logoUrl,
+      description: organizations.description,
+      foundedYear: organizations.foundedYear,
+      role: organizationMembers.role,
+      verifiedAt: organizations.verifiedAt,
+      createdAt: organizations.createdAt,
+    } as const;
+
+    const selectFields = query.keyword
+      ? {
+          ...baseSelect,
+          similarity:
+            sql`similarity(${organizations.name}, ${query.keyword})`.as(
+              "similarity",
+            ),
+        }
+      : baseSelect;
+
     const results = await this.db
-      .select({
-        id: organizations.id,
-        name: organizations.name,
-        logoUrl: organizations.logoUrl,
-        description: organizations.description,
-        foundedYear: organizations.foundedYear,
-        role: organizationMembers.role,
-        verifiedAt: organizations.verifiedAt,
-        createdAt: organizations.createdAt,
-      })
+      .select(selectFields)
       .from(organizations)
       .leftJoin(
         organizationLocations,
@@ -165,7 +163,11 @@ export class OrganizationRepository
         eq(organizations.id, organizationMembers.organizationId),
       )
       .where(and(...whereConditions))
-      .orderBy(desc(organizations.createdAt))
+      .orderBy(
+        query.keyword
+          ? desc(sql`similarity(${organizations.name}, ${query.keyword})`)
+          : desc(organizations.createdAt),
+      )
       .limit(query.limit + 1);
 
     const hasNextPage = results.length > query.limit;
@@ -177,9 +179,9 @@ export class OrganizationRepository
         : null;
 
     return {
-      data: data,
+      data,
       pagination: {
-        nextCursor: nextCursor,
+        nextCursor,
         hasNextPage,
       },
     };
