@@ -74,38 +74,55 @@ export class OrganizationUseCase {
     }
   }
 
+  // async checkOrganizationName(
+  //   orgName: string,
+  // ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
+  //   // if bloom is not ready, fallback to DB verification to avoid false-negatives
+  //   const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
+  //   const mightExist = bloomReady
+  //     ? this.bloomFilterService.mightContain(orgName)
+  //     : true;
+
+  //   if (!mightExist) {
+  //     return {
+  //       data: { exists: false },
+  //       message: "Organization name does not exist",
+  //       code: RESPONSE_CODE.SUCCESS,
+  //     };
+  //   }
+
+  //   this.logger.log(
+  //     `[OrganizationUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
+  //   );
+
+  //   // Step 2: verify DB để loại false positive
+  //   const organization = await this.organizationRepository.getByField({
+  //     name: orgName,
+  //   });
+  //   this.logger.log(
+  //     `[OrganizationUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
+  //   );
+
+  //   return {
+  //     data: {
+  //       exists: !!organization,
+  //     },
+  //     message: "Organization name existence checked successfully",
+  //     code: RESPONSE_CODE.SUCCESS,
+  //   };
+  // }
+
   async checkOrganizationName(
     orgName: string,
   ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
-    // if bloom is not ready, fallback to DB verification to avoid false-negatives
-    const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
-    const mightExist = bloomReady
-      ? this.bloomFilterService.mightContain(orgName)
-      : true;
-
-    if (!mightExist) {
-      return {
-        data: { exists: false },
-        message: "Organization name does not exist",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    }
-
-    this.logger.log(
-      `[OrganizationUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
-    );
-
-    // Step 2: verify DB để loại false positive
-    const organization = await this.organizationRepository.getByField({
-      name: orgName,
-    });
-    this.logger.log(
-      `[OrganizationUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
+    const mightExist = await this.organizationRepository.checkNameMightExist(
+      orgName,
+      0.7,
     );
 
     return {
       data: {
-        exists: !!organization,
+        exists: mightExist,
       },
       message: "Organization name existence checked successfully",
       code: RESPONSE_CODE.SUCCESS,

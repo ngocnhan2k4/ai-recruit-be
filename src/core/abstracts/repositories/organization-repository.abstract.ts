@@ -22,6 +22,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     >
   >;
 
+  abstract checkNameMightExist(name: string, score: number): Promise<boolean>;
+
   abstract createOrganization(
     data: NewOrganizationWithDetails,
     userId: string,

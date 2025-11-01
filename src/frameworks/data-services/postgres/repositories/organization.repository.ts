@@ -187,6 +187,23 @@ export class OrganizationRepository
     };
   }
 
+  async checkNameMightExist(name: string, score: number): Promise<boolean> {
+    const whereConditions: SQL<unknown>[] = [
+      sql`${organizations.name} % ${name} >= ${score}`,
+      isNull(organizations.deletedAt),
+    ];
+
+    const result = await this.db
+      .select({
+        id: organizations.id,
+      })
+      .from(organizations)
+      .where(and(...whereConditions))
+      .limit(1);
+
+    return result.length > 0;
+  }
+
   async createOrganization(
     data: NewOrganizationWithDetails,
     userId: string,
