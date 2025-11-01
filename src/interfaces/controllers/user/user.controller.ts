@@ -52,6 +52,11 @@ import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
 import { PaginatedResultDto } from "../../dtos/common/query";
+import {
+  CreateUserEducationDto,
+  UpdateUserEducationDto,
+  UserEducationResponseDto,
+} from "@/interfaces/dtos/users/user-education.dto";
 
 @ApiTags("Users")
 @Controller("users")
@@ -331,5 +336,61 @@ export class UserController {
     @Query() query: GetUserQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
     return await this.userUseCases.getAllUsers(query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Get user education" })
+  @ApiResponseDto(UserEducationResponseDto, { isArray: true })
+  @Get("/me/education")
+  async getUserEducation(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserEducationResponseDto[]>> {
+    return this.userUseCases.getUserEducations(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Create user education" })
+  @CasbinPermission("/me/education", "POST")
+  @Post("/me/education")
+  @ApiBody({ type: CreateUserEducationDto })
+  @ApiResponseDto(UserEducationResponseDto)
+  async createUserEducation(
+    @GetUser() user: TokenPayload,
+    @Body() createUserEducationDto: CreateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    return this.userUseCases.createUserEducation(
+      user.userId,
+      createUserEducationDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Update user education" })
+  @CasbinPermission("/me/education", "PUT")
+  @Put("/me/education/:educationId")
+  @ApiBody({ type: UpdateUserEducationDto })
+  @ApiResponseDto(UserEducationResponseDto)
+  async updateUserEducation(
+    @GetUser() user: TokenPayload,
+    @Param("educationId") id: string,
+    @Body() updateUserEducation: UpdateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    return this.userUseCases.updateUserEducation(
+      user.userId,
+      id,
+      updateUserEducation,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Delete user education" })
+  @CasbinPermission("/me/education", "DELETE")
+  @Delete("/me/education/:educationId")
+  @ApiResponseDto("number")
+  async deleteUserEducation(
+    @GetUser() user: TokenPayload,
+    @Param("educationId") educationId: string,
+  ) {
+    return this.userUseCases.deleteUserEducation(user.userId, educationId);
   }
 }

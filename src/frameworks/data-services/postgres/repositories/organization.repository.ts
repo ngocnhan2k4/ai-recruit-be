@@ -1,6 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import {
   IOrganizationRepository,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
   SchoolTypeEnum,
 } from "@/core";
@@ -12,7 +13,7 @@ import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { eq, desc, and, gt, SQL } from "drizzle-orm";
+import { eq, desc, and, gt, SQL, or } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
 
@@ -122,5 +123,52 @@ export class OrganizationRepository
         hasNextPage,
       },
     };
+  }
+
+  async getOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<OrganizationWithDetails[]> {
+    const result = await this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+        type: organizations.type,
+        description: organizations.description,
+        address: organizations.address,
+        logoUrl: organizations.logoUrl,
+        about: organizations.about,
+        websiteUrl: organizations.websiteUrl,
+        email: organizations.email,
+        phone: organizations.phone,
+        foundedYear: organizations.foundedYear,
+        verifiedAt: organizations.verifiedAt,
+        employeesMin: organizations.employeesMin,
+        employeesMax: organizations.employeesMax,
+        createdAt: organizations.createdAt,
+        updatedAt: organizations.updatedAt,
+        deletedAt: organizations.deletedAt,
+        companySize: companies.companySize,
+        taxCode: companies.taxCode,
+        benefits: companies.benefits,
+        companyRawId: companies.companyRawId,
+        culture: companies.culture,
+        schoolType: schools.schoolType,
+      })
+      .from(organizations)
+      .leftJoin(companies, eq(organizations.id, companies.organizationId))
+      .leftJoin(schools, eq(organizations.id, schools.organizationId))
+      .where(or(...types.map((type) => eq(organizations.type, type))));
+
+    if (!result) return [];
+
+    return result.map((row) => ({
+      ...row,
+      companySize: row.companySize,
+      taxCode: row.taxCode,
+      benefits: row.benefits,
+      culture: row.culture,
+      schoolType: row.schoolType as SchoolTypeEnum,
+    }));
   }
 }
