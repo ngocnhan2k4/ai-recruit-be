@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Body, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, UseGuards, Query } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponseDto,
   ApiResponse,
   SkillDto,
   CreateSkillDto,
+  PaginatedResultDto,
+  GetSkillsQueryDto,
 } from "../../dtos";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -34,5 +36,16 @@ export class SkillController {
   ): Promise<ApiResponse<SkillDto[]>> {
     console.log(createSkillDto);
     return this.skillUseCases.createMany(createSkillDto);
+  }
+
+  @ApiOperation({
+    summary: "Get pageinated skills",
+  })
+  @ApiResponseDto(SkillDto, { isArray: true })
+  @Get()
+  async getPaginatedSkills(
+    @Query() query: GetSkillsQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<SkillDto>>> {
+    return await this.skillUseCases.getPaginatedSkills(query);
   }
 }

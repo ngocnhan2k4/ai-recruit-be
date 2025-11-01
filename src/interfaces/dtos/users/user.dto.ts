@@ -67,6 +67,9 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   address: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  school: string | null;
 }
 
 export class UserSeoPublicResponseDto {

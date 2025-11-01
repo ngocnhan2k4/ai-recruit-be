@@ -15,10 +15,10 @@ import {
   IUserExperienceRepository,
   IUserRepository,
   IUserSkillRepository,
-  IUniversityRepository,
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
+  IUserEducationRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -30,12 +30,12 @@ import { UserExperienceRepository } from "./repositories/user-experience.reposit
 import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { SkillRepository } from "./repositories/skill.repository";
-import { UniversityRepository } from "./repositories/university.repository";
 import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
 import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
 import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
+import { UserEducationRepository } from "./repositories/user-education.repository";
 
 @Global()
 @Module({
@@ -133,10 +133,6 @@ import { OrganizationRepository } from "./repositories/organization.repository";
       useClass: SkillRepository,
     },
     {
-      provide: IUniversityRepository,
-      useClass: UniversityRepository,
-    },
-    {
       provide: IUserOnboardingRepository,
       useClass: UserOnboardingRepository,
     },
@@ -152,6 +148,10 @@ import { OrganizationRepository } from "./repositories/organization.repository";
       provide: IOrganizationRepository,
       useClass: OrganizationRepository,
     },
+    {
+      provide: IUserEducationRepository,
+      useClass: UserEducationRepository,
+    },
   ],
   exports: [
     IAuthRepository,
@@ -164,11 +164,11 @@ import { OrganizationRepository } from "./repositories/organization.repository";
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,
-    IUniversityRepository,
     IUserOnboardingRepository,
     IOrganizationMembersRepository,
     INotificationRepository,
     IOrganizationRepository,
+    IUserEducationRepository,
   ],
 })
 export class PostgresDataServicesModule {}

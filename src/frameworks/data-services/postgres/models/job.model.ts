@@ -116,7 +116,6 @@ export const userInteractions = pgTable("user_interactions", {
 
 export const applyJobs = pgTable("apply_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
