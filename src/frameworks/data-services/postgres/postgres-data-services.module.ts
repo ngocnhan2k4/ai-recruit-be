@@ -154,6 +154,7 @@ import { OrganizationRepository } from "./repositories/organization.repository";
     },
   ],
   exports: [
+    "DRIZZLE",
     IAuthRepository,
     ICategoryRepository,
     ICompanyRepository,

@@ -6,20 +6,26 @@ import { DrizzleCasbinAdapter } from "./casbin.adapter";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { ConfigService } from "@nestjs/config";
+import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
 @Injectable()
 export class CasbinService {
   private cache = new Map<string, SyncedEnforcer>();
   private readonly modelPath: string;
+  private readonly sharedAdapter: DrizzleCasbinAdapter;
+  private readonly enforcerAdapter: DrizzleCasbinAdapter;
 
   constructor(
     @Inject("CASBIN_ENFORCER") private readonly enforcer: SyncedEnforcer,
-    @Inject(ConfigService) private readonly configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {
     this.modelPath = path.resolve(
       process.cwd(),
       "src/common/config/rbac_model.conf",
     );
+    // Get the adapter from the enforcer
+    this.enforcerAdapter = (enforcer as any).adapter as DrizzleCasbinAdapter;
+    this.sharedAdapter = this.enforcerAdapter;
   }
 
   getEnforcer(): SyncedEnforcer {
@@ -32,30 +38,11 @@ export class CasbinService {
       return this.cache.get(userId) as SyncedEnforcer;
     }
 
-    const databaseAdapterUrl = this.configService.get<string>(
-      "DATABASE_ADAPTER_URL",
+    // Create new enforcer with filtered policies using shared adapter
+    const newEnforcer = await newSyncedEnforcer(
+      this.modelPath,
+      this.sharedAdapter,
     );
-
-    const pool = new Pool({
-      connectionString: databaseAdapterUrl,
-      ssl:
-        process.env.NODE_ENV === "production"
-          ? { rejectUnauthorized: false }
-          : false,
-      max: 10,
-      min: 2,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    const db = drizzle(pool, {
-      casing: "snake_case",
-    });
-
-    const adapter = new DrizzleCasbinAdapter(db);
-
-    // Create new enforcer with filtered policies
-    const newEnforcer = await newSyncedEnforcer(this.modelPath, adapter);
 
     // Load filtered policies: all "p" policies + user's "g" policies
     await newEnforcer.loadFilteredPolicy([
