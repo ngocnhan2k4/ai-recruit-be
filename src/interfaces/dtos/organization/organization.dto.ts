@@ -87,18 +87,22 @@ export class CreateOrganizationDto {
   type: OrganizationTypeEnum;
 
   @ApiProperty({ type: "string" })
+  @IsNotEmpty({ message: "Description is required" })
   @IsString()
   description: string;
 
   @ApiProperty({ type: "string" })
+  @IsNotEmpty({ message: "Address is required" })
   @IsString()
   logoUrl: string;
 
   @ApiProperty({ type: "string" })
+  @IsOptional()
   @IsString()
-  about: string;
+  about?: string;
 
   @ApiProperty({ type: "string" })
+  @IsNotEmpty({ message: "Website URL is required" })
   @IsString()
   websiteUrl: string;
 
@@ -121,15 +125,13 @@ export class CreateOrganizationDto {
   @IsNumber()
   foundedYear: number;
 
-  @ApiProperty({ type: "string" })
-  @IsString()
-  organizationCulture: string;
-
   @ApiProperty({ type: "number" })
+  @IsNotEmpty({ message: "Employees min is required" })
   @IsNumber()
   employeesMin: number;
 
   @ApiProperty({ type: "number" })
+  @IsNotEmpty({ message: "Employees max is required" })
   @IsNumber()
   employeesMax: number;
 
@@ -202,11 +204,6 @@ export class UpdateOrganizationDto {
   @IsOptional()
   @IsNumber()
   foundedYear?: number;
-
-  @ApiProperty({ type: "string" })
-  @IsOptional()
-  @IsString()
-  organizationCulture?: string;
 
   @ApiProperty({ type: "number" })
   @IsOptional()

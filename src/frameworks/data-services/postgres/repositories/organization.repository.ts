@@ -189,7 +189,7 @@ export class OrganizationRepository
 
   async checkNameMightExist(name: string, score: number): Promise<boolean> {
     const whereConditions: SQL<unknown>[] = [
-      sql`${organizations.name} % ${name} >= ${score}`,
+      sql`similarity(${organizations.name}, ${name}) >= ${score}`,
       isNull(organizations.deletedAt),
     ];
 

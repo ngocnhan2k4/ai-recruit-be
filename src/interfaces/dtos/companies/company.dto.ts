@@ -76,9 +76,8 @@ export class CreateCompanyDto {
     type: "number",
     example: 100,
   })
-  @IsNotEmpty({ message: "Company size is required" })
   @IsNumber({}, { message: "Company size must be a number" })
-  companySize: number;
+  companySize?: number;
 
   @ApiProperty({
     description: "Company tax code",
@@ -90,6 +89,16 @@ export class CreateCompanyDto {
   @MaxLength(100, { message: "Tax code must not exceed 100 characters" })
   @MinLength(2, { message: "Tax code must be at least 2 characters long" })
   taxCode: string;
+
+  @ApiProperty({
+    description: "Company culture",
+    type: "string",
+    example: "Innovative and inclusive work environment",
+  })
+  @IsString({ message: "Culture must be a string" })
+  @MaxLength(500, { message: "Culture must not exceed 500 characters" })
+  @MinLength(2, { message: "Culture must be at least 2 characters long" })
+  culture?: string;
 
   @ApiProperty({
     description: "Company benefits",
