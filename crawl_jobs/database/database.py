@@ -246,14 +246,11 @@ def insert_to_db(db_url: str, companies: dict):
                     job_raw_id = _get_or_create_job_raw(cur, title, jdata, company_raw_id)
 
                     province_id = None
-                    locations = cdata.get("address")
-                    if not locations:
-                        locations = jdata.get("locations")
-
-                    if locations:
-                        province_name = locations[0]
+                    if jdata.get("locations"):
+                        province_name = next(iter(jdata.get("locations", [])), None)
                         province_id = _get_or_create_province(cur, province_name)
-                        _insert_organization_location(cur, organization_id, province_id, locations)
+
+                    _insert_organization_location(cur, organization_id, province_id, cdata.get("address"))
 
                     job_id = _insert_job(cur, title, jdata, company_id, province_id, job_raw_id)
                     if not job_id:
