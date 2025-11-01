@@ -5,12 +5,18 @@ import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { Injectable, Logger } from "@nestjs/common";
 import {
-  Notification,
-  NotificationType,
+  NotificationTypeEnum,
   NewNotification,
+  NotificationStatusEnum,
 } from "@/core/entities";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
-import { GetNotificationResponseDto } from "@/interfaces/dtos/notifications/notification.dto";
+import {
+  CreateNotificationResponseDto,
+  GetNotificationResponseDto,
+  NotificationActionRequestDto,
+  NotificationActionResponseDto,
+  UpdateNotificationStatusResponseDto,
+} from "@/interfaces/dtos/notifications/notification.dto";
 
 @Injectable()
 export class NotificationUseCase {
@@ -34,7 +40,7 @@ export class NotificationUseCase {
         data: result.data.map((d) => ({
           notification: {
             ...d,
-            type: d.type as NotificationType,
+            type: d.type as NotificationTypeEnum,
           },
         })),
         pagination: result.pagination,
@@ -46,7 +52,7 @@ export class NotificationUseCase {
   async createAndSendToUser(
     notification: NewNotification,
     recipient: { receiverId: string; organizationId?: string },
-  ): Promise<ApiResponse<{ notification: any }>> {
+  ): Promise<ApiResponse<CreateNotificationResponseDto>> {
     const result = await this.notificationService.createAndSendToUser(
       notification,
       {
@@ -60,12 +66,10 @@ export class NotificationUseCase {
     return {
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        notification: result.notification
-          ? {
-              ...result.notification,
-              type: result.notification.type as NotificationType,
-            }
-          : null,
+        notification: {
+          ...result.notification,
+          type: result.notification?.type as NotificationTypeEnum,
+        },
       },
       message: result.success
         ? `Notification created and sent successfully`
@@ -75,14 +79,14 @@ export class NotificationUseCase {
 
   async updateNotificationStatus(
     notificationId: string,
-    status: "read" | "deleted",
-  ): Promise<ApiResponse<{ notification: any }>> {
-    if (status === "read") {
+    status: NotificationStatusEnum,
+  ): Promise<ApiResponse<UpdateNotificationStatusResponseDto>> {
+    if (status === NotificationStatusEnum.READ) {
       await this.notificationRepository.markAsRead([notificationId]);
       this.logger.log(
         `Marked notification ${notificationId} as read successfully`,
       );
-    } else if (status === "deleted") {
+    } else if (status === NotificationStatusEnum.DELETED) {
       await this.notificationRepository.markAsDeleted([notificationId]);
       this.logger.log(
         `Marked notification ${notificationId} as deleted successfully`,
@@ -94,17 +98,19 @@ export class NotificationUseCase {
     return {
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        notification: { id: notificationId, status },
+        notification: {
+          id: notificationId,
+          status,
+        },
       },
       message: `Notification marked as ${status} successfully`,
     };
   }
 
-  async updateNotificationsStatus(
-    notificationIds: string[],
-    status: "read" | "deleted",
-  ): Promise<ApiResponse<{ count: number }>> {
-    if (!notificationIds || notificationIds.length === 0) {
+  async updateMultipleNotificationsStatus(
+    data: NotificationActionRequestDto,
+  ): Promise<ApiResponse<NotificationActionResponseDto>> {
+    if (!data.userNotificationIds || data.userNotificationIds.length === 0) {
       return {
         code: RESPONSE_CODE.SUCCESS,
         data: { count: 0 },
@@ -112,15 +118,15 @@ export class NotificationUseCase {
       };
     }
 
-    if (status === "read") {
-      await this.notificationRepository.markAsRead(notificationIds);
+    if (data.status === NotificationStatusEnum.READ) {
+      await this.notificationRepository.markAsRead(data.userNotificationIds);
       this.logger.log(
-        `Marked ${notificationIds.length} notification(s) as read successfully`,
+        `Marked ${data.userNotificationIds.length} notification(s) as read successfully`,
       );
-    } else if (status === "deleted") {
-      await this.notificationRepository.markAsDeleted(notificationIds);
+    } else if (data.status === NotificationStatusEnum.DELETED) {
+      await this.notificationRepository.markAsDeleted(data.userNotificationIds);
       this.logger.log(
-        `Marked ${notificationIds.length} notification(s) as deleted successfully`,
+        `Marked ${data.userNotificationIds.length} notification(s) as deleted successfully`,
       );
     } else {
       throw new Error("Invalid status");
@@ -129,9 +135,9 @@ export class NotificationUseCase {
     return {
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        count: notificationIds.length,
+        count: data.userNotificationIds.length,
       },
-      message: `Successfully marked ${notificationIds.length} notification(s) as ${status}`,
+      message: `Successfully marked ${data.userNotificationIds.length} notification(s) as ${status}`,
     };
   }
 }

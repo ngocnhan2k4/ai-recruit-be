@@ -45,7 +45,7 @@ export enum UserStatusEnum {
   INACTIVE = "inactive",
   BANNED = "banned",
 }
-export enum NotificationType {
+export enum NotificationTypeEnum {
   JOB_POSTED = "job_posted",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
@@ -54,6 +54,10 @@ export enum NotificationType {
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
   SYSTEM = "system",
+}
+export enum NotificationStatusEnum {
+  READ = "read",
+  DELETED = "deleted",
 }
 export enum SchoolTypeEnum {
   COLLEGE = "college",

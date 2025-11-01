@@ -23,9 +23,10 @@ import {
   GetNotificationResponseDto,
   CreateNotificationRequestDto,
   CreateNotificationResponseDto,
-  UpdateNotificationStatusDto,
+  UpdateNotificationStatusRequestDto,
   NotificationActionRequestDto,
   NotificationActionResponseDto,
+  UpdateNotificationStatusResponseDto,
 } from "@/interfaces/dtos/notifications/notification.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
@@ -59,13 +60,13 @@ export class NotificationController {
   async createAndSendToUser(
     @Body() data: CreateNotificationRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<{ notification: any }>> {
+  ): Promise<ApiResponse<CreateNotificationResponseDto>> {
     return this.notificationUseCase.createAndSendToUser(
       {
         ...data,
         senderId: data.senderId || user.userId,
       },
-      data.recipients[0],
+      data.recipient,
     );
   }
 
@@ -78,8 +79,8 @@ export class NotificationController {
   @Patch(":id")
   async updateNotificationStatus(
     @Param("id") notificationId: string,
-    @Body() data: UpdateNotificationStatusDto,
-  ): Promise<ApiResponse<{ notification: any }>> {
+    @Body() data: UpdateNotificationStatusRequestDto,
+  ): Promise<ApiResponse<UpdateNotificationStatusResponseDto>> {
     return this.notificationUseCase.updateNotificationStatus(
       notificationId,
       data.status,
@@ -94,13 +95,9 @@ export class NotificationController {
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(NotificationActionResponseDto)
   @Patch()
-  async updateNotificationsStatus(
-    @Query("status") status: "read" | "deleted",
+  async updateMultipleNotificationsStatus(
     @Body() data: NotificationActionRequestDto,
-  ): Promise<ApiResponse<{ count: number }>> {
-    return this.notificationUseCase.updateNotificationsStatus(
-      data.userNotificationIds,
-      status,
-    );
+  ): Promise<ApiResponse<NotificationActionResponseDto>> {
+    return this.notificationUseCase.updateMultipleNotificationsStatus(data);
   }
 }

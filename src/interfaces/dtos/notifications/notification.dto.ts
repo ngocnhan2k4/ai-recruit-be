@@ -2,7 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../common/query";
 import { IsOptional, IsString, IsArray, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
-import { NotificationType } from "@/core";
+import { NotificationTypeEnum, NotificationStatusEnum } from "@/core";
 
 export class GetNotificationRequestDto extends GeneralQueryDto {
   @ApiProperty()
@@ -30,8 +30,8 @@ export class NotificationDto {
   @ApiProperty({ type: "string" })
   message: string;
 
-  @ApiProperty({ enum: NotificationType })
-  type: NotificationType;
+  @ApiProperty({ enum: NotificationTypeEnum })
+  type: NotificationTypeEnum;
 
   payload: {
     jobId?: string;
@@ -77,9 +77,9 @@ export class CreateNotificationRequestDto {
   @IsString()
   message: string;
 
-  @ApiProperty({ enum: NotificationType })
+  @ApiProperty({ enum: NotificationTypeEnum })
   @IsString()
-  type: NotificationType;
+  type: NotificationTypeEnum;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -91,18 +91,17 @@ export class CreateNotificationRequestDto {
   };
 
   @ApiProperty({
-    type: [NotificationRecipientDto],
-    description: "Array of notification recipients",
+    type: NotificationRecipientDto,
+    description: "Notification Recipient",
   })
-  @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => NotificationRecipientDto)
-  recipients: NotificationRecipientDto[];
+  @ValidateNested()
+  recipient: NotificationRecipientDto;
 }
 
 export class CreateNotificationResponseDto {
-  @ApiProperty({ type: [NotificationDto] })
-  notifications: NotificationDto[];
+  @ApiProperty({ type: NotificationDto })
+  notification: Partial<NotificationDto>;
 }
 
 export class NotificationActionRequestDto {
@@ -113,6 +112,9 @@ export class NotificationActionRequestDto {
   @IsArray()
   @IsString({ each: true })
   userNotificationIds: string[];
+
+  @IsString()
+  status: NotificationStatusEnum;
 }
 
 export class NotificationActionResponseDto {
@@ -120,11 +122,23 @@ export class NotificationActionResponseDto {
   count: number;
 }
 
-export class UpdateNotificationStatusDto {
+export class UpdateNotificationStatusRequestDto {
   @ApiProperty({
-    enum: ["read", "deleted"],
+    enum: NotificationStatusEnum,
     description: "Status to update: read or deleted",
   })
   @IsString()
-  status: "read" | "deleted";
+  status: NotificationStatusEnum;
+}
+
+export class UpdateNotificationStatusResponseDto {
+  notification: NotificationStatusDto;
+}
+
+export class NotificationStatusDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  status: NotificationStatusEnum;
 }

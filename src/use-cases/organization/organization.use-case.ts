@@ -9,6 +9,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
 
 // [TODO-PHAT]: check logic organization here
 @Injectable()
@@ -18,6 +19,7 @@ export class OrganizationUseCase {
   constructor(
     public readonly bloomFilterService: IBloomFilterService,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly organizationMembersRepository: IOrganizationMembersRepository,
   ) {}
 
   onModuleInit(): void {
@@ -127,4 +129,11 @@ export class OrganizationUseCase {
       data: result,
     };
   }
+
+  // async getMembersByOrganizationId(
+  //   organizationId: string,
+  //   cursor: string,
+  //   limit: number,
+  //   filter?: MemberFilter,
+  // ) : Promise<ApiResponse<>>
 }
