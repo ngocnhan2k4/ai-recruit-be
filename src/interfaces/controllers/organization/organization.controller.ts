@@ -22,6 +22,8 @@ import {
   GeneralQueryDto,
   ApiResponse,
   PaginatedResultDto,
+  OrganizationMemberDto,
+  GetOrganizationMembersQueryDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -135,5 +137,26 @@ export class OrganizationController {
     >
   > {
     return await this.organizationUseCase.getAllOrganizations(query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("/:orgId/members")
+  @ApiOperation({
+    summary: "Get organization members",
+    description:
+      "Retrieve all members of an organization with cursor-based pagination",
+  })
+  @ApiResponseDto(OrganizationMemberDto, { isArray: true })
+  async getOrganizationMembers(
+    @Param("orgId") orgId: string,
+    @Query() query: GetOrganizationMembersQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<OrganizationMemberDto>>> {
+    const { cursor = "", limit = 10, keyword, role } = query;
+    return await this.organizationUseCase.getMembersByOrganizationId(
+      orgId,
+      cursor || "",
+      limit,
+      { keyword, role },
+    );
   }
 }

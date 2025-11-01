@@ -9,8 +9,13 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { OrganizationTypeEnum, UserStatusEnum } from "@/core";
+import {
+  OrganizationTypeEnum,
+  UserStatusEnum,
+  OrganizationRoleEnum,
+} from "@/core";
 import { IsEmail } from "class-validator";
+import { GeneralQueryDto } from "../common/query";
 
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -216,4 +221,42 @@ export class UpdateOrganizationDto {
 export class CheckOrganizationNameResponseDto {
   @ApiProperty()
   exists: boolean;
+}
+
+export class OrganizationMemberDto {
+  @ApiProperty({ type: "string", format: "uuid" })
+  id: string;
+
+  @ApiProperty({ type: "string", format: "uuid" })
+  userId: string;
+
+  @ApiProperty({ type: "string", format: "uuid" })
+  organizationId: string;
+
+  @ApiProperty({ type: "string" })
+  role: string;
+
+  @ApiProperty({ type: "string", format: "date-time" })
+  createdAt: Date;
+
+  @ApiProperty({ type: "string", format: "date-time", nullable: true })
+  updatedAt: Date | null;
+
+  @ApiProperty({ type: "string", format: "date-time", nullable: true })
+  deletedAt: Date | null;
+
+  @ApiProperty({ required: false })
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    avatarUrl?: string;
+  };
+}
+
+export class GetOrganizationMembersQueryDto extends GeneralQueryDto {
+  @ApiProperty({ enum: OrganizationRoleEnum, required: false })
+  @IsOptional()
+  @IsEnum(OrganizationRoleEnum)
+  role?: OrganizationRoleEnum;
 }

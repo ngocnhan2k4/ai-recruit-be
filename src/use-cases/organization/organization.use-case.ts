@@ -5,11 +5,14 @@ import {
   OrganizationWithDetails,
 } from "@/core";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, OrganizationMemberDto } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import {
+  IOrganizationMembersRepository,
+  MemberFilter,
+} from "@/core/abstracts/repositories/organization-members.abstract";
 
 // [TODO-PHAT]: check logic organization here
 @Injectable()
@@ -130,10 +133,32 @@ export class OrganizationUseCase {
     };
   }
 
-  // async getMembersByOrganizationId(
-  //   organizationId: string,
-  //   cursor: string,
-  //   limit: number,
-  //   filter?: MemberFilter,
-  // ) : Promise<ApiResponse<>>
+  async getMembersByOrganizationId(
+    organizationId: string,
+    cursor: string,
+    limit: number,
+    filter?: MemberFilter,
+  ): Promise<ApiResponse<PaginatedResult<OrganizationMemberDto>>> {
+    this.logger.log(
+      `[OrganizationUseCase] [getMembersByOrganizationId] Getting members for organization ${organizationId}`,
+    );
+
+    const result =
+      await this.organizationMembersRepository.getMembersByOrganizationId(
+        organizationId,
+        cursor,
+        limit,
+        filter,
+      );
+
+    this.logger.log(
+      `[OrganizationUseCase] [getMembersByOrganizationId] Found ${result.data.length} members for organization ${organizationId}`,
+    );
+
+    return {
+      message: "Get organization members successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
 }
