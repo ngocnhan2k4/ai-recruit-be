@@ -664,23 +664,20 @@ export class UserUseCases implements OnModuleInit {
       userId,
     });
 
-    const universities = await this.organizationRepository.getByField({
-      type: OrganizationTypeEnum.UNIVERSITY,
-    });
+    const universities =
+      await this.organizationRepository.getOrganizationsByTypes([
+        OrganizationTypeEnum.SCHOOL,
+        OrganizationTypeEnum.UNIVERSITY,
+      ]);
 
-    const schools = await this.organizationRepository.getByField({
-      type: OrganizationTypeEnum.SCHOOL,
-    });
+    const universityMap: Record<string, string> = {};
 
-    schools.push(...universities);
-
-    const schoolMap: Record<string, string> = {};
-    schools.forEach((school) => {
-      schoolMap[school.id] = school.name;
+    universities.forEach((university) => {
+      universityMap[university.id] = university.name;
     });
 
     const data: UserEducationResponseDto[] = userEducations.map((entity) => {
-      return UserEducationResponseDto.from(entity, schoolMap);
+      return UserEducationResponseDto.from(entity, universityMap);
     });
 
     return {
