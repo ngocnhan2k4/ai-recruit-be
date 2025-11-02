@@ -1,6 +1,6 @@
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { OrganizationWithDetails } from "@/core/entities";
+import { OrganizationTypeEnum, OrganizationWithDetails } from "@/core/entities";
 
 export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
   abstract getOrganizationById(
@@ -17,4 +17,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
       >
     >
   >;
+
+  abstract getOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<OrganizationWithDetails[]>;
 }
