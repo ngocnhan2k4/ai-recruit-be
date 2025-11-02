@@ -2,6 +2,7 @@ import { PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   NewOrganizationWithDetails,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
 } from "@/core/entities";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
@@ -35,4 +36,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   ): Promise<OrganizationWithDetails>;
 
   abstract deleteOrganizationById(id: string): Promise<boolean>;
+
+  abstract getOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<OrganizationWithDetails[]>;
 }
