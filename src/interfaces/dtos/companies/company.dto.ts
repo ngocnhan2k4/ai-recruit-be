@@ -13,6 +13,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 
 import {
+  CreateOrganizationDto,
   OrganizationDto,
   UpdateOrganizationDto,
 } from "../organization/organization.dto";
@@ -75,9 +76,8 @@ export class CreateCompanyDto {
     type: "number",
     example: 100,
   })
-  @IsNotEmpty({ message: "Company size is required" })
   @IsNumber({}, { message: "Company size must be a number" })
-  companySize: number;
+  companySize?: number;
 
   @ApiProperty({
     description: "Company tax code",
@@ -91,6 +91,16 @@ export class CreateCompanyDto {
   taxCode: string;
 
   @ApiProperty({
+    description: "Company culture",
+    type: "string",
+    example: "Innovative and inclusive work environment",
+  })
+  @IsString({ message: "Culture must be a string" })
+  @MaxLength(500, { message: "Culture must not exceed 500 characters" })
+  @MinLength(2, { message: "Culture must be at least 2 characters long" })
+  culture?: string;
+
+  @ApiProperty({
     description: "Company benefits",
     type: "array",
     items: { type: "string" },
@@ -98,6 +108,17 @@ export class CreateCompanyDto {
   })
   @IsOptional()
   benefits?: string;
+}
+
+export class CreateCompanyWithOrganizationDto {
+  @ApiProperty({ type: CreateCompanyDto })
+  @IsNotEmpty({ message: "Company is required" })
+  @IsString()
+  company: CreateCompanyDto;
+  @ApiProperty({ type: CreateOrganizationDto })
+  @IsNotEmpty({ message: "Organization is required" })
+  @IsString()
+  organization: CreateOrganizationDto;
 }
 
 export class UpdateCompanyDto {

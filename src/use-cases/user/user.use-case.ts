@@ -20,7 +20,6 @@ import {
   IUserSkillRepository,
   IUserOnboardingRepository,
   IAuthService,
-  IUserEducationRepository,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -56,6 +55,7 @@ import {
   UpdateUserEducationDto,
   UserEducationResponseDto,
 } from "@/interfaces/dtos/users/user-education.dto";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {

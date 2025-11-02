@@ -22,20 +22,6 @@ export class CompanyRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, companies);
   }
-  async checkNameExists(name: string): Promise<boolean> {
-    const result = await this.db
-      .select({ count: count() })
-      .from(organizations)
-      .where(
-        and(
-          eq(organizations.name, `${name}`),
-          eq(organizations.type, OrganizationTypeEnum.COMPANY),
-        ),
-      )
-      .limit(1);
-
-    return result[0]?.count > 0;
-  }
 
   async getCompanyByOrganizationId(
     organizationId: string,
@@ -124,23 +110,4 @@ export class CompanyRepository
       },
     };
   }
-  // async updateCompanyById(
-  //   organizationId: string,
-  //   data: UpdateCompanyDto,
-  // ): Promise<Company | null> {
-  //   const result = await this.db
-  //     .update(companies)
-  //     .set(data)
-  //     .where(and(eq(companies.organizationId, organizationId)))
-  //     .returning();
-  //   if (!result[0]) return null;
-  //   return {
-  //     ...result[0],
-  //     companySize: result[0].companySize || null,
-  //     taxCode: result[0].taxCode || null,
-  //     benefits: result[0].benefits || null,
-  //     companyRawId: result[0].companyRawId || null,
-  //     culture: result[0].culture || null,
-  //   };
-  // }
 }
