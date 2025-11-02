@@ -15,6 +15,7 @@ import {
   CompanyController,
   CompanyAdminController,
   OrganizationAdminController,
+  OrganizationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -97,6 +98,7 @@ import { JobAdminController } from "./interfaces/controllers/job/job.admin.contr
     CompanyController,
     CompanyAdminController,
     OrganizationAdminController,
+    OrganizationController,
     AdminUserController,
   ],
   providers: [

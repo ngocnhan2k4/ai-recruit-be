@@ -9,7 +9,6 @@ import {
   NewNotification,
   NotificationStatusEnum,
 } from "@/core/entities";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
 import {
   CreateNotificationResponseDto,
   GetNotificationResponseDto,
@@ -17,6 +16,7 @@ import {
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
 } from "@/interfaces/dtos/notifications/notification.dto";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 
 @Injectable()
 export class NotificationUseCase {
@@ -50,31 +50,64 @@ export class NotificationUseCase {
   }
 
   async createAndSendToUser(
-    notification: NewNotification,
-    recipient: { receiverId: string; organizationId?: string },
+    newNotification: NewNotification,
+    recipient: { userId: string; organizationId?: string },
   ): Promise<ApiResponse<CreateNotificationResponseDto>> {
-    const result = await this.notificationService.createAndSendToUser(
-      notification,
-      {
-        userId: recipient.receiverId,
-        organizationId: recipient.organizationId,
-      },
-    );
-    this.logger.log(
-      `Created and sent notification "${notification.title}" to user: ${recipient.receiverId}, orgId: ${recipient.organizationId || "none"} successfully`,
-    );
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      data: {
-        notification: {
-          ...result.notification,
-          type: result.notification?.type as NotificationTypeEnum,
+    const { userId, organizationId } = recipient;
+
+    try {
+      const [notification] =
+        await this.notificationRepository.createNotificationWithRecipients(
+          newNotification,
+          [{ receiverId: userId, organizationId }],
+        );
+
+      this.logger.log(
+        `Created notification "${newNotification.title}" for user: ${recipient.userId}`,
+      );
+
+      // Send via WebSocket
+      const sent = this.notificationService.sendToUser(
+        {
+          userId: notification.receiverId,
+          organizationId: notification.organizationId || undefined,
         },
-      },
-      message: result.success
-        ? `Notification created and sent successfully`
-        : `Notification created but WebSocket delivery failed`,
-    };
+        notification,
+      );
+
+      if (sent) {
+        this.logger.log(
+          `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
+        );
+      } else {
+        this.logger.warn(
+          `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
+        );
+      }
+
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        data: {
+          notification: {
+            ...notification,
+            type: notification.type as NotificationTypeEnum,
+          },
+        },
+        message: sent
+          ? `Notification created and sent successfully`
+          : `Notification created but WebSocket delivery failed`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to create notification for user ${userId}, orgId ${organizationId || "none"}:`,
+        error.stack || error,
+      );
+
+      return {
+        code: RESPONSE_CODE.SERVER_ERROR,
+        message: RESPONSE_CODE.SERVER_ERROR,
+      };
+    }
   }
 
   async updateNotificationStatus(
@@ -137,7 +170,7 @@ export class NotificationUseCase {
       data: {
         count: data.userNotificationIds.length,
       },
-      message: `Successfully marked ${data.userNotificationIds.length} notification(s) as ${status}`,
+      message: `Successfully marked ${data.userNotificationIds.length} notification(s) as ${data.status}`,
     };
   }
 }

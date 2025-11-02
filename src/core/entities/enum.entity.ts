@@ -49,6 +49,7 @@ export enum NotificationTypeEnum {
   JOB_POSTED = "job_posted",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
+  JOB_REJECTED = "job_rejected",
   JOB_MATCHED = "job_matched",
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",

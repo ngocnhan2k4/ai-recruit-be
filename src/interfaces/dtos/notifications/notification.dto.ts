@@ -55,7 +55,7 @@ export class GetNotificationResponseDto {
 export class NotificationRecipientDto {
   @ApiProperty({ type: "string" })
   @IsString()
-  receiverId: string;
+  userId: string;
 
   @ApiProperty({ type: "string", required: false })
   @IsOptional()

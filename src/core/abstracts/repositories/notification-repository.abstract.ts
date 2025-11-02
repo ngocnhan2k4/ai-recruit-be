@@ -15,6 +15,7 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
   abstract getNotificationsByUser(
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>>;
+
   abstract markAsRead(userNotificationIds: string[]): Promise<void>;
 
   abstract markAsDeleted(userNotificationIds: string[]): Promise<void>;

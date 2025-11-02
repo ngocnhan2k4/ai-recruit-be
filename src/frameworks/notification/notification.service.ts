@@ -3,6 +3,7 @@ import { Notification, NewNotification } from "@/core";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { IdentityUser } from "@/core/entities/websocket.entity";
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -59,5 +60,9 @@ export class NotificationService implements INotificationService {
       );
       return { success: false };
     }
+  }
+
+  sendToUser(identity: IdentityUser, notification: Notification): boolean {
+    return this.webSocketGateway.sendToUser(identity, notification);
   }
 }

@@ -98,6 +98,8 @@ export class NotificationController {
   async updateMultipleNotificationsStatus(
     @Body() data: NotificationActionRequestDto,
   ): Promise<ApiResponse<NotificationActionResponseDto>> {
+    console.log(data);
+
     return this.notificationUseCase.updateMultipleNotificationsStatus(data);
   }
 }
