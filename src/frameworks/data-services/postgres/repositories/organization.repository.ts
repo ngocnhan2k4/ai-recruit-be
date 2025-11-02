@@ -101,7 +101,9 @@ export class OrganizationRepository
     const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
 
     if (query.keyword) {
-      whereConditions.push(sql`${organizations.name} % ${query.keyword}`);
+      whereConditions.push(
+        sql`unaccent(${organizations.name}) % unaccent(${query.keyword})`,
+      );
     }
 
     if (query.employeeMin !== undefined) {
@@ -145,7 +147,7 @@ export class OrganizationRepository
       ? {
           ...baseSelect,
           similarity:
-            sql`similarity(${organizations.name}, ${query.keyword})`.as(
+            sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword}))`.as(
               "similarity",
             ),
         }
@@ -189,7 +191,7 @@ export class OrganizationRepository
 
   async checkNameMightExist(name: string, score: number): Promise<boolean> {
     const whereConditions: SQL<unknown>[] = [
-      sql`similarity(${organizations.name}, ${name}) >= ${score}`,
+      sql`similarity(unaccent(${organizations.name}), unaccent(${name})) >= ${score}`,
       isNull(organizations.deletedAt),
     ];
 
@@ -268,6 +270,11 @@ export class OrganizationRepository
           organizationId: org.id,
           userId: userId,
           role: "organization_owner",
+
+          // Temp fields for denormalization, remove later
+          organization_name: org.name,
+          organization_type: org.type,
+          organization_email: org.email,
         })
         .execute();
 

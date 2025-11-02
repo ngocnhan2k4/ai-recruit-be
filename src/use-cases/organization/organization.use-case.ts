@@ -117,8 +117,10 @@ export class OrganizationUseCase {
   ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
     const mightExist = await this.organizationRepository.checkNameMightExist(
       orgName,
-      0.7,
+      0.6,
     );
+
+    console.log("mightExist", mightExist);
 
     return {
       data: {
