@@ -21,12 +21,13 @@ import {
   UpdateOrganizationDto,
   ApiResponse,
   PaginatedResultDto,
+  OrganizationWithDetailsDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
-import { OrganizationWithDetails } from "@/core";
 import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
+import { OrganizationWithDetails } from "@/core";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -73,7 +74,8 @@ export class OrganizationController {
   async getOrganization(
     @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
-  ) {
+  ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
+    console.log("User in getOrganization:", user);
     return await this.organizationUseCase.getOrganizationById(
       orgId,
       user?.userId,
