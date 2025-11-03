@@ -271,11 +271,6 @@ export class OrganizationRepository
           organizationId: org.id,
           userId: userId,
           role: "organization_owner",
-
-          // Temp fields for denormalization, remove later
-          organization_name: org.name,
-          organization_type: org.type,
-          organization_email: org.email,
         })
         .execute();
 
