@@ -865,11 +865,6 @@ export class JobRepository
       const recipients = orgUsers.map((ou) => {
         return { receiverId: ou.id, organizationId: updatedJob.organizationId };
       });
-      console.log(
-        "Notification recipients:",
-        NotificationType.JOB_APPROVED,
-        NotificationType.JOB_REJECTED,
-      );
       const notifications =
         await this.notificationRepository.preCreateNotifications(
           tx,
@@ -878,8 +873,8 @@ export class JobRepository
             message: `Job "${updatedJob.title}" has been ${updatedJob.status.toLowerCase()}`,
             type:
               (updatedJob.status as JobStatusEnum) === JobStatusEnum.ACTIVE
-                ? NotificationType.JOB_APPROVED
-                : NotificationType.JOB_REJECTED,
+                ? NotificationType.ADMIN_JOB_APPROVED
+                : NotificationType.ADMIN_JOB_REJECTED,
             senderId: userId,
             payload: {
               jobId: updatedJob.id,

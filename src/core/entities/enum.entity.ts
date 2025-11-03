@@ -47,9 +47,10 @@ export enum UserStatusEnum {
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
-  JOB_REJECTED = "job_rejected",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
+  ADMIN_JOB_APPROVED = "admin_job_approved",
+  ADMIN_JOB_REJECTED = "admin_job_rejected",
   JOB_MATCHED = "job_matched",
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",

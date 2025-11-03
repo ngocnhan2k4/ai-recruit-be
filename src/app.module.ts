@@ -48,7 +48,7 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
 import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
-import { JobAdminController } from "./interfaces/controllers/job/job.admin.controller";
+import { JobAdminController } from "./interfaces/controllers/job/job-admin.controller";
 
 @Module({
   imports: [
