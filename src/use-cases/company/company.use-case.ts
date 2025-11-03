@@ -1,38 +1,23 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import {
-  ApiResponse,
-  UpdateCompanyWithOrganizationDto,
-  CreateCompanyDto,
-  CompanyDto,
-} from "@/interfaces/dtos";
+import { ApiResponse, CompanyDto } from "@/interfaces/dtos";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
-import {
-  Company,
-  IBloomFilterService,
-  ICompanyRepository,
-  IOrganizationRepository,
-} from "@/core";
+import { Company, IBloomFilterService, ICompanyRepository } from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
-import { OrganizationRoleEnum, OrganizationWithDetails } from "@/core/entities";
 @Injectable()
 export class CompanyUseCase implements OnModuleInit {
   private readonly logger = new Logger(CompanyUseCase.name);
 
   constructor(
     private readonly companyRepository: ICompanyRepository,
-    private readonly organizationMembersRepository: IOrganizationMembersRepository,
     public readonly bloomFilterService: IBloomFilterService,
-    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   onModuleInit(): void {
@@ -105,77 +90,6 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
-  // [TODO-PHAT]: move this logic into repository layer to using transaction
-  async createCompany(
-    userId: string,
-    data: CreateCompanyDto,
-  ): Promise<ApiResponse<Company>> {
-    const organization = await this.companyRepository.create({
-      ...data,
-    });
-    if (!organization) {
-      throw new BadRequestException(
-        "[CompanyUseCase] - [createCompany] Create company failed",
-      );
-    }
-    const organizationMember = await this.organizationMembersRepository.create({
-      userId: userId,
-      organizationId: organization.id,
-      role: OrganizationRoleEnum.ORGANIZATION_OWNER,
-    });
-    if (!organizationMember) {
-      await this.companyRepository.delete({
-        organizationId: organization.id,
-      });
-      throw new BadRequestException(
-        "[CompanyUseCase] - [createCompany] Create organization member failed",
-      );
-    }
-    return {
-      message: "Company created successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: organization,
-    };
-  }
-
-  // async getCompaniesByUserId(
-  //   userId: string,
-  //   query: GetCompaniesQueryDto,
-  // ): Promise<ApiResponse<PaginatedResultDto<Partial<Company>>>> {
-  //   const res = await this.companyRepository.getCompaniesByUserId(
-  //     userId,
-  //     query.limit,
-  //     query.cursor,
-  //   );
-  //   return {
-  //     message: "Companies fetched successfully",
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: res,
-  //   };
-  // }
-  // async getCompaniesByUserId(
-  //   userId: string,
-  //   limit: number,
-  //   cursor: string,
-  // ): Promise<ApiResponse<Partial<Company>[]>> {
-  //   const res = await this.companyRepository.getCompaniesByUserId(
-  //     userId,
-  //     limit,
-  //     cursor,
-  //   );
-  //   return {
-  //     message: "Companies fetched successfully",
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: res.data.map((company) => ({
-  //       organizationId: company.organizationId,
-  //       companySize: company.companySize,
-  //       taxCode: company.taxCode,
-  //       benefits: company.benefits,
-  //       companyRawId: company.companyRawId,
-  //     })),
-  //   };
-  // }
-
   async getCompanyById(
     organizationId: string,
   ): Promise<ApiResponse<CompanyDto>> {
@@ -200,7 +114,7 @@ export class CompanyUseCase implements OnModuleInit {
     };
   }
 
-  private mapToCompanyDto(organization: OrganizationWithDetails): CompanyDto {
+  private mapToCompanyDto(organization: Company): CompanyDto {
     return {
       id: organization.id,
       organizationId: organization.id,
@@ -231,38 +145,6 @@ export class CompanyUseCase implements OnModuleInit {
       verifiedAt: organization.verifiedAt
         ? organization.verifiedAt.toISOString()
         : "",
-    };
-  }
-
-  // [TODO-PHAT]: move this logic into organization repository layer to using transaction
-  async updateCompanyById(
-    organizationId: string,
-    _data: UpdateCompanyWithOrganizationDto,
-  ): Promise<ApiResponse<CompanyDto>> {
-    const company =
-      await this.companyRepository.getCompanyByOrganizationId(organizationId);
-    if (!company) {
-      throw new NotFoundException(
-        "[CompanyUseCase] - [updateCompanyById] Company not found",
-      );
-    }
-
-    // const [updatedOrganization, updatedCompany] = await Promise.all([
-    //   this.companyRepository.updateCompanyById(organizationId, data.company),
-    // ]);
-
-    // if (!updatedOrganization || !updatedCompany) {
-    //   throw new BadRequestException(
-    //     "[CompanyUseCase] - [updateCompanyById] Update failed",
-    //   );
-    // }
-
-    const updatedCompanyWithOrg =
-      await this.companyRepository.getCompanyByOrganizationId(organizationId);
-    return {
-      data: this.mapToCompanyDto(updatedCompanyWithOrg!),
-      message: "Company updated successfully",
-      code: RESPONSE_CODE.SUCCESS,
     };
   }
 }

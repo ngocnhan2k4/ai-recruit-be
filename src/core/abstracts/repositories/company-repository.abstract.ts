@@ -15,9 +15,4 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
   abstract getCompanyByOrganizationId(
     organizationId: string,
   ): Promise<Company | null>;
-
-  // abstract updateCompanyById(
-  //   organizationId: string,
-  //   data: UpdateCompanyDto,
-  // ): Promise<Company | null>;
 }

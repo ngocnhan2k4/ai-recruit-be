@@ -46,7 +46,7 @@ import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult } from "@/common/types/api";
 import { RoleEnum } from "@/common/constants/roles";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 
 @Injectable()
 export class JobUseCases {

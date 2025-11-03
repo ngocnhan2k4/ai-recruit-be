@@ -93,7 +93,6 @@ import { JobAdminController } from "./interfaces/controllers/job/job.admin.contr
     SkillController,
     UniversityController,
     CasbinController,
-    // MyOrganizationController,
     NotificationController,
     CompanyController,
     CompanyAdminController,
