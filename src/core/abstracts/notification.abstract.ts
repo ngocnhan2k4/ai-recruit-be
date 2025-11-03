@@ -1,5 +1,4 @@
 import { NewNotification, Notification } from "../entities";
-import { IdentityUser } from "../entities/websocket.entity";
 
 export abstract class INotificationService {
   abstract createAndSendToUser(
@@ -9,9 +8,4 @@ export abstract class INotificationService {
       organizationId?: string;
     },
   ): Promise<{ success: boolean; notification?: Notification }>;
-
-  abstract sendToUser(
-    identity: IdentityUser,
-    notification: Notification,
-  ): boolean;
 }

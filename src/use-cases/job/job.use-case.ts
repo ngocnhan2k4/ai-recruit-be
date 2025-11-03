@@ -505,124 +505,123 @@ export class JobUseCases {
     userId: string,
     updateJobDto: UpdateJobStatusRequestDto,
   ): Promise<ApiResponse<UpdateJobStatusResponseDto>> {
-    try {
-      // Validate the updated job status
-      if (
-        updateJobDto.status !== JobStatusEnum.ACTIVE &&
-        updateJobDto.status !== JobStatusEnum.REJECTED
-      ) {
-        throw new BadRequestException(
-          "Updated job status not valid. Must be active or rejected",
-        );
-      }
-
-      // Check if job exists
-      const existingJob = await this.jobRepository.getJobById(jobId);
-      if (!existingJob) {
-        throw new BadRequestException("Job not found");
-      }
-
-      // Update job status
-      const updateData: Partial<Job> = {
-        status: updateJobDto.status,
-        rejectReason: updateJobDto.rejectReason || undefined,
-      };
-
-      const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
-      if (!updatedJob) {
-        throw new BadRequestException("Failed to update job");
-      }
-
-      const organizationId = updateJobDto.orgId;
-      let notificationSent = false;
-      let notificationCount = 0;
-
-      const members =
-        await this.organizationMembersRepository.getMembersByOrganizationId(
-          organizationId,
-          "",
-          100,
-          { role: OrganizationRoleEnum.ORGANIZATION_RECRUITER_ADMIN },
-        );
-
-      // Send notifications to all recruiter admins
-      if (members.data.length > 0) {
-        const notificationType =
-          updateJobDto.status === JobStatusEnum.ACTIVE
-            ? NotificationTypeEnum.JOB_APPROVED
-            : NotificationTypeEnum.JOB_REJECTED;
-
-        const notificationTitle =
-          updateJobDto.status === JobStatusEnum.ACTIVE
-            ? "Tin tuyển dụng đã được duyệt"
-            : "Tin tuyển dụng bị từ chối";
-
-        const notificationMessage =
-          updateJobDto.status === JobStatusEnum.ACTIVE
-            ? `Tin tuyển dụng "${existingJob.title}" đã được duyệt và đang hoạt động`
-            : `Tin tuyển dụng "${existingJob.title}" đã bị từ chối${updateJobDto.rejectReason ? `. Lý do: ${updateJobDto.rejectReason}` : ""}`;
-
-        // Prepare recipients array
-        const recipients = members.data.map((member) => ({
-          receiverId: member.userId,
-          organizationId: organizationId,
-        }));
-
-        // Send notification
-        try {
-          await this.notificationRepository.createNotificationWithRecipients(
-            {
-              title: notificationTitle,
-              message: notificationMessage,
-              type: notificationType,
-              senderId: userId,
-              payload: {
-                jobId: jobId,
-                orgId: organizationId,
-              },
-            },
-            recipients,
-          );
-
-          notificationSent = true;
-          notificationCount = recipients.length;
-
-          this.logger.log(
-            `Sent ${recipients.length} notification(s) to recruiter admins`,
-          );
-        } catch (notifError) {
-          this.logger.warn(`Failed to send notifications:`, notifError);
-          notificationSent = false;
-        }
-      }
-
-      // Transform response
-      const transformedJob: JobDto = {
-        ...updatedJob,
-        questions: updatedJob.questions || null,
-        status: updatedJob.status as JobStatusEnum,
-        workType: updatedJob.workType as WorkTypeEnum,
-      };
-
-      this.logger.log(
-        `Updated job ${jobId} status to ${updateJobDto.status}. Notifications sent: ${notificationSent} (${notificationCount} recipients)`,
-      );
-
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          job: transformedJob,
-          notificationSent,
-          notificationCount,
-        },
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update job ${jobId} status:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to update job status");
+    // Validate the updated job status
+    if (
+      updateJobDto.status !== JobStatusEnum.ACTIVE &&
+      updateJobDto.status !== JobStatusEnum.REJECTED
+    ) {
+      throw new BadRequestException({
+        message: "Updated job status not valid. Must be active or rejected",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
+
+    const organizationId = updateJobDto.orgId;
+    let notificationSent = false;
+    let notificationCount = 0;
+
+    const [existingJob, members] = await Promise.all([
+      this.jobRepository.getJobById(jobId),
+      this.organizationMembersRepository.getMembersByOrganizationId(
+        organizationId,
+        "",
+        100,
+        { role: OrganizationRoleEnum.ORGANIZATION_RECRUITER_ADMIN },
+      ),
+    ]);
+
+    if (!existingJob) {
+      throw new BadRequestException({
+        message: "Job not found",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    // Update job status
+    const updateData: Partial<Job> = {
+      status: updateJobDto.status,
+      rejectReason: updateJobDto.rejectReason || undefined,
+    };
+
+    const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
+    if (!updatedJob) {
+      throw new BadRequestException({
+        message: "Failed to update job",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+    // Send notifications to all recruiter admins
+    if (members.data.length > 0) {
+      const notificationType =
+        updateJobDto.status === JobStatusEnum.ACTIVE
+          ? NotificationTypeEnum.JOB_APPROVED
+          : NotificationTypeEnum.JOB_REJECTED;
+
+      const notificationTitle =
+        updateJobDto.status === JobStatusEnum.ACTIVE
+          ? "Tin tuyển dụng đã được duyệt"
+          : "Tin tuyển dụng bị từ chối";
+
+      const notificationMessage =
+        updateJobDto.status === JobStatusEnum.ACTIVE
+          ? `Tin tuyển dụng "${existingJob.title}" đã được duyệt và đang hoạt động`
+          : `Tin tuyển dụng "${existingJob.title}" đã bị từ chối${updateJobDto.rejectReason ? `. Lý do: ${updateJobDto.rejectReason}` : ""}`;
+
+      // Prepare recipients array
+      const recipients = members.data.map((member) => ({
+        receiverId: member.userId,
+        organizationId: organizationId,
+      }));
+
+      // Send notification
+      try {
+        await this.notificationRepository.createNotificationWithRecipients(
+          {
+            title: notificationTitle,
+            message: notificationMessage,
+            type: notificationType,
+            senderId: userId,
+            payload: {
+              jobId: jobId,
+              orgId: organizationId,
+            },
+          },
+          recipients,
+          { jobId, data: updateData },
+        );
+
+        notificationSent = true;
+        notificationCount = recipients.length;
+
+        this.logger.log(
+          `Sent ${recipients.length} notification(s) to recruiter admins`,
+        );
+      } catch (notifError) {
+        this.logger.warn(`Failed to send notifications:`, notifError);
+        notificationSent = false;
+      }
+    }
+
+    // Transform response
+    const transformedJob: JobDto = {
+      ...updatedJob,
+      questions: updatedJob.questions || null,
+      status: updatedJob.status as JobStatusEnum,
+      workType: updatedJob.workType as WorkTypeEnum,
+    };
+
+    this.logger.log(
+      `Updated job ${jobId} status to ${updateJobDto.status}. Notifications sent: ${notificationSent} (${notificationCount} recipients)`,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        job: transformedJob,
+        notificationSent,
+        notificationCount,
+      },
+    };
   }
 }

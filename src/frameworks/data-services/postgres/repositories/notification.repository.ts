@@ -9,8 +9,13 @@ import {
 } from "@/core/entities";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { eq, and, isNull, desc, count, lt, inArray } from "drizzle-orm";
-import { NotificationFilter } from "@/core/entities/notification.entity";
+import {
+  CreateNotificationWithRecipients,
+  NotificationFilter,
+} from "@/core/entities/notification.entity";
 import { PaginatedResult } from "@/common/types/api";
+import { jobs } from "../models";
+import { UpdateJob } from "@/core/entities/job.entity";
 
 @Injectable()
 export class NotificationRepository
@@ -27,8 +32,22 @@ export class NotificationRepository
       receiverId: string;
       organizationId?: string;
     }[],
-  ): Promise<Notification[]> {
+    updateJob?: UpdateJob,
+  ): Promise<CreateNotificationWithRecipients> {
     return await this.db.transaction(async (tx) => {
+      let updatedJob;
+
+      if (updateJob) {
+        updatedJob = await tx
+          .update(jobs)
+          .set({
+            ...updateJob.data,
+            updatedAt: new Date(),
+          })
+          .where(eq(jobs.id, updateJob.jobId))
+          .returning();
+      }
+
       const [createdNotification] = await tx
         .insert(notifications)
         .values(notification)
@@ -47,10 +66,15 @@ export class NotificationRepository
         .values(userNotificationData)
         .returning();
 
-      return createdUserNotifications.map((d) => ({
+      const notificationCreated = createdUserNotifications.map((d) => ({
         ...d,
         ...createdNotification,
       }));
+
+      return {
+        notifications: notificationCreated,
+        updatedJob: updatedJob || null,
+      };
     });
   }
 

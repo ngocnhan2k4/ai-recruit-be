@@ -65,3 +65,8 @@ export interface JobCounts {
     count: number;
   }[];
 }
+
+export interface UpdateJob {
+  jobId: string;
+  data: Partial<Job>;
+}

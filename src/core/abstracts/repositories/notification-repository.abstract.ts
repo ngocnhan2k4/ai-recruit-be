@@ -1,7 +1,11 @@
 import { PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Notification, NewNotification } from "@/core/entities";
-import { NotificationFilter } from "@/core/entities/notification.entity";
+import {
+  CreateNotificationWithRecipients,
+  NotificationFilter,
+} from "@/core/entities/notification.entity";
+import { UpdateJob } from "@/core/entities/job.entity";
 
 export abstract class INotificationRepository extends IGenericRepository<Notification> {
   abstract createNotificationWithRecipients(
@@ -10,7 +14,8 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
       receiverId: string;
       organizationId?: string;
     }[],
-  ): Promise<Notification[]>;
+    updateJob?: UpdateJob,
+  ): Promise<CreateNotificationWithRecipients>;
 
   abstract getNotificationsByUser(
     filter: NotificationFilter,

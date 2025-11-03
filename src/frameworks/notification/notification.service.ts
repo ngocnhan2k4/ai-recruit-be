@@ -3,7 +3,6 @@ import { Notification, NewNotification } from "@/core";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
-import { IdentityUser } from "@/core/entities/websocket.entity";
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -22,7 +21,7 @@ export class NotificationService implements INotificationService {
     },
   ): Promise<{ success: boolean; notification?: Notification }> {
     try {
-      const [notification] =
+      const { notifications } =
         await this.notificationRepository.createNotificationWithRecipients(
           newNotification,
           [
@@ -33,22 +32,24 @@ export class NotificationService implements INotificationService {
           ],
         );
 
+      const notification = notifications[0] as Notification;
+
       // Send via WebSocket
       const sent = this.webSocketGateway.sendToUser(
         {
-          userId: notification.receiverId,
-          organizationId: notification.organizationId || undefined,
+          userId: notification["receiverId"],
+          organizationId: notification["organizationId"] || undefined,
         },
         notification,
       );
 
       if (sent) {
         this.logger.log(
-          `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
+          `Notification created and sent to user ${notification["receiverId"]}, orgId ${notification["organizationId"] || "none"}: ${notification.title}`,
         );
       } else {
         this.logger.warn(
-          `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
+          `Notification created but user ${notification["receiverId"]}, orgId ${notification["organizationId"] || "none"} not connected for WebSocket delivery`,
         );
       }
 
@@ -60,9 +61,5 @@ export class NotificationService implements INotificationService {
       );
       return { success: false };
     }
-  }
-
-  sendToUser(identity: IdentityUser, notification: Notification): boolean {
-    return this.webSocketGateway.sendToUser(identity, notification);
   }
 }

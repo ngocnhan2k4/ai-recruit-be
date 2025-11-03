@@ -3,7 +3,6 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   Controller,
   Get,
-  Post,
   Query,
   Body,
   UseGuards,
@@ -21,7 +20,6 @@ import { type TokenPayload } from "@/common/types/token";
 import {
   GetNotificationRequestDto,
   GetNotificationResponseDto,
-  CreateNotificationRequestDto,
   CreateNotificationResponseDto,
   UpdateNotificationStatusRequestDto,
   NotificationActionRequestDto,
@@ -49,25 +47,6 @@ export class NotificationController {
       ...query,
       userId: user.userId,
     });
-  }
-
-  @ApiOperation({
-    summary: "Create and send notification to user",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(CreateNotificationResponseDto)
-  @Post()
-  async createAndSendToUser(
-    @Body() data: CreateNotificationRequestDto,
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<CreateNotificationResponseDto>> {
-    return this.notificationUseCase.createAndSendToUser(
-      {
-        ...data,
-        senderId: data.senderId || user.userId,
-      },
-      data.recipient,
-    );
   }
 
   @ApiOperation({

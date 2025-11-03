@@ -4,26 +4,21 @@ import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { Injectable, Logger } from "@nestjs/common";
+import { NotificationTypeEnum, NotificationStatusEnum } from "@/core/entities";
 import {
-  NotificationTypeEnum,
-  NewNotification,
-  NotificationStatusEnum,
-} from "@/core/entities";
-import {
-  CreateNotificationResponseDto,
   GetNotificationResponseDto,
   NotificationActionRequestDto,
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
 } from "@/interfaces/dtos/notifications/notification.dto";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { WebSocketGateway } from "@/frameworks/websocket/websocket.gateway";
 
 @Injectable()
 export class NotificationUseCase {
   private readonly logger = new Logger(NotificationUseCase.name);
   constructor(
     private readonly notificationRepository: INotificationRepository,
-    private readonly notificationService: INotificationService,
+    private readonly websocketGateway: WebSocketGateway,
   ) {}
 
   async getNotificationsByUser(
@@ -46,55 +41,6 @@ export class NotificationUseCase {
         pagination: result.pagination,
       },
       message: `Get notification of user: ${filter.userId}, orgId: ${filter.organizationId} successfully`,
-    };
-  }
-
-  async createAndSendToUser(
-    newNotification: NewNotification,
-    recipient: { userId: string; organizationId?: string },
-  ): Promise<ApiResponse<CreateNotificationResponseDto>> {
-    const { userId, organizationId } = recipient;
-
-    const [notification] =
-      await this.notificationRepository.createNotificationWithRecipients(
-        newNotification,
-        [{ receiverId: userId, organizationId }],
-      );
-
-    this.logger.log(
-      `Created notification "${newNotification.title}" for user: ${recipient.userId}`,
-    );
-
-    // Send via WebSocket
-    const sent = this.notificationService.sendToUser(
-      {
-        userId: notification.receiverId,
-        organizationId: notification.organizationId || undefined,
-      },
-      notification,
-    );
-
-    if (sent) {
-      this.logger.log(
-        `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
-      );
-    } else {
-      this.logger.warn(
-        `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
-      );
-    }
-
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      data: {
-        notification: {
-          ...notification,
-          type: notification.type as NotificationTypeEnum,
-        },
-      },
-      message: sent
-        ? `Notification created and sent successfully`
-        : `Notification created but WebSocket delivery failed`,
     };
   }
 
