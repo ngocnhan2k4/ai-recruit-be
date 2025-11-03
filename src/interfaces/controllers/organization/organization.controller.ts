@@ -28,6 +28,7 @@ import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
 import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
 import { OrganizationWithDetails } from "@/core";
+import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -65,6 +66,7 @@ export class OrganizationController {
   }
 
   // [TODO-PHAT]: check api
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId")
   @ApiOperation({
     summary: "Get organization by ID",
@@ -75,7 +77,6 @@ export class OrganizationController {
     @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
   ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
-    console.log("User in getOrganization:", user);
     return await this.organizationUseCase.getOrganizationById(
       orgId,
       user?.userId,

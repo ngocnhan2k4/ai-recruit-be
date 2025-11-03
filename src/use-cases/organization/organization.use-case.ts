@@ -220,6 +220,8 @@ export class OrganizationUseCase {
       role = userRole ?? OrganizationRoleEnum.ANONYMOUSLY;
     }
 
+    console.log("role", role);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

@@ -29,6 +29,7 @@ import {
   isNull,
   sql,
   or,
+  lt,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 
@@ -130,7 +131,7 @@ export class OrganizationRepository
     }
 
     if (query.cursor) {
-      whereConditions.push(gt(organizations.createdAt, new Date(query.cursor)));
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
 
     const baseSelect = {
@@ -171,6 +172,7 @@ export class OrganizationRepository
           ? desc(sql`similarity(${organizations.name}, ${query.keyword})`)
           : desc(organizations.createdAt),
       )
+      .groupBy(organizations.id, organizationMembers.role)
       .limit(query.limit + 1);
 
     const hasNextPage = results.length > query.limit;
