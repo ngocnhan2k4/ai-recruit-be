@@ -67,8 +67,12 @@ export class JobAdminController {
   async updateJob(
     @Param("id") jobId: string,
     @Body() updateJobDto: UpdateJobDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, updateJobDto);
+    return await this.jobUseCases.updateJob(jobId, {
+      ...updateJobDto,
+      userId: user.userId,
+    });
   }
 
   @ApiOperation({

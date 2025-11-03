@@ -10,7 +10,7 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
-import { JobStatusEnum, WorkTypeEnum } from "@/core";
+import { JobStatusEnum, UpdateJobTypeEnum, WorkTypeEnum } from "@/core";
 import { GeneralQueryDto } from "../common/query";
 export class QueryJobDto extends GeneralQueryDto {
   @ApiProperty({
@@ -336,4 +336,12 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   rejectReason?: string | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  updateType?: UpdateJobTypeEnum | null;
 }

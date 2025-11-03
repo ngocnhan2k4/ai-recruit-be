@@ -123,4 +123,18 @@ export class OrganizationRepository
       },
     };
   }
+
+  async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
+    const results = await this.db
+      .select({
+        id: organizationMembers.userId,
+      })
+      .from(organizationMembers)
+      .innerJoin(
+        organizations,
+        eq(organizationMembers.organizationId, organizations.id),
+      )
+      .where(eq(organizationMembers.organizationId, orgId));
+    return results;
+  }
 }

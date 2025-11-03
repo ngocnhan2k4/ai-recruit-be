@@ -17,4 +17,5 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
       >
     >
   >;
+  abstract getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]>;
 }

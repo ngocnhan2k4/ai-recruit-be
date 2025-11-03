@@ -47,6 +47,7 @@ export enum UserStatusEnum {
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
+  JOB_REJECTED = "job_rejected",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
   JOB_MATCHED = "job_matched",
@@ -78,4 +79,9 @@ export enum OrganizationRoleEnum {
   ORGANIZATION_ANALYST_VIEWER = "organization_analyst_viewer",
   ORGANIZATION_EMPLOYEE = "organization_employee",
   ANONYMOUSLY = "anonymously",
+}
+
+export enum UpdateJobTypeEnum {
+  UPDATE = "update",
+  APPROVAL = "approval",
 }

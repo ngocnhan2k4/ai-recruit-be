@@ -27,10 +27,21 @@ import {
   cvs,
   jobRaws,
 } from "../models";
-import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import {
+  DBDrizzleTransaction,
+  type DBDrizzle,
+} from "@/frameworks/data-services/postgres/types";
 import { convertDateToStr } from "@/common/utils/date";
 import { GenericRepository } from "./generic-repository";
-import { IJobRepository, WorkTypeEnum } from "@/core";
+import {
+  IJobRepository,
+  INotificationRepository,
+  IOrganizationRepository,
+  JobStatusEnum,
+  WorkTypeEnum,
+  Notification,
+  NotificationType,
+} from "@/core";
 import {
   Job,
   Province,
@@ -59,7 +70,11 @@ export class JobRepository
   extends GenericRepository<Job, typeof jobs>
   implements IJobRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    private readonly organizationRepository: IOrganizationRepository,
+    private readonly notificationRepository: INotificationRepository,
+  ) {
     super(db, jobs);
   }
 
@@ -772,32 +787,110 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & { skillIds?: string[] },
   ): Promise<Job | null> {
-    const [updatedJob] = await this.db
+    return this.db.transaction(async (tx) => {
+      return this.preUpdateJob(tx, jobId, job);
+    });
+  }
+
+  async preUpdateJob(
+    tx: DBDrizzleTransaction,
+    jobId: string,
+    job: Partial<Job> & { skillIds?: string[] },
+  ): Promise<Job | null> {
+    const [updatedJob] = await tx
       .update(jobs)
       .set({
         ...job,
-        updatedAt: new Date(),
       })
       .where(eq(jobs.id, jobId))
       .returning();
 
-    // Handle skill associations if skillIds provided
     if (job.skillIds !== undefined) {
-      // Remove existing skill associations
-      await this.db.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
+      await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-      // Add new skill associations if any
       if (job.skillIds.length > 0) {
         const skillAssociations = job.skillIds.map((skillId) => ({
           jobId: jobId,
           skillId: skillId,
         }));
 
-        await this.db.insert(jobSkills).values(skillAssociations);
+        await tx.insert(jobSkills).values(skillAssociations);
       }
     }
-
     return updatedJob as Job | null;
+  }
+
+  async updateJobWithNotifications(
+    jobId: string,
+    job: Partial<Job> & { skillIds?: string[] },
+    userId: string,
+  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
+    const result = await this.db.transaction(async (tx) => {
+      const [updatedJob] = await tx
+        .update(jobs)
+        .set({
+          ...job,
+        })
+        .where(eq(jobs.id, jobId))
+        .returning();
+
+      if (!updatedJob) {
+        return { job: null, newNotifications: [] };
+      }
+
+      if (job.skillIds !== undefined) {
+        // Remove existing skill associations
+        await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
+
+        // Add new skill associations if any
+        if (job.skillIds.length > 0) {
+          const skillAssociations = job.skillIds.map((skillId) => ({
+            jobId: jobId,
+            skillId: skillId,
+          }));
+
+          await tx.insert(jobSkills).values(skillAssociations);
+        }
+      }
+
+      // Get all organization members to notify
+      const orgUsers =
+        await this.organizationRepository.getMemberIdsOfOrganization(
+          updatedJob.organizationId,
+        );
+
+      if (orgUsers.length === 0) {
+        return { job: updatedJob as Job, newNotifications: [] };
+      }
+      const recipients = orgUsers.map((ou) => {
+        return { receiverId: ou.id, organizationId: updatedJob.organizationId };
+      });
+      console.log(
+        "Notification recipients:",
+        NotificationType.JOB_APPROVED,
+        NotificationType.JOB_REJECTED,
+      );
+      const notifications =
+        await this.notificationRepository.preCreateNotifications(
+          tx,
+          {
+            title: "Job Status Updated",
+            message: `Job "${updatedJob.title}" has been ${updatedJob.status.toLowerCase()}`,
+            type:
+              (updatedJob.status as JobStatusEnum) === JobStatusEnum.ACTIVE
+                ? NotificationType.JOB_APPROVED
+                : NotificationType.JOB_REJECTED,
+            senderId: userId,
+            payload: {
+              jobId: updatedJob.id,
+              orgId: updatedJob.organizationId,
+            },
+          },
+          recipients,
+        );
+      return { job: updatedJob as Job, newNotifications: notifications };
+    });
+    return result;
   }
 
   async deleteJob(jobId: string): Promise<boolean> {
@@ -805,14 +898,12 @@ export class JobRepository
       .update(jobs)
       .set({
         deletedAt: new Date(),
-        updatedAt: new Date(),
       })
       .where(eq(jobs.id, jobId))
       .returning();
 
     return result.length > 0;
   }
-
   async getJobById(jobId: string): Promise<Job | null> {
     const result = await this.db
       .select()
