@@ -21,6 +21,8 @@ import {
   JobDto,
   JobCountsDto,
   JobPaginationResponseDto,
+  UpdateJobStatusRequestDto,
+  UpdateJobStatusResponseDto,
 } from "../../dtos/jobs/job.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
@@ -90,5 +92,24 @@ export class JobAdminController {
   @Get("counts")
   async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
     return await this.jobUseCases.getJobCounts();
+  }
+
+  @ApiOperation({
+    summary: "Update job status",
+    description:
+      "Update job status (active/rejected) and send notifications to organization recruiter admins",
+  })
+  @ApiResponseDto(UpdateJobStatusResponseDto)
+  @Put(":id/status")
+  async updateJobStatus(
+    @Param("id") jobId: string,
+    @Body() updateJobDto: UpdateJobStatusRequestDto,
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UpdateJobStatusResponseDto>> {
+    return await this.jobUseCases.updateJobStatus(
+      jobId,
+      user.userId,
+      updateJobDto,
+    );
   }
 }

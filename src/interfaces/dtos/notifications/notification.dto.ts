@@ -1,6 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../common/query";
-import { IsOptional, IsString, IsArray, ValidateNested } from "class-validator";
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { NotificationTypeEnum, NotificationStatusEnum } from "@/core";
 
@@ -31,6 +37,7 @@ export class NotificationDto {
   message: string;
 
   @ApiProperty({ enum: NotificationTypeEnum })
+  @IsEnum(NotificationTypeEnum)
   type: NotificationTypeEnum;
 
   payload: {
@@ -78,7 +85,7 @@ export class CreateNotificationRequestDto {
   message: string;
 
   @ApiProperty({ enum: NotificationTypeEnum })
-  @IsString()
+  @IsEnum(NotificationTypeEnum)
   type: NotificationTypeEnum;
 
   @ApiProperty({ required: false })

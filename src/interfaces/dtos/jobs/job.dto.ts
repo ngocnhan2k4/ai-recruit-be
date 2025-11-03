@@ -6,7 +6,8 @@ import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
 import { Province } from "@/core";
-import { IsBoolean, IsEnum } from "class-validator";
+import { IsBoolean, IsEnum, IsString } from "class-validator";
+import { UpdateJobDto } from "./job-query.dto";
 export class JobDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;
@@ -268,4 +269,36 @@ export class JobPaginationResponseDto {
     type: PaginationResponseDto,
   })
   pagination: PaginationResponseDto;
+}
+
+export class UpdateJobStatusRequestDto extends UpdateJobDto {
+  @ApiProperty({
+    type: "string",
+    description: "Organization Id",
+  })
+  @IsString()
+  orgId: string;
+}
+
+export class UpdateJobStatusResponseDto {
+  @ApiProperty({
+    type: JobDto,
+    description: "Updated job data",
+  })
+  job: JobDto;
+
+  @ApiProperty({
+    type: "boolean",
+    description:
+      "Whether notifications were sent successfully to organization members",
+    example: true,
+  })
+  notificationSent: boolean;
+
+  @ApiProperty({
+    type: "number",
+    description: "Number of organization members notified",
+    example: 3,
+  })
+  notificationCount: number;
 }

@@ -55,59 +55,47 @@ export class NotificationUseCase {
   ): Promise<ApiResponse<CreateNotificationResponseDto>> {
     const { userId, organizationId } = recipient;
 
-    try {
-      const [notification] =
-        await this.notificationRepository.createNotificationWithRecipients(
-          newNotification,
-          [{ receiverId: userId, organizationId }],
-        );
+    const [notification] =
+      await this.notificationRepository.createNotificationWithRecipients(
+        newNotification,
+        [{ receiverId: userId, organizationId }],
+      );
 
+    this.logger.log(
+      `Created notification "${newNotification.title}" for user: ${recipient.userId}`,
+    );
+
+    // Send via WebSocket
+    const sent = this.notificationService.sendToUser(
+      {
+        userId: notification.receiverId,
+        organizationId: notification.organizationId || undefined,
+      },
+      notification,
+    );
+
+    if (sent) {
       this.logger.log(
-        `Created notification "${newNotification.title}" for user: ${recipient.userId}`,
+        `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
       );
-
-      // Send via WebSocket
-      const sent = this.notificationService.sendToUser(
-        {
-          userId: notification.receiverId,
-          organizationId: notification.organizationId || undefined,
-        },
-        notification,
+    } else {
+      this.logger.warn(
+        `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
       );
-
-      if (sent) {
-        this.logger.log(
-          `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
-        );
-      } else {
-        this.logger.warn(
-          `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
-        );
-      }
-
-      return {
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          notification: {
-            ...notification,
-            type: notification.type as NotificationTypeEnum,
-          },
-        },
-        message: sent
-          ? `Notification created and sent successfully`
-          : `Notification created but WebSocket delivery failed`,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to create notification for user ${userId}, orgId ${organizationId || "none"}:`,
-        error.stack || error,
-      );
-
-      return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: RESPONSE_CODE.SERVER_ERROR,
-      };
     }
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        notification: {
+          ...notification,
+          type: notification.type as NotificationTypeEnum,
+        },
+      },
+      message: sent
+        ? `Notification created and sent successfully`
+        : `Notification created but WebSocket delivery failed`,
+    };
   }
 
   async updateNotificationStatus(
@@ -161,8 +149,6 @@ export class NotificationUseCase {
       this.logger.log(
         `Marked ${data.userNotificationIds.length} notification(s) as deleted successfully`,
       );
-    } else {
-      throw new Error("Invalid status");
     }
 
     return {
