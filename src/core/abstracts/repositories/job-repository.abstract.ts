@@ -5,6 +5,7 @@ import {
   Skill,
   OrganizationWithDetails,
   WorkTypeEnum,
+  Notification,
   ApplyStatusEnum,
 } from "@/core/entities";
 import {
@@ -72,7 +73,15 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   // CRUD operations
   abstract createJob(job: Partial<Job>): Promise<Job>;
-  abstract updateJob(jobId: string, job: Partial<Job>): Promise<Job | null>;
+  abstract updateJob(
+    jobId: string,
+    job: Partial<Job> & { skillIds?: string[] },
+  ): Promise<Job | null>;
+  abstract updateJobWithNotifications(
+    jobId: string,
+    job: Partial<Job> & { skillIds?: string[] },
+    userId: string,
+  ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
   abstract deleteJob(jobId: string): Promise<boolean>;
   abstract getJobById(jobId: string): Promise<Job | null>;
 

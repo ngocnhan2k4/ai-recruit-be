@@ -18,7 +18,10 @@ import {
   notifications,
   userNotifications,
 } from "@/frameworks/data-services/postgres/models/notification.model";
-import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
+import {
+  organizationLocations,
+  organizations,
+} from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
@@ -31,8 +34,7 @@ export type Category = InferSelectModel<typeof categories>;
 
 export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
-  questions: string[] | null;
-  applyUrl?: string | null;
+  questions?: string[];
 };
 
 export type NewProvince = InferInsertModel<typeof provinces>;
@@ -72,6 +74,15 @@ export type Notification = InferSelectModel<typeof notifications> &
   UserNotification;
 
 type Organization = InferSelectModel<typeof organizations>;
+type NewOrganization = InferInsertModel<typeof organizations>;
+
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
+export type NewOrganizationLocation = Omit<
+  InferInsertModel<typeof organizationLocations>,
+  "organizationId"
+>;
 
 export type OrganizationWithDetails = Organization & {
   companySize?: number | null;
@@ -80,26 +91,33 @@ export type OrganizationWithDetails = Organization & {
   companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
+  locations?: OrganizationLocation[];
 };
 
-// export type NewCompany = InferInsertModel<typeof companies> & {
-//   locations?: {
-//     address?: string;
-//     provinceId?: string;
-//   }[];
-// };
+export type NewOrganizationWithDetails = NewOrganization & {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  companyRawId?: number | null;
+  schoolType?: SchoolTypeEnum | null;
+  culture?: string | null;
+  locations?: NewOrganizationLocation[];
+};
+
 export type Company = InferSelectModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
+  locations?: OrganizationLocation[];
 } & Organization;
 
-export type School = InferSelectModel<typeof schools> & Organization;
+export type NewCompany = Omit<
+  InferInsertModel<typeof companies>,
+  "organizationId"
+> & {
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+} & NewOrganization;
+
+export type School = InferSelectModel<typeof schools> & {
+  locations?: OrganizationLocation[];
+} & Organization;
 
 export type NewUserEducation = InferInsertModel<typeof userEducations>;
 export type UserEducation = InferSelectModel<typeof userEducations>;

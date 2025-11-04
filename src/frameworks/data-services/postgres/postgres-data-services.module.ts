@@ -19,7 +19,6 @@ import {
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
-  IUserEducationRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -33,11 +32,12 @@ import { UserSkillRepository } from "./repositories/user-skill.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { SkillRepository } from "./repositories/skill.repository";
 import { UserOnboardingRepository } from "./repositories/user-onboarding.repository";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { OrganizationMembersRepository } from "./repositories/organization-members.repository";
 import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { UserEducationRepository } from "./repositories/user-education.repository";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Global()
 @Module({

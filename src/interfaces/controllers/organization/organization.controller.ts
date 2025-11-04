@@ -19,14 +19,16 @@ import {
   GetCompanyDto,
   CreateOrganizationDto,
   UpdateOrganizationDto,
-  GeneralQueryDto,
   ApiResponse,
   PaginatedResultDto,
+  OrganizationWithDetailsDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
+import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
 import { OrganizationWithDetails } from "@/core";
+import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -64,6 +66,7 @@ export class OrganizationController {
   }
 
   // [TODO-PHAT]: check api
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId")
   @ApiOperation({
     summary: "Get organization by ID",
@@ -73,7 +76,7 @@ export class OrganizationController {
   async getOrganization(
     @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
-  ) {
+  ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
     return await this.organizationUseCase.getOrganizationById(
       orgId,
       user?.userId,
@@ -81,17 +84,25 @@ export class OrganizationController {
   }
 
   // [TODO-PHAT]: check api
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiOperation({
     summary: "Create a new organization",
     description: "Create a new organization",
   })
   @ApiResponseDto(String)
-  async createOrganization(@Body() data: CreateOrganizationDto) {
-    return await this.organizationUseCase.createOrganization(data);
+  async createOrganization(
+    @Body() data: CreateOrganizationDto,
+    @GetUser() user: TokenPayload,
+  ) {
+    return await this.organizationUseCase.createOrganization(
+      data,
+      user?.userId,
+    );
   }
 
   // [TODO-PHAT]: check api
+  @UseGuards(JwtAuthGuard)
   @Patch("/:orgId")
   @ApiOperation({
     summary: "Update an organization",
@@ -123,7 +134,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async getAllOrganizations(
-    @Query() query: GeneralQueryDto,
+    @Query() query: OrganizationQueryDto,
   ): Promise<
     ApiResponse<
       PaginatedResultDto<

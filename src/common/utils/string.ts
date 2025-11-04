@@ -1,3 +1,5 @@
+import { JobStatusEnum } from "@/core";
+
 export const generateUsername = (name: string, suffix?: number): string => {
   let username = name
     .normalize("NFD")
@@ -30,4 +32,21 @@ export const slugify = (text: string): string => {
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/[\s-]+/g, "-");
+};
+
+export const getJobStatus = (status: JobStatusEnum) => {
+  switch (status) {
+    case JobStatusEnum.DRAFT:
+      return "Bản nháp";
+    case JobStatusEnum.ACTIVE:
+      return "Được duyệt";
+    case JobStatusEnum.PAUSED:
+      return "Tạm dừng";
+    case JobStatusEnum.CLOSED:
+      return "Đã đóng";
+    case JobStatusEnum.REJECTED:
+      return "Bị từ chối";
+    default:
+      return "Không xác định";
+  }
 };

@@ -15,6 +15,7 @@ import {
   CompanyController,
   CompanyAdminController,
   OrganizationAdminController,
+  OrganizationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -49,7 +50,7 @@ import { NotificationUseCasesModule } from "./use-cases/notification/notificatio
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
-import { JobAdminController } from "./interfaces/controllers/job/job.admin.controller";
+import { JobAdminController } from "./interfaces/controllers/job/job-admin.controller";
 
 @Module({
   imports: [
@@ -94,11 +95,11 @@ import { JobAdminController } from "./interfaces/controllers/job/job.admin.contr
     SkillController,
     UniversityController,
     CasbinController,
-    // MyOrganizationController,
     NotificationController,
     CompanyController,
     CompanyAdminController,
     OrganizationAdminController,
+    OrganizationController,
     AdminUserController,
   ],
   providers: [

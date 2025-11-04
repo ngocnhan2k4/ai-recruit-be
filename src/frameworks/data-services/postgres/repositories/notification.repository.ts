@@ -1,5 +1,5 @@
 import { GenericRepository } from "./generic-repository";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { notifications, userNotifications } from "../models/notification.model";
 import {
@@ -21,6 +21,36 @@ export class NotificationRepository
     super(db, notifications);
   }
 
+  async preCreateNotifications(
+    tx: DBDrizzleTransaction,
+    notification: NewNotification,
+    recipients: {
+      receiverId: string;
+      organizationId?: string;
+    }[],
+  ): Promise<Notification[]> {
+    const [createdNotification] = await tx
+      .insert(notifications)
+      .values(notification)
+      .returning();
+
+    const userNotificationData: NewUserNotification[] = recipients.map((d) => ({
+      notificationId: createdNotification.id,
+      receiverId: d.receiverId,
+      organizationId: d.organizationId,
+    }));
+
+    const createdUserNotifications = await tx
+      .insert(userNotifications)
+      .values(userNotificationData)
+      .returning();
+
+    return createdUserNotifications.map((d) => ({
+      ...d,
+      ...createdNotification,
+    }));
+  }
+
   async createNotificationWithRecipients(
     notification: NewNotification,
     recipients: {
@@ -29,28 +59,7 @@ export class NotificationRepository
     }[],
   ): Promise<Notification[]> {
     return await this.db.transaction(async (tx) => {
-      const [createdNotification] = await tx
-        .insert(notifications)
-        .values(notification)
-        .returning();
-
-      const userNotificationData: NewUserNotification[] = recipients.map(
-        (d) => ({
-          notificationId: createdNotification.id,
-          receiverId: d.receiverId,
-          organizationId: d.organizationId,
-        }),
-      );
-
-      const createdUserNotifications = await tx
-        .insert(userNotifications)
-        .values(userNotificationData)
-        .returning();
-
-      return createdUserNotifications.map((d) => ({
-        ...d,
-        ...createdNotification,
-      }));
+      return await this.preCreateNotifications(tx, notification, recipients);
     });
   }
 

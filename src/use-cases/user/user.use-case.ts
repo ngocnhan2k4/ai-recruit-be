@@ -4,7 +4,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  EducationLevelEnum,
   GenderEnum,
+  OrganizationTypeEnum,
+  OrganizationWithDetails,
   ProviderEnum,
   Skill,
   User,
@@ -48,6 +51,12 @@ import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { RoleEnum } from "@/common/constants/roles";
+import {
+  CreateUserEducationDto,
+  UpdateUserEducationDto,
+  UserEducationResponseDto,
+} from "@/interfaces/dtos/users/user-education.dto";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -64,6 +73,8 @@ export class UserUseCases implements OnModuleInit {
     private readonly skillRepository: ISkillRepository,
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
+
+    private readonly userEducationRepository: IUserEducationRepository,
   ) {}
 
   async onModuleInit() {
@@ -158,6 +169,17 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    const userEducation = await this.userEducationRepository.getByField({
+      userId: user.id,
+    });
+
+    let school: OrganizationWithDetails | null = null;
+    if (userEducation.length > 0) {
+      school = await this.organizationRepository.get(
+        userEducation[userEducation.length - 1].schoolId,
+      );
+    }
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -170,7 +192,7 @@ export class UserUseCases implements OnModuleInit {
         bio: user.bio,
         bannerUrl: user.bannerUrl,
         address: user.address,
-        school: null,
+        school: school?.name || null,
       },
     };
   }
@@ -636,6 +658,169 @@ export class UserUseCases implements OnModuleInit {
       message: "User updated successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
+    };
+  }
+
+  async getUserEducations(
+    userId: string,
+  ): Promise<ApiResponse<UserEducationResponseDto[]>> {
+    const userEducations = await this.userEducationRepository.getByField({
+      userId,
+    });
+
+    const universities =
+      await this.organizationRepository.getOrganizationsByTypes([
+        OrganizationTypeEnum.SCHOOL,
+        OrganizationTypeEnum.UNIVERSITY,
+      ]);
+
+    const universityMap: Record<string, string> = {};
+
+    universities.forEach((university) => {
+      universityMap[university.id] = university.name;
+    });
+
+    const data: UserEducationResponseDto[] = userEducations.map((entity) => {
+      return UserEducationResponseDto.from(entity, universityMap);
+    });
+
+    return {
+      data: data,
+      message: "Get user education successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async createUserEducation(
+    userId: string,
+    createUserEducationDto: CreateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[createUserEducation] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    const school = await this.organizationRepository.get(
+      createUserEducationDto.schoolId,
+    );
+
+    if (!school) {
+      throw new NotFoundException({
+        message: "[createUserEducation] - School/University not found",
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    const newEducation = await this.userEducationRepository.create({
+      ...createUserEducationDto,
+      userId,
+    });
+
+    return {
+      data: {
+        schoolId: newEducation.schoolId,
+        schoolName: school.name,
+        startDate: newEducation.startDate,
+        endDate: newEducation.endDate,
+        description: newEducation.description,
+        educationLevel: newEducation.educationLevel as EducationLevelEnum,
+        major: newEducation.major,
+        gpa: newEducation.gpa,
+      },
+      message: "User education created successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateUserEducation(
+    userId: string,
+    educationId: string,
+    updateUserEducationDto: UpdateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const userEducation = await this.userEducationRepository.getByField({
+      schoolId: educationId,
+      userId,
+    });
+
+    if (!userEducation || userEducation.length === 0) {
+      throw new NotFoundException({
+        message: "[updateUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const updatedEducation = {
+      ...userEducation,
+      ...updateUserEducationDto,
+    };
+
+    const result = (
+      await this.userEducationRepository.update(
+        { id: userEducation[0].id },
+        updatedEducation,
+      )
+    )[0];
+
+    if (!result) {
+      throw new NotFoundException({
+        message: "[updateUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const school = await this.organizationRepository.get(result.schoolId);
+
+    return {
+      data: {
+        schoolId: result.schoolId,
+        schoolName: school ? school.name : "",
+        startDate: result.startDate,
+        endDate: result.endDate,
+        description: result.description,
+        educationLevel: result.educationLevel as EducationLevelEnum,
+        major: result.major,
+        gpa: result.gpa,
+      },
+      message: "User education updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async deleteUserEducation(
+    userId: string,
+    educationId: string,
+  ): Promise<ApiResponse<number>> {
+    const userEducation = await this.userEducationRepository.getByField({
+      schoolId: educationId,
+      userId,
+    });
+
+    if (!userEducation || userEducation.length === 0) {
+      throw new NotFoundException({
+        message: "[deleteUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const result = (
+      await this.userEducationRepository.delete({
+        id: userEducation[0].id,
+      })
+    )[0];
+
+    if (!result) {
+      throw new NotFoundException({
+        message: "[deleteUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User education deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: result.id,
     };
   }
 }
