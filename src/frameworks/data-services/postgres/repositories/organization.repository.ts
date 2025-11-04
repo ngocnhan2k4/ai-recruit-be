@@ -104,7 +104,7 @@ export class OrganizationRepository
 
     if (query.keyword) {
       whereConditions.push(
-        sql`unaccent(${organizations.name}) % unaccent(${query.keyword})`,
+        sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword})) > 0.22`,
       );
     }
 
@@ -169,7 +169,9 @@ export class OrganizationRepository
       .where(and(...whereConditions))
       .orderBy(
         query.keyword
-          ? desc(sql`similarity(${organizations.name}, ${query.keyword})`)
+          ? desc(
+              sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword}))`,
+            )
           : desc(organizations.createdAt),
       )
       .groupBy(organizations.id, organizationMembers.role)
