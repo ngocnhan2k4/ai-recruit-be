@@ -30,7 +30,9 @@
     "casbin:clear": "ts-node casbin_rule.config.ts clear",
     "casbin:verify": "ts-node casbin_rule.config.ts verify",
     "casbin:list": "ts-node casbin_rule.config.ts list",
-    "casbin:migrate": "ts-node migrate-casbin.ts"
+    "casbin:migrate": "ts-node migrate-casbin.ts",
+    "swagger:json": "node scripts/fetch-swagger-json.js",
+    "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts"
   },
   "husky": {
     "hooks": {
@@ -46,6 +48,7 @@
   "dependencies": {
     "@fastify/compress": "^8.1.0",
     "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.1",
     "@fastify/multipart": "^9.2.1",
     "@fastify/static": "^8.2.0",
     "@nestjs/axios": "^4.0.1",

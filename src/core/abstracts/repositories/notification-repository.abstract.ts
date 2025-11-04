@@ -1,4 +1,4 @@
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Notification, NewNotification } from "@/core/entities";
 import { NotificationFilter } from "@/core/entities/notification.entity";

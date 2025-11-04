@@ -8,7 +8,6 @@ import {
   Param,
   UseGuards,
   Query,
-  Req,
   BadRequestException,
 } from "@nestjs/common";
 import {
@@ -19,18 +18,15 @@ import {
   ApiBody,
   ApiParam,
 } from "@nestjs/swagger";
-// Remove Express file interceptor import
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
 import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv/cv.dto";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
-import type { FastifyRequest } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
-import { Cv } from "@/core";
 
 @ApiTags("CV")
 @Controller("cv")

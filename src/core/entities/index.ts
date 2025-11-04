@@ -9,9 +9,10 @@ import {
   userExperiences,
   userSkills,
   cvs,
-  universities,
   userOnboardings,
   organizationMembers,
+  schools,
+  userEducations,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -19,30 +20,19 @@ import {
 } from "@/frameworks/data-services/postgres/models/notification.model";
 import { organizations } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { NotificationType } from "./enum.entity";
+import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
-export type NewCompany = InferInsertModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
-};
-export type Company = InferSelectModel<typeof companies> & {
-  locations?: {
-    address?: string;
-    provinceId?: string;
-  }[];
-};
 
 export type NewCategory = InferInsertModel<typeof categories>;
 export type Category = InferSelectModel<typeof categories>;
 
 export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
-  questions?: string[];
+  questions: string[] | null;
+  applyUrl?: string | null;
 };
 
 export type NewProvince = InferInsertModel<typeof provinces>;
@@ -63,9 +53,6 @@ export type User = InferSelectModel<typeof users>;
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
 
-export type NewUniversity = InferInsertModel<typeof universities>;
-export type University = InferSelectModel<typeof universities>;
-
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
 
@@ -84,10 +71,35 @@ export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification;
 
-export type Organization = InferSelectModel<typeof organizations>;
-export type OrganizationWithDetails = InferSelectModel<typeof organizations> & {
-  companySize: number | null;
-  taxCode: string | null;
-  benefits: string | null;
-  companyRawId: number | null;
+type Organization = InferSelectModel<typeof organizations>;
+
+export type OrganizationWithDetails = Organization & {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  companyRawId?: number | null;
+  schoolType?: SchoolTypeEnum | null;
+  culture?: string | null;
+  locations?: {
+    address?: string;
+    provinceId?: string;
+  }[];
 };
+
+// export type NewCompany = InferInsertModel<typeof companies> & {
+//   locations?: {
+//     address?: string;
+//     provinceId?: string;
+//   }[];
+// };
+export type Company = InferSelectModel<typeof companies> & {
+  locations?: {
+    address?: string;
+    provinceId?: string;
+  }[];
+} & Organization;
+
+export type School = InferSelectModel<typeof schools> & Organization;
+
+export type NewUserEducation = InferInsertModel<typeof userEducations>;
+export type UserEducation = InferSelectModel<typeof userEducations>;

@@ -29,7 +29,6 @@ import {
   UpdateUserRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
-  UserOnboardingStatusDto,
   UserPublicResponseDto,
   UserOnboardingDto,
   GetUserQueryDto,
@@ -41,7 +40,6 @@ import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
-  UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "../../dtos/users/user-experience.dto";
 import {
@@ -299,16 +297,16 @@ export class UserController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, CasbinGuard)
-  @ApiOperation({ summary: "Get user onboarding status" })
-  @CasbinPermission("/onboarding", "GET")
-  @Get("onboarding")
-  @ApiResponseDto(UserOnboardingStatusDto)
-  async getUserOnboardingStatus(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
-    return this.userUseCases.checkUserEnterOnboarding(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard, CasbinGuard)
+  // @ApiOperation({ summary: "Get user onboarding status" })
+  // @CasbinPermission("/onboarding", "GET")
+  // @Get("onboarding")
+  // @ApiResponseDto(UserOnboardingStatusDto)
+  // async getUserOnboardingStatus(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+  //   return this.userUseCases.checkUserEnterOnboarding(user.userId);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Complete user onboarding" })

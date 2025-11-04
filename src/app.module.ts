@@ -13,8 +13,8 @@ import {
   // MyOrganizationController,
   NotificationController,
   CompanyController,
-  CompanyOrganizationController,
   CompanyAdminController,
+  OrganizationAdminController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -47,6 +47,9 @@ import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
 import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
+import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
+import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
+import { JobAdminController } from "./interfaces/controllers/job/job.admin.controller";
 
 @Module({
   imports: [
@@ -74,15 +77,15 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     SkillUseCasesModule,
     UniversityUseCasesModule,
     NotificationUseCasesModule,
-    CompanyUseCasesModule,
-    CompanyUseCasesModule,
-    CompanyUseCasesModule,
+    OrganizationUseCasesModule,
+    CasbinUseCasesModule,
     WebSocketModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
+    JobAdminController,
     CategoryController,
     UploadController,
     HealthController,
@@ -94,8 +97,8 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
     // MyOrganizationController,
     NotificationController,
     CompanyController,
-    CompanyOrganizationController,
     CompanyAdminController,
+    OrganizationAdminController,
     AdminUserController,
   ],
   providers: [

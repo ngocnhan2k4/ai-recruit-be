@@ -1,8 +1,7 @@
 import { Adapter, Helper, Model } from "casbin";
 import { eq, and, or, sql, SQL } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
-import { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { PtypeEnum } from "@/common/constants/roles";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
 type CasbinRuleRecord = {
   ptype: string;
@@ -15,7 +14,9 @@ type CasbinRuleRecord = {
 };
 
 export class DrizzleCasbinAdapter implements Adapter {
-  constructor(private readonly db: NodePgDatabase<Record<string, never>>) {}
+  private filtered = false;
+
+  constructor(private readonly db: DBDrizzle) {}
 
   // -------------------------
   // Helpers

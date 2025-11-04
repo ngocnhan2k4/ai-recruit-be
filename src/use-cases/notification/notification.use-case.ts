@@ -1,5 +1,5 @@
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types/api";
 import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -37,18 +37,5 @@ export class NotificationUseCase {
       },
       message: `Get notification of user: ${filter.userId}, orgId: ${filter.organizationId} successfully`,
     };
-  }
-
-  // [TEST]: Only for testing purposes
-  async createNotification() {
-    const result = await this.notificationService.createAndSendToUser(
-      {
-        title: "Hello",
-        message: "ngo nguyen duy nhan",
-        type: "job_applied",
-      },
-      { userId: "7ac36333-075c-48ac-b62e-23d968eb69a1" },
-    );
-    return result;
   }
 }

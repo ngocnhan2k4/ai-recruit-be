@@ -1,6 +1,6 @@
-import { Organization, User } from ".";
+import { OrganizationWithDetails, User } from ".";
 
 export interface IdentityUser {
   userId: User["id"];
-  organizationId?: Organization["id"];
+  organizationId?: OrganizationWithDetails["id"];
 }

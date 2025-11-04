@@ -14,9 +14,3 @@ export enum PtypeEnum {
 }
 
 // export const AnonymousId = "00000000-0000-0000-0000-000000000000";
-
-export enum GenderEnum {
-  MALE = "Male",
-  FEMALE = "Female",
-  OTHER = "Other",
-}

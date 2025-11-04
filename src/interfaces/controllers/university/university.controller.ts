@@ -1,7 +1,8 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponseDto, ApiResponse, UniversityDto } from "../../dtos";
+import { ApiResponseDto, ApiResponse, OrganizationDto } from "../../dtos";
 import { UniversityUseCases } from "@/use-cases/university/university.use-case";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 
 @ApiTags("Universities")
 @Controller("universities")
@@ -11,9 +12,12 @@ export class UniversityController {
   @ApiOperation({
     summary: "Get all universities",
   })
-  @ApiResponseDto(UniversityDto, { isArray: true })
   @Get("/all")
-  async getUniversities(): Promise<ApiResponse<UniversityDto[]>> {
+  @ApiResponseDto(OrganizationDto, {
+    isArray: true,
+  })
+  @UseGuards(JwtAuthGuard)
+  async getUniversities(): Promise<ApiResponse<Partial<OrganizationDto>[]>> {
     return this.universityUseCases.getUniversities();
   }
 }

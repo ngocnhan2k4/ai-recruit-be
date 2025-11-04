@@ -1,4 +1,4 @@
-import { OrganizationMember } from "@/core";
+import { OrganizationMember, OrganizationRoleEnum } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
@@ -9,7 +9,6 @@ import {
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
 import { eq, and, gt, desc, or, ilike, SQL } from "drizzle-orm";
-import { OrganizationRole } from "@/common/constants/organization-roles";
 
 @Injectable()
 export class OrganizationMembersRepository
@@ -36,14 +35,14 @@ export class OrganizationMembersRepository
     return member.length > 0 ? member[0] : null;
   }
 
-  removeMember(userId: string, organizationId: string): Promise<void> {
+  removeMember(_userId: string, _organizationId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
   async updateMemberRole(
     userId: string,
     organizationId: string,
-    newRole: OrganizationRole,
+    newRole: OrganizationRoleEnum,
   ): Promise<OrganizationMember> {
     const updatedAt = new Date();
     const updated = await this.db
@@ -96,9 +95,6 @@ export class OrganizationMembersRepository
         id: organizationMembers.id,
         userId: organizationMembers.userId,
         organizationId: organizationMembers.organizationId,
-        organizationName: organizationMembers.organizationName,
-        organizationType: organizationMembers.organizationType,
-        organizationEmail: organizationMembers.organizationEmail,
         role: organizationMembers.role,
         createdAt: organizationMembers.createdAt,
         updatedAt: organizationMembers.updatedAt,

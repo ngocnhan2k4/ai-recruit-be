@@ -1,11 +1,10 @@
-import { OrganizationMember } from "@/core/entities";
+import { OrganizationMember, OrganizationRoleEnum } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { OrganizationRole } from "@/common/constants/organization-roles";
 import { PaginatedResult } from "@/common/types/api";
 
 export interface MemberFilter {
   keyword?: string;
-  role?: OrganizationRole;
+  role?: OrganizationRoleEnum;
 }
 
 export abstract class IOrganizationMembersRepository extends IGenericRepository<OrganizationMember> {
@@ -31,6 +30,6 @@ export abstract class IOrganizationMembersRepository extends IGenericRepository<
   abstract updateMemberRole(
     userId: string,
     organizationId: string,
-    newRole: OrganizationRole,
+    newRole: OrganizationRoleEnum,
   ): Promise<OrganizationMember>;
 }

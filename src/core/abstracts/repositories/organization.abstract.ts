@@ -1,14 +1,24 @@
-import { UpdateOrganizationDto } from "@/interfaces/dtos";
+import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Organization, OrganizationWithDetails } from "@/core/entities";
+import { OrganizationWithDetails, OrganizationTypeEnum } from "@/core/entities";
 
-export abstract class IOrganizationRepository extends IGenericRepository<Organization> {
-  abstract getOrganizationById(id: string): Promise<Organization | null>;
-  abstract getOrganizationWithDetails(
+export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
+  abstract getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null>;
-  abstract updateOrganizationById(
-    id: string,
-    data: UpdateOrganizationDto,
-  ): Promise<Organization | null>;
+
+  abstract getAllOrganizations(
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        OrganizationWithDetails,
+        "id" | "name" | "logoUrl" | "description" | "foundedYear"
+      >
+    >
+  >;
+
+  abstract getAllNamesByType(
+    type: OrganizationTypeEnum,
+  ): Promise<Pick<OrganizationWithDetails, "name">[]>;
 }

@@ -21,6 +21,7 @@ import {
   ProviderEnum,
   UserStatusEnum,
 } from "./enums";
+import { schools } from "./school.model";
 
 export const users = pgTable(
   "users",
@@ -46,7 +47,9 @@ export const users = pgTable(
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
     ...timestamps,
-    onboardingCompleted: boolean("onboarding_completed").default(false),
+    onboardingCompleted: boolean("onboarding_completed")
+      .notNull()
+      .default(false),
   },
   (table) => [
     uniqueIndex("idx_users_email").on(table.email),
@@ -98,4 +101,21 @@ export const userOnboardings = pgTable("user_onboardings", {
   experienceYears: integer("experience_years"),
   experienceDetails: varchar("experience_details", { length: 500 }),
   skills: jsonb("skills"),
+});
+
+export const userEducations = pgTable("user_educations", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  schoolId: uuid("school_id")
+    .notNull()
+    .references(() => schools.organizationId),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  educationLevel: EducationLevelEnum("education_level"),
+  major: varchar("major", { length: 255 }),
+  gpa: varchar("gpa", { length: 10 }),
+  description: text("description"),
+  ...timestamps,
 });

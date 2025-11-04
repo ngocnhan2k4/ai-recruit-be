@@ -1,89 +1,32 @@
 import { Injectable, Inject } from "@nestjs/common";
 import {
   IOrganizationRepository,
-  Organization,
-  OrganizationTypeEnum,
   OrganizationWithDetails,
+  SchoolTypeEnum,
+  OrganizationTypeEnum,
 } from "@/core";
-import { organizations } from "../models/organization.model";
+import {
+  organizationMembers,
+  organizations,
+} from "../models/organization.model";
 import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { eq } from "drizzle-orm";
-import { UpdateOrganizationDto } from "@/interfaces/dtos";
+import { eq, desc, and, gt, SQL } from "drizzle-orm";
+import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types/api";
 
 @Injectable()
 export class OrganizationRepository
-  extends GenericRepository<Organization, typeof organizations>
+  extends GenericRepository<OrganizationWithDetails, typeof organizations>
   implements IOrganizationRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, organizations);
   }
 
-  async getOrganizationById(id: string): Promise<Organization | null> {
-    const result = await this.db
-      .select({
-        // Organization fields
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        type: organizations.type,
-        description: organizations.description,
-        address: organizations.address,
-        logoUrl: organizations.logoUrl,
-        about: organizations.about,
-        websiteUrl: organizations.websiteUrl,
-        email: organizations.email,
-        phone: organizations.phone,
-        foundedYear: organizations.foundedYear,
-        verifiedAt: organizations.verifiedAt,
-        organizationCulture: organizations.organizationCulture,
-        employeesMin: organizations.employeesMin,
-        employeesMax: organizations.employeesMax,
-        status: organizations.status,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-        deletedAt: organizations.deletedAt,
-        // Company fields (nullable)
-        companySize: companies.companySize,
-        taxCode: companies.taxCode,
-        benefits: companies.benefits,
-        companyRawId: companies.companyRawId,
-        // School fields (nullable)
-        schoolType: schools.schoolType,
-      })
-      .from(organizations)
-      .leftJoin(companies, eq(organizations.id, companies.organizationId))
-      .leftJoin(schools, eq(organizations.id, schools.organizationId))
-      .where(eq(organizations.id, id))
-      .limit(1);
-
-    return result[0] || null;
-  }
-
-  /**
-   * Get organization with attached sub-table data based on type
-   *
-   * This method uses LEFT JOINs to fetch organization data along with company/school/nonprofit info in a single query.
-   * Instead of making multiple queries (1 for organization + 1 for company/school), this uses JOINs for better performance.
-   *
-   * How it works:
-   * 1. Main query selects from organizations table
-   * 2. LEFT JOIN with companies table (only matches if organization.type = 'company')
-   * 3. LEFT JOIN with schools table (only matches if organization.type = 'school' or 'university')
-   * 4. Result is transformed to attach appropriate sub-table data based on organization.type
-   *
-   * Benefits:
-   * - Single database round-trip instead of multiple queries
-   * - Better performance for large datasets
-   * - Atomic operation (all data fetched together)
-   *
-   * @param id - Organization ID
-   * @returns OrganizationWithDetails or null if not found
-   */
-  async getOrganizationWithDetails(
+  async getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null> {
     const result = await this.db
@@ -102,10 +45,8 @@ export class OrganizationRepository
         phone: organizations.phone,
         foundedYear: organizations.foundedYear,
         verifiedAt: organizations.verifiedAt,
-        organizationCulture: organizations.organizationCulture,
         employeesMin: organizations.employeesMin,
         employeesMax: organizations.employeesMax,
-        status: organizations.status,
         createdAt: organizations.createdAt,
         updatedAt: organizations.updatedAt,
         deletedAt: organizations.deletedAt,
@@ -114,76 +55,86 @@ export class OrganizationRepository
         taxCode: companies.taxCode,
         benefits: companies.benefits,
         companyRawId: companies.companyRawId,
+        culture: companies.culture,
         // School fields (nullable)
         schoolType: schools.schoolType,
       })
       .from(organizations)
       .leftJoin(companies, eq(organizations.id, companies.organizationId))
       .leftJoin(schools, eq(organizations.id, schools.organizationId))
-      .where(eq(organizations.id, id))
-      .limit(1);
+      .where(eq(organizations.id, id));
+
+    if (!result[0]) return null;
 
     const row = result[0];
-    if (!row) return null;
-
-    // Transform the flat result into a structured object based on organization type
-    const organizationWithDetails: OrganizationWithDetails = {
-      // Base organization data
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-      type: row.type,
-      description: row.description,
-      address: row.address,
-      logoUrl: row.logoUrl,
-      about: row.about,
-      websiteUrl: row.websiteUrl,
-      email: row.email,
-      phone: row.phone,
-      foundedYear: row.foundedYear,
-      verifiedAt: row.verifiedAt,
-      organizationCulture: row.organizationCulture,
-      employeesMin: row.employeesMin,
-      employeesMax: row.employeesMax,
-      status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      deletedAt: row.deletedAt,
+    return {
+      ...row,
       companySize: row.companySize,
       taxCode: row.taxCode,
       benefits: row.benefits,
-      companyRawId: row.companyRawId,
+      culture: row.culture,
+      schoolType: row.schoolType as SchoolTypeEnum,
     };
-
-    // Attach type-specific data based on organization type
-    switch (row.type) {
-      case OrganizationTypeEnum.COMPANY:
-        if (
-          row.companySize !== null ||
-          row.taxCode !== null ||
-          row.benefits !== null ||
-          row.companyRawId !== null
-        ) {
-          organizationWithDetails.companySize = row.companySize;
-          organizationWithDetails.taxCode = row.taxCode;
-          organizationWithDetails.benefits = row.benefits;
-          organizationWithDetails.companyRawId = row.companyRawId;
-        }
-        break;
-    }
-
-    return organizationWithDetails;
   }
 
-  async updateOrganizationById(
-    id: string,
-    data: UpdateOrganizationDto,
-  ): Promise<Organization | null> {
+  async getAllOrganizations(
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        OrganizationWithDetails,
+        "id" | "name" | "logoUrl" | "description" | "foundedYear"
+      >
+    >
+  > {
+    const whereConditions: SQL<unknown>[] = [];
+
+    if (query.cursor) {
+      whereConditions.push(gt(organizations.createdAt, new Date(query.cursor)));
+    }
+
+    const results = await this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        description: organizations.description,
+        foundedYear: organizations.foundedYear,
+        role: organizationMembers.role,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations)
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
+      .limit(query.limit + 1);
+
+    const hasNextPage = results.length > query.limit;
+    const data = hasNextPage ? results.slice(0, query.limit) : results;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data: data,
+      pagination: {
+        nextCursor: nextCursor,
+        hasNextPage,
+      },
+    };
+  }
+
+  async getAllNamesByType(
+    type: OrganizationTypeEnum,
+  ): Promise<Pick<OrganizationWithDetails, "name">[]> {
     const result = await this.db
-      .update(organizations)
-      .set(data)
-      .where(eq(organizations.id, id))
-      .returning();
-    return result[0] || null;
+      .select({
+        name: organizations.name,
+      })
+      .from(organizations)
+      .where(eq(organizations.type, type));
+
+    return result;
   }
 }

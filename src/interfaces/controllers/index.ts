@@ -27,10 +27,10 @@ export * from "./university/university.controller";
 
 // organization controllers
 export * from "./organization/organization.controller";
+export * from "./organization/organization-admin.controller";
 
 // company controllers
 export * from "./company/company.controller";
-export * from "./company/company-organization.controller";
 export * from "./company/company-admin.controller";
 
 // notification controllers

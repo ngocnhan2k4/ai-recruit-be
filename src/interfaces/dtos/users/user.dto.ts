@@ -7,9 +7,9 @@ import {
 } from "class-validator";
 import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
-import { GenderEnum, RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants/roles";
 import { GeneralQueryDto } from "../common/query";
-import { ProviderEnum, UserStatusEnum } from "@/core";
+import { GenderEnum, ProviderEnum, UserStatusEnum } from "@/core";
 export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
@@ -36,7 +36,12 @@ export class CreateUserRequestDto {
   gender: GenderEnum;
 }
 
-export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
+  @ApiProperty({ required: false, type: "boolean" })
+  @IsOptional()
+  @IsBoolean()
+  onboardingCompleted?: boolean;
+}
 
 export class UserPublicResponseDto {
   @ApiProperty()
@@ -62,6 +67,9 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   address: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  school: string | null;
 }
 
 export class UserSeoPublicResponseDto {
@@ -114,6 +122,9 @@ export class UserDto {
 
   @ApiProperty()
   provider: ProviderEnum;
+
+  @ApiProperty({ nullable: false, enum: RoleEnum })
+  roles: RoleEnum[];
 
   @ApiProperty({ type: "boolean" })
   onboardingCompleted: boolean;
@@ -216,6 +227,7 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
   "emailVerified",
   "phone",
   "phoneVerified",
+  "roles",
   "status",
   "createdAt",
   "updatedAt",

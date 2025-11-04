@@ -1,6 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ISkillRepository } from "@/core";
-import { ApiResponse, SkillDto } from "@/interfaces/dtos";
+import { ISkillRepository, Skill } from "@/core";
+import {
+  ApiResponse,
+  GetSkillsQueryDto,
+  PaginatedResultDto,
+  SkillDto,
+} from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
 
 @Injectable()
@@ -9,7 +14,7 @@ export class SkillUseCases {
   constructor(private readonly skillRepository: ISkillRepository) {}
 
   async getSkills(): Promise<ApiResponse<SkillDto[]>> {
-    const data = await this.skillRepository.getAll();
+    const data = await this.skillRepository.getAll(["id", "name"]);
     this.logger.log(`Fetched ${data.length} skills`);
     return {
       message: "Skills fetched successfully",
@@ -18,11 +23,24 @@ export class SkillUseCases {
     };
   }
 
-  async createMany(createSkillDto): Promise<ApiResponse<SkillDto[]>> {
+  async createMany(
+    createSkillDto: Omit<Skill, "id">[],
+  ): Promise<ApiResponse<SkillDto[]>> {
     const data = await this.skillRepository.createMany(createSkillDto);
     this.logger.log(`Created ${data.length} skills`);
     return {
       message: "Skills created successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: data,
+    };
+  }
+  async getPaginatedSkills(
+    query: GetSkillsQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<SkillDto>>> {
+    const data = await this.skillRepository.getPaginatedSkills(query);
+    this.logger.log(`Fetched paginated skills`);
+    return {
+      message: "Paginated skills fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: data,
     };

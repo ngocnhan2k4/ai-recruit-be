@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  timestamp,
-  varchar,
-  uuid,
-  pgEnum,
-  jsonb,
-} from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, uuid, jsonb } from "drizzle-orm/pg-core";
 
 import { users } from "./user.model";
 import { NotificationTypeEnum } from "./enums";

@@ -13,7 +13,7 @@ import {
   integer,
   pgEnum,
 } from "drizzle-orm/pg-core";
-import { companies, companyRaws } from "./company.model";
+import { companyRaws } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { categories } from "./category.model";
@@ -116,7 +116,6 @@ export const userInteractions = pgTable("user_interactions", {
 
 export const applyJobs = pgTable("apply_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),
