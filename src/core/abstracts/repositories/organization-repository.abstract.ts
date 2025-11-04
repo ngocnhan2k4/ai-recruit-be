@@ -40,4 +40,6 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   abstract getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]>;
+
+  abstract getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]>;
 }

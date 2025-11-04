@@ -54,6 +54,8 @@ export const SchoolTypeEnum = pgEnum("school_type", [
 export const NotificationTypeEnum = pgEnum("notification_type", [
   "job_posted",
   "job_approved",
+  "admin_job_approved",
+  "admin_job_rejected",
   "job_applied",
   "job_matched",
   "profile_viewed",
