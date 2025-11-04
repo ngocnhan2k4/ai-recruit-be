@@ -137,32 +137,26 @@ export class JobUseCases {
     userId: string,
     applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      // Check if job exists
-      const job = await this.jobRepository.getJobById(applyJobDto.jobId);
-      if (!job) {
-        throw new BadRequestException("Job not found");
-      }
-
-      const result = await this.jobRepository.applyJob(
-        applyJobDto.jobId,
-        applyJobDto.cvId,
-        applyJobDto.answers,
-      );
-
-      this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to apply for job:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(error.message || "Failed to apply for job");
+    const job = await this.jobRepository.getJobById(applyJobDto.jobId);
+    if (!job) {
+      throw new BadRequestException({
+        message: "Job not found",
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    const result = await this.jobRepository.applyJob(
+      applyJobDto.jobId,
+      applyJobDto.cvId,
+      applyJobDto.answers,
+    );
+
+    this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 
   async updateApplyJob(
@@ -170,57 +164,45 @@ export class JobUseCases {
     applyId: string,
     updateApplyJobDto: UpdateApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      const result = await this.jobRepository.updateApplyJob(
-        applyId,
-        updateApplyJobDto.status,
-        updateApplyJobDto.userCvId,
-        updateApplyJobDto.answers,
-      );
+    const result = await this.jobRepository.updateApplyJob(
+      applyId,
+      updateApplyJobDto.status,
+      updateApplyJobDto.userCvId,
+      updateApplyJobDto.answers,
+    );
 
-      if (!result) {
-        throw new BadRequestException("Failed to update application");
-      }
-
-      this.logger.log(`User ${userId} updated application ${applyId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update application:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        error.message || "Failed to update application",
-      );
+    if (!result) {
+      throw new BadRequestException({
+        message: "Failed to update application",
+        code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
+      });
     }
+
+    this.logger.log(`User ${userId} updated application ${applyId}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 
   async getApplyJobById(
     applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      const result = await this.jobRepository.getApplyJobById(applyId);
+    const result = await this.jobRepository.getApplyJobById(applyId);
 
-      if (!result) {
-        throw new BadRequestException("Application not found");
-      }
-
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get application:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to get application");
+    if (!result) {
+      throw new BadRequestException({
+        message: "Application not found",
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 
   async saveJob(
@@ -263,49 +245,43 @@ export class JobUseCases {
   }
 
   async createJob(createJobDto: CreateJobDto): Promise<ApiResponse<JobDto>> {
-    try {
-      const jobData: Partial<Job> = {
-        ...createJobDto,
-        questions: createJobDto.questions || undefined,
-        datePosted: convertDateToStr(new Date()),
-        endDate: createJobDto.endDate
-          ? convertDateToStr(new Date(createJobDto.endDate))
-          : null,
-        workType: createJobDto.workType,
-      };
+    const jobData: Partial<Job> = {
+      ...createJobDto,
+      questions: createJobDto.questions || undefined,
+      datePosted: convertDateToStr(new Date()),
+      endDate: createJobDto.endDate
+        ? convertDateToStr(new Date(createJobDto.endDate))
+        : null,
+      workType: createJobDto.workType,
+    };
 
-      const newJob = await this.jobRepository.createJob(jobData);
+    const newJob = await this.jobRepository.createJob(jobData);
 
-      // Transform questions field
-      const transformedJob: JobDto = {
-        ...newJob,
-        questions: newJob.questions || null,
-        status: newJob.status as JobStatusEnum,
-        workType: newJob.workType as WorkTypeEnum,
-      };
+    // Transform questions field
+    const transformedJob: JobDto = {
+      ...newJob,
+      questions: newJob.questions || null,
+      status: newJob.status as JobStatusEnum,
+      workType: newJob.workType as WorkTypeEnum,
+    };
 
-      this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: transformedJob,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to create job:`, error);
-      throw new BadRequestException("Failed to create job");
-    }
+    this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
   }
 
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto & { userId: string },
   ): Promise<ApiResponse<JobDto>> {
-    // Check if job exists
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
         message: "Job not found",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
 
@@ -320,7 +296,7 @@ export class JobUseCases {
     if (!updatedJob) {
       throw new BadRequestException({
         message: "Failed to update job",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        code: RESPONSE_CODE.JOB_NOT_UPDATED,
       });
     }
 
@@ -358,31 +334,28 @@ export class JobUseCases {
   }
 
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
-    try {
-      // Check if job exists
-      const existingJob = await this.jobRepository.getJobById(jobId);
-      if (!existingJob) {
-        throw new BadRequestException("Job not found");
-      }
-
-      const deleted = await this.jobRepository.deleteJob(jobId);
-      if (!deleted) {
-        throw new BadRequestException("Failed to delete job");
-      }
-
-      this.logger.log(`Deleted job ${jobId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: { message: "Job deleted successfully" },
-      };
-    } catch (error) {
-      this.logger.error(`Failed to delete job ${jobId}:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to delete job");
+    const existingJob = await this.jobRepository.getJobById(jobId);
+    if (!existingJob) {
+      throw new BadRequestException({
+        message: "Job not found",
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    const deleted = await this.jobRepository.deleteJob(jobId);
+    if (!deleted) {
+      throw new BadRequestException({
+        message: "Job deleted failed",
+        code: RESPONSE_CODE.JOB_NOT_DELETED,
+      });
+    }
+
+    this.logger.log(`Deleted job ${jobId}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { message: RESPONSE_CODE.SUCCESS },
+    };
   }
 
   async getJobById(

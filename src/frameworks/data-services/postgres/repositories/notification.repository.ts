@@ -29,7 +29,6 @@ export class NotificationRepository
       organizationId?: string;
     }[],
   ): Promise<Notification[]> {
-    console.log("Recipients:", notification); // Debug log
     const [createdNotification] = await tx
       .insert(notifications)
       .values(notification)

@@ -64,6 +64,7 @@ import {
   JobResponse,
   StatisticsJobFilter,
 } from "@/core/entities/job.entity";
+import { getJobStatus } from "@/common/utils/string";
 
 @Injectable()
 export class JobRepository
@@ -869,8 +870,8 @@ export class JobRepository
         await this.notificationRepository.preCreateNotifications(
           tx,
           {
-            title: "Job Status Updated",
-            message: `Job "${updatedJob.title}" has been ${updatedJob.status.toLowerCase()}`,
+            title: "Cập nhật trạng thái công việc",
+            message: `Công việc "${updatedJob.title}" đã ${getJobStatus(updatedJob.status as JobStatusEnum)} bởi quản trị viên.`,
             type:
               (updatedJob.status as JobStatusEnum) === JobStatusEnum.ACTIVE
                 ? NotificationType.ADMIN_JOB_APPROVED
