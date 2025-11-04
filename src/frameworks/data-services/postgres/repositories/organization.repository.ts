@@ -167,13 +167,7 @@ export class OrganizationRepository
         eq(organizations.id, organizationMembers.organizationId),
       )
       .where(and(...whereConditions))
-      .orderBy(
-        query.keyword
-          ? desc(
-              sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword}))`,
-            )
-          : desc(organizations.createdAt),
-      )
+      .orderBy(desc(organizations.createdAt))
       .groupBy(organizations.id, organizationMembers.role)
       .limit(query.limit + 1);
 
