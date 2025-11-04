@@ -136,15 +136,9 @@ export class CompanyUseCase implements OnModuleInit {
       employeesMin: organization.employeesMin || 0,
       employeesMax: organization.employeesMax || 0,
       createdAt: new Date(organization.createdAt),
-      updatedAt: organization.updatedAt
-        ? new Date(organization.updatedAt)
-        : new Date(),
-      deletedAt: organization.deletedAt
-        ? new Date(organization.deletedAt)
-        : new Date(),
-      verifiedAt: organization.verifiedAt
-        ? organization.verifiedAt.toISOString()
-        : "",
+      updatedAt: organization.updatedAt,
+      deletedAt: organization.deletedAt,
+      verifiedAt: organization.verifiedAt,
     };
   }
 }

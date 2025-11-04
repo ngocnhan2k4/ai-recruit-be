@@ -29,6 +29,7 @@ import {
   isNull,
   sql,
   or,
+  lt,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 
@@ -130,7 +131,7 @@ export class OrganizationRepository
     }
 
     if (query.cursor) {
-      whereConditions.push(gt(organizations.createdAt, new Date(query.cursor)));
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
 
     const baseSelect = {
@@ -171,6 +172,7 @@ export class OrganizationRepository
           ? desc(sql`similarity(${organizations.name}, ${query.keyword})`)
           : desc(organizations.createdAt),
       )
+      .groupBy(organizations.id, organizationMembers.role)
       .limit(query.limit + 1);
 
     const hasNextPage = results.length > query.limit;
@@ -285,11 +287,6 @@ export class OrganizationRepository
           organizationId: org.id,
           userId: userId,
           role: "organization_owner",
-
-          // Temp fields for denormalization, remove later
-          organization_name: org.name,
-          organization_type: org.type,
-          organization_email: org.email,
         })
         .execute();
 

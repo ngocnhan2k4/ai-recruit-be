@@ -14,6 +14,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   ApiResponse,
   CreateOrganizationDto,
+  OrganizationWithDetailsDto,
   UpdateOrganizationDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
@@ -200,7 +201,7 @@ export class OrganizationUseCase {
   async getOrganizationById(
     id: string,
     userId?: string,
-  ): Promise<ApiResponse<OrganizationWithDetails | null>> {
+  ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
     const org = await this.organizationRepository.getOrganizationById(id);
     if (!org) {
       throw new NotFoundException(
@@ -208,21 +209,24 @@ export class OrganizationUseCase {
       );
     }
 
+    let role: string = OrganizationRoleEnum.ANONYMOUSLY;
+
     // get role of user
-    if (!userId) {
-      (org as any).userRole = OrganizationRoleEnum.ANONYMOUSLY;
-    } else {
+    if (userId) {
       const userRole = await this.organizationMembersRepository.getMemberRole(
         id,
         userId,
       );
-      (org as any).userRole = userRole;
+      role = userRole ?? OrganizationRoleEnum.ANONYMOUSLY;
     }
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: org,
+      data: {
+        ...org,
+        role: role as OrganizationRoleEnum,
+      },
     };
   }
 

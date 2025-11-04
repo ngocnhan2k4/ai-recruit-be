@@ -10,7 +10,12 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import { OrganizationRoleEnum, OrganizationTypeEnum } from "@/core";
+import {
+  OrganizationLocation,
+  OrganizationRoleEnum,
+  OrganizationTypeEnum,
+  SchoolTypeEnum,
+} from "@/core";
 import { IsEmail } from "class-validator";
 import { CreateCompanyDto } from "../companies/company.dto";
 import { CreateSchoolDto } from "../schools/school.dto";
@@ -29,46 +34,46 @@ export class OrganizationDto {
   type: string;
 
   @ApiProperty({ type: "string" })
-  description: string;
+  description: string | null;
 
   @ApiProperty({ type: "array", items: { type: "string" } })
-  address: string[];
+  address: string[] | null;
 
   @ApiProperty({ type: "string" })
-  logoUrl: string;
+  logoUrl: string | null;
 
   @ApiProperty({ type: "string" })
-  about: string;
+  about: string | null;
 
   @ApiProperty({ type: "string" })
-  websiteUrl: string;
+  websiteUrl: string | null;
 
   @ApiProperty({ type: "string" })
-  email: string;
+  email: string | null;
 
   @ApiProperty({ type: "string" })
-  phone: string;
+  phone: string | null;
 
   @ApiProperty({ type: "number" })
-  foundedYear: number;
+  foundedYear: number | null;
 
   @ApiProperty({ type: "number" })
-  employeesMin: number;
+  employeesMin: number | null;
 
   @ApiProperty({ type: "number" })
-  employeesMax: number;
+  employeesMax: number | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
   createdAt: Date;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  updatedAt: Date;
+  updatedAt: Date | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  deletedAt: Date;
+  deletedAt: Date | null;
 
   @ApiProperty({ type: "string" })
-  verifiedAt: string;
+  verifiedAt: Date | null;
 }
 
 export class CreateOrganizationDto {
@@ -231,5 +236,15 @@ export class GetOrganizationDto extends OrganizationDto {
   @ApiProperty()
   @IsEnum(OrganizationRoleEnum)
   @IsOptional()
+  role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
+}
+
+export class OrganizationWithDetailsDto extends OrganizationDto {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  culture?: string | null;
+  schoolType?: SchoolTypeEnum | null;
+  locations?: OrganizationLocation[] | null;
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
 }

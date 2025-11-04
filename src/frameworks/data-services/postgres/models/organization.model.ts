@@ -34,10 +34,6 @@ export const organizationMembers = pgTable("organization_members", {
     .notNull()
     .references(() => organizations.id),
   role: OrganizationRoleEnum("role").notNull(),
-  // temporary fields for denormalization, remove later
-  organization_name: varchar("organization_name", { length: 255 }).notNull(),
-  organization_type: organizationTypeEnum("organization_type").notNull(),
-  organization_email: varchar("organization_email", { length: 255 }),
   ...timestamps,
 });
 
