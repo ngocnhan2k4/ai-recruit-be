@@ -38,3 +38,9 @@ bun run start:dev
 - Request -> Interfaces/Controller (Dùng DTO để validate) -> Use case -> Gọi Repository qua interface
 - Abstract: Định nghĩa interface cho services và entity
 - Frameworks: Implement các interface trong abstract
+
+# Example use TransactionManager 
+await this.transactionManager.execute(async (tx) => {
+  const user = await this.userRepo.create(tx, data);
+  const exp = await this.expRepo.createUserExperienceWithCompanyAndSkills(tx, user.id, expData);
+});

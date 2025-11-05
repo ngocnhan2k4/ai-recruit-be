@@ -188,6 +188,19 @@ export class OrganizationRepository
     };
   }
 
+  async getAllNamesByType(
+    type: OrganizationTypeEnum,
+  ): Promise<Pick<OrganizationWithDetails, "name">[]> {
+    const result = await this.db
+      .select({
+        name: organizations.name,
+      })
+      .from(organizations)
+      .where(eq(organizations.type, type));
+
+    return result;
+  }
+
   async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
     const results = await this.db
       .select({

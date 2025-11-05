@@ -2,10 +2,10 @@ import {
   Controller,
   Get,
   Param,
-  Put,
   UseGuards,
   Body,
   Query,
+  Patch,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import {
@@ -48,7 +48,7 @@ export class AdminUserController {
   }
 
   @ApiOperation({ summary: "Update user" })
-  @Put(":userId")
+  @Patch(":userId")
   @ApiParam({ name: "userId", description: "User ID", example: "123" })
   @ApiBody({ type: AdminUpdateUserRequestDto })
   @ApiResponseDto(GetUserResponseDto)

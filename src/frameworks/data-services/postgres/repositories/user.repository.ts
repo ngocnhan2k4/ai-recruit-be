@@ -34,6 +34,7 @@ export class UserRepository
         | "emailVerified"
         | "phone"
         | "phoneVerified"
+        | "roles"
         | "status"
         | "createdAt"
         | "updatedAt"
@@ -71,6 +72,7 @@ export class UserRepository
         emailVerified: users.emailVerified,
         phone: users.phone,
         phoneVerified: users.phoneVerified,
+        roles: users.roles,
         status: users.status,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,

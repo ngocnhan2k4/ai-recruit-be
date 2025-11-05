@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Query,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -15,7 +16,7 @@ import {
   ApiBody,
   ApiParam,
 } from "@nestjs/swagger";
-import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { CasbinUseCases } from "@/use-cases/casbin/casbin.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
@@ -30,15 +31,16 @@ import {
   RemoveRoleInDomainDto,
   CheckPermissionDto,
   CheckPermissionWithDomainDto,
+  GetPoliciesCasbinFilter,
 } from "../../dtos";
-import { PtypeEnum } from "@/common/constants/roles";
+import { RESPONSE_CODE } from "@/common/constants/response";
 
 @ApiTags("Casbin Authorization")
 @ApiBearerAuth()
 @Controller("admin/casbin")
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class CasbinController {
-  constructor(private readonly casbinService: CasbinService) {}
+  constructor(private readonly casbinUseCases: CasbinUseCases) {}
 
   // Basic Policy Management (ptype "p")
   @Post("policy")
@@ -87,18 +89,10 @@ export class CasbinController {
   })
   // @CasbinPermission("casbin", "POST")
   async addPolicy(@Body() addPolicyDto: AddPolicyDto) {
-    const { subject, object, action, effect = "allow" } = addPolicyDto;
-    const result = await this.casbinService.addPolicy(
-      PtypeEnum.BASIC,
-      subject,
-      object,
-      action,
-      effect,
-    );
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.addPolicy(addPolicyDto);
     return {
-      success: result,
-      message: result ? "Policy added successfully" : "Failed to add policy",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -127,20 +121,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "DELETE")
   async removePolicy(@Body() removePolicyDto: RemovePolicyDto) {
-    const { subject, object, action, effect } = removePolicyDto;
-    const result = await this.casbinService.removePolicy(
-      PtypeEnum.BASIC,
-      subject,
-      object,
-      action,
-      effect,
-    );
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.removePolicy(removePolicyDto);
     return {
-      success: result,
-      message: result
-        ? "Policy removed successfully"
-        : "Failed to remove policy",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -185,27 +169,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async addPolicy2(@Body() addPolicy2Dto: AddPolicy2Dto) {
-    const {
-      subject,
-      domainType,
-      object,
-      action,
-      effect = "allow",
-    } = addPolicy2Dto;
-    const result = await this.casbinService.addPolicy2(
-      PtypeEnum.DOMAIN,
-      subject,
-      domainType,
-      object,
-      action,
-      effect,
-    );
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.addPolicy2(addPolicy2Dto);
     return {
-      success: result,
-      message: result
-        ? "Domain-based policy added successfully"
-        : "Failed to add domain-based policy",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -235,27 +202,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "DELETE")
   async removePolicy2(@Body() removePolicy2Dto: RemovePolicy2Dto) {
-    const {
-      subject,
-      domainType,
-      object,
-      action,
-      effect = "allow",
-    } = removePolicy2Dto;
-    const result = await this.casbinService.removePolicy2(
-      PtypeEnum.DOMAIN,
-      subject,
-      domainType,
-      object,
-      action,
-      effect,
-    );
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.removePolicy2(removePolicy2Dto);
     return {
-      success: result,
-      message: result
-        ? "Domain-based policy removed successfully"
-        : "Failed to remove domain-based policy",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -292,12 +242,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async addRoleForUser(@Body() addRoleDto: AddRoleDto) {
-    const { user, role } = addRoleDto;
-    const result = await this.casbinService.addRoleForUser(user, role);
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.addRoleForUser(addRoleDto);
     return {
-      success: result,
-      message: result ? "Role assigned successfully" : "Failed to assign role",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -324,12 +272,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "DELETE")
   async removeRoleForUser(@Body() removeRoleDto: RemoveRoleDto) {
-    const { user, role } = removeRoleDto;
-    const result = await this.casbinService.deleteRoleForUser(user, role);
-    await this.casbinService.savePolicy();
+    const result = await this.casbinUseCases.removeRoleForUser(removeRoleDto);
     return {
-      success: result,
-      message: result ? "Role removed successfully" : "Failed to remove role",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -362,18 +308,11 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async addRoleForUserInDomain(@Body() addRoleInDomainDto: AddRoleInDomainDto) {
-    const { user, role, domainId } = addRoleInDomainDto;
-    const result = await this.casbinService.addRoleForUserInDomain(
-      user,
-      role,
-      domainId,
-    );
-    await this.casbinService.savePolicy();
+    const result =
+      await this.casbinUseCases.addRoleForUserInDomain(addRoleInDomainDto);
     return {
-      success: result,
-      message: result
-        ? "Domain-based role assigned successfully"
-        : "Failed to assign domain-based role",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -404,18 +343,12 @@ export class CasbinController {
   async removeRoleForUserInDomain(
     @Body() removeRoleInDomainDto: RemoveRoleInDomainDto,
   ) {
-    const { user, role, domainId } = removeRoleInDomainDto;
-    const result = await this.casbinService.deleteRoleForUserInDomain(
-      user,
-      role,
-      domainId,
+    const result = await this.casbinUseCases.removeRoleForUserInDomain(
+      removeRoleInDomainDto,
     );
-    await this.casbinService.savePolicy();
     return {
-      success: result,
-      message: result
-        ? "Domain-based role removed successfully"
-        : "Failed to remove domain-based role",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 
@@ -423,7 +356,8 @@ export class CasbinController {
   @Get("policies")
   @ApiOperation({
     summary: "Get all policies",
-    description: "Retrieve all authorization policies from the system",
+    description:
+      "Retrieve all authorization policies from the system (in-memory, no pagination)",
   })
   @ApiResponse({
     status: 200,
@@ -443,12 +377,50 @@ export class CasbinController {
     },
   })
   @CasbinPermission("casbin", "GET")
-  async getAllPolicies() {
-    const policies = await this.casbinService.getAllPolicies();
+  async getAllPolicies(@Query() query: GetPoliciesCasbinFilter) {
+    const result = await this.casbinUseCases.getAllPolicies(query);
     return {
-      success: true,
-      data: policies,
-      count: policies.length,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      data: result.data,
+      count: result.data?.length || 0,
+    };
+  }
+
+  @Get("policies/paginated")
+  @ApiOperation({
+    summary: "Get policies with pagination",
+    description:
+      "Retrieve policies from database with pagination support. Supports both page-based and cursor-based pagination.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Policies retrieved successfully with pagination",
+    examples: {
+      "policies-paginated": {
+        summary: "Paginated list of policies",
+        value: {
+          success: true,
+          data: {
+            data: [
+              ["ADMIN", "*", "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)", "allow"],
+              ["USER", "profile", "PUT", "allow"],
+            ],
+            pagination: {
+              nextCursor: "10",
+              hasNextPage: true,
+              total: 100,
+            },
+          },
+        },
+      },
+    },
+  })
+  @CasbinPermission("casbin", "GET")
+  async getPoliciesPaginated(@Query() query: GetPoliciesCasbinFilter) {
+    const result = await this.casbinUseCases.getPoliciesPaginated(query);
+    return {
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      ...result.data,
     };
   }
 
@@ -480,11 +452,11 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "GET")
   async getAllRoles() {
-    const roles = await this.casbinService.getAllRoles();
+    const result = await this.casbinUseCases.getAllRoles();
     return {
-      success: true,
-      data: roles,
-      count: roles.length,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      data: result.data,
+      count: result.data?.length || 0,
     };
   }
 
@@ -514,11 +486,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "GET")
   async getRolesForUser(@Param("userId") userId: string) {
-    const roles = await this.casbinService.getRolesForUser(userId);
+    const result = await this.casbinUseCases.getRolesForUser(userId);
     return {
-      success: true,
-      data: roles,
-      userId,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      ...result.data,
     };
   }
 
@@ -558,15 +529,13 @@ export class CasbinController {
     @Param("userId") userId: string,
     @Param("domain") domain: string,
   ) {
-    const roles = await this.casbinService.getRolesForUserInDomain(
+    const result = await this.casbinUseCases.getRolesForUserInDomain(
       userId,
       domain,
     );
     return {
-      success: true,
-      data: roles,
-      userId,
-      domain,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      ...result.data,
     };
   }
 
@@ -627,16 +596,12 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async checkPermission(@Body() checkPermissionDto: CheckPermissionDto) {
-    const { subject, object, action } = checkPermissionDto;
-    const allowed = await this.casbinService
-      .getEnforcer()
-      .enforce(subject, object, action);
+    const result =
+      await this.casbinUseCases.checkPermission(checkPermissionDto);
     return {
-      success: true,
-      allowed,
-      subject,
-      object,
-      action,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      ...result.data,
+      ...checkPermissionDto,
     };
   }
 
@@ -682,23 +647,13 @@ export class CasbinController {
   async checkPermissionWithDomain(
     @Body() checkPermissionWithDomainDto: CheckPermissionWithDomainDto,
   ) {
-    const { subject, domainType, domainId, object, action } =
-      checkPermissionWithDomainDto;
-    const allowed = await this.casbinService.canWithDomain(
-      subject,
-      domainType,
-      domainId,
-      object,
-      action,
+    const result = await this.casbinUseCases.checkPermissionWithDomain(
+      checkPermissionWithDomainDto,
     );
     return {
-      success: true,
-      allowed,
-      subject,
-      domainType,
-      domainId,
-      object,
-      action,
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      ...result.data,
+      ...checkPermissionWithDomainDto,
     };
   }
 
@@ -723,10 +678,10 @@ export class CasbinController {
   })
   @CasbinPermission("casbin", "POST")
   async reloadPolicies() {
-    await this.casbinService.loadPolicy();
+    const result = await this.casbinUseCases.reloadPolicies();
     return {
-      success: true,
-      message: "Policies reloaded successfully",
+      success: result.code === RESPONSE_CODE.SUCCESS,
+      message: result.message,
     };
   }
 }

@@ -4,38 +4,19 @@ import path from "path";
 import { ConfigService } from "@nestjs/config";
 import { CasbinService } from "./casbin.service";
 import { DrizzleCasbinAdapter } from "./casbin.adapter";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
+import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 
 @Module({
+  imports: [PostgresDataServicesModule],
   providers: [
     {
       provide: "CASBIN_ENFORCER",
-      useFactory: async (configService: ConfigService) => {
+      useFactory: async (configService: ConfigService, db: DBDrizzle) => {
         const modelPath = path.resolve(
           process.cwd(),
           "src/common/config/rbac_model.conf",
         );
-
-        const databaseAdapterUrl = configService.get<string>(
-          "DATABASE_ADAPTER_URL",
-        );
-
-        const pool = new Pool({
-          connectionString: databaseAdapterUrl,
-          ssl:
-            process.env.NODE_ENV === "production"
-              ? { rejectUnauthorized: false }
-              : false,
-          max: 10,
-          min: 2,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 2000,
-        });
-
-        const db = drizzle(pool, {
-          casing: "snake_case",
-        });
 
         const adapter = new DrizzleCasbinAdapter(db);
 
@@ -45,7 +26,7 @@ import { Pool } from "pg";
         await enforcer.loadPolicy();
         return enforcer;
       },
-      inject: [ConfigService],
+      inject: [ConfigService, "DRIZZLE"],
     },
     CasbinService,
   ],

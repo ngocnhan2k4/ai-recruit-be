@@ -1,5 +1,6 @@
 export * from "./auth-repository.abstract";
 export * from "./category-repository.abstract";
+export * from "./casbin-repository.abstract";
 export * from "./company-repository.abstract";
 export * from "./province-repository.abstract";
 export * from "./generic-repository.abstract";
@@ -12,3 +13,4 @@ export * from "./skill-repository.abstract";
 export * from "./user-onboarding-repository.abstract";
 export * from "./notification-repository.abstract";
 export * from "./organization-repository.abstract";
+export * from "./transaction-manager.abstract";

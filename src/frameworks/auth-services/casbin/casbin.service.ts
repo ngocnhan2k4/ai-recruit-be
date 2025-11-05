@@ -3,23 +3,36 @@ import { PtypeEnum, RoleEnum } from "@/common/constants/roles";
 import { newSyncedEnforcer, SyncedEnforcer } from "casbin";
 import path from "path";
 import { DrizzleCasbinAdapter } from "./casbin.adapter";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
 import { ConfigService } from "@nestjs/config";
+import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin/casbin.dto";
+import { PaginatedResult } from "@/common/types/api";
+import { eq, and, count, SQL, asc, desc, gt } from "drizzle-orm";
+import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
+import { ICasbinRepository } from "@/core";
 
 @Injectable()
 export class CasbinService {
   private cache = new Map<string, SyncedEnforcer>();
   private readonly modelPath: string;
+  private readonly sharedAdapter: DrizzleCasbinAdapter;
+  private readonly enforcerAdapter: DrizzleCasbinAdapter;
+  private readonly db: DBDrizzle;
 
   constructor(
     @Inject("CASBIN_ENFORCER") private readonly enforcer: SyncedEnforcer,
-    @Inject(ConfigService) private readonly configService: ConfigService,
+    private readonly configService: ConfigService,
+    @Inject("DRIZZLE") db: DBDrizzle,
+    private readonly casbinRepository: ICasbinRepository,
   ) {
     this.modelPath = path.resolve(
       process.cwd(),
       "src/common/config/rbac_model.conf",
     );
+    // Get the adapter from the enforcer
+    this.enforcerAdapter = (enforcer as any).adapter as DrizzleCasbinAdapter;
+    this.sharedAdapter = this.enforcerAdapter;
+    this.db = db;
   }
 
   getEnforcer(): SyncedEnforcer {
@@ -32,30 +45,11 @@ export class CasbinService {
       return this.cache.get(userId) as SyncedEnforcer;
     }
 
-    const databaseAdapterUrl = this.configService.get<string>(
-      "DATABASE_ADAPTER_URL",
+    // Create new enforcer with filtered policies using shared adapter
+    const newEnforcer = await newSyncedEnforcer(
+      this.modelPath,
+      this.sharedAdapter,
     );
-
-    const pool = new Pool({
-      connectionString: databaseAdapterUrl,
-      ssl:
-        process.env.NODE_ENV === "production"
-          ? { rejectUnauthorized: false }
-          : false,
-      max: 10,
-      min: 2,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    const db = drizzle(pool, {
-      casing: "snake_case",
-    });
-
-    const adapter = new DrizzleCasbinAdapter(db);
-
-    // Create new enforcer with filtered policies
-    const newEnforcer = await newSyncedEnforcer(this.modelPath, adapter);
 
     // Load filtered policies: all "p" policies + user's "g" policies
     await newEnforcer.loadFilteredPolicy([
@@ -88,7 +82,13 @@ export class CasbinService {
     effect: string = "allow",
   ): Promise<boolean> {
     try {
-      await this.enforcer.addPolicy(ptype, subject, object, action, effect);
+      await this.enforcer.addNamedPolicy(
+        ptype,
+        subject,
+        object,
+        action,
+        effect,
+      );
       return true;
     } catch (error) {
       console.error("Failed to add policy:", error);
@@ -102,10 +102,24 @@ export class CasbinService {
     object: string,
     action: string,
     effect: string = "allow",
-  ): Promise<boolean> {
+  ): Promise<boolean | undefined> {
     try {
-      await this.enforcer.removePolicy(ptype, subject, object, action, effect);
-      return true;
+      const deletedCount = await this.casbinRepository.removePolicy({
+        ptype,
+        subject,
+        object,
+        action,
+        effect,
+      });
+
+      if (deletedCount > 0) {
+        // Reload policies into memory after successful deletion
+        await this.enforcer.loadPolicy();
+        return true;
+      }
+
+      // No rows were deleted (no matching policies found)
+      return false;
     } catch (error) {
       console.error("Failed to remove policy:", error);
       return false;
@@ -122,7 +136,7 @@ export class CasbinService {
     effect: string = "allow",
   ): Promise<boolean> {
     try {
-      await this.enforcer.addPolicy(
+      await this.enforcer.addNamedPolicy(
         ptype,
         subject,
         domainType,
@@ -144,17 +158,25 @@ export class CasbinService {
     object: string,
     action: string,
     effect: string = "allow",
-  ): Promise<boolean> {
+  ): Promise<boolean | undefined> {
     try {
-      await this.enforcer.removePolicy(
+      const deletedCount = await this.casbinRepository.removePolicy2({
         ptype,
         subject,
         domainType,
         object,
         action,
         effect,
-      );
-      return true;
+      });
+
+      if (deletedCount > 0) {
+        // Reload policies into memory after successful deletion
+        await this.enforcer.loadPolicy();
+        return true;
+      }
+
+      // No rows were deleted (no matching policies found)
+      return false;
     } catch (error) {
       console.error("Failed to remove policy2:", error);
       return false;
@@ -164,7 +186,12 @@ export class CasbinService {
   // Role management methods for ptype "g" (basic role assignments)
   async addRoleForUser(user: string, role: string): Promise<boolean> {
     try {
-      await this.enforcer.addGroupingPolicy(user, role);
+      console.log("addRoleForUser", user, role);
+      await this.enforcer.addNamedGroupingPolicy(
+        PtypeEnum.BASIC_ASSIGNMENT,
+        user,
+        role,
+      );
       return true;
     } catch (error) {
       console.error("Failed to add role for user:", error);
@@ -174,7 +201,7 @@ export class CasbinService {
 
   async deleteRoleForUser(user: string, role: string): Promise<boolean> {
     try {
-      await this.enforcer.removeGroupingPolicy(user, role);
+      await this.enforcer.removeNamedGroupingPolicy(user, role);
       return true;
     } catch (error) {
       console.error("Failed to delete role for user:", error);
@@ -189,7 +216,7 @@ export class CasbinService {
     domainId: string,
   ): Promise<boolean> {
     try {
-      await this.enforcer.addGroupingPolicy(user, role, domainId);
+      await this.enforcer.addNamedGroupingPolicy(user, role, domainId);
       return true;
     } catch (error) {
       console.error("Failed to add role for user in domain:", error);
@@ -203,7 +230,7 @@ export class CasbinService {
     domainId: string,
   ): Promise<boolean> {
     try {
-      await this.enforcer.removeGroupingPolicy(user, role, domainId);
+      await this.enforcer.removeNamedGroupingPolicy(user, role, domainId);
       return true;
     } catch (error) {
       console.error("Failed to delete role for user in domain:", error);
@@ -233,8 +260,61 @@ export class CasbinService {
     return await this.enforcer.getUsersForRoleInDomain(role, domain);
   }
 
-  async getAllPolicies(): Promise<string[][]> {
-    return await this.enforcer.getPolicy();
+  async getAllPolicies(query: GetPoliciesCasbinFilter): Promise<string[][]> {
+    // Get all policies first
+    let policies: string[][];
+
+    // If ptype is specified, get policies of that type
+    if (query.ptype) {
+      policies = await this.enforcer.getNamedPolicy(query.ptype);
+      console.log("policies", policies);
+    } else {
+      // Get all policies (combines all ptypes)
+      policies = await this.enforcer.getPolicy();
+    }
+
+    // Apply additional filters if specified
+    if (query.ptype === PtypeEnum.BASIC) {
+      // Basic policy structure: [subject, object, action, effect]
+      return policies.filter((policy) => {
+        if (query.subject && policy[0] !== query.subject) return false;
+        if (query.object && policy[1] !== query.object) return false;
+        return true;
+      });
+    } else if (query.ptype === PtypeEnum.DOMAIN) {
+      // Domain policy structure: [subject, domainType, object, action, effect]
+      return policies.filter((policy) => {
+        if (query.subject && policy[0] !== query.subject) return false;
+        if (query.domainType && policy[1] !== String(query.domainType))
+          return false;
+        if (query.object && policy[2] !== query.object) return false;
+        return true;
+      });
+    } else if (!query.ptype) {
+      // No ptype specified, filter across all policy types
+      // This requires checking each policy type
+      return policies.filter((policy) => {
+        // Basic policies: [subject, object, action, effect]
+        // Domain policies: [subject, domainType, object, action, effect]
+        // We can't distinguish without ptype, so apply filters based on policy length
+        if (query.subject) {
+          if (policy[0] !== query.subject) return false;
+        }
+        if (query.object) {
+          // For basic: index 1, for domain: index 2
+          if (policy.length === 4 && policy[1] !== query.object) return false;
+          if (policy.length === 5 && policy[2] !== query.object) return false;
+        }
+        if (query.domainType) {
+          // Only applies to domain policies (length 5)
+          if (policy.length === 5 && policy[1] !== String(query.domainType))
+            return false;
+        }
+        return true;
+      });
+    }
+
+    return policies;
   }
 
   async getAllRoles(): Promise<string[][]> {
@@ -273,5 +353,141 @@ export class CasbinService {
 
   async hasPolicy(rule: string[]): Promise<boolean> {
     return await this.enforcer.hasPolicy(...rule);
+  }
+
+  /**
+   * Get policies from database with pagination and filtering
+   * This method queries directly from the database instead of loading into memory
+   */
+  async getPoliciesPaginated(
+    query: GetPoliciesCasbinFilter,
+  ): Promise<PaginatedResult<string[]>> {
+    // Build WHERE conditions based on filters
+    const whereConditions: SQL[] = [];
+
+    // Filter by ptype
+    if (query.ptype) {
+      whereConditions.push(eq(casbinRule.ptype, query.ptype));
+    }
+
+    // Filter by subject (v0)
+    if (query.subject) {
+      whereConditions.push(eq(casbinRule.v0, query.subject));
+    }
+
+    // Filter by domainType or object based on ptype
+    if (query.ptype === PtypeEnum.BASIC) {
+      // Basic policy: [subject, object, action, effect]
+      // Object is at v1
+      if (query.object) {
+        whereConditions.push(eq(casbinRule.v1, query.object));
+      }
+    } else if (query.ptype === PtypeEnum.DOMAIN) {
+      // Domain policy: [subject, domainType, object, action, effect]
+      // DomainType is at v1, Object is at v2
+      if (query.domainType) {
+        whereConditions.push(eq(casbinRule.v1, query.domainType));
+      }
+      if (query.object) {
+        whereConditions.push(eq(casbinRule.v2, query.object));
+      }
+    } else if (!query.ptype) {
+      // No ptype specified - need to check both positions
+      if (query.domainType) {
+        // DomainType only exists in domain policies (v1)
+        whereConditions.push(eq(casbinRule.v1, query.domainType));
+        // Also filter by ptype to only get domain policies
+        whereConditions.push(eq(casbinRule.ptype, PtypeEnum.DOMAIN));
+      }
+      if (query.object && !query.domainType) {
+        // Object could be at v1 (basic) or v2 (domain)
+        // We'll need to use OR condition, but drizzle doesn't easily support this
+        // For simplicity, we'll check v1 first (basic policies)
+        whereConditions.push(eq(casbinRule.v1, query.object));
+      }
+    }
+
+    // Build final WHERE clause
+    let whereClause: SQL | undefined =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+    // Calculate pagination
+    const limit = query.limit || 10;
+
+    // Handle cursor-based pagination
+    if (query.cursor && !query.page) {
+      // Cursor-based pagination: use cursor to filter by ID
+      const cursorId = parseInt(query.cursor, 10);
+      if (!isNaN(cursorId)) {
+        const cursorCondition = gt(casbinRule.id, cursorId);
+
+        if (whereClause) {
+          whereClause = and(whereClause, cursorCondition) || whereClause;
+        } else {
+          whereClause = cursorCondition;
+        }
+      }
+    }
+
+    // Only use offset for page-based pagination
+    const offset = query.page ? (query.page - 1) * limit : 0;
+
+    // Order by id for consistent pagination
+    const orderByClause =
+      query.sortDirection === "desc" ? desc(casbinRule.id) : asc(casbinRule.id);
+
+    // Query policies with pagination (fetch one extra to check for next page)
+    const policies = await this.db
+      .select()
+      .from(casbinRule)
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .limit(limit + 1)
+      .offset(offset);
+
+    // Get total count for page-based pagination
+    let total: number | undefined = undefined;
+    if (query.page) {
+      const countResult = await this.db
+        .select({ count: count() })
+        .from(casbinRule)
+        .where(whereClause);
+      total = Number(countResult[0]?.count || 0);
+    }
+
+    // Check if there's a next page
+    const hasNextPage = policies.length > limit;
+    const data = hasNextPage ? policies.slice(0, limit) : policies;
+
+    // Convert database records to policy arrays
+    const policyArrays = data.map((policy) => {
+      const policyArray: string[] = [];
+      if (policy.id) policyArray.push(policy.id.toString());
+      if (policy.ptype) policyArray.push(policy.ptype);
+      if (policy.v0) policyArray.push(policy.v0);
+      if (policy.v1) policyArray.push(policy.v1);
+      if (policy.v2) policyArray.push(policy.v2);
+      if (policy.v3) policyArray.push(policy.v3);
+      if (policy.v4) policyArray.push(policy.v4);
+      if (policy.v5) policyArray.push(policy.v5);
+      return policyArray;
+    });
+
+    // Calculate next cursor (for cursor-based pagination)
+    let nextCursor: string | null = null;
+    if (!query.page && hasNextPage && data.length > 0) {
+      // Use the last item's ID as cursor
+      const lastItem = policies[limit - 1];
+      nextCursor = lastItem.id.toString();
+    }
+
+    return {
+      data: policyArrays,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+        total,
+      },
+    };
   }
 }

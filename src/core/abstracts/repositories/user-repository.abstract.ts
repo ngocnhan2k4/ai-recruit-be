@@ -17,6 +17,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
         | "emailVerified"
         | "phone"
         | "phoneVerified"
+        | "roles"
         | "status"
         | "createdAt"
         | "updatedAt"

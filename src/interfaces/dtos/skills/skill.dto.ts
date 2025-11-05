@@ -11,9 +11,9 @@ export class SkillDto {
 }
 
 export class CreateSkillDto {
-  @ApiProperty({ type: "string" })
-  @IsString()
-  name: string;
+  @ApiProperty({ type: "string", isArray: true })
+  @IsString({ each: true })
+  name: string[];
 }
 
 export class GetSkillsQueryDto extends GeneralQueryDto {}
