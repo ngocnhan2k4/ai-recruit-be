@@ -18,6 +18,7 @@ import {
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
+  ITransactionManager,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -36,6 +37,7 @@ import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { UserEducationRepository } from "./repositories/user-education.repository";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { TransactionManager } from "./repositories/transaction-manager";
 
 @Global()
 @Module({
@@ -152,6 +154,10 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
       provide: IUserEducationRepository,
       useClass: UserEducationRepository,
     },
+    {
+      provide: ITransactionManager,
+      useClass: TransactionManager,
+    },
   ],
   exports: [
     IAuthRepository,
@@ -169,6 +175,7 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
     INotificationRepository,
     IOrganizationRepository,
     IUserEducationRepository,
+    ITransactionManager,
   ],
 })
 export class PostgresDataServicesModule {}
