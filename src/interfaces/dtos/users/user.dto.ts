@@ -123,6 +123,9 @@ export class UserDto {
   @ApiProperty()
   provider: ProviderEnum;
 
+  @ApiProperty({ nullable: false, enum: RoleEnum })
+  roles: RoleEnum[];
+
   @ApiProperty({ type: "boolean" })
   onboardingCompleted: boolean;
 
@@ -224,6 +227,7 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
   "emailVerified",
   "phone",
   "phoneVerified",
+  "roles",
   "status",
   "createdAt",
   "updatedAt",

@@ -82,6 +82,11 @@ export enum OrganizationRoleEnum {
   ANONYMOUSLY = "anonymously",
 }
 
+export enum DomainTypeEnum {
+  ORGANIZATION = "org",
+  ALL = "*",
+}
+
 export enum UpdateJobTypeEnum {
   UPDATE = "update",
   APPROVAL = "approval",

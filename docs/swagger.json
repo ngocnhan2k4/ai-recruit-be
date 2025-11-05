@@ -1,0 +1,6357 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/users/check-username/{username}": {
+      "get": {
+        "description": "Fast username existence check using Bloom Filter. Returns false if definitely not exists, true if might exist (requires DB verification for accuracy).",
+        "operationId": "UserController_checkUsername",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "description": "Username to check",
+            "schema": {
+              "example": "john_doe",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CheckUsernameResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check if username exists using Bloom Filter",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "description": "Retrieve information about the currently authenticated user.",
+        "operationId": "UserController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get current user",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{username}": {
+      "get": {
+        "operationId": "UserController_getUserProfilePublic",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserPublicResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user by username",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/id/{id}": {
+      "get": {
+        "description": "Retrieve detailed user information by user ID. Requires authentication.",
+        "operationId": "UserController_getUserById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user by ID",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{username}/public-seo": {
+      "get": {
+        "operationId": "UserController_getUserSEO",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserSeoPublicResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user by username for SEO",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/profile": {
+      "put": {
+        "operationId": "UserController_updateProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update user profile",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/user-experiences/{username}": {
+      "get": {
+        "operationId": "UserController_getUserExperience",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/UserExperiencesResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user experience",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/user-experiences": {
+      "post": {
+        "operationId": "UserController_createUserExperience",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserExperienceRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create user experience",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/user-experiences/{id}": {
+      "put": {
+        "operationId": "UserController_updateUserExperience",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserExperienceRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update user experience",
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UserController_deleteUserExperience",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete user experience",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/user-skills": {
+      "get": {
+        "operationId": "UserController_getUserSkills",
+        "parameters": [
+          {
+            "name": "userName",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/UserSkillDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user skills",
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "operationId": "UserController_createUserSkill",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserSkillRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserSkillDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create user skill",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/user-skills/{id}": {
+      "delete": {
+        "operationId": "UserController_deleteUserSkill",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserSkillDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete user skill",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/avatar": {
+      "post": {
+        "operationId": "UserController_uploadUserAvatar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "avatar",
+                      "banner"
+                    ]
+                  }
+                },
+                "required": [
+                  "file",
+                  "type"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload user avatar",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/onboarding": {
+      "post": {
+        "operationId": "UserController_completeUserOnboarding",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Complete user onboarding",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "UserController_getUsers",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isDeleted",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PaginatedResultDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all users (admin only)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Verify Firebase ID Token, auto-provision user if first login, issue access/refresh tokens.",
+        "operationId": "AuthController_logIn",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Firebase ID Token",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/LoginResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "User login",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Validate refresh token and rotate it. Returns a new access token and a new refresh token.",
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AccessTokenResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Refresh access token",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Revoke the provided refresh token.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/jobs": {
+      "get": {
+        "description": "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
+        "operationId": "JobController_getJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "salaryMin",
+            "required": false,
+            "in": "query",
+            "description": "Minimum salary",
+            "schema": {
+              "example": 15000000,
+              "type": "number"
+            }
+          },
+          {
+            "name": "salaryMax",
+            "required": false,
+            "in": "query",
+            "description": "Maximum salary",
+            "schema": {
+              "example": 20000000,
+              "type": "number"
+            }
+          },
+          {
+            "name": "experienceMin",
+            "required": false,
+            "in": "query",
+            "description": "Minimum years of experience",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "experienceMax",
+            "required": false,
+            "in": "query",
+            "description": "Maximum years of experience",
+            "schema": {
+              "example": 5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "provinceId",
+            "required": false,
+            "in": "query",
+            "description": "Province ID to filter by",
+            "schema": {
+              "example": "uuid-province-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": false,
+            "in": "query",
+            "description": "Company ID to filter by",
+            "schema": {
+              "example": "uuid-company-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "workType",
+            "required": false,
+            "in": "query",
+            "description": "Work type (remote, onsite)",
+            "schema": {
+              "example": "remote",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Status (active, inactive)",
+            "schema": {
+              "example": "active",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobPaginationResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all jobs",
+        "tags": [
+          "Jobs"
+        ]
+      },
+      "post": {
+        "operationId": "JobController_createJob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/statistics": {
+      "get": {
+        "description": "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
+        "operationId": "JobController_getStatisticsJob",
+        "parameters": [
+          {
+            "name": "fromDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2023-01-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2023-12-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "category-uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "provinceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "province-uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/StatisticsJobResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job statistics",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/apply": {
+      "post": {
+        "description": "Submit an application for a specific job",
+        "operationId": "JobController_applyJob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ApplyJobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Apply for a job",
+        "tags": [
+          "Jobs"
+        ]
+      },
+      "get": {
+        "description": "Retrieve a job applications by job ID",
+        "operationId": "JobController_getApplyJobs",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "query",
+            "description": "Job ID",
+            "schema": {
+              "example": "uuid-apply-id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ApplyJobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job applications by job ID",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/apply/{applyId}": {
+      "put": {
+        "operationId": "JobController_updateApplyJob",
+        "parameters": [
+          {
+            "name": "applyId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApplyJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ApplyJobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      },
+      "get": {
+        "description": "Retrieve a specific job application by its ID",
+        "operationId": "JobController_getApplyJobById",
+        "parameters": [
+          {
+            "name": "applyId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ApplyJobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job application by ID",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/save": {
+      "post": {
+        "description": "Save a job for later viewing",
+        "operationId": "JobController_saveJob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserInteractionResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save a job",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/hide": {
+      "post": {
+        "description": "Hide a job from future search results",
+        "operationId": "JobController_hideJob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserInteractionResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Hide a job",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/{id}": {
+      "put": {
+        "description": "Update an existing job posting",
+        "operationId": "JobController_updateJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a job",
+        "tags": [
+          "Jobs"
+        ]
+      },
+      "get": {
+        "description": "Retrieve a specific job by its ID",
+        "operationId": "JobController_getJobById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job by ID",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/saved": {
+      "get": {
+        "description": "Retrieve a list of all jobs saved by the authenticated user.",
+        "operationId": "JobController_getAllSavedJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SavedJobsResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all saved jobs for the authenticated user",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/saved/count": {
+      "get": {
+        "operationId": "JobController_getNumberOfSavedJobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Number"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/applied": {
+      "get": {
+        "description": "Retrieve a list of all jobs applied by the authenticated user.",
+        "operationId": "JobController_getAllAppliedJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AppliedJobsResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get applied jobs for the authenticated user",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/applied/count": {
+      "get": {
+        "operationId": "JobController_getNumberOfAppliedJobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Number"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/admin/jobs": {
+      "get": {
+        "description": "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type by admin.",
+        "operationId": "JobAdminController_getJobsByAdmin",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "salaryMin",
+            "required": false,
+            "in": "query",
+            "description": "Minimum salary",
+            "schema": {
+              "example": 15000000,
+              "type": "number"
+            }
+          },
+          {
+            "name": "salaryMax",
+            "required": false,
+            "in": "query",
+            "description": "Maximum salary",
+            "schema": {
+              "example": 20000000,
+              "type": "number"
+            }
+          },
+          {
+            "name": "experienceMin",
+            "required": false,
+            "in": "query",
+            "description": "Minimum years of experience",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "experienceMax",
+            "required": false,
+            "in": "query",
+            "description": "Maximum years of experience",
+            "schema": {
+              "example": 5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "provinceId",
+            "required": false,
+            "in": "query",
+            "description": "Province ID to filter by",
+            "schema": {
+              "example": "uuid-province-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": false,
+            "in": "query",
+            "description": "Company ID to filter by",
+            "schema": {
+              "example": "uuid-company-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "workType",
+            "required": false,
+            "in": "query",
+            "description": "Work type (remote, onsite)",
+            "schema": {
+              "example": "remote",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Status (active, inactive)",
+            "schema": {
+              "example": "active",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobPaginationResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all jobs",
+        "tags": [
+          "Jobs Admin"
+        ]
+      },
+      "post": {
+        "description": "Create a new job posting",
+        "operationId": "JobAdminController_createJob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a new job",
+        "tags": [
+          "Jobs Admin"
+        ]
+      }
+    },
+    "/admin/jobs/{id}": {
+      "put": {
+        "description": "Update an existing job posting",
+        "operationId": "JobAdminController_updateJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a job",
+        "tags": [
+          "Jobs Admin"
+        ]
+      },
+      "delete": {
+        "description": "Delete a job posting (soft delete)",
+        "operationId": "JobAdminController_deleteJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a job",
+        "tags": [
+          "Jobs Admin"
+        ]
+      }
+    },
+    "/admin/jobs/counts": {
+      "get": {
+        "description": "Return total number of jobs and counts grouped by job status",
+        "operationId": "JobAdminController_getJobCounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobCountsDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job counts",
+        "tags": [
+          "Jobs Admin"
+        ]
+      }
+    },
+    "/categories": {
+      "get": {
+        "operationId": "CategoryController_getCategories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CategoryDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all categories",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/upload/file": {
+      "post": {
+        "description": "Upload any file (image, document, etc.) to Cloudinary and get a public URL",
+        "operationId": "UploadController_uploadFile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "File upload",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UploadResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload a file to Cloudinary",
+        "tags": [
+          "File Upload"
+        ]
+      }
+    },
+    "/upload/{public_id}": {
+      "delete": {
+        "description": "Delete a file from Cloudinary by its public ID",
+        "operationId": "UploadController_deleteFile",
+        "parameters": [
+          {
+            "name": "public_id",
+            "required": true,
+            "in": "path",
+            "description": "Public ID of the file to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/DeleteFileResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete a file from Cloudinary",
+        "tags": [
+          "File Upload"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Returns the current health status of the application",
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Health check endpoint",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/provinces": {
+      "get": {
+        "operationId": "ProvinceController_getProvinces",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProvinceDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all provinces",
+        "tags": [
+          "Provinces"
+        ]
+      }
+    },
+    "/cv": {
+      "get": {
+        "description": "Retrieve all CVs for a specific user or the authenticated user",
+        "operationId": "CvController_getUserCvs",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "User ID to get CVs for. If not provided, returns CVs for the authenticated user.",
+            "schema": {
+              "example": "uuid-user-id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CvListResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user CVs",
+        "tags": [
+          "CV"
+        ]
+      },
+      "post": {
+        "description": "Upload a new CV for the authenticated user",
+        "operationId": "CvController_createCv",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CvDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create new CV",
+        "tags": [
+          "CV"
+        ]
+      }
+    },
+    "/cv/{id}": {
+      "get": {
+        "operationId": "CvController_getCvById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "CV ID",
+            "schema": {
+              "example": "uuid-cv-id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CvDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get CV by Id",
+        "tags": [
+          "CV"
+        ]
+      },
+      "put": {
+        "description": "Update an existing CV",
+        "operationId": "CvController_updateCv",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CvDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update CV",
+        "tags": [
+          "CV"
+        ]
+      },
+      "delete": {
+        "description": "Delete a CV",
+        "operationId": "CvController_deleteCv",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CvDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete CV",
+        "tags": [
+          "CV"
+        ]
+      }
+    },
+    "/skills/all": {
+      "get": {
+        "operationId": "SkillController_getSkills",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SkillDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all skills",
+        "tags": [
+          "Skills"
+        ]
+      }
+    },
+    "/skills": {
+      "post": {
+        "operationId": "SkillController_createMany",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSkillDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SkillDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create new skills",
+        "tags": [
+          "Skills"
+        ]
+      },
+      "get": {
+        "operationId": "SkillController_getPaginatedSkills",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SkillDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get pageinated skills",
+        "tags": [
+          "Skills"
+        ]
+      }
+    },
+    "/universities/all": {
+      "get": {
+        "operationId": "UniversityController_getUniversities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/OrganizationDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all universities",
+        "tags": [
+          "Universities"
+        ]
+      }
+    },
+    "/admin/casbin/policy": {
+      "post": {
+        "description": "Create a basic authorization policy: subject can perform action on object",
+        "operationId": "CasbinController_addPolicy",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Basic policy definition",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "admin-all-access": {
+                  "summary": "Admin has all access",
+                  "description": "ADMIN can perform all actions on all objects",
+                  "value": {
+                    "subject": "ADMIN",
+                    "object": "*",
+                    "action": "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)",
+                    "effect": "allow"
+                  }
+                },
+                "user-profile-update": {
+                  "summary": "User can update profile",
+                  "description": "USER can update profile resources",
+                  "value": {
+                    "subject": "USER",
+                    "object": "profile",
+                    "action": "PUT",
+                    "effect": "allow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Policy added successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "success": {
+                    "summary": "Policy added successfully",
+                    "value": {
+                      "success": true,
+                      "message": "Policy added successfully"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a basic policy (ptype p)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      },
+      "delete": {
+        "description": "Delete a basic authorization policy",
+        "operationId": "CasbinController_removePolicy",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Basic policy to remove",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "remove-admin-policy": {
+                  "summary": "Remove admin policy",
+                  "value": {
+                    "subject": "ADMIN",
+                    "object": "*",
+                    "action": "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)",
+                    "effect": "allow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Policy removed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove a basic policy (ptype p)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/policy2": {
+      "post": {
+        "description": "Create a domain-based authorization policy: subject can perform action on object in domain",
+        "operationId": "CasbinController_addPolicy2",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Domain-based policy definition",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "admin-org-access": {
+                  "summary": "Admin has organization access",
+                  "description": "ADMIN can perform all actions on all objects in any organization",
+                  "value": {
+                    "subject": "ADMIN",
+                    "domainType": "*",
+                    "object": "*",
+                    "action": "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)",
+                    "effect": "allow"
+                  }
+                },
+                "org-owner-access": {
+                  "summary": "Organization owner access",
+                  "description": "ORGANIZATION_OWNER can manage their organization",
+                  "value": {
+                    "subject": "ORGANIZATION_OWNER",
+                    "domainType": "org",
+                    "object": "organization",
+                    "action": "(GET)|(PUT)|(PATCH)",
+                    "effect": "allow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Domain-based policy added successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a domain-based policy (ptype p2)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      },
+      "delete": {
+        "description": "Delete a domain-based authorization policy",
+        "operationId": "CasbinController_removePolicy2",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Domain-based policy to remove",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "remove-org-policy": {
+                  "summary": "Remove organization policy",
+                  "value": {
+                    "subject": "ORGANIZATION_OWNER",
+                    "domainType": "org",
+                    "object": "organization",
+                    "action": "(GET)|(PUT)|(PATCH)",
+                    "effect": "allow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain-based policy removed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove a domain-based policy (ptype p2)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/role": {
+      "post": {
+        "description": "Assign a basic role to a user",
+        "operationId": "CasbinController_addRoleForUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Basic role assignment",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "assign-user-role": {
+                  "summary": "Assign USER role",
+                  "description": "Give USER role to a specific user",
+                  "value": {
+                    "user": "0028QiZXRGRl0dcQHUM35et60aq2",
+                    "role": "USER"
+                  }
+                },
+                "assign-admin-role": {
+                  "summary": "Assign ADMIN role",
+                  "description": "Give ADMIN role to a specific user",
+                  "value": {
+                    "user": "0028QiZXRGRl0dcQHUM35et60aq2",
+                    "role": "ADMIN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role assigned successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign role to user (ptype g)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      },
+      "delete": {
+        "description": "Remove a basic role from a user",
+        "operationId": "CasbinController_removeRoleForUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Basic role removal",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "remove-user-role": {
+                  "summary": "Remove USER role",
+                  "value": {
+                    "user": "0028QiZXRGRl0dcQHUM35et60aq2",
+                    "role": "USER"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role removed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove role from user (ptype g)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/role-domain": {
+      "post": {
+        "description": "Assign a role to a user within a specific domain/organization",
+        "operationId": "CasbinController_addRoleForUserInDomain",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Domain-based role assignment",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "assign-org-owner": {
+                  "summary": "Assign organization owner role",
+                  "description": "Give ORGANIZATION_OWNER role to user in specific organization",
+                  "value": {
+                    "user": "04iT59Ryz0v8eD54Omir5JNjCcdq",
+                    "role": "ORGANIZATION_OWNER",
+                    "domainType": "org",
+                    "domainId": "68512664fb59bbeddef04047"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Domain-based role assigned successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign role to user in domain (ptype g2)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      },
+      "delete": {
+        "description": "Remove a role from a user within a specific domain/organization",
+        "operationId": "CasbinController_removeRoleForUserInDomain",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Domain-based role removal",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "remove-org-owner": {
+                  "summary": "Remove organization owner role",
+                  "value": {
+                    "user": "04iT59Ryz0v8eD54Omir5JNjCcdq",
+                    "role": "ORGANIZATION_OWNER",
+                    "domain": "68512664fb59bbeddef04047"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain-based role removed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove role from user in domain (ptype g2)",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/policies": {
+      "get": {
+        "description": "Retrieve all authorization policies from the system (in-memory, no pagination)",
+        "operationId": "CasbinController_getAllPolicies",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "ptype",
+            "required": true,
+            "in": "query",
+            "description": "Policy type",
+            "schema": {
+              "example": "p",
+              "type": "string",
+              "enum": [
+                "p",
+                "p2",
+                "g",
+                "g2"
+              ]
+            }
+          },
+          {
+            "name": "domainType",
+            "required": false,
+            "in": "query",
+            "description": "Domain type",
+            "schema": {
+              "example": "org",
+              "type": "string",
+              "enum": [
+                "org",
+                "*"
+              ]
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "Subject (role or user)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "object",
+            "required": false,
+            "in": "query",
+            "description": "Object (resource)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policies retrieved successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "policies-list": {
+                    "summary": "List of all policies",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        [
+                          "ADMIN",
+                          "*",
+                          "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)",
+                          "allow"
+                        ],
+                        [
+                          "USER",
+                          "profile",
+                          "PUT",
+                          "allow"
+                        ]
+                      ],
+                      "count": 2
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all policies",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/policies/paginated": {
+      "get": {
+        "description": "Retrieve policies from database with pagination support. Supports both page-based and cursor-based pagination.",
+        "operationId": "CasbinController_getPoliciesPaginated",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "ptype",
+            "required": true,
+            "in": "query",
+            "description": "Policy type",
+            "schema": {
+              "example": "p",
+              "type": "string",
+              "enum": [
+                "p",
+                "p2",
+                "g",
+                "g2"
+              ]
+            }
+          },
+          {
+            "name": "domainType",
+            "required": false,
+            "in": "query",
+            "description": "Domain type",
+            "schema": {
+              "example": "org",
+              "type": "string",
+              "enum": [
+                "org",
+                "*"
+              ]
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "Subject (role or user)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "object",
+            "required": false,
+            "in": "query",
+            "description": "Object (resource)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policies retrieved successfully with pagination",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "policies-paginated": {
+                    "summary": "Paginated list of policies",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "data": [
+                          [
+                            "ADMIN",
+                            "*",
+                            "(GET)|(POST)|(PUT)|(PATCH)|(DELETE)",
+                            "allow"
+                          ],
+                          [
+                            "USER",
+                            "profile",
+                            "PUT",
+                            "allow"
+                          ]
+                        ],
+                        "pagination": {
+                          "nextCursor": "10",
+                          "hasNextPage": true,
+                          "total": 100
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get policies with pagination",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/roles": {
+      "get": {
+        "description": "Retrieve all role assignments from the system",
+        "operationId": "CasbinController_getAllRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Role assignments retrieved successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "role-assignments": {
+                    "summary": "All role assignments",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        [
+                          "0028QiZXRGRl0dcQHUM35et60aq2",
+                          "USER"
+                        ],
+                        [
+                          "04iT59Ryz0v8eD54Omir5JNjCcdq",
+                          "ORGANIZATION_OWNER",
+                          "68512664fb59bbeddef04047"
+                        ]
+                      ],
+                      "count": 2
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all role assignments",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/user/{userId}/roles": {
+      "get": {
+        "description": "Retrieve all roles assigned to a specific user",
+        "operationId": "CasbinController_getRolesForUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID to get roles for",
+            "schema": {
+              "example": "0028QiZXRGRl0dcQHUM35et60aq2",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User roles retrieved successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "user-roles": {
+                    "summary": "User roles",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        "USER"
+                      ],
+                      "userId": "0028QiZXRGRl0dcQHUM35et60aq2"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roles for a specific user",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/user/{userId}/domain/{domain}/roles": {
+      "get": {
+        "description": "Retrieve all roles assigned to a specific user within a domain",
+        "operationId": "CasbinController_getRolesForUserInDomain",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID to get roles for",
+            "schema": {
+              "example": "04iT59Ryz0v8eD54Omir5JNjCcdq",
+              "type": "string"
+            }
+          },
+          {
+            "name": "domain",
+            "required": true,
+            "in": "path",
+            "description": "Domain ID to get roles for",
+            "schema": {
+              "example": "68512664fb59bbeddef04047",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User domain roles retrieved successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "user-domain-roles": {
+                    "summary": "User domain roles",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        "ORGANIZATION_OWNER"
+                      ],
+                      "userId": "04iT59Ryz0v8eD54Omir5JNjCcdq",
+                      "domain": "68512664fb59bbeddef04047"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roles for a specific user in domain",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/check": {
+      "post": {
+        "description": "Verify if a specific subject has permission to perform an action on an object",
+        "operationId": "CasbinController_checkPermission",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Permission check request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "check-admin-access": {
+                  "summary": "Check admin access",
+                  "description": "Check if ADMIN can access all resources",
+                  "value": {
+                    "subject": "ADMIN",
+                    "object": "*",
+                    "action": "GET"
+                  }
+                },
+                "check-user-profile": {
+                  "summary": "Check user profile access",
+                  "description": "Check if USER can update profile",
+                  "value": {
+                    "subject": "USER",
+                    "object": "profile",
+                    "action": "PUT"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permission check completed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "permission-granted": {
+                    "summary": "Permission granted",
+                    "value": {
+                      "success": true,
+                      "allowed": true,
+                      "subject": "ADMIN",
+                      "object": "*",
+                      "action": "GET"
+                    }
+                  },
+                  "permission-denied": {
+                    "summary": "Permission denied",
+                    "value": {
+                      "success": true,
+                      "allowed": false,
+                      "subject": "USER",
+                      "object": "admin-panel",
+                      "action": "DELETE"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Check if a subject has permission",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/check-domain": {
+      "post": {
+        "description": "Verify if a specific subject has permission to perform an action on an object within a domain",
+        "operationId": "CasbinController_checkPermissionWithDomain",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Domain-based permission check request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              },
+              "examples": {
+                "check-org-owner": {
+                  "summary": "Check organization owner access",
+                  "description": "Check if ORGANIZATION_OWNER can manage organization",
+                  "value": {
+                    "subject": "ORGANIZATION_OWNER",
+                    "domain": "68512664fb59bbeddef04047",
+                    "object": "organization",
+                    "action": "PUT"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain-based permission check completed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "domain-permission-granted": {
+                    "summary": "Domain permission granted",
+                    "value": {
+                      "success": true,
+                      "allowed": true,
+                      "subject": "ORGANIZATION_OWNER",
+                      "domain": "68512664fb59bbeddef04047",
+                      "object": "organization",
+                      "action": "PUT"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Check if a subject has permission in domain",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/admin/casbin/reload": {
+      "post": {
+        "description": "Refresh the authorization policies by reloading them from the database",
+        "operationId": "CasbinController_reloadPolicies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Policies reloaded successfully",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "reload-success": {
+                    "summary": "Policies reloaded successfully",
+                    "value": {
+                      "success": true,
+                      "message": "Policies reloaded successfully"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reload policies from database",
+        "tags": [
+          "Casbin Authorization"
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "NotificationController_getNotificationsByUser",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PaginatedResult"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get notification by user id, org id",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/companies": {
+      "get": {
+        "description": "Retrieve a list of companies with cursor-based pagination",
+        "operationId": "CompanyController_getPaginationCompanies",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "employeeMin",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "nullable": true,
+              "type": "number"
+            }
+          },
+          {
+            "name": "employeeMax",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "nullable": true,
+              "type": "number"
+            }
+          },
+          {
+            "name": "verified",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "nullable": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "provinceIds",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "nullable": true,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CompanyDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get companies with cursor pagination",
+        "tags": [
+          "Companies Public"
+        ]
+      }
+    },
+    "/admin/users/{userId}": {
+      "get": {
+        "operationId": "AdminUserController_getUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "example": "123",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user by ID",
+        "tags": [
+          "Admin Users"
+        ]
+      },
+      "put": {
+        "operationId": "AdminUserController_adminUpdateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "example": "123",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUpdateUserRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update user",
+        "tags": [
+          "Admin Users"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "AdminUserController_getAllUsers",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagination",
+            "required": false,
+            "in": "query",
+            "description": "Type of pagination (page or cursor)",
+            "schema": {
+              "example": "page",
+              "type": "string",
+              "enum": [
+                "page",
+                "cursor"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isDeleted",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetAllUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all users",
+        "tags": [
+          "Admin Users"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "AI Recruit Documentation",
+    "description": "This is the API Docs for using internally.",
+    "version": "1.0",
+    "contact": {},
+    "termsOfService": "http://swagger.io/terms/",
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/license/mit"
+    }
+  },
+  "tags": [
+    {
+      "name": "Users",
+      "description": "All APIs to interact with users"
+    },
+    {
+      "name": "File Upload",
+      "description": "All APIs to interact with file upload"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "Local server 1"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "Request was successful."
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "CheckUsernameResponseDto": {
+        "type": "object",
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "exists"
+        ]
+      },
+      "GetUserResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UserPublicResponseDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "bannerUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "Male",
+              "Female",
+              "Other"
+            ]
+          },
+          "dob": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "school": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "username",
+          "name",
+          "avatarUrl",
+          "bannerUrl",
+          "gender",
+          "dob",
+          "bio",
+          "address",
+          "school"
+        ]
+      },
+      "UserSeoPublicResponseDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "avatarUrl"
+        ]
+      },
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "object",
+            "nullable": true
+          },
+          "phone": {
+            "type": "object",
+            "nullable": false
+          },
+          "avatarUrl": {
+            "type": "object",
+            "nullable": false
+          },
+          "name": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "object",
+            "nullable": false
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "object",
+            "nullable": false
+          },
+          "firebaseUid": {
+            "type": "object",
+            "nullable": false
+          },
+          "gender": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "Male",
+              "Female",
+              "Other"
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "phoneVerified": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "provider": {
+            "type": "string"
+          },
+          "onboardingCompleted": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "active",
+              "inactive",
+              "banned"
+            ]
+          },
+          "deletedAt": {
+            "type": "object",
+            "nullable": false
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "phone",
+          "avatarUrl",
+          "name",
+          "dob",
+          "createdAt",
+          "updatedAt",
+          "firebaseUid",
+          "gender",
+          "emailVerified",
+          "phoneVerified",
+          "provider",
+          "onboardingCompleted",
+          "status",
+          "deletedAt"
+        ]
+      },
+      "UpdateUserRequestDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "Male",
+              "Female",
+              "Other"
+            ]
+          },
+          "onboardingCompleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UserExperienceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "jobTitle",
+          "position",
+          "startDate",
+          "endDate",
+          "description",
+          "createdAt",
+          "updatedAt",
+          "deletedAt"
+        ]
+      },
+      "SkillDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UserExperiencesResponseDto": {
+        "type": "object",
+        "properties": {
+          "experience": {
+            "$ref": "#/components/schemas/UserExperienceDto"
+          },
+          "organization": {
+            "type": "object"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillDto"
+            }
+          }
+        },
+        "required": [
+          "experience",
+          "organization",
+          "skills"
+        ]
+      },
+      "CreateUserExperienceRequestDto": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "skillIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skillNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "organizationId",
+          "organizationName",
+          "jobTitle",
+          "position",
+          "startDate",
+          "endDate",
+          "description"
+        ]
+      },
+      "UserSkillDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "CreateUserSkillRequestDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "skillId",
+          "companyId"
+        ]
+      },
+      "UserOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "object"
+          },
+          "gender": {
+            "type": "object"
+          },
+          "dob": {
+            "type": "object"
+          },
+          "educationLevel": {
+            "type": "object"
+          },
+          "major": {
+            "type": "object"
+          },
+          "school": {
+            "type": "object"
+          },
+          "currentGoal": {
+            "type": "object"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "experienceYears": {
+            "type": "object"
+          },
+          "experienceDetails": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "gender",
+          "dob",
+          "educationLevel",
+          "major",
+          "school",
+          "currentGoal",
+          "skills",
+          "experienceYears",
+          "experienceDetails"
+        ]
+      },
+      "PaginationResponseDto": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": "object",
+            "example": "<cursor>",
+            "description": "Cursor for the next page"
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates if there is a next page"
+          },
+          "total": {
+            "type": "number",
+            "example": 100,
+            "description": "Total number of items available"
+          }
+        }
+      },
+      "PaginatedResultDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponseDto"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ..."
+          },
+          "user": {
+            "$ref": "#/components/schemas/GetUserResponseDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "LoginRequestDto": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+          }
+        },
+        "required": [
+          "idToken"
+        ]
+      },
+      "AccessTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ..."
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "JobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true,
+            "description": "Job description in JSON format",
+            "additionalProperties": {}
+          },
+          "questions": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "salaryMin": {
+            "type": "string",
+            "nullable": true
+          },
+          "salaryMax": {
+            "type": "string",
+            "nullable": true
+          },
+          "experienceMin": {
+            "type": "number",
+            "nullable": true
+          },
+          "experienceMax": {
+            "type": "number",
+            "nullable": true
+          },
+          "datePosted": {
+            "type": "string",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "provinceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "workType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Work type",
+            "example": "remote"
+          },
+          "experienceYear": {
+            "type": "number",
+            "nullable": true,
+            "description": "Years of experience required",
+            "example": 3
+          },
+          "jobRawId": {
+            "type": "number",
+            "nullable": true,
+            "description": "Job Raw ID from jobRaws table"
+          },
+          "applyUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Application URL for external applications",
+            "example": "https://company.com/apply/job-123"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Status (active, inactive)",
+            "example": "active"
+          },
+          "rejectReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Reason for job rejection"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "questions",
+          "organizationId",
+          "salaryMin",
+          "salaryMax",
+          "experienceMin",
+          "experienceMax",
+          "datePosted",
+          "endDate",
+          "provinceId",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "workType",
+          "experienceYear",
+          "jobRawId",
+          "applyUrl",
+          "status"
+        ]
+      },
+      "ProvinceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "CompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "about": {
+            "type": "string"
+          },
+          "websiteUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "foundedYear": {
+            "type": "number"
+          },
+          "employeesMin": {
+            "type": "number"
+          },
+          "employeesMax": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companySize": {
+            "type": "number"
+          },
+          "taxCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "benefits": {
+            "type": "string",
+            "nullable": true
+          },
+          "culture": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "type",
+          "description",
+          "address",
+          "logoUrl",
+          "about",
+          "websiteUrl",
+          "email",
+          "phone",
+          "foundedYear",
+          "employeesMin",
+          "employeesMax",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "verifiedAt",
+          "organizationId",
+          "companySize",
+          "taxCode",
+          "benefits",
+          "culture"
+        ]
+      },
+      "JobResponseDto": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobDto"
+          },
+          "provinces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProvinceDto"
+            }
+          },
+          "company": {
+            "$ref": "#/components/schemas/CompanyDto"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillDto"
+            }
+          },
+          "isSaved": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the job is saved by the current user (only present for authenticated users)"
+          },
+          "isApplied": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the current user has applied for this job (only present for authenticated users)"
+          },
+          "applyStatus": {
+            "type": "string",
+            "example": "applied",
+            "description": "Application status if user has applied for this job (only present for authenticated users)"
+          },
+          "applyId": {
+            "type": "string",
+            "example": "uuid-apply-id",
+            "description": "Application ID if user has applied for this job (only present for authenticated users)"
+          }
+        },
+        "required": [
+          "job",
+          "provinces",
+          "company",
+          "skills"
+        ]
+      },
+      "JobPaginationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "Array of job responses",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobResponseDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponseDto"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "FrequentlyJobDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2025-09-21"
+          },
+          "count": {
+            "type": "number",
+            "example": 10
+          }
+        },
+        "required": [
+          "date",
+          "count"
+        ]
+      },
+      "SalaryStatisticsDto": {
+        "type": "object",
+        "properties": {
+          "expYear": {
+            "type": "number",
+            "example": 1
+          },
+          "avgSalaryMin": {
+            "type": "number",
+            "example": 500
+          },
+          "avgSalaryMax": {
+            "type": "number",
+            "example": 1000
+          },
+          "jobCount": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "expYear",
+          "avgSalaryMin",
+          "avgSalaryMax",
+          "jobCount"
+        ]
+      },
+      "StatisticsJobResponse": {
+        "type": "object",
+        "properties": {
+          "frequentlyJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrequentlyJobDto"
+            }
+          },
+          "openJobCount": {
+            "type": "number",
+            "example": 150
+          },
+          "salaryStatistics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalaryStatisticsDto"
+            }
+          },
+          "totalJobs": {
+            "type": "number",
+            "example": 500
+          },
+          "totalJobByCategoryId": {
+            "type": "number",
+            "example": 100
+          }
+        },
+        "required": [
+          "frequentlyJobs",
+          "openJobCount",
+          "salaryStatistics",
+          "totalJobs",
+          "totalJobByCategoryId"
+        ]
+      },
+      "JobAnswerDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "example": "What is your experience with React?",
+            "description": "The question text"
+          },
+          "answer": {
+            "type": "string",
+            "example": "I have 3 years of experience with React and have built several production applications.",
+            "description": "The answer to the question"
+          }
+        },
+        "required": [
+          "question",
+          "answer"
+        ]
+      },
+      "ApplyJobResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "uuid-apply-id",
+            "description": "Application ID"
+          },
+          "jobId": {
+            "type": "string",
+            "example": "uuid-job-id",
+            "description": "Job ID"
+          },
+          "status": {
+            "type": "string",
+            "example": "pending",
+            "description": "Application status"
+          },
+          "userCvId": {
+            "type": "string",
+            "example": "uuid-cv-id",
+            "description": "CV ID used for application"
+          },
+          "answers": {
+            "description": "Answers to job questions",
+            "example": [
+              {
+                "question": "What is your experience with React?",
+                "answer": "I have 3 years of experience with React and have built several production applications."
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobAnswerDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "status"
+        ]
+      },
+      "ApplyJobDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "example": "uuid-job-id",
+            "description": "Job ID to apply for"
+          },
+          "cvId": {
+            "type": "string",
+            "example": "uuid-cv-id",
+            "description": "CV ID to use for application"
+          },
+          "answers": {
+            "description": "Answers to job questions",
+            "example": [
+              {
+                "question": "What is your experience with React?",
+                "answer": "I have 3 years of experience with React and have built several production applications."
+              },
+              {
+                "question": "How do you handle state management?",
+                "answer": "I use Redux for complex state management and React hooks for local state."
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobAnswerDto"
+            }
+          }
+        },
+        "required": [
+          "jobId"
+        ]
+      },
+      "UpdateApplyJobDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "pending",
+            "description": "New application status",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected"
+            ]
+          },
+          "userCvId": {
+            "type": "string",
+            "example": "uuid-cv-id",
+            "description": "CV ID to use for application (can only be changed when status is 'applied')"
+          },
+          "answers": {
+            "description": "Updated answers to job questions",
+            "example": [
+              {
+                "question": "What is your experience with React?",
+                "answer": "Updated: I have 5 years of experience with React and have built many production applications."
+              },
+              {
+                "question": "How do you handle state management?",
+                "answer": "Updated: I use Redux Toolkit for complex state management and React hooks for local state."
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobAnswerDto"
+            }
+          }
+        }
+      },
+      "UserInteractionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "uuid-interaction-id",
+            "description": "Interaction ID"
+          },
+          "userId": {
+            "type": "string",
+            "example": "uuid-user-id",
+            "description": "User ID"
+          },
+          "jobId": {
+            "type": "string",
+            "example": "uuid-job-id",
+            "description": "Job ID"
+          },
+          "type": {
+            "type": "string",
+            "example": "save",
+            "description": "Interaction type (save or hide)"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "jobId",
+          "type"
+        ]
+      },
+      "SaveJobDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "example": "uuid-job-id",
+            "description": "Job ID to save"
+          },
+          "save": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether to save (true) or unsave (false) the job. Defaults to true."
+          }
+        },
+        "required": [
+          "jobId"
+        ]
+      },
+      "HideJobDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "example": "uuid-job-id",
+            "description": "Job ID to hide"
+          },
+          "hide": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether to hide (true) or unhide (false) the job. Defaults to true."
+          }
+        },
+        "required": [
+          "jobId"
+        ]
+      },
+      "CreateJobDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true,
+            "description": "Job description in JSON format",
+            "additionalProperties": {}
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salaryMin": {
+            "type": "string",
+            "nullable": true
+          },
+          "salaryMax": {
+            "type": "string",
+            "nullable": true
+          },
+          "experienceMin": {
+            "type": "number",
+            "nullable": true
+          },
+          "experienceMax": {
+            "type": "number",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "workType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Work type",
+            "example": "remote",
+            "enum": [
+              "remote",
+              "onsite",
+              "hybrid"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Status (active, inactive)",
+            "example": "active",
+            "enum": [
+              "draft",
+              "pending_approval",
+              "active",
+              "paused",
+              "closed",
+              "rejected"
+            ]
+          },
+          "provinceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "questions": {
+            "nullable": true,
+            "description": "Array of questions for the job",
+            "example": [
+              "What is your experience with React?",
+              "How do you handle state management?"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skillIds": {
+            "nullable": true,
+            "description": "Array of skill IDs associated with the job",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000",
+              "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "companyId",
+          "salaryMin",
+          "salaryMax",
+          "experienceMin",
+          "experienceMax",
+          "endDate",
+          "workType",
+          "status",
+          "provinceId",
+          "questions",
+          "skillIds"
+        ]
+      },
+      "UpdateJobDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true,
+            "description": "Job description in JSON format",
+            "additionalProperties": {}
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salaryMin": {
+            "type": "string",
+            "nullable": true
+          },
+          "salaryMax": {
+            "type": "string",
+            "nullable": true
+          },
+          "experienceMin": {
+            "type": "number",
+            "nullable": true
+          },
+          "experienceMax": {
+            "type": "number",
+            "nullable": true
+          },
+          "datePosted": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "workType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Work type",
+            "example": "remote",
+            "enum": [
+              "remote",
+              "onsite",
+              "hybrid"
+            ]
+          },
+          "applyUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Application URL for external applications",
+            "example": "https://company.com/apply/job-123"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Status (active, inactive)",
+            "example": "active",
+            "enum": [
+              "draft",
+              "pending_approval",
+              "active",
+              "paused",
+              "closed",
+              "rejected"
+            ]
+          },
+          "priority": {
+            "type": "number",
+            "nullable": true,
+            "description": "Priority level"
+          },
+          "provinceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "questions": {
+            "nullable": true,
+            "description": "Array of questions for the job",
+            "example": [
+              "What is your experience with React?",
+              "How do you handle state management?"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skillIds": {
+            "nullable": true,
+            "description": "Array of skill IDs associated with the job",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000",
+              "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rejectReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "description",
+          "datePosted",
+          "endDate",
+          "workType",
+          "applyUrl",
+          "status",
+          "priority",
+          "provinceId",
+          "questions",
+          "skillIds",
+          "rejectReason"
+        ]
+      },
+      "SavedJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "uuid-of-job",
+            "description": "Unique identifier for the job"
+          },
+          "title": {
+            "type": "string",
+            "example": "Senior Software Engineer",
+            "description": "Title of the job"
+          },
+          "salaryMin": {
+            "type": "object",
+            "example": "25000000",
+            "description": "Salary minimum for the job"
+          },
+          "salaryMax": {
+            "type": "object",
+            "example": "40000000",
+            "description": "Salary maximum for the job"
+          },
+          "companyName": {
+            "type": "string",
+            "example": "Tech Corp",
+            "description": "Name of the company offering the job"
+          },
+          "logoUrl": {
+            "type": "string",
+            "example": "https://example.com/logo.png",
+            "description": "URL of the company's logo"
+          },
+          "workType": {
+            "type": "string",
+            "example": "remote",
+            "description": "Work type (remote, onsite)"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2023-01-01T00:00:00Z",
+            "description": "Creation date of the job"
+          },
+          "endedAt": {
+            "type": "string",
+            "example": "2023-12-31",
+            "description": "End date of the job"
+          },
+          "provinceName": {
+            "type": "string",
+            "example": "Hanoi",
+            "description": "Name of the province where the job is located"
+          },
+          "isSaved": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates if the job is saved by the user"
+          },
+          "isApplied": {
+            "type": "boolean",
+            "example": false,
+            "description": "Indicates if the user has applied for the job"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "companyName",
+          "createdAt",
+          "provinceName",
+          "isSaved",
+          "isApplied"
+        ]
+      },
+      "Number": {
+        "type": "object",
+        "properties": {}
+      },
+      "AppliedJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "uuid-of-job",
+            "description": "Unique identifier for the job"
+          },
+          "title": {
+            "type": "string",
+            "example": "Senior Software Engineer",
+            "description": "Title of the job"
+          },
+          "salaryMin": {
+            "type": "object",
+            "example": "25000000",
+            "description": "Salary minimum for the job"
+          },
+          "salaryMax": {
+            "type": "object",
+            "example": "40000000",
+            "description": "Salary maximum for the job"
+          },
+          "companyName": {
+            "type": "string",
+            "example": "Tech Corp",
+            "description": "Name of the company offering the job"
+          },
+          "logoUrl": {
+            "type": "string",
+            "example": "https://example.com/logo.png",
+            "description": "URL of the company's logo"
+          },
+          "workType": {
+            "type": "string",
+            "example": "remote",
+            "description": "Work type (remote, onsite)"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2023-01-01T00:00:00Z",
+            "description": "Creation date of the job"
+          },
+          "endedAt": {
+            "type": "string",
+            "example": "2023-12-31",
+            "description": "End date of the job"
+          },
+          "provinceName": {
+            "type": "string",
+            "example": "Hanoi",
+            "description": "Name of the province where the job is located"
+          },
+          "isSaved": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates if the job is saved by the user"
+          },
+          "isApplied": {
+            "type": "boolean",
+            "example": false,
+            "description": "Indicates if the user has applied for the job"
+          },
+          "applyStatus": {
+            "type": "string",
+            "example": "pending",
+            "description": "Application status for the job"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "companyName",
+          "createdAt",
+          "provinceName",
+          "isSaved",
+          "isApplied",
+          "applyStatus"
+        ]
+      },
+      "JobStatusCountDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ]
+      },
+      "JobCountsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "example": 0
+          },
+          "byStatus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobStatusCountDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "byStatus"
+        ]
+      },
+      "CategoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Public URL of the uploaded file",
+            "example": "https://storage.googleapis.com/bucket-name/uploads/uuid-filename.jpg"
+          },
+          "public_id": {
+            "type": "string",
+            "description": "Original filename with unique identifier",
+            "example": "uuid-filename.jpg"
+          },
+          "format": {
+            "type": "string",
+            "description": "Firebase Storage bucket name",
+            "example": "your-project-id.appspot.com"
+          }
+        },
+        "required": [
+          "url",
+          "public_id",
+          "format"
+        ]
+      },
+      "DeleteFileResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Result message",
+            "example": "File deleted successfully"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "CvDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "uuid-cv-id",
+            "description": "CV ID"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Software Engineer CV",
+            "description": "Name of the CV"
+          },
+          "userId": {
+            "type": "string",
+            "example": "uuid-user-id",
+            "description": "User ID"
+          },
+          "fileUrl": {
+            "type": "string",
+            "example": "https://example.com/cv.pdf",
+            "description": "URL of the CV file"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "My Software Engineer CV.pdf",
+            "description": "Original filename of the CV file"
+          },
+          "mimeType": {
+            "type": "string",
+            "example": "application/pdf",
+            "description": "MIME type of the CV file"
+          },
+          "lastUsed": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last used timestamp"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created at timestamp"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "userId",
+          "fileUrl",
+          "fileName",
+          "mimeType",
+          "lastUsed",
+          "createdAt"
+        ]
+      },
+      "CvListResponseDto": {
+        "type": "object",
+        "properties": {
+          "cvs": {
+            "description": "Array of user CVs",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CvDto"
+            }
+          }
+        },
+        "required": [
+          "cvs"
+        ]
+      },
+      "CreateSkillDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "OrganizationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "about": {
+            "type": "string"
+          },
+          "websiteUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "foundedYear": {
+            "type": "number"
+          },
+          "employeesMin": {
+            "type": "number"
+          },
+          "employeesMax": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "type",
+          "description",
+          "address",
+          "logoUrl",
+          "about",
+          "websiteUrl",
+          "email",
+          "phone",
+          "foundedYear",
+          "employeesMin",
+          "employeesMax",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "verifiedAt"
+        ]
+      },
+      "NotificationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "senderId": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "job_posted",
+              "job_approved",
+              "job_applied",
+              "job_matched",
+              "profile_viewed",
+              "cv_approved",
+              "cv_rejected",
+              "system"
+            ]
+          },
+          "organizationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "readAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "updatedAt",
+          "senderId",
+          "title",
+          "message",
+          "type",
+          "organizationId",
+          "readAt"
+        ]
+      },
+      "GetNotificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "notification": {
+            "$ref": "#/components/schemas/NotificationDto"
+          }
+        },
+        "required": [
+          "notification"
+        ]
+      },
+      "PaginatedResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetNotificationResponseDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponseDto"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "GetAllUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "object",
+            "nullable": true
+          },
+          "phone": {
+            "type": "object",
+            "nullable": false
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "object",
+            "nullable": false
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "phoneVerified": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "status": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "active",
+              "inactive",
+              "banned"
+            ]
+          },
+          "deletedAt": {
+            "type": "object",
+            "nullable": false
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "phone",
+          "name",
+          "createdAt",
+          "updatedAt",
+          "emailVerified",
+          "phoneVerified",
+          "status",
+          "deletedAt"
+        ]
+      },
+      "AdminUpdateUserRequestDto": {
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}
