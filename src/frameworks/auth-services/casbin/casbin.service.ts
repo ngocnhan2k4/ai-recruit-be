@@ -81,19 +81,13 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    try {
-      await this.enforcer.addNamedPolicy(
-        ptype,
-        subject,
-        object,
-        action,
-        effect,
-      );
-      return true;
-    } catch (error) {
-      console.error("Failed to add policy:", error);
-      return false;
-    }
+    return await this.enforcer.addNamedPolicy(
+      ptype,
+      subject,
+      object,
+      action,
+      effect,
+    );
   }
 
   async removePolicy(
@@ -103,27 +97,22 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean | undefined> {
-    try {
-      const deletedCount = await this.casbinRepository.removePolicy({
-        ptype,
-        subject,
-        object,
-        action,
-        effect,
-      });
+    const deletedCount = await this.casbinRepository.removePolicy({
+      ptype,
+      subject,
+      object,
+      action,
+      effect,
+    });
 
-      if (deletedCount > 0) {
-        // Reload policies into memory after successful deletion
-        await this.enforcer.loadPolicy();
-        return true;
-      }
-
-      // No rows were deleted (no matching policies found)
-      return false;
-    } catch (error) {
-      console.error("Failed to remove policy:", error);
-      return false;
+    if (deletedCount > 0) {
+      // Reload policies into memory after successful deletion
+      await this.enforcer.loadPolicy();
+      return true;
     }
+
+    // No rows were deleted (no matching policies found)
+    return false;
   }
 
   // Policy management methods for ptype "p2" (domain-based policies)
@@ -135,20 +124,14 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    try {
-      await this.enforcer.addNamedPolicy(
-        ptype,
-        subject,
-        domainType,
-        object,
-        action,
-        effect,
-      );
-      return true;
-    } catch (error) {
-      console.error("Failed to add policy2:", error);
-      return false;
-    }
+    return await this.enforcer.addNamedPolicy(
+      ptype,
+      subject,
+      domainType,
+      object,
+      action,
+      effect,
+    );
   }
 
   async removePolicy2(
@@ -185,28 +168,15 @@ export class CasbinService {
 
   // Role management methods for ptype "g" (basic role assignments)
   async addRoleForUser(user: string, role: string): Promise<boolean> {
-    try {
-      console.log("addRoleForUser", user, role);
-      await this.enforcer.addNamedGroupingPolicy(
-        PtypeEnum.BASIC_ASSIGNMENT,
-        user,
-        role,
-      );
-      return true;
-    } catch (error) {
-      console.error("Failed to add role for user:", error);
-      return false;
-    }
+    return await this.enforcer.addNamedGroupingPolicy(
+      PtypeEnum.BASIC_ASSIGNMENT,
+      user,
+      role,
+    );
   }
 
   async deleteRoleForUser(user: string, role: string): Promise<boolean> {
-    try {
-      await this.enforcer.removeNamedGroupingPolicy(user, role);
-      return true;
-    } catch (error) {
-      console.error("Failed to delete role for user:", error);
-      return false;
-    }
+    return await this.enforcer.removeNamedGroupingPolicy(user, role);
   }
 
   // Role management methods for ptype "g2" (domain-based role assignments)
@@ -215,13 +185,7 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    try {
-      await this.enforcer.addNamedGroupingPolicy(user, role, domainId);
-      return true;
-    } catch (error) {
-      console.error("Failed to add role for user in domain:", error);
-      return false;
-    }
+    return await this.enforcer.addNamedGroupingPolicy(user, role, domainId);
   }
 
   async deleteRoleForUserInDomain(
@@ -229,13 +193,7 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    try {
-      await this.enforcer.removeNamedGroupingPolicy(user, role, domainId);
-      return true;
-    } catch (error) {
-      console.error("Failed to delete role for user in domain:", error);
-      return false;
-    }
+    return await this.enforcer.removeNamedGroupingPolicy(user, role, domainId);
   }
 
   async getRolesForUser(user: string): Promise<string[]> {
@@ -267,7 +225,6 @@ export class CasbinService {
     // If ptype is specified, get policies of that type
     if (query.ptype) {
       policies = await this.enforcer.getNamedPolicy(query.ptype);
-      console.log("policies", policies);
     } else {
       // Get all policies (combines all ptypes)
       policies = await this.enforcer.getPolicy();
