@@ -1,3 +1,5 @@
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
+
 export abstract class IGenericRepository<T> {
   abstract getAll<K extends keyof T>(fields: K[]): Promise<Pick<T, K>[]>;
 
@@ -10,4 +12,8 @@ export abstract class IGenericRepository<T> {
   abstract update(where: Partial<T>, item: Partial<T>): Promise<T[]>;
 
   abstract delete(where: Partial<T>): Promise<T[]>;
+
+  abstract executeWithTransaction<T>(
+    fn: (tx: DBDrizzleTransaction) => Promise<T>,
+  ): Promise<T>;
 }
