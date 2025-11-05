@@ -41,6 +41,7 @@ import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { PaginatedResult } from "@/common/types/api";
 import { RoleEnum } from "@/common/constants/roles";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
+import { TokenPayload } from "@/common/types/token";
 
 @Injectable()
 export class JobUseCases {
@@ -333,7 +334,10 @@ export class JobUseCases {
     };
   }
 
-  async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
+  async deleteJob(
+    user: TokenPayload,
+    jobId: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
@@ -341,6 +345,10 @@ export class JobUseCases {
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
+
+    console.log(user);
+
+    // If user is not ADMIN, just allow to delete the job that org own
 
     const deleted = await this.jobRepository.deleteJob(jobId);
     if (!deleted) {

@@ -81,9 +81,10 @@ export class JobAdminController {
   })
   @Delete(":id")
   async deleteJob(
+    @GetUser() user: TokenPayload,
     @Param("id") jobId: string,
   ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(jobId);
+    return await this.jobUseCases.deleteJob(user, jobId);
   }
 
   @ApiOperation({

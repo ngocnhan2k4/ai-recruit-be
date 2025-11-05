@@ -7,6 +7,7 @@ import {
   Post,
   Body,
   Put,
+  Delete,
   Param,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -260,5 +261,18 @@ export class JobController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<number>> {
     return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Delete a job",
+    description: "Delete a job posting (for organization)",
+  })
+  @Delete(":id")
+  async deleteJob(
+    @GetUser() user: TokenPayload,
+    @Param("id") jobId: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    return await this.jobUseCases.deleteJob(user, jobId);
   }
 }
