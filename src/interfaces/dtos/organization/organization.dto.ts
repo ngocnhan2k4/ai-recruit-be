@@ -7,8 +7,10 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from "class-validator";
 import {
   OrganizationLocation,
@@ -17,6 +19,7 @@ import {
   SchoolTypeEnum,
 } from "@/core";
 import { IsEmail } from "class-validator";
+import { Type } from "class-transformer";
 import { CreateCompanyDto } from "../companies/company.dto";
 import { CreateSchoolDto } from "../schools/school.dto";
 
@@ -97,7 +100,7 @@ export class CreateOrganizationDto {
   description: string;
 
   @ApiProperty({ type: "string" })
-  @IsNotEmpty({ message: "Address is required" })
+  @IsNotEmpty({ message: "Logo is required" })
   @IsString()
   logoUrl: string;
 
@@ -140,13 +143,12 @@ export class CreateOrganizationDto {
   @IsNumber()
   employeesMax: number;
 
-  @ApiProperty({ type: "array", items: { type: "object" } })
+  @ApiProperty({ type: () => CreateLocationDto, isArray: true })
   @IsNotEmpty({ message: "Locations is required" })
   @IsArray()
-  locations: {
-    address: string;
-    provinceId: string | null;
-  }[];
+  @ValidateNested({ each: true })
+  @Type(() => CreateLocationDto)
+  locations: CreateLocationDto[];
 
   @ApiProperty({ type: () => CreateCompanyDto })
   @IsNotEmpty({ message: "Company is required" })
@@ -237,6 +239,18 @@ export class GetOrganizationDto extends OrganizationDto {
   @IsEnum(OrganizationRoleEnum)
   @IsOptional()
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
+}
+
+export class CreateLocationDto {
+  @ApiProperty({ type: "string" })
+  @IsNotEmpty({ message: "Address is required" })
+  @IsString()
+  address: string;
+
+  @ApiProperty({ type: "string" })
+  @IsNotEmpty({ message: "Province ID is required" })
+  @IsUUID()
+  provinceId: string;
 }
 
 export class OrganizationWithDetailsDto extends OrganizationDto {
