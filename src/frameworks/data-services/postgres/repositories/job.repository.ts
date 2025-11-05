@@ -533,43 +533,104 @@ export class JobRepository
     };
   }
 
+  /**
+   * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
+   * this will create notifications for the job's organization members.
+   */
   async applyJob(
     jobId: string,
     userCvId: string,
+    sendNotifications = false,
+    senderUserId?: string,
     answers?: JobAnswer[],
-  ): Promise<ApplyJobResponse> {
-    // Check if user already applied for this job
-    const existingApplication = await this.db
-      .select()
-      .from(applyJobs)
-      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
-      .where(and(eq(applyJobs.cvId, userCvId), eq(applyJobs.jobId, jobId)))
-      .limit(1);
+  ): Promise<
+    | ApplyJobResponse
+    | {
+        application: ApplyJobResponse;
+        notifications: Notification[];
+        jobTitle?: string;
+      }
+  > {
+    const result = await this.db.transaction(async (tx) => {
+      const existingApplication = await tx
+        .select()
+        .from(applyJobs)
+        .where(and(eq(applyJobs.cvId, userCvId), eq(applyJobs.jobId, jobId)))
+        .limit(1);
 
-    if (existingApplication.length > 0) {
-      throw new Error("User has already applied for this job");
-    }
+      if (existingApplication.length > 0) {
+        throw new Error("User has already applied for this job");
+      }
 
-    // Create new application
-    const [newApplication] = await this.db
-      .insert(applyJobs)
-      .values({
-        jobId,
-        cvId: userCvId,
-        answers,
-        status: ApplyStatusEnum.PENDING,
-      })
-      .returning();
+      // Insert application
+      const [newApplication] = await tx
+        .insert(applyJobs)
+        .values({
+          jobId,
+          cvId: userCvId,
+          answers,
+          status: ApplyStatusEnum.PENDING,
+        })
+        .returning();
 
-    // Update lastUsed timestamp for CV provided
-    await this.db
-      .update(cvs)
-      .set({
-        lastUsed: new Date(),
-      })
-      .where(eq(cvs.id, userCvId));
+      // Update CV.lastUsed
+      await tx
+        .update(cvs)
+        .set({ lastUsed: new Date() })
+        .where(eq(cvs.id, userCvId));
 
-    return newApplication as ApplyJobResponse;
+      // If notifications not requested or no senderUserId, just return application
+      if (!sendNotifications || !senderUserId) {
+        return newApplication as ApplyJobResponse;
+      }
+
+      const jobInfo = await tx
+        .select({ title: jobs.title, organizationId: jobs.organizationId })
+        .from(jobs)
+        .where(eq(jobs.id, jobId))
+        .limit(1);
+
+      if (jobInfo.length === 0) {
+        throw new Error("Job not found");
+      }
+
+      const { title: jobTitle, organizationId } = jobInfo[0];
+
+      const orgMembers =
+        await this.organizationRepository.getMemberIdsOfOrganization(
+          organizationId,
+        );
+
+      const recipients = orgMembers.map((m) => ({
+        receiverId: m.id,
+        organizationId,
+      }));
+
+      const notifications =
+        await this.notificationRepository.preCreateNotifications(
+          tx,
+          {
+            title: "Đơn ứng tuyển mới",
+            message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
+            type: NotificationType.JOB_APPLIED,
+            senderId: senderUserId,
+            payload: {
+              jobId,
+              applyId: newApplication.id,
+              orgId: organizationId,
+            },
+          },
+          recipients,
+        );
+
+      return {
+        application: newApplication as ApplyJobResponse,
+        notifications,
+        jobTitle,
+      };
+    });
+
+    return result;
   }
 
   async updateApplyJob(

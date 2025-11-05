@@ -26,6 +26,7 @@ import {
   WorkTypeEnum,
   OrganizationWithDetails,
   UpdateJobTypeEnum,
+  Notification,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -35,6 +36,7 @@ import {
   JobResponseDto,
 } from "@/interfaces/dtos";
 import {
+  ApplyJobResponse,
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
@@ -143,6 +145,7 @@ export class JobUseCases {
     userId: string,
     applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
+    // Ensure job exists
     const job = await this.jobRepository.getJobById(applyJobDto.jobId);
     if (!job) {
       throw new BadRequestException({
@@ -151,17 +154,74 @@ export class JobUseCases {
       });
     }
 
-    const result = await this.jobRepository.applyJob(
-      applyJobDto.jobId,
-      applyJobDto.cvId,
-      applyJobDto.answers,
-    );
+    const isSendNotifications = true;
+
+    let repoResult:
+      | ApplyJobResponse
+      | {
+          application: ApplyJobResponse;
+          notifications: Notification[];
+          jobTitle?: string;
+        };
+
+    try {
+      repoResult = await this.jobRepository.applyJob(
+        applyJobDto.jobId,
+        applyJobDto.cvId!,
+        isSendNotifications,
+        userId,
+        applyJobDto.answers,
+      );
+    } catch (err: any) {
+      if (err?.message?.includes("already applied")) {
+        throw new BadRequestException({
+          message: "You have already applied to this job",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+
+      this.logger.error("[applyJob] unexpected error", err);
+      throw new BadRequestException({
+        message: "Failed to apply for job",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    let application: ApplyJobResponse;
+    if ("application" in repoResult) {
+      application = repoResult.application;
+      const notifications = repoResult.notifications;
+      const jobTitle = repoResult.jobTitle;
+
+      // Send notifications to recipients
+      notifications.forEach((notification) => {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent new-application notification to ${notification.receiverId} for job "${jobTitle}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send websocket notification to ${notification.receiverId}`,
+          );
+        }
+      });
+    } else {
+      application = repoResult;
+    }
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: application,
     };
   }
 
@@ -191,7 +251,6 @@ export class JobUseCases {
       const sent = this.webSocketGateway.sendToUser(
         {
           userId: notification.receiverId,
-          organizationId: notification.organizationId || undefined,
         },
         notification,
       );
@@ -339,7 +398,6 @@ export class JobUseCases {
         this.webSocketGateway.sendToUser(
           {
             userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
           },
           notification,
         );
