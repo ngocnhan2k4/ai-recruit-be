@@ -622,6 +622,93 @@ export class JobRepository
     return updatedApplication as ApplyJobResponse;
   }
 
+  async updateApplyJobWithNotifications(
+    applyId: string,
+    status: ApplyStatusEnum,
+    orgSenderId: string,
+    userCvId?: string,
+    answers?: JobAnswer[],
+  ): Promise<{
+    application: ApplyJobResponse | null;
+    notification: Notification | null;
+    jobTitle?: string;
+  }> {
+    const result = await this.db.transaction(async (tx) => {
+      // Get existing application with job info
+      const existingApp = await tx
+        .select({
+          application: applyJobs,
+          userId: cvs.userId,
+          jobTitle: jobs.title,
+          jobId: jobs.id,
+          organizationId: jobs.organizationId,
+        })
+        .from(applyJobs)
+        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+        .where(eq(applyJobs.id, applyId))
+        .limit(1);
+
+      if (existingApp.length === 0) {
+        throw new Error("Application not found");
+      }
+
+      const { userId, jobTitle, jobId, organizationId } = existingApp[0];
+
+      // Update the application
+      const [updatedApplication] = await tx
+        .update(applyJobs)
+        .set({
+          status: status || existingApp[0].application.status,
+          cvId: userCvId || existingApp[0].application.cvId,
+          answers: answers || existingApp[0].application.answers,
+          updatedAt: new Date(),
+        })
+        .where(eq(applyJobs.id, applyId))
+        .returning();
+
+      let notification: Notification | null = null;
+
+      if (status && status !== existingApp[0].application.status) {
+        const notificationTitle =
+          status == ApplyStatusEnum.ACCEPTED
+            ? "Đơn ứng tuyển được chấp nhận"
+            : "Đơn ứng tuyển bị từ chối";
+        const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${jobTitle}" đã được ${status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
+
+        const notifications =
+          await this.notificationRepository.preCreateNotifications(
+            tx,
+            {
+              title: notificationTitle,
+              message: notificationMessage,
+              type:
+                status == ApplyStatusEnum.ACCEPTED
+                  ? NotificationType.CV_APPROVED
+                  : NotificationType.CV_REJECTED,
+              senderId: orgSenderId,
+              payload: {
+                jobId: jobId,
+                applyId: applyId,
+                orgId: organizationId,
+              },
+            },
+            [{ receiverId: userId, organizationId }],
+          );
+
+        notification = notifications[0] || null;
+      }
+
+      return {
+        application: updatedApplication as ApplyJobResponse,
+        notification,
+        jobTitle,
+      };
+    });
+
+    return result;
+  }
+
   async getApplyJobById(applyId: string): Promise<ApplyJobResponse | null> {
     const result = await this.db
       .select()
@@ -634,10 +721,21 @@ export class JobRepository
 
   async getApplyJobs(jobId: string): Promise<ApplyJobResponse[]> {
     const result = await this.db
-      .select()
+      .select({
+        id: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+        status: applyJobs.status,
+        answers: applyJobs.answers,
+        createdAt: applyJobs.createdAt,
+        updatedAt: applyJobs.updatedAt,
+        userId: cvs.userId,
+      })
       .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .where(eq(applyJobs.jobId, jobId))
       .orderBy(desc(applyJobs.createdAt));
+
     return result as ApplyJobResponse[];
   }
 

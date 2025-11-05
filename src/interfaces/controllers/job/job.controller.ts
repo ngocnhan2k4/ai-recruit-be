@@ -98,6 +98,11 @@ export class JobController {
     return await this.jobUseCases.applyJob(user.userId, applyJobDto);
   }
 
+  @ApiOperation({
+    summary: "Update job application status",
+    description:
+      "Update the status of a job application and send notification to applicants",
+  })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(ApplyJobResponseDto)
   @Put("apply/:applyId")
@@ -272,7 +277,8 @@ export class JobController {
   async deleteJob(
     @GetUser() user: TokenPayload,
     @Param("id") jobId: string,
+    @Query("organizationId") organizationId: string,
   ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(user, jobId);
+    return await this.jobUseCases.deleteJob(user, jobId, organizationId);
   }
 }

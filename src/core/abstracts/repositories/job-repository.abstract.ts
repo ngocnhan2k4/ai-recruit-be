@@ -57,6 +57,18 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     answers?: JobAnswer[],
   ): Promise<ApplyJobResponse | null>;
 
+  abstract updateApplyJobWithNotifications(
+    applyId: string,
+    status: ApplyStatusEnum,
+    orgSenderId: string,
+    userCvId?: string,
+    answers?: JobAnswer[],
+  ): Promise<{
+    application: ApplyJobResponse | null;
+    notification: Notification | null;
+    jobTitle?: string;
+  }>;
+
   abstract getApplyJobById(applyId: string): Promise<ApplyJobResponse | null>;
 
   abstract saveJob(

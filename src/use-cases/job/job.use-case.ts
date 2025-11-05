@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
 import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
@@ -161,29 +166,51 @@ export class JobUseCases {
   }
 
   async updateApplyJob(
-    userId: string,
+    orgSenderId: string,
     applyId: string,
     updateApplyJobDto: UpdateApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    const result = await this.jobRepository.updateApplyJob(
-      applyId,
-      updateApplyJobDto.status,
-      updateApplyJobDto.userCvId,
-      updateApplyJobDto.answers,
-    );
+    const { application, notification, jobTitle } =
+      await this.jobRepository.updateApplyJobWithNotifications(
+        applyId,
+        updateApplyJobDto.status!,
+        orgSenderId,
+        updateApplyJobDto.userCvId,
+        updateApplyJobDto.answers,
+      );
 
-    if (!result) {
+    if (!application) {
       throw new BadRequestException({
         message: "Failed to update application",
         code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
       });
     }
 
-    this.logger.log(`User ${userId} updated application ${applyId}`);
+    // Send notification
+    if (notification) {
+      const sent = this.webSocketGateway.sendToUser(
+        {
+          userId: notification.receiverId,
+          organizationId: notification.organizationId || undefined,
+        },
+        notification,
+      );
+
+      if (sent) {
+        this.logger.log(
+          `Sent application status update notification to user ${notification.receiverId} for job "${jobTitle}"`,
+        );
+      } else {
+        this.logger.warn(
+          `Failed to send WebSocket notification to user ${notification.receiverId}`,
+        );
+      }
+    }
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: application,
     };
   }
 
@@ -337,6 +364,7 @@ export class JobUseCases {
   async deleteJob(
     user: TokenPayload,
     jobId: string,
+    organizationId?: string,
   ): Promise<ApiResponse<{ message: string }>> {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
@@ -346,9 +374,31 @@ export class JobUseCases {
       });
     }
 
-    console.log(user);
+    // If the user is not an ADMIN, check organization permissions.
+    if (!user?.roles.includes(RoleEnum.ADMIN)) {
+      if (organizationId) {
+        const members =
+          await this.organizationRepository.getMemberIdsOfOrganization(
+            organizationId,
+          );
 
-    // If user is not ADMIN, just allow to delete the job that org own
+        const isMember = members.some((member) => member.id === user.userId);
+
+        const isJobOwner = existingJob.organizationId === organizationId;
+
+        if (!isMember || !isJobOwner) {
+          throw new ForbiddenException({
+            message: "You do not have permission to delete this job.",
+            code: RESPONSE_CODE.FORBIDDEN,
+          });
+        }
+      } else {
+        throw new BadRequestException({
+          message: "organizationId is required for this action.",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+    }
 
     const deleted = await this.jobRepository.deleteJob(jobId);
     if (!deleted) {
