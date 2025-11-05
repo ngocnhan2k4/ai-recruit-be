@@ -7,6 +7,7 @@ import {
   SkillDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
+import { CreateSkillDto } from "@/interfaces/dtos/skills/skill.dto";
 
 @Injectable()
 export class SkillUseCases {
@@ -24,14 +25,16 @@ export class SkillUseCases {
   }
 
   async createMany(
-    createSkillDto: Omit<Skill, "id">[],
+    createSkillDto: CreateSkillDto,
   ): Promise<ApiResponse<SkillDto[]>> {
-    const data = await this.skillRepository.createMany(createSkillDto);
+    const data = await this.skillRepository.createMany(
+      createSkillDto.name.map((name: string) => ({ name })),
+    );
     this.logger.log(`Created ${data.length} skills`);
     return {
       message: "Skills created successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: data,
+      data: data.map((skill: Skill) => ({ id: skill.id, name: skill.name })),
     };
   }
   async getPaginatedSkills(
