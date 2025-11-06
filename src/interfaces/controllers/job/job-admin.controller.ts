@@ -54,8 +54,9 @@ export class JobAdminController {
   @Post()
   async createJob(
     @Body() createJobDto: CreateJobDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(createJobDto);
+    return await this.jobUseCases.createJob(user.userId, createJobDto);
   }
 
   @ApiOperation({

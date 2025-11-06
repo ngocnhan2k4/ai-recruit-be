@@ -184,9 +184,10 @@ export class JobController {
   @ApiResponseDto(JobDto)
   @Post()
   async createJob(
+    @GetUser() user: TokenPayload,
     @Body() createJobDto: CreateJobDto,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(createJobDto);
+    return await this.jobUseCases.createJob(user.userId, createJobDto);
   }
 
   @ApiOperation({

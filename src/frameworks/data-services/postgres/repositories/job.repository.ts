@@ -635,65 +635,19 @@ export class JobRepository
 
   async updateApplyJob(
     applyId: string,
-    status?: ApplyStatusEnum,
-    userCvId?: string,
-    answers?: JobAnswer[],
-  ): Promise<ApplyJobResponse | null> {
-    // Check if application exists and belongs to user
-    const existingApplication = await this.db
-      .select()
-      .from(applyJobs)
-      .where(and(eq(applyJobs.id, applyId)))
-      .limit(1);
-
-    if (existingApplication.length === 0) {
-      throw new Error("Application not found or access denied");
-    }
-
-    // If user wants to change answers or userCvId, status must be APPLIED
-    if (
-      (answers || userCvId) &&
-      existingApplication[0].status !== ApplyStatusEnum.PENDING
-    ) {
-      throw new Error("Status must be 'applied' to change answers or userCvId");
-    }
-
-    // Update application
-    const [updatedApplication] = await this.db
-      .update(applyJobs)
-      .set({
-        status: status || existingApplication[0].status,
-        cvId: userCvId || existingApplication[0].cvId,
-        answers: answers || existingApplication[0].answers,
-        updatedAt: new Date(),
-      })
-      .where(eq(applyJobs.id, applyId))
-      .returning();
-
-    // Update lastUsed timestamp for CV if userCvId is provided
-    if (userCvId) {
-      await this.db
-        .update(cvs)
-        .set({
-          lastUsed: new Date(),
-        })
-        .where(eq(cvs.id, userCvId));
-    }
-
-    return updatedApplication as ApplyJobResponse;
-  }
-
-  async updateApplyJobWithNotifications(
-    applyId: string,
     status: ApplyStatusEnum,
-    orgSenderId: string,
+    sendNotifications = false,
+    senderUserId?: string,
     userCvId?: string,
     answers?: JobAnswer[],
-  ): Promise<{
-    application: ApplyJobResponse | null;
-    notification: Notification | null;
-    jobTitle?: string;
-  }> {
+  ): Promise<
+    | ApplyJobResponse
+    | {
+        application: ApplyJobResponse;
+        notification: Notification;
+        jobTitle: string;
+      }
+  > {
     const result = await this.db.transaction(async (tx) => {
       // Get existing application with job info
       const existingApp = await tx
@@ -730,7 +684,12 @@ export class JobRepository
 
       let notification: Notification | null = null;
 
-      if (status && status !== existingApp[0].application.status) {
+      if (
+        status &&
+        status !== existingApp[0].application.status &&
+        sendNotifications &&
+        senderUserId
+      ) {
         const notificationTitle =
           status == ApplyStatusEnum.ACCEPTED
             ? "Đơn ứng tuyển được chấp nhận"
@@ -747,7 +706,7 @@ export class JobRepository
                 status == ApplyStatusEnum.ACCEPTED
                   ? NotificationType.CV_APPROVED
                   : NotificationType.CV_REJECTED,
-              senderId: orgSenderId,
+              senderId: senderUserId,
               payload: {
                 jobId: jobId,
                 applyId: applyId,
@@ -760,11 +719,15 @@ export class JobRepository
         notification = notifications[0] || null;
       }
 
-      return {
-        application: updatedApplication as ApplyJobResponse,
-        notification,
-        jobTitle,
-      };
+      if (notification) {
+        return {
+          application: updatedApplication as ApplyJobResponse,
+          notification,
+          jobTitle,
+        };
+      } else {
+        return updatedApplication as ApplyJobResponse;
+      }
     });
 
     return result;
@@ -908,7 +871,10 @@ export class JobRepository
     }
   }
 
-  async createJob(job: Partial<Job> & { skillIds?: string[] }): Promise<Job> {
+  async createJob(
+    job: Partial<Job> & { skillIds?: string[] },
+    userId: string,
+  ): Promise<{ job: Job; newNotifications: Notification[] }> {
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
@@ -928,19 +894,53 @@ export class JobRepository
       updatedAt: new Date(),
     };
 
-    const [newJob] = await this.db.insert(jobs).values(jobData).returning();
+    const result = await this.db.transaction(async (tx) => {
+      const [newJob] = await tx.insert(jobs).values(jobData).returning();
 
-    // Handle skill associations if skillIds provided
-    if (job.skillIds && job.skillIds.length > 0) {
-      const skillAssociations = job.skillIds.map((skillId) => ({
-        jobId: newJob.id,
-        skillId: skillId,
-      }));
+      // Handle skill associations if skillIds provided
+      if (job.skillIds && job.skillIds.length > 0) {
+        const skillAssociations = job.skillIds.map((skillId) => ({
+          jobId: newJob.id,
+          skillId: skillId,
+        }));
 
-      await this.db.insert(jobSkills).values(skillAssociations);
-    }
+        await tx.insert(jobSkills).values(skillAssociations);
+      }
 
-    return newJob as Job;
+      // Get all organization members to notify
+      const orgUsers =
+        await this.organizationRepository.getMemberIdsOfOrganization(
+          newJob.organizationId,
+        );
+
+      if (orgUsers.length === 0) {
+        return { job: newJob as Job, newNotifications: [] };
+      }
+
+      const recipients = orgUsers.map((ou) => {
+        return { receiverId: ou.id, organizationId: newJob.organizationId };
+      });
+
+      const notifications =
+        await this.notificationRepository.preCreateNotifications(
+          tx,
+          {
+            title: "Công việc mới được tạo",
+            message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
+            type: NotificationType.JOB_POSTED,
+            senderId: userId,
+            payload: {
+              jobId: newJob.id,
+              orgId: newJob.organizationId,
+            },
+          },
+          recipients,
+        );
+
+      return { job: newJob as Job, newNotifications: notifications };
+    });
+
+    return result;
   }
 
   async updateJob(

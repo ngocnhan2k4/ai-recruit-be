@@ -61,22 +61,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract updateApplyJob(
     applyId: string,
-    status?: string,
-    userCvId?: string,
-    answers?: JobAnswer[],
-  ): Promise<ApplyJobResponse | null>;
-
-  abstract updateApplyJobWithNotifications(
-    applyId: string,
     status: ApplyStatusEnum,
-    orgSenderId: string,
+    sendNotifications: boolean,
+    senderUserId?: string,
     userCvId?: string,
     answers?: JobAnswer[],
-  ): Promise<{
-    application: ApplyJobResponse | null;
-    notification: Notification | null;
-    jobTitle?: string;
-  }>;
+  ): Promise<
+    | ApplyJobResponse
+    | {
+        application: ApplyJobResponse;
+        notification: Notification;
+        jobTitle: string;
+      }
+  >;
 
   abstract getApplyJobById(applyId: string): Promise<ApplyJobResponse | null>;
 
@@ -93,7 +90,10 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   ): Promise<UserInteractionResponse | null>;
 
   // CRUD operations
-  abstract createJob(job: Partial<Job>): Promise<Job>;
+  abstract createJob(
+    job: Partial<Job> & { skillIds?: string[] },
+    userId: string,
+  ): Promise<{ job: Job; newNotifications: Notification[] }>;
   abstract updateJob(
     jobId: string,
     job: Partial<Job> & { skillIds?: string[] },

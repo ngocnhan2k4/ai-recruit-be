@@ -115,8 +115,6 @@ export class WebSocketGateway
   sendToUser(identity: IdentityUser, notification: Notification) {
     const userSocket = this.connectedUsers.get(this.getKeyIdentity(identity));
 
-    console.log(this.connectedUsers);
-
     if (userSocket) {
       userSocket.emit("notification", notification);
       this.logger.log(

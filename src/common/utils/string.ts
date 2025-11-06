@@ -37,16 +37,16 @@ export const slugify = (text: string): string => {
 export const getJobStatus = (status: JobStatusEnum) => {
   switch (status) {
     case JobStatusEnum.DRAFT:
-      return "Bản nháp";
+      return "bản nháp";
     case JobStatusEnum.ACTIVE:
-      return "Được duyệt";
+      return "được duyệt";
     case JobStatusEnum.PAUSED:
-      return "Tạm dừng";
+      return "tạm dừng";
     case JobStatusEnum.CLOSED:
-      return "Đã đóng";
+      return "đã đóng";
     case JobStatusEnum.REJECTED:
-      return "Bị từ chối";
+      return "bị từ chối";
     default:
-      return "Không xác định";
+      return "không xác định";
   }
 };
