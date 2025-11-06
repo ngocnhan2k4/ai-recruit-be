@@ -198,6 +198,7 @@ export class JobUseCases {
         const sent = this.webSocketGateway.sendToUser(
           {
             userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
           },
           notification,
         );

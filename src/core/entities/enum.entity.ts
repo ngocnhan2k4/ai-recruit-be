@@ -57,6 +57,10 @@ export enum NotificationType {
   CV_REJECTED = "cv_rejected",
   SYSTEM = "system",
 }
+export enum NotificationStatusEnum {
+  READ = "read",
+  DELETED = "deleted",
+}
 export enum SchoolTypeEnum {
   COLLEGE = "college",
   UNIVERSITY = "university",
