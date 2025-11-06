@@ -92,8 +92,15 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   // CRUD operations
   abstract createJob(
     job: Partial<Job> & { skillIds?: string[] },
-    userId: string,
-  ): Promise<{ job: Job; newNotifications: Notification[] }>;
+    sendNotifications?: boolean,
+    senderUserId?: string,
+  ): Promise<
+    | Job
+    | {
+        job: Job;
+        newNotifications: Notification[];
+      }
+  >;
   abstract updateJob(
     jobId: string,
     job: Partial<Job> & { skillIds?: string[] },

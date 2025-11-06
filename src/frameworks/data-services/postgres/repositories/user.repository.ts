@@ -3,12 +3,25 @@ import { type DBDrizzle } from "../types";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { users } from "../models";
 import { NewUser, User } from "@/core/entities";
-import { ilike, or, eq, count, isNotNull, and, sql } from "drizzle-orm";
+import {
+  ilike,
+  or,
+  eq,
+  count,
+  isNotNull,
+  and,
+  sql,
+  desc,
+  SQL,
+  not,
+  arrayOverlaps,
+} from "drizzle-orm";
 import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types/api";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
+import { RoleEnum } from "@/common/constants/roles";
 
 @Injectable()
 export class UserRepository
@@ -131,5 +144,101 @@ export class UserRepository
       throw new NotFoundException("User not found");
     }
     return updatedUser;
+  }
+
+  async getAllAdminUsers(
+    query: GetUserQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        User,
+        | "id"
+        | "email"
+        | "name"
+        | "username"
+        | "emailVerified"
+        | "phone"
+        | "phoneVerified"
+        | "roles"
+        | "status"
+        | "createdAt"
+        | "updatedAt"
+        | "deletedAt"
+      >
+    >
+  > {
+    const { page = 1, limit = 10 } = query;
+
+    const conditions: SQL[] = [];
+
+    // Filter for admin roles
+    conditions.push(
+      arrayOverlaps(users.roles, [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN]),
+    );
+
+    if (query.keyword) {
+      const keyword = `%${query.keyword.toLowerCase()}%`;
+      conditions.push(
+        or(
+          ilike(sql`coalesce(${users.username}, '')`, keyword),
+          ilike(sql`coalesce(${users.name}, '')`, keyword),
+          ilike(users.email, keyword),
+        )!,
+      );
+    }
+
+    if (query.isActive !== undefined) {
+      conditions.push(eq(users.status, "active"));
+    }
+
+    if (query.isActive !== undefined) {
+      if (query.isActive) {
+        conditions.push(eq(users.status, "active"));
+      } else {
+        conditions.push(not(eq(users.status, "active")));
+      }
+    }
+
+    const queryBuilder = this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        username: users.username,
+        emailVerified: users.emailVerified,
+        phone: users.phone,
+        phoneVerified: users.phoneVerified,
+        roles: users.roles,
+        status: users.status,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        deletedAt: users.deletedAt,
+      })
+      .from(users)
+      .where(and(...conditions))
+      .orderBy(desc(users.createdAt))
+      .offset((page - 1) * limit)
+      .limit(limit + 1);
+
+    const result = await queryBuilder;
+
+    const hasNextPage = result.length > limit;
+    const data = hasNextPage ? result.slice(0, limit) : result;
+
+    // Get total count for pagination
+    const totalResult = await this.db
+      .select({ count: count() })
+      .from(users)
+      .where(and(...conditions));
+
+    const total = Number(totalResult[0]?.count ?? 0);
+
+    return {
+      data,
+      pagination: {
+        hasNextPage,
+        total,
+      },
+    };
   }
 }

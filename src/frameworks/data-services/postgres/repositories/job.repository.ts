@@ -41,6 +41,7 @@ import {
   WorkTypeEnum,
   Notification,
   NotificationType,
+  IUserRepository,
 } from "@/core";
 import {
   Job,
@@ -75,6 +76,7 @@ export class JobRepository
     @Inject("DRIZZLE") protected db: DBDrizzle,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
+    private readonly userRepository: IUserRepository,
   ) {
     super(db, jobs);
   }
@@ -596,12 +598,12 @@ export class JobRepository
 
       const { title: jobTitle, organizationId } = jobInfo[0];
 
-      const orgMembers =
+      const adminUsers =
         await this.organizationRepository.getMemberIdsOfOrganization(
           organizationId,
         );
 
-      const recipients = orgMembers.map((m) => ({
+      const recipients = adminUsers.map((m) => ({
         receiverId: m.id,
         organizationId,
       }));
@@ -873,8 +875,15 @@ export class JobRepository
 
   async createJob(
     job: Partial<Job> & { skillIds?: string[] },
-    userId: string,
-  ): Promise<{ job: Job; newNotifications: Notification[] }> {
+    sendNotifications = false,
+    senderUserId?: string,
+  ): Promise<
+    | Job
+    | {
+        job: Job;
+        newNotifications: Notification[];
+      }
+  > {
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
@@ -907,19 +916,22 @@ export class JobRepository
         await tx.insert(jobSkills).values(skillAssociations);
       }
 
-      // Get all organization members to notify
-      const orgUsers =
-        await this.organizationRepository.getMemberIdsOfOrganization(
-          newJob.organizationId,
-        );
-
-      if (orgUsers.length === 0) {
-        return { job: newJob as Job, newNotifications: [] };
+      // If notifications not requested or no senderUserId, just return job
+      if (!sendNotifications || !senderUserId) {
+        return newJob as Job;
       }
 
-      const recipients = orgUsers.map((ou) => {
-        return { receiverId: ou.id, organizationId: newJob.organizationId };
+      // Get all admin members to notify
+      const adminUsers = await this.userRepository.getAllAdminUsers({
+        page: 1,
+        limit: 100, // Send notifications limit only 100 admin users
+        isActive: true,
+        isDeleted: false,
       });
+
+      const recipients = adminUsers.data.map((m) => ({
+        receiverId: m.id,
+      }));
 
       const notifications =
         await this.notificationRepository.preCreateNotifications(
@@ -928,7 +940,7 @@ export class JobRepository
             title: "Công việc mới được tạo",
             message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
             type: NotificationType.JOB_POSTED,
-            senderId: userId,
+            senderId: senderUserId,
             payload: {
               jobId: newJob.id,
               orgId: newJob.organizationId,

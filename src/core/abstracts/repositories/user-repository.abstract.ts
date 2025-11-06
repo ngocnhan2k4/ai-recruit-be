@@ -28,4 +28,26 @@ export abstract class IUserRepository extends IGenericRepository<User> {
 
   abstract createUser(user: NewUser): Promise<User>;
   abstract adminUpdateUser(userId: string, user: Partial<User>): Promise<User>;
+
+  abstract getAllAdminUsers(
+    query: GetUserQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        User,
+        | "id"
+        | "email"
+        | "name"
+        | "username"
+        | "emailVerified"
+        | "phone"
+        | "phoneVerified"
+        | "roles"
+        | "status"
+        | "createdAt"
+        | "updatedAt"
+        | "deletedAt"
+      >
+    >
+  >;
 }

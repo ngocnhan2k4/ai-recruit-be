@@ -335,10 +335,13 @@ export class JobUseCases {
       endDate: createJobDto.endDate
         ? convertDateToStr(new Date(createJobDto.endDate))
         : null,
-      workType: createJobDto.workType,
     };
 
-    const repoResult = await this.jobRepository.createJob(jobData, userId);
+    const repoResult = await this.jobRepository.createJob(
+      jobData,
+      true,
+      userId,
+    );
 
     let newJob: Job;
     if ("job" in repoResult) {
@@ -350,7 +353,6 @@ export class JobUseCases {
         const sent = this.webSocketGateway.sendToUser(
           {
             userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
           },
           notification,
         );

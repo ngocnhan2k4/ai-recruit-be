@@ -123,7 +123,7 @@ export class WebSocketGateway
       return true;
     }
     this.logger.warn(
-      `User  ${identity.userId}, orgId:${identity.organizationId} is not connected`,
+      `User ${identity.userId}, orgId:${identity.organizationId} is not connected`,
     );
     return false;
   }
