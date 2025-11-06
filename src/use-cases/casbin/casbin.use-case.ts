@@ -34,14 +34,14 @@ export class CasbinUseCases {
       action,
       effect,
     );
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to add policy",
+        code: RESPONSE_CODE.POLICY_ALREADY_EXISTS,
+        message: "Policy already exists",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -60,14 +60,14 @@ export class CasbinUseCases {
       action,
       effect,
     );
-    await this.casbinService.savePolicy();
 
-    if (result === false) {
+    if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to remove policy",
+        code: RESPONSE_CODE.POLICY_NOT_FOUND,
+        message: "Policy not found",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -92,14 +92,14 @@ export class CasbinUseCases {
       action,
       effect,
     );
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to add domain-based policy",
+        code: RESPONSE_CODE.POLICY_ALREADY_EXISTS,
+        message: "Policy already exists",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -125,14 +125,14 @@ export class CasbinUseCases {
       action,
       effect,
     );
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to remove domain-based policy",
+        code: RESPONSE_CODE.POLICY_NOT_FOUND,
+        message: "Cannot remove domain-based policy",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -144,14 +144,14 @@ export class CasbinUseCases {
   async addRoleForUser(addRoleDto: AddRoleDto): Promise<ApiResponse<void>> {
     const { user, role } = addRoleDto;
     const result = await this.casbinService.addRoleForUser(user, role);
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to assign role",
+        code: RESPONSE_CODE.ROLE_NOT_ASSIGNED,
+        message: "Cannot assign role",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -164,14 +164,14 @@ export class CasbinUseCases {
   ): Promise<ApiResponse<void>> {
     const { user, role } = removeRoleDto;
     const result = await this.casbinService.deleteRoleForUser(user, role);
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to remove role",
+        code: RESPONSE_CODE.ROLE_NOT_REMOVED,
+        message: "Cannot remove role",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -189,14 +189,14 @@ export class CasbinUseCases {
       role,
       domainId,
     );
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to assign domain-based role",
+        code: RESPONSE_CODE.DOMAIN_ROLE_NOT_ASSIGNED,
+        message: "Cannot assign domain-based role",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -213,14 +213,14 @@ export class CasbinUseCases {
       role,
       domainId,
     );
-    await this.casbinService.savePolicy();
 
     if (!result) {
       return {
-        code: RESPONSE_CODE.SERVER_ERROR,
-        message: "Failed to remove domain-based role",
+        code: RESPONSE_CODE.DOMAIN_ROLE_NOT_REMOVED,
+        message: "Cannot remove domain-based role",
       };
     }
+    await this.casbinService.savePolicy();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
