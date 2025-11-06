@@ -388,7 +388,12 @@ export class JobUseCases {
       });
     }
 
-    if (updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL) {
+    console.log(updateJobDto);
+
+    if (
+      updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL ||
+      updateJobDto.updateType === UpdateJobTypeEnum.REJECTED
+    ) {
       const { newNotifications } =
         await this.jobRepository.updateJobWithNotifications(
           jobId,

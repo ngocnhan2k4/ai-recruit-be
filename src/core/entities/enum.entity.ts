@@ -94,4 +94,5 @@ export enum DomainTypeEnum {
 export enum UpdateJobTypeEnum {
   UPDATE = "update",
   APPROVAL = "approval",
+  REJECTED = "rejected",
 }
