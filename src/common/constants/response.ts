@@ -64,4 +64,5 @@ export const RESPONSE_MESSAGE = {
   ORGANIZATION_ID_REQUIRED: "organizationId is required for this action.",
   INVALID_NOTIFICATION_STATUS:
     "Notification status can only be 'read' or 'deleted'.",
+  JOB_NOT_FOUND: "Job not found.",
 };

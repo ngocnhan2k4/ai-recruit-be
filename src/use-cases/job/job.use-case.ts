@@ -147,7 +147,7 @@ export class JobUseCases {
     const job = await this.jobRepository.getJobById(applyJobDto.jobId);
     if (!job) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
@@ -401,7 +401,7 @@ export class JobUseCases {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
@@ -465,7 +465,7 @@ export class JobUseCases {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
@@ -531,7 +531,7 @@ export class JobUseCases {
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
       );
       throw new NotFoundException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
