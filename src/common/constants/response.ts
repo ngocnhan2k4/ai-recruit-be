@@ -40,6 +40,8 @@ export const RESPONSE_CODE = {
   ROLE_NOT_REMOVED: "ROLE_NOT_REMOVED",
   DOMAIN_ROLE_NOT_ASSIGNED: "DOMAIN_ROLE_NOT_ASSIGNED",
   DOMAIN_ROLE_NOT_REMOVED: "DOMAIN_ROLE_NOT_REMOVED",
+  ORGANIZATION_ID_REQUIRED: "ORGANIZATION_ID_REQUIRED",
+  INVALID_NOTIFICATION_STATUS: "INVALID_NOTIFICATION_STATUS",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -59,4 +61,7 @@ export const RESPONSE_MESSAGE = {
   EMAIL_ALREADY_EXISTS: "Email already exists.",
   CV_NOT_FOUND: "CV not found.",
   ORGANIZATION_NOT_FOUND: "Organization not found.",
+  ORGANIZATION_ID_REQUIRED: "organizationId is required for this action.",
+  INVALID_NOTIFICATION_STATUS:
+    "Notification status can only be 'read' or 'deleted'.",
 };

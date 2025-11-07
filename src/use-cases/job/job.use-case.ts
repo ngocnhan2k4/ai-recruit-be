@@ -229,6 +229,13 @@ export class JobUseCases {
       updateApplyJobDto.answers,
     );
 
+    if (!repoResult) {
+      throw new BadRequestException({
+        message: "Failed to update application",
+        code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
+      });
+    }
+
     let application: ApplyJobResponse;
     if ("application" in repoResult) {
       application = repoResult.application;
@@ -483,8 +490,8 @@ export class JobUseCases {
         }
       } else {
         throw new BadRequestException({
-          message: "organizationId is required for this action.",
-          code: RESPONSE_CODE.BAD_REQUEST,
+          message: RESPONSE_MESSAGE.ORGANIZATION_ID_REQUIRED,
+          code: RESPONSE_CODE.ORGANIZATION_ID_REQUIRED,
         });
       }
     }

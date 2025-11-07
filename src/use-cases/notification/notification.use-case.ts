@@ -1,9 +1,9 @@
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
 import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { NotificationStatusEnum, NotificationType } from "@/core/entities";
 import {
   GetNotificationResponseDto,
@@ -57,7 +57,10 @@ export class NotificationUseCase {
         `Marked notification ${notificationId} as deleted successfully`,
       );
     } else {
-      throw new Error("Invalid status");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVALID_NOTIFICATION_STATUS,
+        code: RESPONSE_CODE.INVALID_NOTIFICATION_STATUS,
+      });
     }
 
     return {
