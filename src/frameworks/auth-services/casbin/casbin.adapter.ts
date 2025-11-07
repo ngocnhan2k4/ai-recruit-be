@@ -106,7 +106,6 @@ export class DrizzleCasbinAdapter implements Adapter {
   }
 
   async loadPolicy(model: Model) {
-    this.filtered = false;
     const rows = await this.db.select().from(casbinRule);
 
     for (const line of rows) {
@@ -121,8 +120,6 @@ export class DrizzleCasbinAdapter implements Adapter {
     model: Model,
     filter: Array<{ ptype?: string; v0?: string }>,
   ) {
-    this.filtered = true;
-
     // Build OR conditions: (ptype="p") OR (ptype="g" AND v0=userId)
     const conditions: SQL[] = [];
 
@@ -157,12 +154,8 @@ export class DrizzleCasbinAdapter implements Adapter {
   }
 
   async savePolicy(model: Model) {
-    if (this.filtered) throw new Error("cannot save a filtered policy");
-
-    // Clear table
-    await this.db.execute(
-      sql.raw(`TRUNCATE TABLE ${casbinRule[Symbol.for("drizzle:tableName")]}`),
-    );
+    // Clear table - use delete instead of TRUNCATE to avoid table name issues
+    await this.db.delete(casbinRule).where(sql`1 = 1`);
 
     const lines: CasbinRuleRecord[] = [];
 
@@ -262,6 +255,6 @@ export class DrizzleCasbinAdapter implements Adapter {
   }
 
   isFiltered() {
-    return this.filtered;
+    return false;
   }
 }

@@ -1,7 +1,10 @@
 import { eq, and } from "drizzle-orm";
 import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
-import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import {
+  DBDrizzleTransaction,
+  type DBDrizzle,
+} from "@/frameworks/data-services/postgres/types";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -95,5 +98,11 @@ export class GenericRepository<T, TTable extends object>
       .where(and(...conditions))
       .returning();
     return result as T[];
+  }
+
+  async executeWithTransaction<T>(
+    fn: (tx: DBDrizzleTransaction) => Promise<T>,
+  ): Promise<T> {
+    return await this.db.transaction(async (tx) => fn(tx));
   }
 }

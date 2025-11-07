@@ -30,7 +30,9 @@
     "casbin:clear": "ts-node casbin_rule.config.ts clear",
     "casbin:verify": "ts-node casbin_rule.config.ts verify",
     "casbin:list": "ts-node casbin_rule.config.ts list",
-    "casbin:migrate": "ts-node migrate-casbin.ts"
+    "casbin:migrate": "ts-node migrate-casbin.ts",
+    "swagger:json": "node scripts/fetch-swagger-json.js",
+    "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts"
   },
   "husky": {
     "hooks": {

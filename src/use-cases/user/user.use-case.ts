@@ -50,6 +50,7 @@ import {
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { RoleEnum } from "@/common/constants/roles";
 import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
@@ -589,6 +590,7 @@ export class UserUseCases implements OnModuleInit {
         data: result.data.map((user) => ({
           ...user,
           status: user.status as UserStatusEnum,
+          roles: user.roles as RoleEnum[],
         })),
         pagination: result.pagination,
       },
@@ -641,7 +643,9 @@ export class UserUseCases implements OnModuleInit {
     }
     const rolesToUpdate = updateUserDto.roles || user.roles;
 
+    console.log("rolesToUpdate", rolesToUpdate);
     for (const role of rolesToUpdate) {
+      console.log("role", role);
       await this.casbinService.addRoleForUser(userId, role);
     }
     await this.casbinService.savePolicy();

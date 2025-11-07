@@ -205,10 +205,14 @@ export class UserExperienceRepository
       return null;
     }
     const tx = await this.db.transaction(async (tx) => {
-      await this.userSkillRepository.delete({
-        userId,
-        organizationId: userExperience.organizationId,
-      });
+      await tx
+        .delete(userSkills)
+        .where(
+          and(
+            eq(userSkills.userId, userId),
+            eq(userSkills.organizationId, userExperience.organizationId),
+          ),
+        );
       const { organizationId } = await this.preCreateBeforeCreateUserExperience(
         tx,
         userId,

@@ -7,6 +7,7 @@ import { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
   IAuthRepository,
   ICategoryRepository,
+  ICasbinRepository,
   ICompanyRepository,
   IJobRepository,
   ICvRepository,
@@ -21,6 +22,7 @@ import {
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
+import { CasbinRepository } from "./repositories/casbin.repository";
 import { CompanyRepository } from "./repositories/company.repository";
 import { CvRepository } from "./repositories/cv.repository";
 import { JobRepository } from "./repositories/job.repository";
@@ -101,6 +103,10 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
       useClass: CategoryRepository,
     },
     {
+      provide: ICasbinRepository,
+      useClass: CasbinRepository,
+    },
+    {
       provide: ICompanyRepository,
       useClass: CompanyRepository,
     },
@@ -154,8 +160,10 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
     },
   ],
   exports: [
+    "DRIZZLE",
     IAuthRepository,
     ICategoryRepository,
+    ICasbinRepository,
     ICompanyRepository,
     ICvRepository,
     IJobRepository,

@@ -7,7 +7,13 @@ import {
 import { ApiResponse, CompanyDto } from "@/interfaces/dtos";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
-import { Company, IBloomFilterService, ICompanyRepository } from "@/core";
+import {
+  Company,
+  IBloomFilterService,
+  ICompanyRepository,
+  IOrganizationRepository,
+  OrganizationTypeEnum,
+} from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
@@ -18,6 +24,7 @@ export class CompanyUseCase implements OnModuleInit {
   constructor(
     private readonly companyRepository: ICompanyRepository,
     public readonly bloomFilterService: IBloomFilterService,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   onModuleInit(): void {
@@ -38,9 +45,11 @@ export class CompanyUseCase implements OnModuleInit {
 
   private async initializeBloomFilter() {
     try {
-      // Get all company names from database
-      const companies = await this.companyRepository.getAll(["name"]);
-      // TODO: fix logic organization here
+      // Get all company names from organizations table filtered by type
+      const companies =
+        await this.organizationRepository.getOrganizationsByTypes([
+          OrganizationTypeEnum.COMPANY,
+        ]);
       const companyNames = companies.map((company) => company.name);
 
       this.bloomFilterService.initialize(companyNames);
