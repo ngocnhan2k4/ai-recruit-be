@@ -78,7 +78,9 @@ type NewOrganization = InferInsertModel<typeof organizations>;
 
 export type OrganizationLocation = InferSelectModel<
   typeof organizationLocations
->;
+> & {
+  provinceName?: string | null;
+};
 export type NewOrganizationLocation = Omit<
   InferInsertModel<typeof organizationLocations>,
   "organizationId"

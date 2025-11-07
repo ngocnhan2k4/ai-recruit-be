@@ -32,6 +32,7 @@ import {
   lt,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
+import { provinces } from "../models";
 
 @Injectable()
 export class OrganizationRepository
@@ -83,11 +84,25 @@ export class OrganizationRepository
     if (!result[0]) return null;
 
     const locations = await this.db
-      .select()
+      .select({
+        id: organizationLocations.id,
+        organizationId: organizationLocations.organizationId,
+        address: organizationLocations.address,
+        provinceId: organizationLocations.provinceId,
+        provinceName: provinces.name,
+        createdAt: organizationLocations.createdAt,
+        updatedAt: organizationLocations.updatedAt,
+        deletedAt: organizationLocations.deletedAt,
+      })
       .from(organizationLocations)
-      .where(eq(organizationLocations.organizationId, id));
+      .leftJoin(provinces, eq(organizationLocations.provinceId, provinces.id))
+      .where(eq(organizationLocations.organizationId, id))
+      .execute();
+
+    console.log("locations", locations);
 
     const row = result[0];
+
     return {
       ...row,
       companySize: row.companySize,
@@ -223,6 +238,7 @@ export class OrganizationRepository
     data: NewOrganizationWithDetails,
     userId: string,
   ): Promise<OrganizationWithDetails> {
+    console.log("data", data);
     const dt = await this.db.transaction(async (tx) => {
       const [org] = await tx
         .insert(organizations)
@@ -253,6 +269,8 @@ export class OrganizationRepository
         .insert(organizationLocations)
         .values(locationValues ?? [])
         .returning();
+
+      console.log("orgLocations", orgLocations);
 
       let company: Company = {} as Company;
       let school: School = {} as School;
