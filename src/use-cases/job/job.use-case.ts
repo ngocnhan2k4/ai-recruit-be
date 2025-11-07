@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
 import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
@@ -21,6 +26,7 @@ import {
   WorkTypeEnum,
   OrganizationWithDetails,
   UpdateJobTypeEnum,
+  Notification,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -30,6 +36,7 @@ import {
   JobResponseDto,
 } from "@/interfaces/dtos";
 import {
+  ApplyJobResponse,
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
@@ -37,17 +44,16 @@ import {
 import { convertDateToStr } from "@/common/utils/date";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { PaginatedResult } from "@/common/types/api";
 import { RoleEnum } from "@/common/constants/roles";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
+import { TokenPayload } from "@/common/types/token";
 
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
   constructor(
     private readonly jobRepository: IJobRepository,
-    private readonly notificationService: INotificationService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
   ) {}
@@ -137,52 +143,133 @@ export class JobUseCases {
     userId: string,
     applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
+    // Ensure job exists
     const job = await this.jobRepository.getJobById(applyJobDto.jobId);
     if (!job) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
 
-    const result = await this.jobRepository.applyJob(
+    const isSendNotifications = true;
+
+    const repoResult:
+      | ApplyJobResponse
+      | {
+          application: ApplyJobResponse;
+          notifications: Notification[];
+          jobTitle?: string;
+        } = await this.jobRepository.applyJob(
       applyJobDto.jobId,
-      applyJobDto.cvId,
+      applyJobDto.cvId!,
+      isSendNotifications,
+      userId,
       applyJobDto.answers,
     );
 
+    let application: ApplyJobResponse;
+    if ("application" in repoResult) {
+      application = repoResult.application;
+      const notifications = repoResult.notifications;
+      const jobTitle = repoResult.jobTitle;
+
+      // Send notifications to recipients
+      notifications.forEach((notification) => {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent new-application notification to ${notification.receiverId} for job "${jobTitle}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send websocket notification to ${notification.receiverId}`,
+          );
+        }
+      });
+    } else {
+      application = repoResult;
+    }
+
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: application,
     };
   }
 
   async updateApplyJob(
-    userId: string,
+    orgSenderId: string,
     applyId: string,
     updateApplyJobDto: UpdateApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    const result = await this.jobRepository.updateApplyJob(
+    const isSendNotifications = true;
+
+    const repoResult:
+      | ApplyJobResponse
+      | {
+          application: ApplyJobResponse;
+          notification: Notification;
+          jobTitle: string;
+        } = await this.jobRepository.updateApplyJob(
       applyId,
-      updateApplyJobDto.status,
+      updateApplyJobDto.status!,
+      isSendNotifications,
+      orgSenderId,
       updateApplyJobDto.userCvId,
       updateApplyJobDto.answers,
     );
 
-    if (!result) {
+    if (!repoResult) {
       throw new BadRequestException({
         message: "Failed to update application",
         code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
       });
     }
 
-    this.logger.log(`User ${userId} updated application ${applyId}`);
+    let application: ApplyJobResponse;
+    if ("application" in repoResult) {
+      application = repoResult.application;
+      const notification = repoResult.notification;
+      const jobTitle = repoResult.jobTitle;
+
+      // Send notification
+      if (notification) {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent application status update notification to user ${notification.receiverId} for job "${jobTitle}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send WebSocket notification to user ${notification.receiverId}`,
+          );
+        }
+      }
+    } else {
+      application = repoResult;
+    }
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: application,
     };
   }
 
@@ -244,7 +331,10 @@ export class JobUseCases {
     };
   }
 
-  async createJob(createJobDto: CreateJobDto): Promise<ApiResponse<JobDto>> {
+  async createJob(
+    userId: string,
+    createJobDto: CreateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
     const jobData: Partial<Job> = {
       ...createJobDto,
       questions: createJobDto.questions || undefined,
@@ -252,10 +342,41 @@ export class JobUseCases {
       endDate: createJobDto.endDate
         ? convertDateToStr(new Date(createJobDto.endDate))
         : null,
-      workType: createJobDto.workType,
     };
 
-    const newJob = await this.jobRepository.createJob(jobData);
+    const repoResult = await this.jobRepository.createJob(
+      jobData,
+      true,
+      userId,
+    );
+
+    let newJob: Job;
+    if ("job" in repoResult) {
+      newJob = repoResult.job;
+      const notifications = repoResult.newNotifications;
+
+      // Send notifications to recipients
+      notifications.forEach((notification) => {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent job-created notification to ${notification.receiverId} for job "${newJob.title}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send websocket notification to ${notification.receiverId}`,
+          );
+        }
+      });
+    } else {
+      newJob = repoResult;
+    }
 
     // Transform questions field
     const transformedJob: JobDto = {
@@ -280,7 +401,7 @@ export class JobUseCases {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
@@ -300,7 +421,10 @@ export class JobUseCases {
       });
     }
 
-    if (updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL) {
+    if (
+      updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL ||
+      updateJobDto.updateType === UpdateJobTypeEnum.REJECTED
+    ) {
       const { newNotifications } =
         await this.jobRepository.updateJobWithNotifications(
           jobId,
@@ -333,13 +457,43 @@ export class JobUseCases {
     };
   }
 
-  async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
+  async deleteJob(
+    user: TokenPayload,
+    jobId: string,
+    organizationId?: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     const existingJob = await this.jobRepository.getJobById(jobId);
     if (!existingJob) {
       throw new BadRequestException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
+    }
+
+    // If the user is not an ADMIN, check organization permissions.
+    if (!user?.roles.includes(RoleEnum.ADMIN)) {
+      if (organizationId) {
+        const members =
+          await this.organizationRepository.getMemberIdsOfOrganization(
+            organizationId,
+          );
+
+        const isMember = members.some((member) => member.id === user.userId);
+
+        const isJobOwner = existingJob.organizationId === organizationId;
+
+        if (!isMember || !isJobOwner) {
+          throw new ForbiddenException({
+            message: "You do not have permission to delete this job.",
+            code: RESPONSE_CODE.FORBIDDEN,
+          });
+        }
+      } else {
+        throw new BadRequestException({
+          message: RESPONSE_MESSAGE.ORGANIZATION_ID_REQUIRED,
+          code: RESPONSE_CODE.ORGANIZATION_ID_REQUIRED,
+        });
+      }
     }
 
     const deleted = await this.jobRepository.deleteJob(jobId);
@@ -377,7 +531,7 @@ export class JobUseCases {
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
       );
       throw new NotFoundException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }

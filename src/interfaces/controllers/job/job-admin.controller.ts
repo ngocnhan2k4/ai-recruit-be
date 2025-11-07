@@ -54,8 +54,9 @@ export class JobAdminController {
   @Post()
   async createJob(
     @Body() createJobDto: CreateJobDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(createJobDto);
+    return await this.jobUseCases.createJob(user.userId, createJobDto);
   }
 
   @ApiOperation({
@@ -81,9 +82,10 @@ export class JobAdminController {
   })
   @Delete(":id")
   async deleteJob(
+    @GetUser() user: TokenPayload,
     @Param("id") jobId: string,
   ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(jobId);
+    return await this.jobUseCases.deleteJob(user, jobId);
   }
 
   @ApiOperation({

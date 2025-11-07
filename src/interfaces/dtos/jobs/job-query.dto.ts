@@ -72,6 +72,15 @@ export class QueryJobDto extends GeneralQueryDto {
   companyId?: string;
 
   @ApiProperty({
+    example: "uuid-organization-id",
+    required: false,
+    description: "Organization ID to filter by",
+  })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiProperty({
     example: "remote",
     required: false,
     description: "Work type (remote, onsite)",
@@ -106,7 +115,7 @@ export class CreateJobDto {
 
   @ApiProperty({ type: "string", format: "uuid" })
   @IsUUID()
-  companyId: string;
+  organizationId: string;
 
   @ApiProperty({ type: "string", nullable: true })
   @IsOptional()

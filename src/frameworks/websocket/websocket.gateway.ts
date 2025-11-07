@@ -64,9 +64,6 @@ export class WebSocketGateway
       }
 
       const orgId = client.handshake.query.organizationId as string;
-      if (orgId) {
-        client.userId = orgId;
-      }
 
       this.connectedUsers.set(
         this.getKeyIdentity({
@@ -93,6 +90,7 @@ export class WebSocketGateway
       client.emit("connected", {
         message: "Connected to notification service",
         userId: client.userId,
+        orgId: orgId ? orgId : "none",
       });
     } catch (error) {
       this.logger.error("WebSocket authentication failed:", error);
@@ -116,6 +114,7 @@ export class WebSocketGateway
 
   sendToUser(identity: IdentityUser, notification: Notification) {
     const userSocket = this.connectedUsers.get(this.getKeyIdentity(identity));
+
     if (userSocket) {
       userSocket.emit("notification", notification);
       this.logger.log(
@@ -124,7 +123,7 @@ export class WebSocketGateway
       return true;
     }
     this.logger.warn(
-      `User  ${identity.userId}, orgId:${identity.organizationId} is not connected`,
+      `User ${identity.userId}, orgId:${identity.organizationId} is not connected`,
     );
     return false;
   }
