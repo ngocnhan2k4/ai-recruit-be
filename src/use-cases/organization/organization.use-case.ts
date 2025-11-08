@@ -136,13 +136,10 @@ export class OrganizationUseCase {
     data: CreateOrganizationDto,
     userId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const { company, school, ...rest } = data;
-    const slug = this.generateSlug(rest.name, new Date());
+    const slug = this.generateSlug(data.name, new Date());
     const result = await this.organizationRepository.createOrganization(
       {
-        ...rest,
-        ...company,
-        ...school,
+        ...data,
         slug,
       },
       userId,
@@ -163,14 +160,9 @@ export class OrganizationUseCase {
     orgId: string,
     data: UpdateOrganizationDto,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const { company, school, ...rest } = data;
     const result = await this.organizationRepository.updateOrganizationById(
       orgId,
-      {
-        ...rest,
-        ...company,
-        ...school,
-      },
+      data,
     );
     if (!result) {
       throw new NotFoundException(
