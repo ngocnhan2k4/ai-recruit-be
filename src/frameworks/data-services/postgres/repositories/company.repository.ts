@@ -3,7 +3,7 @@ import { Company, ICompanyRepository } from "@/core";
 import { companies } from "../models/company.model";
 import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
-import { asc, count, gt } from "drizzle-orm";
+import { count, desc, lt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
@@ -58,14 +58,16 @@ export class CompanyRepository
   ): Promise<
     PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
   > {
-    const whereConditions = [isNull(companies.deletedAt)];
+    const whereConditions = [isNull(organizations.deletedAt)];
 
     if (filter?.keyword) {
       whereConditions.push(ilike(organizations.name, `%${filter.keyword}%`));
     }
 
+    whereConditions.push(eq(organizations.type, OrganizationTypeEnum.COMPANY));
+
     if (cursor) {
-      whereConditions.push(gt(organizations.id, cursor));
+      whereConditions.push(lt(organizations.createdAt, new Date(cursor)));
     }
 
     const companyRows = await this.db
@@ -78,12 +80,12 @@ export class CompanyRepository
       })
       .from(organizations)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(organizations.createdAt))
+      .orderBy(desc(organizations.createdAt))
       .limit(limit + 1);
 
     const [{ count: totalCount }] = await this.db
       .select({ count: count() })
-      .from(companies)
+      .from(organizations)
       .leftJoin(
         organizationLocations,
         eq(organizations.id, organizationLocations.organizationId),
