@@ -25,9 +25,10 @@ import {
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
+import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Jobs Admin")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/jobs")
 export class JobAdminController {
   constructor(private readonly jobUseCases: JobUseCases) {}
