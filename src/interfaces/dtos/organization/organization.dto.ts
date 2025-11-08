@@ -4,7 +4,6 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -20,8 +19,6 @@ import {
 } from "@/core";
 import { IsEmail } from "class-validator";
 import { Type } from "class-transformer";
-import { CreateCompanyDto } from "../companies/company.dto";
-import { CreateSchoolDto } from "../schools/school.dto";
 
 export class OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -150,15 +147,27 @@ export class CreateOrganizationDto {
   @Type(() => CreateLocationDto)
   locations: CreateLocationDto[];
 
-  @ApiProperty({ type: () => CreateCompanyDto })
-  @IsNotEmpty({ message: "Company is required" })
-  @IsObject()
-  company: CreateCompanyDto;
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  taxCode: string;
 
-  @ApiProperty({ type: () => CreateSchoolDto })
-  @IsNotEmpty({ message: "School is required" })
-  @IsObject()
-  school: CreateSchoolDto;
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  culture: string;
+
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  benefit: string;
+
+  @ApiProperty({ enum: SchoolTypeEnum })
+  @IsOptional()
+  @IsEnum(SchoolTypeEnum, {
+    message: "School type must be a valid school type",
+  })
+  schoolType: SchoolTypeEnum;
 }
 
 export class UpdateOrganizationDto {
@@ -222,11 +231,26 @@ export class UpdateOrganizationDto {
   @IsNumber()
   employeesMax?: number;
 
-  @ApiProperty({ type: CreateCompanyDto })
-  company?: Partial<CreateCompanyDto>;
+  // Flat company and school fields
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  taxCode?: string;
 
-  @ApiProperty({ type: CreateSchoolDto })
-  school?: Partial<CreateSchoolDto>;
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  culture?: string;
+
+  @ApiProperty({ type: "string" })
+  @IsOptional()
+  @IsString()
+  benefit?: string;
+
+  @ApiProperty({ enum: SchoolTypeEnum })
+  @IsOptional()
+  @IsEnum(SchoolTypeEnum)
+  schoolType?: SchoolTypeEnum;
 }
 
 export class CheckOrganizationNameResponseDto {
