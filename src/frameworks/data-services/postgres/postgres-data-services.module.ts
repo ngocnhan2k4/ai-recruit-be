@@ -42,6 +42,8 @@ import { ISchoolRepository } from "@/core/abstracts/repositories/school-reposito
 import { SchoolRepository } from "./repositories/school.repository copy";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 import { OrganizationLocationRepository } from "./repositories/organization-location.repository";
+import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
+import { OrganizationMemberInvitationsRepository } from "./repositories/organization-member-invitation.repository";
 
 @Global()
 @Module({
@@ -170,6 +172,10 @@ import { OrganizationLocationRepository } from "./repositories/organization-loca
       provide: IUserEducationRepository,
       useClass: UserEducationRepository,
     },
+    {
+      provide: IOrganizationMemberInvitationRepository,
+      useClass: OrganizationMemberInvitationsRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -191,6 +197,7 @@ import { OrganizationLocationRepository } from "./repositories/organization-loca
     IOrganizationMembersRepository,
     ISchoolRepository,
     IOrganizationLocationRepository,
+    IOrganizationMemberInvitationRepository,
   ],
 })
 export class PostgresDataServicesModule {}

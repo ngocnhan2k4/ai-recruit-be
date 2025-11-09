@@ -286,3 +286,9 @@ export class OrganizationWithDetailsDto extends OrganizationDto {
   locations?: OrganizationLocation[] | null;
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
 }
+
+export class CreateOrganizationInvitationDto {
+  organizationId: string;
+  inviteeId: string;
+  role: OrganizationRoleEnum;
+}

@@ -1,6 +1,8 @@
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import type { TokenPayload } from "@/common/types/token";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponseDto } from "@/interfaces/dtos";
-import { OrganizationMemberUseCase } from "@/use-cases/organization-member/organization-member.use-case";
+import { OrganizationMemberInvitationUseCase } from "@/use-cases/organization-member-invitation/organization-member-intivation.use-case";
 import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
 import {
   ApiOperation,
@@ -8,41 +10,54 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-@ApiTags("Organization Members")
-@Controller("organizations/:organizationId/members")
+@UseGuards(JwtAuthGuard)
+@ApiTags("Organization Invitations")
+@Controller("organizations/:organizationId/invitations")
 export class OrganizationController {
   constructor(
-    private readonly organizationMemberUseCase: OrganizationMemberUseCase,
+    private readonly organizationMemberInvitationsUseCase: OrganizationMemberInvitationUseCase,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post("/")
   @ApiOperation({
     summary: "Add a member to an organization",
     description: "Add a member to an organization",
   })
   @ApiResponseDto(Boolean)
-  async addMember(
-    @Param("organizationId") _organizationId: string,
-    @Body() _body: any,
+  async inviteMember(
+    @GetUser() user: TokenPayload,
+    @Param("organizationId") organizationId: string,
+    @Body() body: any,
   ) {
-    // return this.organizationMemberUseCase.addMember(organizationId, body);
+    return this.organizationMemberInvitationsUseCase.inviteMemberToOrganization(
+      user.userId,
+      {
+        organizationId,
+        inviteeId: body.inviteeId,
+        role: body.role,
+      },
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @ApiResetContentResponse({
     description: "Remove a member from an organization",
   })
-  @Post("/remove")
+  @Post(":invitationId/respond")
   @ApiOperation({
     summary: "Remove a member from an organization",
     description: "Remove a member from an organization",
   })
   @ApiResponseDto(Boolean)
   async removeMember(
-    @Param("organizationId") _organizationId: string,
-    @Body() _body: any,
+    @Param("organizationId") organizationId: string,
+    @Param("invitationId") invitationId: string,
+    @Body() body: { accept: boolean },
   ) {
-    // return this.organizationMemberUseCase.removeMember(organizationId, body);
+    return await this.organizationMemberInvitationsUseCase.respondToInvitation(
+      organizationId,
+      invitationId,
+      body.accept,
+    );
   }
 }
