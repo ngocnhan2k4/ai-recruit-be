@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { Company, ICompanyRepository, NewCompany } from "@/core";
+import { NewSchool, School } from "@/core";
 import { companies } from "../models/company.model";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
@@ -7,33 +7,35 @@ import { asc, count, gt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types/api";
-import { CompanyFilters } from "@/core/entities/company.entity";
 import {
   organizationLocations,
   organizations,
 } from "../models/organization.model";
 import { OrganizationTypeEnum } from "@/core";
+import { schools } from "../schema";
+import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
+import { SchoolFilters } from "@/core/entities/school.entity";
 
 @Injectable()
-export class CompanyRepository
-  extends GenericRepository<Company, typeof companies>
-  implements ICompanyRepository
+export class SchoolRepository
+  extends GenericRepository<School, typeof schools>
+  implements ISchoolRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, companies);
+    super(db, schools);
   }
 
-  async getCompanyByOrganizationId(
+  async getSchoolByOrganizationId(
     organizationId: string,
-  ): Promise<Company | null> {
+  ): Promise<School | null> {
     const result = await this.db
       .select()
-      .from(companies)
-      .innerJoin(organizations, eq(companies.organizationId, organizations.id))
+      .from(schools)
+      .innerJoin(organizations, eq(schools.organizationId, organizations.id))
       .where(
         and(
-          eq(organizations.type, OrganizationTypeEnum.COMPANY),
-          eq(companies.organizationId, organizationId),
+          eq(organizations.type, OrganizationTypeEnum.SCHOOL),
+          eq(schools.organizationId, organizationId),
         ),
       );
 
@@ -43,22 +45,18 @@ export class CompanyRepository
     return {
       ...row.organizations,
       organizationId: row.organizations.id,
-      companySize: row.companies.companySize || null,
-      taxCode: row.companies.taxCode || null,
-      benefits: row.companies.benefits || null,
-      companyRawId: row.companies.companyRawId || null,
-      culture: row.companies.culture || null,
+      schoolType: row.schools.schoolType || null,
     };
   }
 
-  async getCompanies(
+  async getSchools(
     limit = 20,
-    filter?: CompanyFilters,
+    filter?: SchoolFilters,
     cursor?: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    PaginatedResult<Pick<School, "id" | "name" | "logoUrl" | "address">>
   > {
-    const whereConditions = [isNull(companies.deletedAt)];
+    const whereConditions = [isNull(schools.deletedAt)];
 
     if (filter?.keyword) {
       whereConditions.push(ilike(organizations.name, `%${filter.keyword}%`));
@@ -111,10 +109,10 @@ export class CompanyRepository
     };
   }
 
-  async createCompany(
-    data: NewCompany,
+  async createSchool(
+    data: NewSchool,
     tx?: DBDrizzleTransaction,
-  ): Promise<Company> {
+  ): Promise<School> {
     const database = tx || this.db;
     const insertData = {
       ...data,
@@ -126,23 +124,22 @@ export class CompanyRepository
     return {
       ...data,
       organizationId: result[0].organizationId,
-    } as Company;
+    } as School;
   }
 
-  async updateCompany(
+  async updateSchool(
     orgId: string,
-    data: Partial<NewCompany>,
+    data: Partial<NewSchool>,
     tx?: DBDrizzleTransaction,
-  ): Promise<Company> {
+  ): Promise<School> {
     const dbClient = tx || this.db;
-    const [company] = await dbClient
-      .update(companies)
+    const [updatedSchool] = await dbClient
+      .update(schools)
       .set({
         ...data,
       })
-      .where(eq(companies.organizationId, orgId))
+      .where(eq(schools.organizationId, orgId))
       .returning();
-
-    return company as Company;
+    return updatedSchool as School;
   }
 }

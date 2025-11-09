@@ -6,6 +6,7 @@ import {
   OrganizationWithDetails,
 } from "@/core/entities";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
   abstract getOrganizationById(
@@ -27,12 +28,13 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
 
   abstract createOrganization(
     data: NewOrganizationWithDetails,
-    userId: string,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails>;
 
   abstract updateOrganizationById(
     id: string,
     data: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails>;
 
   abstract deleteOrganizationById(id: string): Promise<boolean>;

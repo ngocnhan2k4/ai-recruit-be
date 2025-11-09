@@ -6,8 +6,10 @@ import {
 } from "@nestjs/common";
 import {
   IBloomFilterService,
+  ICompanyRepository,
   IOrganizationRepository,
   OrganizationRoleEnum,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
 } from "@/core";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -23,6 +25,8 @@ import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { slugify } from "@/common/utils/string";
+import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
+import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
 
 // [TODO-PHAT]: check logic organization here
 @Injectable()
@@ -33,6 +37,9 @@ export class OrganizationUseCase {
     public readonly bloomFilterService: IBloomFilterService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly organizationMembersRepository: IOrganizationMembersRepository,
+    private readonly organizationLocationRepository: IOrganizationLocationRepository,
+    private readonly companyRepository: ICompanyRepository,
+    private readonly schoolRepository: ISchoolRepository,
   ) {}
 
   onModuleInit(): void {
@@ -121,7 +128,7 @@ export class OrganizationUseCase {
       0.6,
     );
 
-    console.log("mightExist", mightExist);
+    // console.log("mightExist", mightExist);
 
     return {
       data: {
@@ -136,16 +143,63 @@ export class OrganizationUseCase {
     data: CreateOrganizationDto,
     userId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const { company, school, ...rest } = data;
-    const slug = this.generateSlug(rest.name, new Date());
-    const result = await this.organizationRepository.createOrganization(
-      {
-        ...rest,
-        ...company,
-        ...school,
-        slug,
+    const result = await this.organizationRepository.executeWithTransaction(
+      async (tx) => {
+        const { company, school, ...rest } = data;
+        const slug = this.generateSlug(rest.name, new Date());
+        const org = await this.organizationRepository.createOrganization(
+          {
+            ...rest,
+            slug,
+          },
+          tx,
+        );
+
+        await this.organizationMembersRepository.createMember(
+          {
+            organizationId: org.id,
+            userId: userId,
+            role: OrganizationRoleEnum.ORGANIZATION_OWNER,
+          },
+          tx,
+        );
+        let createdCom = {};
+        let createdSch = {};
+        if (rest.type === OrganizationTypeEnum.COMPANY) {
+          createdCom = await this.companyRepository.createCompany(
+            {
+              organizationId: org.id,
+              ...company,
+            },
+            tx,
+          );
+        } else if (rest.type === OrganizationTypeEnum.SCHOOL) {
+          createdSch = await this.schoolRepository.createSchool(
+            {
+              ...school,
+              organizationId: org.id,
+              schoolType: school?.schoolType as any,
+            },
+            tx,
+          );
+        }
+
+        const createdLocations =
+          await this.organizationLocationRepository.createOrganizationLocations(
+            rest.locations?.map((loc) => ({
+              ...loc,
+              organizationId: org.id,
+            })),
+            tx,
+          );
+
+        return {
+          ...org,
+          ...createdCom,
+          ...createdSch,
+          locations: createdLocations,
+        };
       },
-      userId,
     );
     if (!result) {
       throw new BadRequestException(
@@ -164,37 +218,68 @@ export class OrganizationUseCase {
     data: UpdateOrganizationDto,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const { company, school, ...rest } = data;
-    const result = await this.organizationRepository.updateOrganizationById(
-      orgId,
-      {
-        ...rest,
-        ...company,
-        ...school,
+    const updatedOrg = await this.organizationRepository.executeWithTransaction(
+      async (tx) => {
+        const org = await this.organizationRepository.updateOrganizationById(
+          orgId,
+          {
+            ...rest,
+          },
+          tx,
+        );
+
+        let updatedCompany = {};
+        let updatedSchool = {};
+
+        if (company && org.type === OrganizationTypeEnum.COMPANY) {
+          updatedCompany = await this.companyRepository.updateCompany(
+            orgId,
+            {
+              ...company,
+              organizationId: org.id,
+            },
+            tx,
+          );
+        } else if (school && org.type === OrganizationTypeEnum.SCHOOL) {
+          updatedSchool = await this.schoolRepository.updateSchool(
+            orgId,
+            {
+              ...school,
+              organizationId: org.id,
+              schoolType: school?.schoolType as any,
+            },
+            tx,
+          );
+        }
+
+        return {
+          ...org,
+          ...(updatedCompany ? updatedCompany : {}),
+          ...(updatedSchool ? updatedSchool : {}),
+        };
       },
     );
-    if (!result) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [updateOrganization] Organization with ID ${orgId} not found`,
+
+    if (!updatedOrg) {
+      throw new BadRequestException(
+        "[OrganizationUseCase] - [updateOrganization] Failed to update organization",
       );
     }
+
     return {
+      data: updatedOrg,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 
-  async deleteOrganization(id: string): Promise<ApiResponse<boolean>> {
-    const result = await this.organizationRepository.deleteOrganizationById(id);
-    if (!result) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [deleteOrganization] Organization with ID ${id} not found`,
-      );
-    }
+  async deleteOrganization(orgId: string): Promise<ApiResponse<boolean>> {
+    const deleted =
+      await this.organizationRepository.deleteOrganizationById(orgId);
     return {
+      data: deleted,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 

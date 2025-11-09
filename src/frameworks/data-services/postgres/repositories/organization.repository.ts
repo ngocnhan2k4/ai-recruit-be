@@ -1,12 +1,9 @@
 import { Injectable, Inject } from "@nestjs/common";
 import {
-  Company,
   IOrganizationRepository,
   NewOrganizationWithDetails,
-  OrganizationLocation,
   OrganizationTypeEnum,
   OrganizationWithDetails,
-  School,
   SchoolTypeEnum,
 } from "@/core";
 import {
@@ -16,7 +13,7 @@ import {
 } from "../models/organization.model";
 import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import {
   eq,
@@ -249,156 +246,43 @@ export class OrganizationRepository
 
   async createOrganization(
     data: NewOrganizationWithDetails,
-    userId: string,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails> {
-    console.log("data", data);
-    const dt = await this.db.transaction(async (tx) => {
-      const [org] = await tx
-        .insert(organizations)
-        .values({
-          name: data.name,
-          slug: data.slug,
-          type: data.type,
-          description: data.description,
-          address: data.address,
-          logoUrl: data.logoUrl,
-          about: data.about,
-          websiteUrl: data.websiteUrl,
-          email: data.email,
-          phone: data.phone,
-          foundedYear: data.foundedYear,
-          employeesMin: data.employeesMin,
-          employeesMax: data.employeesMax,
-        })
-        .returning();
+    const dbClient = tx ?? this.db;
+    const [org] = await dbClient
+      .insert(organizations)
+      .values({
+        name: data.name,
+        slug: data.slug,
+        type: data.type,
+        description: data.description,
+        address: data.address,
+        logoUrl: data.logoUrl,
+        about: data.about,
+        websiteUrl: data.websiteUrl,
+        email: data.email,
+        phone: data.phone,
+        foundedYear: data.foundedYear,
+        employeesMin: data.employeesMin,
+        employeesMax: data.employeesMax,
+      })
+      .returning();
 
-      const locationValues = data.locations?.map((location) => ({
-        organizationId: org.id,
-        address: location.address ?? "",
-        provinceId: location.provinceId ?? "",
-      }));
-
-      const orgLocations = await tx
-        .insert(organizationLocations)
-        .values(locationValues ?? [])
-        .returning();
-
-      console.log("orgLocations", orgLocations);
-
-      let company: Company = {} as Company;
-      let school: School = {} as School;
-
-      if (org.type === OrganizationTypeEnum.COMPANY) {
-        company = await tx
-          .insert(companies)
-          .values({
-            organizationId: org.id,
-            companySize: data.companySize,
-            taxCode: data.taxCode,
-            benefits: data.benefits,
-          })
-          .returning()[0];
-      } else if (org.type === OrganizationTypeEnum.SCHOOL) {
-        school = await tx
-          .insert(schools)
-          .values({
-            organizationId: org.id,
-            schoolType: (data.schoolType as any) ?? SchoolTypeEnum.UNIVERSITY,
-          })
-          .returning()[0];
-      }
-
-      await tx
-        .insert(organizationMembers)
-        .values({
-          organizationId: org.id,
-          userId: userId,
-          role: "organization_owner",
-        })
-        .execute();
-
-      return {
-        ...org,
-        ...company,
-        ...school,
-        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
-        locations: orgLocations,
-      };
-    });
-
-    return dt;
+    return org;
   }
 
   async updateOrganizationById(
     id: string,
     data: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails> {
-    const dt = this.db.transaction(async (tx) => {
-      const [org] = await tx
-        .update(organizations)
-        .set(data)
-        .where(eq(organizations.id, id))
-        .returning();
-
-      const allLocations: OrganizationLocation[] = [];
-
-      if (data.locations && data.locations.length > 0) {
-        // for-each location, if it has id then update, else insert, then return all locations
-        for (const loc of data.locations) {
-          if (loc.id) {
-            const [updatedLoc] = await tx
-              .update(organizationLocations)
-              .set({
-                address: loc.address ?? "",
-                provinceId: loc.provinceId,
-              })
-              .where(eq(organizationLocations.id, loc.id))
-              .returning();
-            if (updatedLoc) {
-              allLocations.push(updatedLoc);
-            } else {
-              const [newLoc] = await tx
-                .insert(organizationLocations)
-                .values({
-                  organizationId: id,
-                  address: loc.address ?? "",
-                  provinceId: loc.provinceId,
-                })
-                .returning();
-              allLocations.push(newLoc);
-            }
-          }
-        }
-      }
-      const [[company], [school]] = await Promise.all([
-        tx
-          .update(companies)
-          .set({
-            companySize: data.companySize,
-            taxCode: data.taxCode,
-            benefits: data.benefits,
-          })
-          .where(eq(companies.organizationId, org.id))
-          .returning(),
-        tx
-          .update(schools)
-          .set({
-            schoolType: data.schoolType as any,
-          })
-          .where(eq(schools.organizationId, org.id))
-          .returning(),
-      ]);
-
-      return {
-        ...org,
-        ...company,
-        ...school,
-        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
-        locations: allLocations,
-      };
-    });
-
-    return dt;
+    const dbClient = tx ?? this.db;
+    const [org] = await dbClient
+      .update(organizations)
+      .set(data)
+      .where(eq(organizations.id, id))
+      .returning();
+    return org;
   }
 
   async deleteOrganizationById(id: string): Promise<boolean> {

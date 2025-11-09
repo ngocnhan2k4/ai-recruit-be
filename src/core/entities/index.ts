@@ -81,9 +81,8 @@ export type OrganizationLocation = InferSelectModel<
 > & {
   provinceName?: string | null;
 };
-export type NewOrganizationLocation = Omit<
-  InferInsertModel<typeof organizationLocations>,
-  "organizationId"
+export type NewOrganizationLocation = InferInsertModel<
+  typeof organizationLocations
 >;
 
 export type OrganizationWithDetails = Organization & {
@@ -97,29 +96,26 @@ export type OrganizationWithDetails = Organization & {
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {
-  companySize?: number | null;
-  taxCode?: string | null;
-  benefits?: string | null;
-  companyRawId?: number | null;
-  schoolType?: SchoolTypeEnum | null;
-  culture?: string | null;
-  locations?: NewOrganizationLocation[];
+  // companySize?: number | null;
+  // taxCode?: string | null;
+  // benefits?: string | null;
+  // companyRawId?: number | null;
+  // schoolType?: SchoolTypeEnum | null;
+  // culture?: string | null;
+  // locations?: NewOrganizationLocation[];
 };
 
 export type Company = InferSelectModel<typeof companies> & {
   locations?: OrganizationLocation[];
 } & Organization;
 
-export type NewCompany = Omit<
-  InferInsertModel<typeof companies>,
-  "organizationId"
-> & {
-  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
-} & NewOrganization;
+export type NewCompany = InferInsertModel<typeof companies>;
 
 export type School = InferSelectModel<typeof schools> & {
   locations?: OrganizationLocation[];
 } & Organization;
+
+export type NewSchool = InferInsertModel<typeof schools>;
 
 export type NewUserEducation = InferInsertModel<typeof userEducations>;
 export type UserEducation = InferSelectModel<typeof userEducations>;

@@ -38,6 +38,10 @@ import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { UserEducationRepository } from "./repositories/user-education.repository";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
+import { SchoolRepository } from "./repositories/school.repository copy";
+import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
+import { OrganizationLocationRepository } from "./repositories/organization-location.repository";
 
 @Global()
 @Module({
@@ -111,6 +115,14 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
       useClass: CompanyRepository,
     },
     {
+      provide: ISchoolRepository,
+      useClass: SchoolRepository,
+    },
+    {
+      provide: IOrganizationLocationRepository,
+      useClass: OrganizationLocationRepository,
+    },
+    {
       provide: IJobRepository,
       useClass: JobRepository,
     },
@@ -164,7 +176,6 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
     IAuthRepository,
     ICategoryRepository,
     ICasbinRepository,
-    ICompanyRepository,
     ICvRepository,
     IJobRepository,
     IProvinceRepository,
@@ -173,10 +184,13 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
     IUserSkillRepository,
     IUserRepository,
     IUserOnboardingRepository,
-    IOrganizationMembersRepository,
     INotificationRepository,
-    IOrganizationRepository,
     IUserEducationRepository,
+    IOrganizationRepository,
+    ICompanyRepository,
+    IOrganizationMembersRepository,
+    ISchoolRepository,
+    IOrganizationLocationRepository,
   ],
 })
 export class PostgresDataServicesModule {}

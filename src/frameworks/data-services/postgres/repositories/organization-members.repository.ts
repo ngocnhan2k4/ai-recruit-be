@@ -1,9 +1,12 @@
-import { OrganizationMember, User } from "@/core";
+import { NewOrganizationMember, OrganizationMember, User } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
-import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
+import {
+  DBDrizzleTransaction,
+  type DBDrizzle,
+} from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
 import { eq, and, gt, or, ilike, SQL, isNull, desc } from "drizzle-orm";
 import { MemberQuery } from "@/core/entities/organization-members.entity";
@@ -98,5 +101,41 @@ export class OrganizationMembersRepository
       .execute();
 
     return member[0]?.role ?? null;
+  }
+
+  async createMember(
+    data: NewOrganizationMember,
+    tx?: DBDrizzleTransaction,
+  ): Promise<OrganizationMember> {
+    const dbClient = tx || this.db;
+    const [createdMember] = await dbClient
+      .insert(organizationMembers)
+      .values({
+        ...data,
+      })
+      .returning()
+      .execute();
+    return createdMember;
+  }
+
+  async deleteMember(
+    orgId: string,
+    userId: string,
+    tx?: DBDrizzleTransaction,
+  ): Promise<boolean> {
+    const dbClient = tx || this.db;
+    const result = await dbClient
+      .update(organizationMembers)
+      .set({
+        deletedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(organizationMembers.organizationId, orgId),
+          eq(organizationMembers.userId, userId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
   }
 }
