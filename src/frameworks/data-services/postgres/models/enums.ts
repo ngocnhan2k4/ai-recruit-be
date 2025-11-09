@@ -80,3 +80,7 @@ export const OrganizationRoleEnum = pgEnum("organization_role", [
   "organization_employee",
   "anonymously",
 ]);
+export const OrganizationInviteStatusEnum = pgEnum(
+  "organization_invite_status",
+  ["pending", "accepted", "declined"],
+);
