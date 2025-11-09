@@ -50,7 +50,7 @@ import { NotificationUseCasesModule } from "./use-cases/notification/notificatio
 import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
-import { JobAdminController } from "./interfaces/controllers/job/job-admin.controller";
+import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
 
 @Module({
   imports: [

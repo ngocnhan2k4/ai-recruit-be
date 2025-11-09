@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../common/query";
-import { IsOptional, IsString } from "class-validator";
-import { NotificationType } from "@/core";
+import { IsArray, IsOptional, IsString } from "class-validator";
+import { NotificationStatusEnum, NotificationType } from "@/core";
 
 export class GetNotificationRequestDto extends GeneralQueryDto {
   @ApiProperty()
@@ -49,4 +49,43 @@ export class NotificationDto {
 export class GetNotificationResponseDto {
   @ApiProperty({ type: NotificationDto })
   notification: NotificationDto;
+}
+
+export class NotificationActionRequestDto {
+  @ApiProperty({
+    type: [String],
+    description: "Array of user notification IDs",
+  })
+  @IsArray()
+  @IsString({ each: true })
+  userNotificationIds: string[];
+
+  @IsString()
+  status: NotificationStatusEnum;
+}
+
+export class NotificationActionResponseDto {
+  @ApiProperty({ type: "number" })
+  count: number;
+}
+
+export class UpdateNotificationStatusRequestDto {
+  @ApiProperty({
+    enum: NotificationStatusEnum,
+    description: "Status to update: read or deleted",
+  })
+  @IsString()
+  status: NotificationStatusEnum;
+}
+
+export class UpdateNotificationStatusResponseDto {
+  notification: NotificationStatusDto;
+}
+
+export class NotificationStatusDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  status: NotificationStatusEnum;
 }

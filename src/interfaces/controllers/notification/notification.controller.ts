@@ -1,6 +1,14 @@
 import { NotificationUseCase } from "@/use-cases/notification/notification.use-case";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiResponse,
   ApiResponseDto,
@@ -12,6 +20,10 @@ import { type TokenPayload } from "@/common/types/token";
 import {
   GetNotificationRequestDto,
   GetNotificationResponseDto,
+  NotificationActionRequestDto,
+  NotificationActionResponseDto,
+  UpdateNotificationStatusRequestDto,
+  UpdateNotificationStatusResponseDto,
 } from "@/interfaces/dtos/notifications/notification.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
@@ -34,5 +46,36 @@ export class NotificationController {
       ...query,
       userId: user.userId,
     });
+  }
+
+  @ApiOperation({
+    summary: "Update notification status",
+    description: "Mark a notification as read or deleted (soft delete)",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(UpdateNotificationStatusResponseDto)
+  @Patch(":id")
+  async updateNotificationStatus(
+    @Param("id") notificationId: string,
+    @Body() data: UpdateNotificationStatusRequestDto,
+  ): Promise<ApiResponse<UpdateNotificationStatusResponseDto>> {
+    return this.notificationUseCase.updateNotificationStatus(
+      notificationId,
+      data.status,
+    );
+  }
+
+  @ApiOperation({
+    summary: "Update multiple notifications status",
+    description:
+      "Mark multiple notifications as read or deleted in a single operation. Use query param ?status=read or ?status=deleted",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(NotificationActionResponseDto)
+  @Patch()
+  async updateMultipleNotificationsStatus(
+    @Body() data: NotificationActionRequestDto,
+  ): Promise<ApiResponse<NotificationActionResponseDto>> {
+    return this.notificationUseCase.updateMultipleNotificationsStatus(data);
   }
 }

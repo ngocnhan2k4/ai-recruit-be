@@ -145,11 +145,10 @@ export class OrganizationUseCase {
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const result = await this.organizationRepository.executeWithTransaction(
       async (tx) => {
-        const { company, school, ...rest } = data;
-        const slug = this.generateSlug(rest.name, new Date());
+        const slug = this.generateSlug(data.name, new Date());
         const org = await this.organizationRepository.createOrganization(
           {
-            ...rest,
+            ...data,
             slug,
           },
           tx,
@@ -165,20 +164,20 @@ export class OrganizationUseCase {
         );
         let createdCom = {};
         let createdSch = {};
-        if (rest.type === OrganizationTypeEnum.COMPANY) {
+        if (data.type === OrganizationTypeEnum.COMPANY) {
           createdCom = await this.companyRepository.createCompany(
             {
               organizationId: org.id,
-              ...company,
+              ...data,
             },
             tx,
           );
-        } else if (rest.type === OrganizationTypeEnum.SCHOOL) {
+        } else if (data.type === OrganizationTypeEnum.SCHOOL) {
           createdSch = await this.schoolRepository.createSchool(
             {
-              ...school,
+              ...data,
               organizationId: org.id,
-              schoolType: school?.schoolType as any,
+              schoolType: data?.schoolType as any,
             },
             tx,
           );
@@ -186,7 +185,7 @@ export class OrganizationUseCase {
 
         const createdLocations =
           await this.organizationLocationRepository.createOrganizationLocations(
-            rest.locations?.map((loc) => ({
+            data.locations?.map((loc) => ({
               ...loc,
               organizationId: org.id,
             })),
@@ -217,13 +216,12 @@ export class OrganizationUseCase {
     orgId: string,
     data: UpdateOrganizationDto,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const { company, school, ...rest } = data;
     const updatedOrg = await this.organizationRepository.executeWithTransaction(
       async (tx) => {
         const org = await this.organizationRepository.updateOrganizationById(
           orgId,
           {
-            ...rest,
+            ...data,
           },
           tx,
         );
@@ -231,22 +229,22 @@ export class OrganizationUseCase {
         let updatedCompany = {};
         let updatedSchool = {};
 
-        if (company && org.type === OrganizationTypeEnum.COMPANY) {
+        if (org.type === OrganizationTypeEnum.COMPANY) {
           updatedCompany = await this.companyRepository.updateCompany(
             orgId,
             {
-              ...company,
+              ...data,
               organizationId: org.id,
             },
             tx,
           );
-        } else if (school && org.type === OrganizationTypeEnum.SCHOOL) {
+        } else if (org.type === OrganizationTypeEnum.SCHOOL) {
           updatedSchool = await this.schoolRepository.updateSchool(
             orgId,
             {
-              ...school,
+              ...data,
               organizationId: org.id,
-              schoolType: school?.schoolType as any,
+              schoolType: data?.schoolType as any,
             },
             tx,
           );

@@ -25,9 +25,10 @@ import {
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
+import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Jobs Admin")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/jobs")
 export class JobAdminController {
   constructor(private readonly jobUseCases: JobUseCases) {}
@@ -54,8 +55,9 @@ export class JobAdminController {
   @Post()
   async createJob(
     @Body() createJobDto: CreateJobDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(createJobDto);
+    return await this.jobUseCases.createJob(user.userId, createJobDto);
   }
 
   @ApiOperation({
@@ -81,9 +83,10 @@ export class JobAdminController {
   })
   @Delete(":id")
   async deleteJob(
+    @GetUser() user: TokenPayload,
     @Param("id") jobId: string,
   ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(jobId);
+    return await this.jobUseCases.deleteJob(user, jobId);
   }
 
   @ApiOperation({
