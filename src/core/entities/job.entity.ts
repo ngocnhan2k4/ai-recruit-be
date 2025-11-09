@@ -2,7 +2,6 @@ import { TokenPayload } from "@/common/types/token";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
 import { GeneralQuery } from "@/common/types/api";
 import { Job, OrganizationWithDetails, Province, Skill } from ".";
-import { PaginationType } from "@/interfaces/dtos";
 
 export interface JobFilters extends GeneralQuery {
   organizationId?: string;
@@ -15,7 +14,6 @@ export interface JobFilters extends GeneralQuery {
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   user?: TokenPayload;
-  pagination?: PaginationType;
 }
 
 export interface StatisticsJobFilter {

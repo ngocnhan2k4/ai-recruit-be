@@ -58,7 +58,6 @@ import {
 } from "@/core/entities/job.entity";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
-import { PaginationType } from "@/interfaces/dtos/common/query";
 import { organizations } from "../models/organization.model";
 import {
   JobFilters,
@@ -86,7 +85,7 @@ export class JobRepository
   ): Promise<PaginatedResult<JobResponse>> {
     // Build where conditions
     const whereConditions: SQL[] = [];
-    const { cursor, limit, page } = filters;
+    const { limit, page } = filters;
     if (filters?.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
@@ -122,16 +121,7 @@ export class JobRepository
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
-    // Determine pagination mode (cursor by default)
-    const usePagePagination = filters?.pagination === PaginationType.PAGE;
-    if (cursor && !usePagePagination) {
-      whereConditions.push(gt(jobs.id, cursor));
-    }
-
-    // If using page pagination, compute offset/limit from query (fallback to function limit)
-    const offset = usePagePagination
-      ? (Math.max(page || 1, 1) - 1) * limit
-      : undefined;
+    const offset = (Math.max(page || 1, 1) - 1) * limit;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -167,44 +157,28 @@ export class JobRepository
       )
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
-      // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
-      .offset(offset ?? 0)
-      .limit(limit + 1)) as {
+      .offset(offset)
+      .limit(limit)) as {
       job: Job;
       provinces: Province[];
       organization: OrganizationWithDetails;
       skills: Skill[];
     }[];
 
-    // Check if there's a next page
-    const hasNextPage = result.length > limit;
-    const data = hasNextPage ? result.slice(0, limit) : result;
-    let total: number | undefined = undefined;
-    if (usePagePagination) {
-      total = (
-        await this.db
-          .select({
-            total: countDistinct(jobs.id).as("total"),
-          })
-          .from(jobs)
-          .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
-          .where(
-            whereConditions.length > 0 ? and(...whereConditions) : undefined,
-          )
-      )[0]?.total;
-    }
-
-    // Next cursor is only applicable for cursor pagination
-    const nextCursor =
-      !usePagePagination && hasNextPage && result[limit - 1]?.job
-        ? `${result[limit - 1].job.id}`
-        : undefined;
+    const total = (
+      await this.db
+        .select({
+          total: countDistinct(jobs.id).as("total"),
+        })
+        .from(jobs)
+        .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+    )[0]?.total;
 
     return {
-      data,
+      data: result,
       pagination: {
-        nextCursor,
-        hasNextPage,
+        hasNextPage: result.length === limit,
         total,
       },
     };
@@ -213,7 +187,7 @@ export class JobRepository
   async getJobs(filters: JobFilters): Promise<PaginatedResult<JobResponse>> {
     // Build where conditions
     const whereConditions: SQL[] = [];
-    const { cursor, limit, page } = filters;
+    const { cursor, limit } = filters;
     if (filters?.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
@@ -262,10 +236,7 @@ export class JobRepository
       );
     }
 
-    // Determine pagination mode (cursor by default)
-    const usePagePagination = filters?.pagination === PaginationType.PAGE;
-    // Cursor pagination: only apply gt filter when using cursor pagination
-    if (cursor && !usePagePagination) {
+    if (cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)
         return {
@@ -274,11 +245,6 @@ export class JobRepository
         };
       whereConditions.push(gt(jobs.id, cursor));
     }
-
-    // If using page pagination, compute offset/limit from query (fallback to function limit)
-    const offset = usePagePagination
-      ? (Math.max(page || 1, 1) - 1) * limit
-      : undefined;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -348,8 +314,6 @@ export class JobRepository
       )
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
-      // apply pagination: offset/limit for page mode, limit(+1) for cursor mode
-      .offset(offset ?? 0)
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -360,24 +324,10 @@ export class JobRepository
     // Check if there's a next page
     const hasNextPage = result.length > limit;
     const data = hasNextPage ? result.slice(0, limit) : result;
-    let total: number | undefined = undefined;
-    if (usePagePagination) {
-      total = (
-        await this.db
-          .select({
-            total: countDistinct(jobs.id).as("total"),
-          })
-          .from(jobs)
-          .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
-          .where(
-            whereConditions.length > 0 ? and(...whereConditions) : undefined,
-          )
-      )[0]?.total;
-    }
 
     // Next cursor is only applicable for cursor pagination
     const nextCursor =
-      !usePagePagination && hasNextPage && result[limit - 1]?.job
+      hasNextPage && result[limit - 1]?.job
         ? `${result[limit - 1].job.id}`
         : undefined;
 
@@ -386,7 +336,6 @@ export class JobRepository
       pagination: {
         nextCursor,
         hasNextPage,
-        total,
       },
     };
   }
@@ -1075,15 +1024,6 @@ export class JobRepository
 
     return result.length > 0;
   }
-  async getJobById(jobId: string): Promise<Job | null> {
-    const result = await this.db
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .limit(1);
-
-    return result[0] as Job | null;
-  }
 
   async getAllSavedJobs(
     userId: string,
@@ -1160,19 +1100,7 @@ export class JobRepository
   async getFullJobById(
     jobId: string,
     userId?: string,
-  ): Promise<{
-    job: Job;
-    provinces: Province[];
-    organization: OrganizationWithDetails;
-    skills: Skill[];
-    isSaved?: boolean;
-    isApplied?: boolean;
-    applyStatus?: string;
-    applyId?: string;
-  } | null> {
-    // check if user is authenticated (userId exists and is not anonymous)
-    const isAuthenticatedUser = userId;
-
+  ): Promise<JobResponse | null> {
     // Create query to get job information and relations
     const result = await this.db
       .select({
@@ -1187,7 +1115,7 @@ export class JobRepository
             "skills",
           ),
         // If user is authenticated, check if job is saved or applied
-        isSaved: isAuthenticatedUser
+        isSaved: userId
           ? sql`EXISTS (
             SELECT 1 FROM ${userInteractions} ui 
             WHERE ui.job_id = ${jobs.id} 
@@ -1195,7 +1123,7 @@ export class JobRepository
             AND ui.type = 'save'
           )`.as("isSaved")
           : sql`false`.as("isSaved"),
-        isApplied: isAuthenticatedUser
+        isApplied: userId
           ? sql`EXISTS (
             SELECT 1 FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
@@ -1203,7 +1131,7 @@ export class JobRepository
             AND c.user_id = ${userId}
           )`.as("isApplied")
           : sql`false`.as("isApplied"),
-        applyStatus: isAuthenticatedUser
+        applyStatus: userId
           ? sql`(
             SELECT aj.status FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
@@ -1212,7 +1140,7 @@ export class JobRepository
             LIMIT 1
           )`.as("applyStatus")
           : sql`NULL`.as("applyStatus"),
-        applyId: isAuthenticatedUser
+        applyId: userId
           ? sql`(
             SELECT aj.id FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id

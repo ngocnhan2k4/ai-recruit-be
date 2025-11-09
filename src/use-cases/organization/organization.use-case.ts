@@ -5,12 +5,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
-  IBloomFilterService,
   IOrganizationRepository,
   OrganizationRoleEnum,
   OrganizationWithDetails,
 } from "@/core";
-import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   ApiResponse,
   CreateOrganizationDto,
@@ -24,94 +22,14 @@ import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { slugify } from "@/common/utils/string";
 
-// [TODO-PHAT]: check logic organization here
 @Injectable()
 export class OrganizationUseCase {
   private readonly logger = new Logger(OrganizationUseCase.name);
 
   constructor(
-    public readonly bloomFilterService: IBloomFilterService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly organizationMembersRepository: IOrganizationMembersRepository,
   ) {}
-
-  onModuleInit(): void {
-    // start initialization in background so Nest bootstrap is not blocked
-    // any requests arriving before bloom is ready will fallback to DB verification
-    this.initializeBloomFilter().catch((err) =>
-      this.logger.error(
-        "[OrganizationUseCase] Bloom init failed (background)",
-        err,
-      ),
-    );
-  }
-
-  @Cron(CronExpression.EVERY_HOUR)
-  async refreshBloomFilterScheduled() {
-    this.logger.log(
-      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
-    );
-    await this.initializeBloomFilter();
-  }
-
-  private async initializeBloomFilter() {
-    try {
-      const organizations = await this.organizationRepository.getAll(["name"]);
-      const organizationNames = organizations.map(
-        (organization) => organization.name,
-      );
-
-      this.bloomFilterService.initialize(organizationNames);
-
-      this.logger.log(
-        `[OrganizationUseCases] [initializeBloomFilter] Bloom filter refreshed with ${organizationNames.length} organization names`,
-      );
-    } catch (error) {
-      this.logger.error(
-        "[OrganizationUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // async checkOrganizationName(
-  //   orgName: string,
-  // ): Promise<ApiResponse<CheckOrganizationNameResponseDto>> {
-  //   // if bloom is not ready, fallback to DB verification to avoid false-negatives
-  //   const bloomReady = (this.bloomFilterService as any)?.isReady?.() ?? true;
-  //   const mightExist = bloomReady
-  //     ? this.bloomFilterService.mightContain(orgName)
-  //     : true;
-
-  //   if (!mightExist) {
-  //     return {
-  //       data: { exists: false },
-  //       message: "Organization name does not exist",
-  //       code: RESPONSE_CODE.SUCCESS,
-  //     };
-  //   }
-
-  //   this.logger.log(
-  //     `[OrganizationUseCase] [checkOrganizationName] Checking organization name "${orgName}"...`,
-  //   );
-
-  //   // Step 2: verify DB để loại false positive
-  //   const organization = await this.organizationRepository.getByField({
-  //     name: orgName,
-  //   });
-  //   this.logger.log(
-  //     `[OrganizationUseCase] [checkOrganizationName] Checked organization name "${orgName}": BloomFilter mightExist=${mightExist}, DB exists=${!!organization}`,
-  //   );
-
-  //   return {
-  //     data: {
-  //       exists: !!organization,
-  //     },
-  //     message: "Organization name existence checked successfully",
-  //     code: RESPONSE_CODE.SUCCESS,
-  //   };
-  // }
 
   async checkOrganizationName(
     orgName: string,
