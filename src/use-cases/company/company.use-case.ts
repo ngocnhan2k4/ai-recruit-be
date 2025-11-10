@@ -5,15 +5,8 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { ApiResponse, CompanyDto } from "@/interfaces/dtos";
-import { Cron, CronExpression } from "@nestjs/schedule";
 
-import {
-  Company,
-  IBloomFilterService,
-  ICompanyRepository,
-  IOrganizationRepository,
-  OrganizationTypeEnum,
-} from "@/core";
+import { Company, ICompanyRepository } from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
@@ -21,62 +14,9 @@ import { PaginatedResult } from "@/common/types/api";
 export class CompanyUseCase implements OnModuleInit {
   private readonly logger = new Logger(CompanyUseCase.name);
 
-  constructor(
-    private readonly companyRepository: ICompanyRepository,
-    public readonly bloomFilterService: IBloomFilterService,
-    private readonly organizationRepository: IOrganizationRepository,
-  ) {}
+  constructor(private readonly companyRepository: ICompanyRepository) {}
 
-  onModuleInit(): void {
-    // start initialization in background so Nest bootstrap is not blocked
-    // any requests arriving before bloom is ready will fallback to DB verification
-    this.initializeBloomFilter().catch((err) =>
-      this.logger.error("[CompanyUseCase] Bloom init failed (background)", err),
-    );
-  }
-
-  @Cron(CronExpression.EVERY_HOUR)
-  async refreshBloomFilterScheduled() {
-    this.logger.log(
-      "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
-    );
-    await this.initializeBloomFilter();
-  }
-
-  private async initializeBloomFilter() {
-    try {
-      // Get all company names from organizations table filtered by type
-      const companies =
-        await this.organizationRepository.getOrganizationsByTypes([
-          OrganizationTypeEnum.COMPANY,
-        ]);
-      const companyNames = companies.map((company) => company.name);
-
-      this.bloomFilterService.initialize(companyNames);
-
-      this.logger.log(
-        `[CompanyUseCases] [initializeBloomFilter] Bloom filter refreshed with ${companyNames.length} company names`,
-      );
-    } catch (error) {
-      this.logger.error(
-        "[CompanyUseCases] [initializeBloomFilter] Failed to initialize bloom filter:",
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // async getAllCompanies(): Promise<
-  //   ApiResponse<Pick<Company, "organizationId" | "companySize" | "taxCode" | "benefits" | "companyRawId">[]>
-  // > {
-  //   const result = await this.companyRepository.getAllCompanies();
-
-  //   return {
-  //     message: "Companies retrieved successfully",
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: result,
-  //   };
-  // }
+  onModuleInit(): void {}
 
   async getCompanies(
     limit = 20,

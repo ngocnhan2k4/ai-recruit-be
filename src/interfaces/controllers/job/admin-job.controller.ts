@@ -21,6 +21,7 @@ import {
   JobDto,
   JobCountsDto,
   JobPaginationResponseDto,
+  JobResponseDto,
 } from "../../dtos/jobs/job.dto";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
@@ -58,6 +59,18 @@ export class JobAdminController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     return await this.jobUseCases.createJob(user.userId, createJobDto);
+  }
+
+  @ApiOperation({
+    summary: "Get job by ID",
+    description: "Retrieve a specific job by its ID",
+  })
+  @ApiResponseDto(JobResponseDto)
+  @Get(":id")
+  async getJobById(
+    @Param("id") jobId: string,
+  ): Promise<ApiResponse<JobResponseDto>> {
+    return await this.jobUseCases.getJobById(jobId);
   }
 
   @ApiOperation({
