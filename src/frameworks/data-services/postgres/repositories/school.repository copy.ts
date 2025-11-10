@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { NewSchool, School } from "@/core";
+import { ISchoolRepository, NewSchool, School } from "@/core";
 import { companies } from "../models/company.model";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
@@ -13,7 +13,6 @@ import {
 } from "../models/organization.model";
 import { OrganizationTypeEnum } from "@/core";
 import { schools } from "../schema";
-import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
 import { SchoolFilters } from "@/core/entities/school.entity";
 
 @Injectable()

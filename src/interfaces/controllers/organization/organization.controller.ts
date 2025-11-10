@@ -15,13 +15,13 @@ import {
   ApiResponseDto,
   CheckOrganizationNameResponseDto,
   CompanyDto,
-  GetCompaniesQueryDto,
   GetCompanyDto,
   CreateOrganizationDto,
   UpdateOrganizationDto,
   ApiResponse,
   PaginatedResultDto,
   OrganizationWithDetailsDto,
+  GeneralQueryDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -47,7 +47,7 @@ export class OrganizationController {
   })
   async getOrganizationsByOwner(
     @GetUser() user: TokenPayload,
-    @Query() query: GetCompaniesQueryDto,
+    @Query() query: GeneralQueryDto,
   ) {
     return await this.organizationUseCase.getOrganizationsByOwner(
       user?.userId,

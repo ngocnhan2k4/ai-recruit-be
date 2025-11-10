@@ -1,8 +1,12 @@
-import { NewOrganizationMember, OrganizationMember, User } from "@/core";
+import {
+  IOrganizationMembersRepository,
+  NewOrganizationMember,
+  OrganizationMember,
+  User,
+} from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,

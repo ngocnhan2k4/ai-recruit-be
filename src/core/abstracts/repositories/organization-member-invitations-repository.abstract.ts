@@ -1,4 +1,14 @@
-import { OrganizationMemberInvitation } from "@/core/entities";
+import { OrganizationMemberInvitation, User } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
+import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 
-export abstract class IOrganizationMemberInvitationRepository extends IGenericRepository<OrganizationMemberInvitation> {}
+export abstract class IOrganizationMemberInvitationRepository extends IGenericRepository<OrganizationMemberInvitation> {
+  abstract getUsersToInvite(
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<Pick<
+      User,
+      "id" | "name" | "email" | "avatarUrl" | "username"
+    > | null>
+  >;
+}

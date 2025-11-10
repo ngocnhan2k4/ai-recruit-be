@@ -2,12 +2,15 @@ import { RESPONSE_CODE } from "@/common/constants/response";
 import {
   OrganizationInviteStatusEnum,
   OrganizationMemberInvitation,
+  User,
 } from "@/core";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import {
   ApiResponse,
   CreateOrganizationInvitationDto,
+  GeneralQueryDto,
+  PaginatedResultDto,
 } from "@/interfaces/dtos";
 import {
   BadRequestException,
@@ -27,6 +30,29 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     // private readonly notificationService: INotificationService,
   ) {}
+
+  async getUsersToInvite(
+    query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResultDto<Pick<
+        User,
+        "id" | "name" | "email" | "avatarUrl" | "username"
+      > | null>
+    >
+  > {
+    const usersToInvite =
+      await this.organizationMemberInvitationRepository.getUsersToInvite(query);
+
+    return {
+      data: {
+        data: usersToInvite.data,
+        pagination: usersToInvite.pagination,
+      },
+      message: "Users to invite retrieved successfully.",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
 
   async inviteMemberToOrganization(
     inviterId: string,

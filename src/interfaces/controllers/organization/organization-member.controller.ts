@@ -35,7 +35,6 @@ export class OrganizationMemberController {
     @Param("organizationId") organizationId: string,
     @Query() query: GetMemberQueryDto,
   ) {
-    console.log("query", query);
     return this.organizationMemberUseCase.getMembersByOrganizationId(
       organizationId,
       query,

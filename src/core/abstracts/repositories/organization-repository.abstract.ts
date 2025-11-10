@@ -1,4 +1,4 @@
-import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   NewOrganizationWithDetails,
@@ -15,6 +15,18 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
 
   abstract getAllOrganizations(
     query: OrganizationQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        OrganizationWithDetails,
+        "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
+      >
+    >
+  >;
+
+  abstract getMyOrganizations(
+    userId: string,
+    query: GeneralQuery,
   ): Promise<
     PaginatedResult<
       Pick<

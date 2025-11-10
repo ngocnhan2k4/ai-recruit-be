@@ -30,6 +30,7 @@ import {
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
+import { GeneralQuery } from "@/common/types/api";
 
 @Injectable()
 export class OrganizationRepository
@@ -136,10 +137,6 @@ export class OrganizationRepository
       );
     }
 
-    if (query.userId) {
-      whereConditions.push(eq(organizationMembers.userId, query.userId));
-    }
-
     if (query.cursor) {
       whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
@@ -150,7 +147,6 @@ export class OrganizationRepository
       logoUrl: organizations.logoUrl,
       description: organizations.description,
       foundedYear: organizations.foundedYear,
-      role: organizationMembers.role,
       verifiedAt: organizations.verifiedAt,
       createdAt: organizations.createdAt,
     } as const;
@@ -178,7 +174,55 @@ export class OrganizationRepository
       )
       .where(and(...whereConditions))
       .orderBy(desc(organizations.createdAt))
-      .groupBy(organizations.id, organizationMembers.role)
+      .groupBy(organizations.id)
+      .limit(query.limit + 1);
+
+    const hasNextPage = results.length > query.limit;
+    const data = hasNextPage ? results.slice(0, query.limit) : results;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+      },
+    };
+  }
+
+  async getMyOrganizations(userId: string, query: GeneralQuery) {
+    const whereConditions: SQL<unknown>[] = [
+      isNull(organizations.deletedAt),
+      isNull(organizationMembers.deletedAt),
+    ];
+
+    whereConditions.push(eq(organizationMembers.userId, userId));
+
+    if (query.cursor) {
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
+    }
+
+    const results = await this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        description: organizations.description,
+        foundedYear: organizations.foundedYear,
+        verifiedAt: organizations.verifiedAt,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations)
+      .innerJoin(
+        organizationMembers,
+        eq(organizations.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
       .limit(query.limit + 1);
 
     const hasNextPage = results.length > query.limit;

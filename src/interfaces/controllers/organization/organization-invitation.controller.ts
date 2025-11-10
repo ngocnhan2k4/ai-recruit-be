@@ -1,9 +1,17 @@
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { ApiResponseDto } from "@/interfaces/dtos";
+import { ApiResponseDto, GeneralQueryDto } from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
-import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @UseGuards(JwtAuthGuard)
@@ -13,6 +21,19 @@ export class OrganizationInvitationController {
   constructor(
     private readonly organizationMemberInvitationsUseCase: OrganizationInvitationUseCase,
   ) {}
+
+  @Get("users-to-invite")
+  @ApiOperation({
+    summary: "Get users to invite to an organization",
+    description:
+      "Retrieve a list of users who can be invited to join a specific organization",
+  })
+  async getUsersToInvite(
+    @Param("organizationId") organizationId: string,
+    @Query() query: GeneralQueryDto,
+  ) {
+    return this.organizationMemberInvitationsUseCase.getUsersToInvite(query);
+  }
 
   @Post()
   @ApiOperation({

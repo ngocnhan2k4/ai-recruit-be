@@ -7,7 +7,9 @@ import {
 import {
   IBloomFilterService,
   ICompanyRepository,
+  IOrganizationMembersRepository,
   IOrganizationRepository,
+  ISchoolRepository,
   OrganizationRoleEnum,
   OrganizationTypeEnum,
   OrganizationWithDetails,
@@ -23,10 +25,8 @@ import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { slugify } from "@/common/utils/string";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
-import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
 
 // [TODO-PHAT]: check logic organization here
 @Injectable()
@@ -329,10 +329,10 @@ export class OrganizationUseCase {
       >
     >
   > {
-    const result = await this.organizationRepository.getAllOrganizations({
-      ...query,
-      userId: userId,
-    });
+    const result = await this.organizationRepository.getMyOrganizations(
+      userId,
+      query,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
