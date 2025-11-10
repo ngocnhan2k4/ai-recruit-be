@@ -120,7 +120,7 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
-      onboardingCompleted: (user as any).onboardingCompleted ?? undefined,
+      roles: user.roles as RoleEnum[],
     });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -143,14 +143,8 @@ export class UserUseCases implements OnModuleInit {
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
-      onboardingCompleted: undefined,
+      roles: user.roles as RoleEnum[],
     });
-    const userOnboarding = await this.userOnboardingRepository.getByField({
-      userId: id,
-    });
-    const isOnboarded = userOnboarding.length > 0;
-    userDto.onboardingCompleted = isOnboarded;
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -643,16 +637,14 @@ export class UserUseCases implements OnModuleInit {
     }
     const rolesToUpdate = updateUserDto.roles || user.roles;
 
-    console.log("rolesToUpdate", rolesToUpdate);
     for (const role of rolesToUpdate) {
-      console.log("role", role);
       await this.casbinService.addRoleForUser(userId, role);
     }
     await this.casbinService.savePolicy();
     const userDto = GetUserResponseDto.from({
       ...updatedUser,
       provider: updatedUser.provider as ProviderEnum,
-      onboardingCompleted: updatedUser.onboardingCompleted ?? undefined,
+      roles: rolesToUpdate as RoleEnum[],
     });
     return {
       message: "User updated successfully",
