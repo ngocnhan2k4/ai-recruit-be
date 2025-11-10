@@ -84,3 +84,7 @@ export const OrganizationInviteStatusEnum = pgEnum(
   "organization_invite_status",
   ["pending", "accepted", "declined"],
 );
+export const OrganizationInviteTypeEnum = pgEnum("organization_invite_type", [
+  "outgoing", // from the organization's perspective
+  "incoming", // from the user's perspective
+]);
