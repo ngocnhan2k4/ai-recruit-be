@@ -96,8 +96,6 @@ export class OrganizationRepository
       .where(eq(organizationLocations.organizationId, id))
       .execute();
 
-    console.log("locations", locations);
-
     const row = result[0];
 
     return {

@@ -8,7 +8,7 @@ import {
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
-import { eq, and, gt, or, ilike, SQL, isNull, desc } from "drizzle-orm";
+import { eq, and, or, ilike, SQL, isNull, desc, lt } from "drizzle-orm";
 import { MemberQuery } from "@/core/entities/organization-members.entity";
 
 @Injectable()
@@ -47,7 +47,7 @@ export class OrganizationMembersRepository
 
     if (query.cursor) {
       whereConditions.push(
-        gt(organizationMembers.createdAt, new Date(query.cursor)),
+        lt(organizationMembers.createdAt, new Date(query.cursor)),
       );
     }
 

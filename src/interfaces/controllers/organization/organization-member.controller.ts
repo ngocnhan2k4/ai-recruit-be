@@ -1,63 +1,75 @@
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponseDto } from "@/interfaces/dtos";
-import { OrganizationMemberInvitationUseCase } from "@/use-cases/organization-member-invitation/organization-member-intivation.use-case";
-import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
 import {
-  ApiOperation,
-  ApiResetContentResponse,
-  ApiTags,
-} from "@nestjs/swagger";
+  GetMemberQueryDto,
+  UpdateMemberRoleDto,
+} from "@/interfaces/dtos/organization/organization-member.dto";
+import { OrganizationMemberUseCase } from "@/use-cases/organization-member/organization-member.use-case";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @UseGuards(JwtAuthGuard)
-@ApiTags("Organization Invitations")
-@Controller("organizations/:organizationId/invitations")
-export class OrganizationController {
+@ApiTags("Organization Members")
+@Controller("organizations/:organizationId/members")
+export class OrganizationMemberController {
   constructor(
-    private readonly organizationMemberInvitationsUseCase: OrganizationMemberInvitationUseCase,
+    private readonly organizationMemberUseCase: OrganizationMemberUseCase,
   ) {}
 
-  @Post("/")
+  @Get()
   @ApiOperation({
-    summary: "Add a member to an organization",
-    description: "Add a member to an organization",
+    summary: "Get members of an organization",
+    description:
+      "Retrieve a list of members belonging to a specific organization",
   })
-  @ApiResponseDto(Boolean)
-  async inviteMember(
-    @GetUser() user: TokenPayload,
+  async getOrganizationMembers(
     @Param("organizationId") organizationId: string,
-    @Body() body: any,
+    @Query() query: GetMemberQueryDto,
   ) {
-    return this.organizationMemberInvitationsUseCase.inviteMemberToOrganization(
-      user.userId,
-      {
-        organizationId,
-        inviteeId: body.inviteeId,
-        role: body.role,
-      },
+    console.log("query", query);
+    return this.organizationMemberUseCase.getMembersByOrganizationId(
+      organizationId,
+      query,
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResetContentResponse({
-    description: "Remove a member from an organization",
-  })
-  @Post(":invitationId/respond")
+  @Post("delete")
   @ApiOperation({
-    summary: "Remove a member from an organization",
-    description: "Remove a member from an organization",
+    summary: "Delete a member from an organization",
+    description: "Remove a member from a specific organization",
   })
-  @ApiResponseDto(Boolean)
-  async removeMember(
+  async deleteMember(
     @Param("organizationId") organizationId: string,
-    @Param("invitationId") invitationId: string,
-    @Body() body: { accept: boolean },
+    @Body() body: { userId: string },
   ) {
-    return await this.organizationMemberInvitationsUseCase.respondToInvitation(
+    return this.organizationMemberUseCase.deleteMember(
       organizationId,
-      invitationId,
-      body.accept,
+      body.userId,
+    );
+  }
+
+  @Put("update-role")
+  @ApiOperation({
+    summary: "Update a member's role in an organization",
+    description: "Update the role of a member within a specific organization",
+  })
+  @ApiResponseDto(UpdateMemberRoleDto)
+  async updateMemberRole(
+    @Param("organizationId") organizationId: string,
+    @Body() data: UpdateMemberRoleDto,
+  ) {
+    return await this.organizationMemberUseCase.updateMemberRole(
+      organizationId,
+      data,
     );
   }
 }

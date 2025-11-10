@@ -16,6 +16,8 @@ import {
   CompanyAdminController,
   OrganizationAdminController,
   OrganizationController,
+  OrganizationMemberController,
+  OrganizationInvitationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
@@ -51,6 +53,8 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
 import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
+import { OrganizationMemberUseCasesModule } from "./use-cases/organization-member/organization-member-use-case.module";
+import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module copy";
 
 @Module({
   imports: [
@@ -79,6 +83,8 @@ import { JobAdminController } from "./interfaces/controllers/job/admin-job.contr
     UniversityUseCasesModule,
     NotificationUseCasesModule,
     OrganizationUseCasesModule,
+    OrganizationMemberUseCasesModule,
+    OrganizationInvitationUseCaseModule,
     CasbinUseCasesModule,
     WebSocketModule,
   ],
@@ -100,6 +106,8 @@ import { JobAdminController } from "./interfaces/controllers/job/admin-job.contr
     CompanyAdminController,
     OrganizationAdminController,
     OrganizationController,
+    OrganizationMemberController,
+    OrganizationInvitationController,
     AdminUserController,
   ],
   providers: [

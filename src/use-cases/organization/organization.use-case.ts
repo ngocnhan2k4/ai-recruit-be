@@ -128,8 +128,6 @@ export class OrganizationUseCase {
       0.6,
     );
 
-    // console.log("mightExist", mightExist);
-
     return {
       data: {
         exists: mightExist,

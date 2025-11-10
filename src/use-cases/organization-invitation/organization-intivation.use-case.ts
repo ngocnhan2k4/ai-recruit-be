@@ -17,9 +17,9 @@ import {
 } from "@nestjs/common";
 
 @Injectable()
-export class OrganizationMemberInvitationUseCase {
+export class OrganizationInvitationUseCase {
   private readonly logger: Logger = new Logger(
-    OrganizationMemberInvitationUseCase.name,
+    OrganizationInvitationUseCase.name,
   );
 
   constructor(
