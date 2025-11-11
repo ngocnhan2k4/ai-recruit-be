@@ -147,4 +147,17 @@ export class OrganizationController {
   > {
     return await this.organizationUseCase.getAllOrganizations(query);
   }
+
+  @Get(":orgId/users-to-invite")
+  @ApiOperation({
+    summary: "Get available users to invite to an organization",
+    description:
+      "Retrieve a list of users who can be invited to join a specific organization",
+  })
+  async getUsersToInvite(
+    @Param("orgId") organizationId: string,
+    @Query() query: GeneralQueryDto,
+  ) {
+    return this.organizationUseCase.getUsersToInvite(organizationId, query);
+  }
 }

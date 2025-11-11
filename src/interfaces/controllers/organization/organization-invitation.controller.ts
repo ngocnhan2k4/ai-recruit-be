@@ -1,7 +1,14 @@
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
+import { OrganizationMemberInvitation } from "@/core";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { ApiResponseDto, GeneralQueryDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  CreateOrganizationInvitationDto,
+  GeneralQueryDto,
+  PaginatedResultDto,
+} from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 import {
   Body,
@@ -19,21 +26,8 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 @Controller("organizations/:organizationId/invitations")
 export class OrganizationInvitationController {
   constructor(
-    private readonly organizationMemberInvitationsUseCase: OrganizationInvitationUseCase,
+    private readonly organizationInvitationUseCase: OrganizationInvitationUseCase,
   ) {}
-
-  @Get("users-to-invite")
-  @ApiOperation({
-    summary: "Get users to invite to an organization",
-    description:
-      "Retrieve a list of users who can be invited to join a specific organization",
-  })
-  async getUsersToInvite(
-    @Param("organizationId") organizationId: string,
-    @Query() query: GeneralQueryDto,
-  ) {
-    return this.organizationMemberInvitationsUseCase.getUsersToInvite(query);
-  }
 
   @Post()
   @ApiOperation({
@@ -44,32 +38,53 @@ export class OrganizationInvitationController {
   async inviteMember(
     @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
-    @Body() body: any,
-  ) {
-    return this.organizationMemberInvitationsUseCase.inviteMemberToOrganization(
-      user.userId,
-      {
-        organizationId,
-        inviteeId: body.inviteeId,
-        role: body.role,
-      },
+    @Body() data: CreateOrganizationInvitationDto,
+  ): Promise<ApiResponse<OrganizationMemberInvitation>> {
+    console.log("Invite member called with data:", {
+      inviterId: user.userId,
+      organizationId,
+      data,
+    });
+    return this.organizationInvitationUseCase.inviteMemberToOrganization(
+      user.userId, // actorID
+      organizationId, // organizationId
+      data,
     );
   }
 
-  @Post(":invitationId/respond")
+  @Get()
   @ApiOperation({
-    summary: "Respond to an organization invitation",
-    description: "Accept or decline an invitation to join an organization",
+    summary: "Get invitations for an organization",
+    description: "Retrieve a list of invitations for a specific organization",
   })
-  async respondToInvitation(
+  @ApiResponseDto(Boolean)
+  async getOrganizationInvitations(
+    @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
-    @Param("invitationId") invitationId: string,
-    @Body() body: { accept: boolean },
-  ) {
-    return await this.organizationMemberInvitationsUseCase.respondToInvitation(
+    @Query() query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
+  > {
+    return this.organizationInvitationUseCase.getByOrganizationId(
+      user.userId,
       organizationId,
-      invitationId,
-      body.accept,
+      query,
+    );
+  }
+
+  @Get("me")
+  @ApiOperation({
+    summary: "Get my invitations for an organization",
+    description: "Retrieve my invitations for a specific organization",
+  })
+  @ApiResponseDto(Boolean)
+  async getHighestRoleInvitation(
+    @GetUser() user: TokenPayload,
+    @Param("organizationId") organizationId: string,
+  ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
+    return await this.organizationInvitationUseCase.getHighestRoleInvitation(
+      organizationId,
+      user.userId,
     );
   }
 }

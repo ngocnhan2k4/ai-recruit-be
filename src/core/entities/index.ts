@@ -19,8 +19,8 @@ import {
   userNotifications,
 } from "@/frameworks/data-services/postgres/models/notification.model";
 import {
+  organizationInvitations,
   organizationLocations,
-  organizationMemberInvitations,
   organizations,
 } from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
@@ -119,11 +119,11 @@ export type School = InferSelectModel<typeof schools> & {
 export type NewSchool = InferInsertModel<typeof schools>;
 
 export type OrganizationMemberInvitation = InferSelectModel<
-  typeof organizationMemberInvitations
+  typeof organizationInvitations
 >;
 
 export type NewOrganizationMemberInvitation = InferInsertModel<
-  typeof organizationMemberInvitations
+  typeof organizationInvitations
 >;
 
 export type NewUserEducation = InferInsertModel<typeof userEducations>;

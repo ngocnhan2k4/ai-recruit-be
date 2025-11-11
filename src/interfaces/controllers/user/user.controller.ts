@@ -14,6 +14,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -35,6 +36,7 @@ import {
   GetAllUserResponseDto,
   GetUserResponseDto,
   UserSeoPublicResponseDto,
+  RespondToInvitationDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -57,11 +59,15 @@ import {
   UpdateUserEducationDto,
   UserEducationResponseDto,
 } from "@/interfaces/dtos/users/user-education.dto";
+import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 
 @ApiTags("Users")
 @Controller("users")
 export class UserController {
-  constructor(private readonly userUseCases: UserUseCases) {}
+  constructor(
+    private readonly userUseCases: UserUseCases,
+    private readonly organizationInvitationUseCases: OrganizationInvitationUseCase,
+  ) {}
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @Get("check-username/:username")
@@ -392,5 +398,22 @@ export class UserController {
     @Param("educationId") educationId: string,
   ) {
     return this.userUseCases.deleteUserEducation(user.userId, educationId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Respond to organization invitation" })
+  @CasbinPermission("/invitations/:invitationId", "PATCH")
+  @Patch("onboarding")
+  @ApiResponseDto(Boolean)
+  async respondToOrganizationInvitation(
+    @GetUser() user: TokenPayload,
+    @Param("invitationId") invitationId: string,
+    @Body() respondToInvitationDto: RespondToInvitationDto,
+  ): Promise<ApiResponse<boolean>> {
+    return this.organizationInvitationUseCases.respondToInvitation(
+      user.userId,
+      invitationId,
+      respondToInvitationDto,
+    );
   }
 }

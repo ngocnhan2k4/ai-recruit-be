@@ -144,8 +144,8 @@ export class JobUseCases {
     applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     // Ensure job exists
-    const job = await this.jobRepository.getJobById(applyJobDto.jobId);
-    if (!job) {
+    const job = await this.jobRepository.get(applyJobDto.jobId);
+    if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
@@ -398,8 +398,8 @@ export class JobUseCases {
     jobId: string,
     updateJobDto: UpdateJobDto & { userId: string },
   ): Promise<ApiResponse<JobDto>> {
-    const existingJob = await this.jobRepository.getJobById(jobId);
-    if (!existingJob) {
+    const job = await this.jobRepository.get(jobId);
+    if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
@@ -462,8 +462,8 @@ export class JobUseCases {
     jobId: string,
     organizationId?: string,
   ): Promise<ApiResponse<{ message: string }>> {
-    const existingJob = await this.jobRepository.getJobById(jobId);
-    if (!existingJob) {
+    const existingJob = await this.jobRepository.get(jobId);
+    if (!existingJob || existingJob.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,

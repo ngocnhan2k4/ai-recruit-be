@@ -93,6 +93,11 @@ export enum OrganizationInviteStatusEnum {
   DECLINED = "declined",
 }
 
+export enum OrganizationInvitationTypeEnum {
+  INCOMING = "incoming",
+  OUTGOING = "outgoing",
+}
+
 export enum DomainTypeEnum {
   ORGANIZATION = "org",
   ALL = "*",

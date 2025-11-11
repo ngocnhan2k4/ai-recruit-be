@@ -1,8 +1,8 @@
 import { RESPONSE_CODE } from "@/common/constants/response";
 import {
+  OrganizationInvitationTypeEnum,
   OrganizationInviteStatusEnum,
   OrganizationMemberInvitation,
-  User,
 } from "@/core";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
@@ -11,6 +11,7 @@ import {
   CreateOrganizationInvitationDto,
   GeneralQueryDto,
   PaginatedResultDto,
+  RespondToInvitationDto,
 } from "@/interfaces/dtos";
 import {
   BadRequestException,
@@ -28,40 +29,17 @@ export class OrganizationInvitationUseCase {
   constructor(
     private readonly organizationMemberInvitationRepository: IOrganizationMemberInvitationRepository,
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
-    // private readonly notificationService: INotificationService,
   ) {}
-
-  async getUsersToInvite(
-    query: GeneralQueryDto,
-  ): Promise<
-    ApiResponse<
-      PaginatedResultDto<Pick<
-        User,
-        "id" | "name" | "email" | "avatarUrl" | "username"
-      > | null>
-    >
-  > {
-    const usersToInvite =
-      await this.organizationMemberInvitationRepository.getUsersToInvite(query);
-
-    return {
-      data: {
-        data: usersToInvite.data,
-        pagination: usersToInvite.pagination,
-      },
-      message: "Users to invite retrieved successfully.",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
 
   async inviteMemberToOrganization(
     inviterId: string,
+    organizationId: string,
     data: CreateOrganizationInvitationDto,
   ): Promise<ApiResponse<OrganizationMemberInvitation>> {
     // Check permissions of inviter
     const inviterInOrganization =
       await this.organizationMemberRepository.getByField({
-        organizationId: data.organizationId,
+        organizationId: organizationId,
         userId: inviterId,
       });
 
@@ -71,27 +49,17 @@ export class OrganizationInvitationUseCase {
       );
     }
 
-    // Check if invitee is already a member
-    const inviteeInOrganization =
-      await this.organizationMemberRepository.getByField({
-        organizationId: data.organizationId,
-        userId: data.inviteeId,
-      });
-    if (inviteeInOrganization) {
-      throw new UnauthorizedException(
-        "The user is already a member of this organization.",
-      );
-    }
-
     // Check if there is already a pending invitation
     const existingInvitation =
       await this.organizationMemberInvitationRepository.getByField({
-        organizationId: data.organizationId,
-        inviteeId: data.inviteeId,
+        organizationId: organizationId,
+        actorId: data.inviteeId,
+        receiverId: data.inviteeId,
+        type: OrganizationInvitationTypeEnum.OUTGOING,
         status: OrganizationInviteStatusEnum.PENDING,
       });
-    if (existingInvitation) {
-      throw new UnauthorizedException(
+    if (existingInvitation && existingInvitation.length > 0) {
+      throw new BadRequestException(
         "There is already a pending invitation for this user.",
       );
     }
@@ -99,11 +67,14 @@ export class OrganizationInvitationUseCase {
     // Create invitation
     const invitation = await this.organizationMemberInvitationRepository.create(
       {
-        organizationId: data.organizationId,
-        inviteeId: data.inviteeId,
-        inviterId,
+        organizationId: organizationId,
+        actorId: inviterId,
+        receiverId: data.inviteeId,
+        type: OrganizationInvitationTypeEnum.OUTGOING,
         status: OrganizationInviteStatusEnum.PENDING,
         role: data.role,
+        // 1 month expiration
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     );
 
@@ -118,91 +89,94 @@ export class OrganizationInvitationUseCase {
     };
   }
 
+  async getByOrganizationId(
+    userId: string,
+    organizationId: string,
+    query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
+  > {
+    // Check if user is a member of the organization
+    const member = await this.organizationMemberRepository.getByField({
+      organizationId: organizationId,
+      userId: userId,
+    });
+
+    if (!member) {
+      throw new UnauthorizedException(
+        "You do not have permission to view invitations for this organization.",
+      );
+    }
+
+    const invitations =
+      await this.organizationMemberInvitationRepository.getByOrganizationId(
+        organizationId,
+        query,
+      );
+
+    return {
+      data: {
+        data: invitations.data,
+        pagination: invitations.pagination,
+      },
+      message: "Invitations retrieved successfully.",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
   async respondToInvitation(
     userId: string,
     invitationId: string,
-    accept: boolean,
-  ): Promise<ApiResponse<any>> {
+    data: RespondToInvitationDto,
+  ): Promise<ApiResponse<boolean>> {
+    // Get invitation
     const invitation =
       await this.organizationMemberInvitationRepository.get(invitationId);
-    if (!invitation || invitation.inviteeId !== userId) {
-      throw new UnauthorizedException("Invitation not found.");
+
+    if (!invitation) {
+      throw new BadRequestException("Invitation not found.");
     }
 
-    if (
-      (invitation.status as OrganizationInviteStatusEnum) !==
-      OrganizationInviteStatusEnum.PENDING
-    ) {
-      throw new BadRequestException(
-        "Invitation has already been responded to.",
+    // Check if the user is the receiver of the invitation
+    if (invitation.receiverId !== userId) {
+      throw new UnauthorizedException(
+        "You do not have permission to respond to this invitation.",
       );
     }
 
-    const newStatus = accept
-      ? OrganizationInviteStatusEnum.ACCEPTED
-      : OrganizationInviteStatusEnum.DECLINED;
-    const createdMember =
-      await this.organizationMemberRepository.executeWithTransaction(
-        async (tx) => {
-          const result =
-            await this.organizationMemberInvitationRepository.update(
-              {
-                id: invitationId,
-              },
-              {
-                status: newStatus,
-              },
-            );
+    // Update invitation status
+    invitation.status =
+      data.action === "ACCEPT"
+        ? OrganizationInviteStatusEnum.ACCEPTED
+        : OrganizationInviteStatusEnum.DECLINED;
 
-          // If accepted, mark other pending invitations as accepted
-          if (accept) {
-            await this.organizationMemberRepository.createMember(
-              {
-                organizationId: invitation.organizationId,
-                userId: invitation.inviteeId!,
-                role: invitation.role,
-              },
-              tx,
-            );
-            const pendingInvitations =
-              await this.organizationMemberInvitationRepository.getByField({
-                organizationId: invitation.organizationId,
-                inviteeId: userId,
-                status: OrganizationInviteStatusEnum.PENDING,
-              });
-
-            // mark other invitations as declined
-            for (const pendingInvitation of pendingInvitations) {
-              if (pendingInvitation.id !== invitationId) {
-                await this.organizationMemberInvitationRepository.update(
-                  { id: pendingInvitation.id },
-                  { status: OrganizationInviteStatusEnum.ACCEPTED },
-                );
-              }
-            }
-          }
-          return result;
+    const updatedInvitation =
+      await this.organizationMemberInvitationRepository.update(
+        {
+          id: invitationId,
         },
+        invitation,
       );
 
-    if (!createdMember) {
-      throw new BadRequestException("Failed to respond to invitation.");
+    if (!updatedInvitation) {
+      throw new BadRequestException("Failed to update invitation status.");
     }
 
     return {
-      message: `Invitation ${accept ? "accepted" : "declined"} successfully.`,
+      data: true,
+      message: "Invitation response recorded successfully.",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
 
   async getHighestRoleInvitation(
     organizationId: string,
-    inviteeId: string,
+    userId: string,
   ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
     const invitations =
       await this.organizationMemberInvitationRepository.getByField({
         organizationId,
-        inviteeId,
+        receiverId: userId,
         status: OrganizationInviteStatusEnum.PENDING,
       });
 
@@ -224,6 +198,8 @@ export class OrganizationInvitationUseCase {
     const highestRoleInvite = invitations.reduce((prev, curr) => {
       return rolePriority[curr.role] > rolePriority[prev.role] ? curr : prev;
     });
+
+    console.log("Highest role invitation:", highestRoleInvite);
 
     return {
       data: highestRoleInvite,
