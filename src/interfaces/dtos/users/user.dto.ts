@@ -168,6 +168,9 @@ export class GetUserResponseDto {
   emailVerified: boolean;
 
   @Expose()
+  roles: RoleEnum[];
+
+  @Expose()
   provider: ProviderEnum;
 
   @Expose()
