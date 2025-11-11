@@ -7,22 +7,9 @@ import {
 } from "class-validator";
 import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
-import { GenderEnum } from "@/common/constants/roles";
-import { type ProviderEnumType } from "@/core";
+import { RoleEnum } from "@/common/constants/roles";
 import { GeneralQueryDto } from "../common/query";
-import { Optional } from "@nestjs/common";
-
-export enum ProviderEnum {
-  EMAIL = "email",
-  GOOGLE = "google",
-  FACEBOOK = "facebook",
-  GITHUB = "github",
-}
-export enum UserStatusEnum {
-  ACTIVE = "active",
-  INACTIVE = "inactive",
-  BANNED = "banned",
-}
+import { GenderEnum, ProviderEnum, UserStatusEnum } from "@/core";
 export class CreateUserRequestDto {
   @ApiProperty()
   @IsEmail()
@@ -49,7 +36,12 @@ export class CreateUserRequestDto {
   gender: GenderEnum;
 }
 
-export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {}
+export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
+  @ApiProperty({ required: false, type: "boolean" })
+  @IsOptional()
+  @IsBoolean()
+  onboardingCompleted?: boolean;
+}
 
 export class UserPublicResponseDto {
   @ApiProperty()
@@ -75,6 +67,9 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   address: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  school: string | null;
 }
 
 export class UserSeoPublicResponseDto {
@@ -126,7 +121,10 @@ export class UserDto {
   phoneVerified: boolean | null;
 
   @ApiProperty()
-  provider: ProviderEnumType;
+  provider: ProviderEnum;
+
+  @ApiProperty({ nullable: false, enum: RoleEnum })
+  roles: RoleEnum[];
 
   @ApiProperty({ type: "boolean" })
   onboardingCompleted: boolean;
@@ -170,12 +168,14 @@ export class GetUserResponseDto {
   emailVerified: boolean;
 
   @Expose()
-  provider: ProviderEnumType;
+  roles: RoleEnum[];
+
+  @Expose()
+  provider: ProviderEnum;
 
   @Expose()
   onboardingCompleted: boolean;
 
-  //Use this instead of Object.assign to drop non-exposed fields
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {
       excludeExtraneousValues: true,
@@ -230,6 +230,7 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
   "emailVerified",
   "phone",
   "phoneVerified",
+  "roles",
   "status",
   "createdAt",
   "updatedAt",
@@ -240,4 +241,10 @@ export class GetAllUserResponseDto extends PickType(UserDto, [
       excludeExtraneousValues: true,
     });
   }
+}
+
+export class AdminUpdateUserRequestDto {
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  roles?: RoleEnum[];
 }

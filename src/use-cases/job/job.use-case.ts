@@ -1,6 +1,11 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { IJobRepository } from "@/core/abstracts";
-import { ApiResponse, JobStatus } from "@/interfaces/dtos";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
+import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
@@ -12,63 +17,78 @@ import {
   UpdateJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
-  JobResponse,
 } from "@/interfaces/dtos";
 import {
   Skill,
   Job,
-  Company,
   Province,
-  JobStatusEnumType,
-  WorkTypeEnumType,
+  JobStatusEnum,
+  WorkTypeEnum,
+  OrganizationWithDetails,
+  UpdateJobTypeEnum,
+  Notification,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
-import { JobDto, SavedJobsResponseDto } from "@/interfaces/dtos";
 import {
+  JobDto,
+  SavedJobsResponseDto,
+  AppliedJobsResponseDto,
+  JobResponseDto,
+} from "@/interfaces/dtos";
+import {
+  ApplyJobResponse,
   JobFilters,
+  JobResponse,
   StatisticsJobFilter,
-} from "@/core/abstracts/repositories/job-repository.abstract";
+} from "@/core/entities/job.entity";
 import { convertDateToStr } from "@/common/utils/date";
-import {
-  PaginationResponseDto,
-  GeneralQueryDto,
-} from "@/interfaces/dtos/common/query";
+import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { PaginatedResult } from "@/common/types/api";
+import { RoleEnum } from "@/common/constants/roles";
+import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { TokenPayload } from "@/common/types/token";
 
 @Injectable()
 export class JobUseCases {
   private readonly logger = new Logger(JobUseCases.name);
-  constructor(private readonly jobRepository: IJobRepository) {}
+  constructor(
+    private readonly jobRepository: IJobRepository,
+    private readonly organizationRepository: IOrganizationRepository,
+    private readonly webSocketGateway: IWebSocketGateway,
+  ) {}
 
-  async getAllJobs(
-    limit?: number,
-    cursor?: string,
-    filters?: JobFilters & { user?: TokenPayload },
-  ): Promise<
-    ApiResponse<{
-      data: {
-        job: JobDto;
-        provinces: Province[];
-        company: Company;
-        skills: Skill[];
-        isSaved?: boolean;
-        isApplied?: boolean;
-        applyStatus?: string;
-        applyId?: string;
-      }[];
-      pagination: PaginationResponseDto;
-    }>
-  > {
-    const result = await this.jobRepository.getAllJobs(limit, cursor, filters);
+  async getJobs(
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    let result: PaginatedResult<JobResponse>;
+    // Decide which method to call based on user role
+    if (filters.user?.roles.includes(RoleEnum.ADMIN)) {
+      this.logger.log("Fetching jobs for admin user");
+      result = await this.jobRepository.getJobsByAdmin(filters);
+    } else {
+      this.logger.log("Fetching jobs for regular user");
+      result = await this.jobRepository.getJobs(filters);
+    }
+
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
     const transformedJobData = result.data.map((item) => ({
       ...item,
       job: {
         ...item.job,
-        questions: item.job.questions || null,
+        questions: item.job.questions,
+        organizationId: item.organization.id,
       } as JobDto,
+      company: {
+        ...item.organization,
+        organizationId: item.organization.id,
+        companySize: item.organization.companySize || 0,
+        taxCode: item.organization.taxCode || "",
+        benefits: item.organization.benefits || "",
+        companyRawId: item.organization.companyRawId || 0,
+        verifiedAt: item.organization.verifiedAt?.toISOString() || null,
+      } as CompanyDto,
     }));
 
     return {
@@ -123,93 +143,153 @@ export class JobUseCases {
     userId: string,
     applyJobDto: ApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      // Check if job exists
-      const job = await this.jobRepository.getJobById(applyJobDto.jobId);
-      if (!job) {
-        throw new BadRequestException("Job not found");
-      }
-
-      const result = await this.jobRepository.applyJob(
-        userId,
-        applyJobDto.jobId,
-        applyJobDto.cvId,
-        applyJobDto.answers,
-      );
-
-      this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to apply for job:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(error.message || "Failed to apply for job");
+    // Ensure job exists
+    const job = await this.jobRepository.get(applyJobDto.jobId);
+    if (!job || job.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    const isSendNotifications = true;
+
+    const repoResult:
+      | ApplyJobResponse
+      | {
+          application: ApplyJobResponse;
+          notifications: Notification[];
+          jobTitle?: string;
+        } = await this.jobRepository.applyJob(
+      applyJobDto.jobId,
+      applyJobDto.cvId!,
+      isSendNotifications,
+      userId,
+      applyJobDto.answers,
+    );
+
+    let application: ApplyJobResponse;
+    if ("application" in repoResult) {
+      application = repoResult.application;
+      const notifications = repoResult.notifications;
+      const jobTitle = repoResult.jobTitle;
+
+      // Send notifications to recipients
+      notifications.forEach((notification) => {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent new-application notification to ${notification.receiverId} for job "${jobTitle}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send websocket notification to ${notification.receiverId}`,
+          );
+        }
+      });
+    } else {
+      application = repoResult;
+    }
+
+    this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: application,
+    };
   }
 
   async updateApplyJob(
-    userId: string,
+    orgSenderId: string,
     applyId: string,
     updateApplyJobDto: UpdateApplyJobDto,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      const result = await this.jobRepository.updateApplyJob(
-        applyId,
-        userId,
-        updateApplyJobDto.status,
-        updateApplyJobDto.userCvId,
-        updateApplyJobDto.answers,
-      );
+    const isSendNotifications = true;
 
-      if (!result) {
-        throw new BadRequestException("Failed to update application");
-      }
+    const repoResult:
+      | ApplyJobResponse
+      | {
+          application: ApplyJobResponse;
+          notification: Notification;
+          jobTitle: string;
+        } = await this.jobRepository.updateApplyJob(
+      applyId,
+      updateApplyJobDto.status!,
+      isSendNotifications,
+      orgSenderId,
+      updateApplyJobDto.userCvId,
+      updateApplyJobDto.answers,
+    );
 
-      this.logger.log(`User ${userId} updated application ${applyId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update application:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        error.message || "Failed to update application",
-      );
+    if (!repoResult) {
+      throw new BadRequestException({
+        message: "Failed to update application",
+        code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
+      });
     }
+
+    let application: ApplyJobResponse;
+    if ("application" in repoResult) {
+      application = repoResult.application;
+      const notification = repoResult.notification;
+      const jobTitle = repoResult.jobTitle;
+
+      // Send notification
+      if (notification) {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent application status update notification to user ${notification.receiverId} for job "${jobTitle}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send WebSocket notification to user ${notification.receiverId}`,
+          );
+        }
+      }
+    } else {
+      application = repoResult;
+    }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: application,
+    };
   }
 
   async getApplyJobById(
-    userId: string,
     applyId: string,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    try {
-      const result = await this.jobRepository.getApplyJobById(applyId, userId);
+    const result = await this.jobRepository.getApplyJobById(applyId);
 
-      if (!result) {
-        throw new BadRequestException("Application not found");
-      }
-
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get application:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to get application");
+    if (!result) {
+      throw new BadRequestException({
+        message: "Application not found",
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 
   async saveJob(
@@ -228,6 +308,15 @@ export class JobUseCases {
     };
   }
 
+  async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
+    const counts = await this.jobRepository.getJobCounts();
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: counts,
+    };
+  }
+
   async hideJob(
     userId: string,
     jobId: string,
@@ -242,132 +331,195 @@ export class JobUseCases {
     };
   }
 
-  async createJob(createJobDto: CreateJobDto): Promise<ApiResponse<JobDto>> {
-    try {
-      const jobData: Partial<Job> = {
-        ...createJobDto,
-        questions: createJobDto.questions || undefined,
-        datePosted: convertDateToStr(new Date()),
-        endDate: createJobDto.endDate
-          ? convertDateToStr(new Date(createJobDto.endDate))
-          : null,
-        workType: createJobDto.workType as WorkTypeEnumType,
-      };
+  async createJob(
+    userId: string,
+    createJobDto: CreateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
+    const jobData: Partial<Job> = {
+      ...createJobDto,
+      questions: createJobDto.questions || undefined,
+      datePosted: convertDateToStr(new Date()),
+      endDate: createJobDto.endDate
+        ? convertDateToStr(new Date(createJobDto.endDate))
+        : null,
+    };
 
-      const newJob = await this.jobRepository.createJob(jobData);
+    const repoResult = await this.jobRepository.createJob(
+      jobData,
+      true,
+      userId,
+    );
 
-      // Transform questions field
-      const transformedJob: JobDto = {
-        ...newJob,
-        questions: newJob.questions || null,
-        status: newJob.status as JobStatus,
-      };
+    let newJob: Job;
+    if ("job" in repoResult) {
+      newJob = repoResult.job;
+      const notifications = repoResult.newNotifications;
 
-      this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: transformedJob,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to create job:`, error);
-      throw new BadRequestException("Failed to create job");
+      // Send notifications to recipients
+      notifications.forEach((notification) => {
+        const sent = this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+          },
+          notification,
+        );
+
+        if (sent) {
+          this.logger.log(
+            `Sent job-created notification to ${notification.receiverId} for job "${newJob.title}"`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to send websocket notification to ${notification.receiverId}`,
+          );
+        }
+      });
+    } else {
+      newJob = repoResult;
     }
+
+    // Transform questions field
+    const transformedJob: JobDto = {
+      ...newJob,
+      questions: newJob.questions || null,
+      status: newJob.status as JobStatusEnum,
+      workType: newJob.workType as WorkTypeEnum,
+    };
+
+    this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
   }
 
   async updateJob(
     jobId: string,
-    updateJobDto: UpdateJobDto,
+    updateJobDto: UpdateJobDto & { userId: string },
   ): Promise<ApiResponse<JobDto>> {
-    try {
-      // Check if job exists
-      const existingJob = await this.jobRepository.getJobById(jobId);
-      if (!existingJob) {
-        throw new BadRequestException("Job not found");
-      }
-
-      const updateData: Partial<Job> = {
-        ...updateJobDto,
-        status: updateJobDto.status || undefined,
-        questions: updateJobDto.questions || undefined,
-        workType: updateJobDto.workType as WorkTypeEnumType,
-      };
-
-      // Convert date strings to date strings if provided
-      if (updateJobDto.datePosted) {
-        updateData.datePosted = new Date(updateJobDto.datePosted)
-          .toISOString()
-          .split("T")[0];
-      }
-      if (updateJobDto.endDate) {
-        updateData.endDate = new Date(updateJobDto.endDate)
-          .toISOString()
-          .split("T")[0];
-      }
-
-      const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
-      if (!updatedJob) {
-        throw new BadRequestException("Failed to update job");
-      }
-
-      // Transform questions field
-      const transformedJob: JobDto = {
-        ...updatedJob,
-        questions: updatedJob.questions || null,
-        status: updatedJob.status as JobStatus,
-      };
-
-      this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: transformedJob,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to update job ${jobId}:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to update job");
+    const job = await this.jobRepository.get(jobId);
+    if (!job || job.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    const updateData: Partial<Job> = {
+      ...updateJobDto,
+      status: updateJobDto.status || undefined,
+      questions: updateJobDto.questions || undefined,
+      workType: updateJobDto.workType,
+    };
+
+    const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
+    if (!updatedJob) {
+      throw new BadRequestException({
+        message: "Failed to update job",
+        code: RESPONSE_CODE.JOB_NOT_UPDATED,
+      });
+    }
+
+    if (
+      updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL ||
+      updateJobDto.updateType === UpdateJobTypeEnum.REJECTED
+    ) {
+      const { newNotifications } =
+        await this.jobRepository.updateJobWithNotifications(
+          jobId,
+          updateData,
+          updateJobDto.userId,
+        );
+      newNotifications.forEach((notification) => {
+        this.webSocketGateway.sendToUser(
+          {
+            userId: notification.receiverId,
+            organizationId: notification.organizationId || undefined,
+          },
+          notification,
+        );
+      });
+    }
+    // Transform questions field
+    const transformedJob: JobDto = {
+      ...updatedJob,
+      questions: updatedJob.questions || null,
+      status: updatedJob.status as JobStatusEnum,
+      workType: updatedJob.workType as WorkTypeEnum,
+    };
+
+    this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
   }
 
-  async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
-    try {
-      // Check if job exists
-      const existingJob = await this.jobRepository.getJobById(jobId);
-      if (!existingJob) {
-        throw new BadRequestException("Job not found");
-      }
-
-      const deleted = await this.jobRepository.deleteJob(jobId);
-      if (!deleted) {
-        throw new BadRequestException("Failed to delete job");
-      }
-
-      this.logger.log(`Deleted job ${jobId}`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: { message: "Job deleted successfully" },
-      };
-    } catch (error) {
-      this.logger.error(`Failed to delete job ${jobId}:`, error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException("Failed to delete job");
+  async deleteJob(
+    user: TokenPayload,
+    jobId: string,
+    organizationId?: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const existingJob = await this.jobRepository.get(jobId);
+    if (!existingJob || existingJob.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
     }
+
+    // If the user is not an ADMIN, check organization permissions.
+    if (!user?.roles.includes(RoleEnum.ADMIN)) {
+      if (organizationId) {
+        const members =
+          await this.organizationRepository.getMemberIdsOfOrganization(
+            organizationId,
+          );
+
+        const isMember = members.some((member) => member.id === user.userId);
+
+        const isJobOwner = existingJob.organizationId === organizationId;
+
+        if (!isMember || !isJobOwner) {
+          throw new ForbiddenException({
+            message: "You do not have permission to delete this job.",
+            code: RESPONSE_CODE.FORBIDDEN,
+          });
+        }
+      } else {
+        throw new BadRequestException({
+          message: RESPONSE_MESSAGE.ORGANIZATION_ID_REQUIRED,
+          code: RESPONSE_CODE.ORGANIZATION_ID_REQUIRED,
+        });
+      }
+    }
+
+    const deleted = await this.jobRepository.deleteJob(jobId);
+    if (!deleted) {
+      throw new BadRequestException({
+        message: "Job deleted failed",
+        code: RESPONSE_CODE.JOB_NOT_DELETED,
+      });
+    }
+
+    this.logger.log(`Deleted job ${jobId}`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { message: RESPONSE_CODE.SUCCESS },
+    };
   }
 
   async getJobById(
     jobId: string,
     userId?: string,
-  ): Promise<ApiResponse<JobResponse>> {
+  ): Promise<ApiResponse<JobResponseDto>> {
     const job: {
       job: Job;
       provinces: Province[];
-      company: Company;
+      organization: OrganizationWithDetails;
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
@@ -379,19 +531,29 @@ export class JobUseCases {
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
       );
       throw new NotFoundException({
-        message: "Job not found",
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
 
     // Transform questions field
-    const transformedJob: JobResponse = {
+    const transformedJob: JobResponseDto = {
       ...job,
       job: {
         ...job.job,
         questions: job.job.questions || null,
-        status: job.job.status as JobStatus,
+        status: job.job.status as JobStatusEnum,
+        workType: job.job.workType as WorkTypeEnum,
       },
+      company: {
+        id: job.organization.id,
+        name: job.organization.name,
+        slug: job.organization.slug,
+        type: job.organization.type,
+        description: job.organization.description,
+        address: job.organization.address,
+        logoUrl: job.organization.logoUrl,
+      } as CompanyDto,
     };
 
     return {
@@ -422,7 +584,7 @@ export class JobUseCases {
       data: result.data.map((job) => ({
         ...job,
         logoUrl: job.logoUrl || "",
-        workType: (job.workType || "onsite") as "remote" | "onsite",
+        workType: job.workType ?? "onsite",
         createdAt: job.createdAt.toISOString(),
         endedAt: job.endedAt!,
         isSaved: true,
@@ -441,6 +603,36 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: count,
+    };
+  }
+  async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
+    const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: count,
+    };
+  }
+  async getAllAppliedJobs(
+    userId: string,
+    query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
+    const result = await this.jobRepository.getAllAppliedJobs(userId, query);
+    const transformedData: PaginatedResultDto<AppliedJobsResponseDto> = {
+      data: result.data.map((job) => ({
+        ...job,
+        logoUrl: job.logoUrl || "",
+        workType: job.workType ?? "onsite",
+        createdAt: job.createdAt.toISOString(),
+        endedAt: job.endedAt!,
+        isSaved: true,
+      })),
+      pagination: result.pagination,
+    };
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedData,
     };
   }
 }

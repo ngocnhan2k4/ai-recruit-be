@@ -1,23 +1,36 @@
-import { IUserExperienceRepository } from "@/core";
+import {
+  IOrganizationRepository,
+  ISkillRepository,
+  IUserExperienceRepository,
+  IUserSkillRepository,
+} from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
-import { type DBDrizzle } from "../types";
-import { Company, Skill, UserExperience } from "@/core/entities";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import {
-  companies,
-  skills,
-  userExperiences,
-  users,
-  userSkills,
-} from "../models";
+  Skill,
+  UserExperience,
+  OrganizationTypeEnum,
+  OrganizationWithDetails,
+} from "@/core/entities";
+import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
+import { organizations } from "../models/organization.model";
+import { CreateUserExperience } from "@/core/entities/user.entity";
+import { convertDateToStr } from "@/common/utils/date";
+import { slugify } from "@/common/utils/string";
 
 @Injectable()
 export class UserExperienceRepository
   extends GenericRepository<UserExperience, typeof userExperiences>
   implements IUserExperienceRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    private readonly organizationRepository: IOrganizationRepository,
+    private readonly skillRepository: ISkillRepository,
+    private readonly userSkillRepository: IUserSkillRepository,
+  ) {
     super(db, userExperiences);
   }
 
@@ -25,25 +38,31 @@ export class UserExperienceRepository
     {
       experience: Omit<
         UserExperience,
-        "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
+        "organizationId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
       >;
-      company: Pick<Company, "id" | "name" | "logoUrl" | "address"> | null;
+      organization: Pick<
+        OrganizationWithDetails,
+        "id" | "name" | "address" | "logoUrl"
+      >;
       skills: Skill[];
     }[]
   > {
     const rows = await this.db
       .select({
         experience: userExperiences,
-        company: companies,
+        organization: organizations,
         skill: skills,
       })
       .from(userExperiences)
       .innerJoin(users, eq(users.id, userExperiences.userId))
-      .leftJoin(companies, eq(userExperiences.companyId, companies.id))
+      .leftJoin(
+        organizations,
+        eq(userExperiences.organizationId, organizations.id),
+      )
       .leftJoin(
         userSkills,
         and(
-          eq(userExperiences.companyId, userSkills.companyId),
+          eq(userExperiences.organizationId, userSkills.organizationId),
           eq(userExperiences.userId, userSkills.userId),
         ),
       )
@@ -58,20 +77,19 @@ export class UserExperienceRepository
             acc[expId] = {
               experience: {
                 id: row.experience.id,
+                organizationId: row.experience.organizationId,
                 position: row.experience.position,
                 startDate: row.experience.startDate,
                 endDate: row.experience.endDate,
                 jobTitle: row.experience.jobTitle,
                 description: row.experience.description,
               },
-              company: row.company
-                ? {
-                    id: row.company.id,
-                    name: row.company.name,
-                    logoUrl: row.company.logoUrl,
-                    address: row.company.address,
-                  }
-                : null,
+              organization: {
+                id: row.organization?.id || "",
+                name: row.organization?.name || "",
+                address: row.organization?.address || [],
+                logoUrl: row.organization?.logoUrl || "",
+              },
               skills: [],
             };
           }
@@ -92,10 +110,10 @@ export class UserExperienceRepository
               UserExperience,
               "companyId" | "userId" | "createdAt" | "updatedAt" | "deletedAt"
             >;
-            company: Pick<
-              Company,
-              "id" | "name" | "logoUrl" | "address"
-            > | null;
+            organization: Pick<
+              OrganizationWithDetails,
+              "id" | "name" | "address" | "logoUrl"
+            >;
             skills: Skill[];
           }
         >,
@@ -103,5 +121,122 @@ export class UserExperienceRepository
     );
 
     return grouped;
+  }
+
+  private async preCreateBeforeCreateUserExperience(
+    tx: DBDrizzleTransaction,
+    userId: string,
+    data: CreateUserExperience,
+  ) {
+    let organizationId = data.organizationId;
+    if (!organizationId) {
+      const [organization] = await tx
+        .insert(organizations)
+        .values({
+          name: data.organizationName || "",
+          type: OrganizationTypeEnum.COMPANY,
+          slug: slugify(data.organizationName || ""),
+        })
+        .returning();
+      organizationId = organization.id;
+    }
+    const skillIds = data.skillIds || [];
+    const skillNames = data.skillNames || [];
+
+    // Process skill names to get or create skill IDs
+    if (skillNames.length > 0) {
+      const newSkills = await tx
+        .insert(skills)
+        .values(skillNames.map((name) => ({ name })))
+        .returning();
+      skillIds.push(...newSkills.map((skill) => skill.id));
+    }
+
+    // Create user-skill associations
+    if (skillIds.length > 0)
+      await tx
+        .insert(userSkills)
+        .values(
+          skillIds.map((skillId) => ({
+            userId,
+            organizationId: organizationId || null,
+            skillId,
+          })),
+        )
+        .returning();
+    return {
+      organizationId,
+    };
+  }
+
+  async createUserExperienceWithCompanyAndSkills(
+    userId: string,
+    data: CreateUserExperience,
+  ): Promise<UserExperience> {
+    const tx = await this.db.transaction(async (tx) => {
+      const { organizationId } = await this.preCreateBeforeCreateUserExperience(
+        tx,
+        userId,
+        data,
+      );
+
+      const [result] = await tx
+        .insert(userExperiences)
+        .values({
+          ...data,
+          userId,
+          organizationId,
+          startDate: convertDateToStr(data.startDate),
+          endDate: data.endDate ? convertDateToStr(data.endDate) : null,
+        })
+        .returning();
+      return result;
+    });
+    return tx;
+  }
+
+  async updateUserExperienceWithCompanyAndSkills(
+    userId: string,
+    id: number,
+    data: CreateUserExperience,
+  ): Promise<UserExperience | null> {
+    const [userExperience] = await this.getByField({ userId, id });
+    if (!userExperience) {
+      return null;
+    }
+    const tx = await this.db.transaction(async (tx) => {
+      await tx
+        .delete(userSkills)
+        .where(
+          and(
+            eq(userSkills.userId, userId),
+            eq(userSkills.organizationId, userExperience.organizationId),
+          ),
+        );
+      const { organizationId } = await this.preCreateBeforeCreateUserExperience(
+        tx,
+        userId,
+        data,
+      );
+
+      const updatedUserExperience = {
+        ...userExperience,
+        ...data,
+        organizationId,
+      };
+      const [result] = await tx
+        .update(userExperiences)
+        .set({
+          ...updatedUserExperience,
+          startDate: convertDateToStr(data.startDate),
+          endDate: data.endDate ? convertDateToStr(data.endDate) : null,
+        })
+        .where(
+          and(eq(userExperiences.id, id), eq(userExperiences.userId, userId)),
+        )
+        .returning();
+      return result;
+    });
+    return tx;
   }
 }

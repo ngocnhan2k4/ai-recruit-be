@@ -1,11 +1,12 @@
 // import { AnonymousId } from "@/common/constants/roles";
-import { universities } from "@/frameworks/data-services/postgres/models";
 import { categories } from "@/frameworks/data-services/postgres/models/category.model";
 import { provinces } from "@/frameworks/data-services/postgres/models/province.model";
 import { skills } from "@/frameworks/data-services/postgres/models/skill.model";
-import { users } from "@/frameworks/data-services/postgres/models/user.model";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { organizations } from "@/frameworks/data-services/postgres/models";
+import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
+import { slugify } from "@/common/utils/string";
 
 const categoriesData = [
   "Frontend Developer",
@@ -259,10 +260,16 @@ async function main() {
     .values(skillsData.map((name) => ({ name })))
     .onConflictDoNothing({ target: skills.name });
 
+  const dataToInsert = universitiesData.map((uniName) => ({
+    name: uniName,
+    slug: slugify(uniName),
+    type: OrganizationTypeEnum.UNIVERSITY,
+  }));
+
   await db
-    .insert(universities)
-    .values(universitiesData.map((name) => ({ name })))
-    .onConflictDoNothing({ target: universities.name });
+    .insert(organizations)
+    .values(dataToInsert)
+    .onConflictDoNothing({ target: organizations.slug });
 
   // Insert provinces - skip if name already exists
   await db

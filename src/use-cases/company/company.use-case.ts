@@ -1,41 +1,26 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from "@nestjs/common";
-import { ApiResponse } from "@/interfaces/dtos";
-import { CreateCompanyDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { ApiResponse, CompanyDto } from "@/interfaces/dtos";
+
 import { Company, ICompanyRepository } from "@/core";
+import { CompanyFilters } from "@/core/entities/company.entity";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
-import { OrganizationRole } from "@/common/constants/organization-roles";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members.abstract";
-
 @Injectable()
-export class CompanyUseCase {
-  constructor(
-    private readonly companyRepository: ICompanyRepository,
-    private readonly organizationMembersRepository: IOrganizationMembersRepository,
-  ) {}
-
+export class CompanyUseCase implements OnModuleInit {
   private readonly logger = new Logger(CompanyUseCase.name);
 
-  async getAllCompanies(): Promise<
-    ApiResponse<Pick<Company, "id" | "name" | "logoUrl" | "address">[]>
-  > {
-    const result = await this.companyRepository.getAllCompanies();
+  constructor(private readonly companyRepository: ICompanyRepository) {}
 
-    return {
-      message: "Companies retrieved successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: result,
-    };
-  }
+  onModuleInit(): void {}
 
   async getCompanies(
     limit = 20,
-    keyword?: string,
+    filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
     ApiResponse<
@@ -44,7 +29,7 @@ export class CompanyUseCase {
   > {
     const result = await this.companyRepository.getCompanies(
       limit,
-      keyword,
+      filter,
       cursor,
     );
     return {
@@ -54,89 +39,55 @@ export class CompanyUseCase {
     };
   }
 
-  async createCompany(
-    userId: string,
-    data: CreateCompanyDto,
-  ): Promise<ApiResponse<Company>> {
-    const organization = await this.companyRepository.create({
-      ...data,
-    });
+  async getCompanyById(
+    organizationId: string,
+  ): Promise<ApiResponse<CompanyDto>> {
+    if (!organizationId) {
+      throw new NotFoundException(
+        "[CompanyUseCase] - [getCompany] Organization ID is required",
+      );
+    }
+    const organization =
+      await this.companyRepository.getCompanyByOrganizationId(organizationId);
+
     if (!organization) {
-      throw new BadRequestException(
-        "[CompanyUseCase] - [createCompany] Create company failed",
-      );
-    }
-    const organizationMember = await this.organizationMembersRepository.create({
-      userId: userId,
-      organizationId: organization.id,
-      role: OrganizationRole.ORGANIZATION_OWNER,
-    });
-    if (!organizationMember) {
-      await this.companyRepository.delete({
-        id: organization.id,
-      });
-      throw new BadRequestException(
-        "[CompanyUseCase] - [createCompany] Create organization member failed",
-      );
-    }
-    return {
-      message: "Company created successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: organization,
-    };
-  }
-
-  async getCompaniesByUserId(
-    userId: string,
-    limit: number,
-    cursor: string,
-  ): Promise<ApiResponse<Partial<Company>[]>> {
-    const res = await this.companyRepository.getCompaniesByUserId(
-      userId,
-      limit,
-      cursor,
-    );
-    return {
-      message: "Companies fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: res.data.map((company) => ({
-        id: company.id,
-        name: company.name,
-        logoUrl: company.logoUrl,
-        description: company.description,
-        role: company.role,
-        foundingYear: company.foundingYear,
-      })),
-    };
-  }
-
-  async getCompany(
-    userId?: string,
-    companyId?: string,
-  ): Promise<ApiResponse<Company & { role: string }>> {
-    if (!companyId) {
       throw new NotFoundException(
-        "[CompanyUseCase] - [getCompany] Company ID is required",
+        "[CompanyUseCase] - [getCompany] Organization not found",
       );
     }
-    const company = await this.companyRepository.get(companyId);
-    if (!company) {
-      throw new NotFoundException(
-        "[CompanyUseCase] - [getCompany] Company not found",
-      );
-    }
-    const role = userId
-      ? await this.organizationMembersRepository
-          .findMemberByUserIdAndOrganizationId(userId, companyId)
-          .then((member) =>
-            member ? member.role : OrganizationRole.ANONYMOUSLY,
-          )
-      : OrganizationRole.ANONYMOUSLY;
 
     return {
-      data: { ...company, role },
+      data: this.mapToCompanyDto(organization),
       message: "Company fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  private mapToCompanyDto(organization: Company): CompanyDto {
+    return {
+      id: organization.id,
+      organizationId: organization.id,
+      companySize: organization.companySize || 0,
+      taxCode: organization.taxCode || "",
+      benefits: organization.benefits || "",
+      name: organization.name,
+      slug: organization.slug,
+      type: organization.type,
+      description: organization.description || "",
+      address: organization.address || [],
+      logoUrl: organization.logoUrl || "",
+      about: organization.about || "",
+      websiteUrl: organization.websiteUrl || "",
+      email: organization.email || "",
+      phone: organization.phone || "",
+      foundedYear: organization.foundedYear || 0,
+      culture: organization.culture || "",
+      employeesMin: organization.employeesMin || 0,
+      employeesMax: organization.employeesMax || 0,
+      createdAt: new Date(organization.createdAt),
+      updatedAt: organization.updatedAt,
+      deletedAt: organization.deletedAt,
+      verifiedAt: organization.verifiedAt,
     };
   }
 }

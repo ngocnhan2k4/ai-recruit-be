@@ -9,22 +9,15 @@ import {
   bigint,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import { users } from "../schema";
+import { organizations } from "./organization.model";
 
 export const companies = pgTable("companies", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 255 }).notNull(),
-  logoUrl: varchar("logo_url", { length: 500 }),
-  description: text("description"),
-  address: text("address").array(),
-  employeesMin: integer("employees_min"),
-  employeesMax: integer("employees_max"),
-  websiteUrl: varchar("website_url", { length: 500 }),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
-  foundingYear: integer("founding_year"),
+  organizationId: uuid("organization_id")
+    .references(() => organizations.id, { onDelete: "cascade" })
+    .primaryKey(),
+  companySize: integer("company_size"),
+  culture: text("culture"),
   taxCode: varchar("tax_code", { length: 100 }),
-  organizationCulture: text("organization_culture"),
   benefits: text("benefits"),
   companyRawId: bigint("company_raw_id", { mode: "number" }).references(
     () => companyRaws.id,
@@ -43,16 +36,4 @@ export const companyRaws = pgTable("company_raws", {
   websiteUrl: varchar("website_url", { length: 500 }),
   source: varchar("source", { length: 255 }).notNull(),
   crawledAt: timestamp("crawled_at").notNull().defaultNow(),
-});
-
-export const organizationMembers = pgTable("organization_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => companies.id),
-  role: varchar("role", { length: 100 }).notNull(),
-  ...timestamps,
 });

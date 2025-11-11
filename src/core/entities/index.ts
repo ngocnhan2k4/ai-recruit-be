@@ -9,23 +9,25 @@ import {
   userExperiences,
   userSkills,
   cvs,
-  ProviderEnum,
-  EducationLevelEnum,
-  GenderEnum,
-  universities,
   userOnboardings,
   organizationMembers,
-  JobStatusEnum,
-  UserStatusEnum,
-  WorkTypeEnum,
-  UserInteractionTypeEnum,
+  schools,
+  userEducations,
 } from "@/frameworks/data-services/postgres/models";
+import {
+  notifications,
+  userNotifications,
+} from "@/frameworks/data-services/postgres/models/notification.model";
+import {
+  organizationLocations,
+  organizations,
+} from "@/frameworks/data-services/postgres/models/organization.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { SchoolTypeEnum } from "./enum.entity";
+export * from "./enum.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
-export type NewCompany = InferInsertModel<typeof companies>;
-export type Company = InferSelectModel<typeof companies>;
 
 export type NewCategory = InferInsertModel<typeof categories>;
 export type Category = InferSelectModel<typeof categories>;
@@ -34,8 +36,6 @@ export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
   questions?: string[];
 };
-export type UserInteractionTypeEnumType =
-  (typeof UserInteractionTypeEnum.enumValues)[number];
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
@@ -55,18 +55,8 @@ export type User = InferSelectModel<typeof users>;
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
 
-export type NewUniversity = InferInsertModel<typeof universities>;
-export type University = InferSelectModel<typeof universities>;
-
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
-export type ProviderEnumType = (typeof ProviderEnum.enumValues)[number];
-export type EducationLevelEnumType =
-  (typeof EducationLevelEnum.enumValues)[number];
-export type GenderEnumType = (typeof GenderEnum.enumValues)[number];
-export type JobStatusEnumType = (typeof JobStatusEnum.enumValues)[number];
-export type UserStatusEnumType = (typeof UserStatusEnum.enumValues)[number];
-export type WorkTypeEnumType = (typeof WorkTypeEnum.enumValues)[number];
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
@@ -75,3 +65,59 @@ export type OrganizationMember = InferSelectModel<typeof organizationMembers>;
 export type NewOrganizationMember = InferInsertModel<
   typeof organizationMembers
 >;
+
+export type NewUserNotification = InferInsertModel<typeof userNotifications>;
+export type UserNotification = InferSelectModel<typeof userNotifications>;
+
+export type NewNotification = InferInsertModel<typeof notifications>;
+export type Notification = InferSelectModel<typeof notifications> &
+  UserNotification;
+
+type Organization = InferSelectModel<typeof organizations>;
+type NewOrganization = InferInsertModel<typeof organizations>;
+
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
+export type NewOrganizationLocation = Omit<
+  InferInsertModel<typeof organizationLocations>,
+  "organizationId"
+>;
+
+export type OrganizationWithDetails = Organization & {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  companyRawId?: number | null;
+  schoolType?: SchoolTypeEnum | null;
+  culture?: string | null;
+  locations?: OrganizationLocation[];
+};
+
+export type NewOrganizationWithDetails = NewOrganization & {
+  companySize?: number | null;
+  taxCode?: string | null;
+  benefits?: string | null;
+  companyRawId?: number | null;
+  schoolType?: SchoolTypeEnum | null;
+  culture?: string | null;
+  locations?: NewOrganizationLocation[];
+};
+
+export type Company = InferSelectModel<typeof companies> & {
+  locations?: OrganizationLocation[];
+} & Organization;
+
+export type NewCompany = Omit<
+  InferInsertModel<typeof companies>,
+  "organizationId"
+> & {
+  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
+} & NewOrganization;
+
+export type School = InferSelectModel<typeof schools> & {
+  locations?: OrganizationLocation[];
+} & Organization;
+
+export type NewUserEducation = InferInsertModel<typeof userEducations>;
+export type UserEducation = InferSelectModel<typeof userEducations>;

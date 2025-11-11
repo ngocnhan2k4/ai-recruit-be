@@ -1,301 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsDateString,
-  IsEnum,
-  IsUUID,
-  IsArray,
-} from "class-validator";
-
-export enum WorkType {
-  REMOTE = "remote",
-  ONSITE = "onsite",
-  HYBRID = "hybrid",
-}
-
-export enum ApplyType {
-  ONSITE = "onsite",
-  GOTO_URL = "goto_url",
-}
-
-export enum JobStatus {
-  DRAFT = "draft",
-  PENDING_APPROVAL = "pending_approval",
-  ACTIVE = "active",
-  PAUSED = "paused",
-  CLOSED = "closed",
-}
-
-export enum ApplyStatus {
-  PENDING = "pending",
-  ACCEPTED = "accepted",
-  REJECTED = "rejected",
-}
-
-export class CreateJobDto {
-  @ApiProperty({ type: "string" })
-  @IsString()
-  title: string;
-
-  @ApiProperty({
-    type: "object",
-    nullable: true,
-    description: "Job description in JSON format",
-    additionalProperties: {},
-  })
-  @IsOptional()
-  description?: unknown;
-
-  @ApiProperty({ type: "string", format: "uuid" })
-  @IsUUID()
-  companyId: string;
-
-  @ApiProperty({ type: "string", nullable: true })
-  @IsOptional()
-  @IsString()
-  salaryMin?: string | null;
-
-  @ApiProperty({ type: "string", nullable: true })
-  @IsOptional()
-  @IsString()
-  salaryMax?: string | null;
-
-  @ApiProperty({ type: "number", nullable: true })
-  @IsOptional()
-  @IsNumber()
-  experienceMin?: number | null;
-
-  @ApiProperty({ type: "number", nullable: true })
-  @IsOptional()
-  @IsNumber()
-  experienceMax?: number | null;
-
-  @ApiProperty({
-    type: "string",
-    format: "date",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsDateString()
-  endDate?: string | null;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Work type",
-    example: "remote",
-    enum: Object.values(WorkType),
-  })
-  @IsOptional()
-  @IsEnum(WorkType)
-  workType: WorkType;
-
-  @ApiProperty({
-    type: "string",
-    description: "Application type",
-    example: "onsite",
-    enum: Object.values(ApplyType),
-    default: ApplyType.ONSITE,
-  })
-  @IsOptional()
-  @IsEnum(ApplyType)
-  applyType?: string;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Status (active, inactive)",
-    example: "active",
-    enum: Object.values(JobStatus),
-    default: JobStatus.ACTIVE,
-  })
-  @IsOptional()
-  @IsEnum(JobStatus)
-  status: JobStatus;
-
-  @ApiProperty({ type: "string", format: "uuid", nullable: true })
-  @IsOptional()
-  @IsUUID()
-  provinceId?: string | null;
-
-  @ApiProperty({
-    type: [String],
-    nullable: true,
-    description: "Array of questions for the job",
-    example: [
-      "What is your experience with React?",
-      "How do you handle state management?",
-    ],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  questions: string[] | null;
-
-  @ApiProperty({
-    type: [String],
-    nullable: true,
-    description: "Array of skill IDs associated with the job",
-    example: [
-      "550e8400-e29b-41d4-a716-446655440000",
-      "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-    ],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID("4", { each: true })
-  skillIds: string[] | null;
-}
-
-export class UpdateJobDto {
-  @ApiProperty({ type: "string", required: false })
-  @IsOptional()
-  @IsString()
-  title?: string;
-
-  @ApiProperty({
-    type: "object",
-    nullable: true,
-    description: "Job description in JSON format",
-    additionalProperties: {},
-  })
-  @IsOptional()
-  description?: unknown;
-
-  @ApiProperty({ type: "string", format: "uuid", required: false })
-  @IsOptional()
-  @IsUUID()
-  companyId?: string;
-
-  @ApiProperty({ type: "string", nullable: true, required: false })
-  @IsOptional()
-  @IsString()
-  salaryMin?: string | null;
-
-  @ApiProperty({ type: "string", nullable: true, required: false })
-  @IsOptional()
-  @IsString()
-  salaryMax?: string | null;
-
-  @ApiProperty({ type: "number", nullable: true, required: false })
-  @IsOptional()
-  @IsNumber()
-  experienceMin?: number | null;
-
-  @ApiProperty({ type: "number", nullable: true, required: false })
-  @IsOptional()
-  @IsNumber()
-  experienceMax?: number | null;
-
-  @ApiProperty({
-    type: "string",
-    format: "date",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsDateString()
-  datePosted?: string | null;
-
-  @ApiProperty({
-    type: "string",
-    format: "date",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsDateString()
-  endDate?: string | null;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Work type",
-    example: "remote",
-    enum: Object.values(WorkType),
-  })
-  @IsOptional()
-  @IsEnum(WorkType)
-  workType: WorkType;
-
-  @ApiProperty({
-    type: "string",
-    description: "Application type",
-    example: "onsite",
-    enum: Object.values(ApplyType),
-  })
-  @IsOptional()
-  @IsEnum(ApplyType)
-  applyType?: string;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Application URL for external applications",
-    example: "https://company.com/apply/job-123",
-  })
-  @IsOptional()
-  @IsString()
-  applyUrl: string | null;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Status (active, inactive)",
-    example: "active",
-    enum: Object.values(JobStatus),
-  })
-  @IsOptional()
-  @IsEnum(JobStatus)
-  status: JobStatus;
-
-  @ApiProperty({
-    type: "number",
-    nullable: true,
-    description: "Priority level",
-  })
-  @IsOptional()
-  @IsNumber()
-  priority?: number | null;
-
-  @ApiProperty({
-    type: "string",
-    format: "uuid",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsUUID()
-  provinceId?: string | null;
-
-  @ApiProperty({
-    type: [String],
-    nullable: true,
-    description: "Array of questions for the job",
-    example: [
-      "What is your experience with React?",
-      "How do you handle state management?",
-    ],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  questions: string[] | null;
-
-  @ApiProperty({
-    type: [String],
-    nullable: true,
-    description: "Array of skill IDs associated with the job",
-    example: [
-      "550e8400-e29b-41d4-a716-446655440000",
-      "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-    ],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUUID("4", { each: true })
-  skillIds: string[] | null;
-}
-
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "@/core";
+import { PaginationResponseDto } from "../common/query";
+import { CompanyDto } from "../companies/company.dto";
+import { Skill } from "@/core";
+import { SkillDto } from "../skills/skill.dto";
+import { ProvinceDto } from "../provinces/province.dto";
+import { Province } from "@/core";
+import { IsBoolean, IsEnum } from "class-validator";
 export class JobDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;
@@ -318,7 +29,7 @@ export class JobDto {
   questions: string[] | null;
 
   @ApiProperty({ type: "string" })
-  companyId: string;
+  organizationId: string;
 
   @ApiProperty({ type: "string", nullable: true })
   salaryMin: string | null;
@@ -355,9 +66,8 @@ export class JobDto {
     nullable: true,
     description: "Work type",
     example: "remote",
-    enum: Object.values(WorkType),
   })
-  workType: string | null;
+  workType: WorkTypeEnum | null;
 
   @ApiProperty({
     type: "number",
@@ -372,7 +82,7 @@ export class JobDto {
     nullable: true,
     description: "Job Raw ID from jobRaws table",
   })
-  jobRawId?: number | null;
+  jobRawId: number | null;
 
   @ApiProperty({
     type: "string",
@@ -387,7 +97,175 @@ export class JobDto {
     nullable: true,
     description: "Status (active, inactive)",
     example: "active",
-    enum: Object.values(JobStatus),
   })
-  status: JobStatus;
+  status: JobStatusEnum;
+
+  @ApiProperty({
+    type: "string",
+    required: false,
+    nullable: true,
+    description: "Reason for job rejection",
+  })
+  rejectReason: string | null;
+}
+
+export class JobStatusCountDto {
+  @ApiProperty({})
+  status: JobStatusEnum;
+
+  @ApiProperty()
+  count: number;
+}
+
+export class JobCountsDto {
+  @ApiProperty({ example: 0 })
+  total: number;
+
+  @ApiProperty({ type: [JobStatusCountDto] })
+  byStatus: JobStatusCountDto[];
+}
+
+export class JobResponseDto {
+  @ApiProperty({ type: JobDto })
+  job: JobDto;
+
+  @ApiProperty({ type: [ProvinceDto] })
+  provinces: Province[];
+
+  @ApiProperty({ type: CompanyDto })
+  company: CompanyDto;
+
+  @ApiProperty({ type: [SkillDto] })
+  skills: Skill[];
+  @ApiProperty({
+    example: false,
+    required: false,
+    description:
+      "Whether the job is saved by the current user (only present for authenticated users)",
+  })
+  isSaved?: boolean;
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    description:
+      "Whether the current user has applied for this job (only present for authenticated users)",
+  })
+  @IsBoolean()
+  isApplied?: boolean;
+
+  @ApiProperty({
+    example: "applied",
+    required: false,
+    description:
+      "Application status if user has applied for this job (only present for authenticated users)",
+  })
+  applyStatus?: string;
+
+  @ApiProperty({
+    example: "uuid-apply-id",
+    required: false,
+    description:
+      "Application ID if user has applied for this job (only present for authenticated users)",
+  })
+  applyId?: string;
+}
+
+export class SavedJobsResponseDto {
+  @ApiProperty({
+    example: "uuid-of-job",
+    description: "Unique identifier for the job",
+    required: true,
+  })
+  id: string;
+  @ApiProperty({
+    example: "Senior Software Engineer",
+    description: "Title of the job",
+    required: true,
+  })
+  title: string;
+  @ApiProperty({
+    example: "25000000",
+    description: "Salary minimum for the job",
+    required: false,
+  })
+  salaryMin: string | null;
+  @ApiProperty({
+    example: "40000000",
+    description: "Salary maximum for the job",
+    required: false,
+  })
+  salaryMax: string | null;
+  @ApiProperty({
+    example: "Tech Corp",
+    description: "Name of the company offering the job",
+    required: true,
+  })
+  companyName: string;
+  @ApiProperty({
+    example: "https://example.com/logo.png",
+    description: "URL of the company's logo",
+    required: false,
+  })
+  logoUrl?: string;
+  @ApiProperty({
+    example: "remote",
+    description: "Work type (remote, onsite)",
+    required: false,
+  })
+  workType: WorkTypeEnum;
+  @ApiProperty({
+    example: "2023-01-01T00:00:00Z",
+    description: "Creation date of the job",
+    required: true,
+  })
+  createdAt: string;
+  @ApiProperty({
+    example: "2023-12-31",
+    description: "End date of the job",
+    required: false,
+  })
+  endedAt?: string;
+  @ApiProperty({
+    example: "Hanoi",
+    description: "Name of the province where the job is located",
+    required: true,
+  })
+  provinceName: string;
+  @ApiProperty({
+    example: true,
+    description: "Indicates if the job is saved by the user",
+    required: true,
+  })
+  isSaved: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: "Indicates if the user has applied for the job",
+    required: true,
+  })
+  isApplied: boolean;
+}
+
+export class AppliedJobsResponseDto extends SavedJobsResponseDto {
+  @ApiProperty({
+    example: "pending",
+    description: "Application status for the job",
+    required: true,
+  })
+  @IsEnum(ApplyStatusEnum)
+  applyStatus: ApplyStatusEnum;
+}
+
+export class JobPaginationResponseDto {
+  @ApiProperty({
+    type: [JobResponseDto],
+    description: "Array of job responses",
+  })
+  data: JobResponseDto[];
+
+  @ApiProperty({
+    type: PaginationResponseDto,
+  })
+  pagination: PaginationResponseDto;
 }

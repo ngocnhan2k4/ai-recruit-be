@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from helpers import (
+from helpers.helper import (
     safe_text, 
     extract_salary, 
     vn_parse_posted_date, 

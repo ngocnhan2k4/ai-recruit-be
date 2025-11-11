@@ -10,14 +10,14 @@ export interface GeneralResponse {
 export interface PaginatedResult<T> {
   data: T[];
   pagination: {
-    nextCursor?: string | null;
+    nextCursor?: string | number | null;
     hasNextPage?: boolean;
     total?: number;
   };
 }
 
 export interface GeneralQuery {
-  limit?: number;
+  limit: number;
   cursor?: string;
   page?: number;
   sortBy?: string;

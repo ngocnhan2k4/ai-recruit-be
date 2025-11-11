@@ -1,12 +1,10 @@
+import { Type } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
-export enum PaginationType {
-  PAGE = "page",
-  CURSOR = "cursor",
-}
+
 export class GeneralQueryDto {
   @ApiProperty({
     example: 0,
@@ -65,18 +63,6 @@ export class GeneralQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
-
-  @ApiProperty({
-    required: false,
-    description: "Type of pagination (page or cursor)",
-    enum: PaginationType,
-    example: PaginationType.PAGE,
-  })
-  @Transform(({ value }: { value?: string }) =>
-    value ? value : PaginationType.CURSOR,
-  )
-  @IsEnum(PaginationType)
-  pagination?: PaginationType = PaginationType.CURSOR;
 }
 
 export class PaginationResponseDto {
@@ -85,7 +71,7 @@ export class PaginationResponseDto {
     required: false,
     description: "Cursor for the next page",
   })
-  nextCursor?: string | null;
+  nextCursor?: string | number | null;
 
   @ApiProperty({
     example: true,
@@ -108,4 +94,18 @@ export class PaginatedResultDto<T> {
 
   @ApiProperty({ type: PaginationResponseDto })
   pagination: PaginationResponseDto;
+}
+
+export function PaginatedResultDecorator<TModel extends Type<any>>(
+  model: TModel,
+) {
+  class PaginatedResult {
+    @ApiProperty({ isArray: true, type: model })
+    data: InstanceType<TModel>[];
+
+    @ApiProperty({ type: PaginationResponseDto })
+    pagination: PaginationResponseDto;
+  }
+
+  return PaginatedResult;
 }

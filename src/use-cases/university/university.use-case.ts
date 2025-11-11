@@ -1,16 +1,27 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { IUniversityRepository } from "@/core";
-import { ApiResponse, UniversityDto } from "@/interfaces/dtos";
+import { IOrganizationRepository } from "@/core";
+import { ApiResponse, OrganizationDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
+import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
 
 @Injectable()
 export class UniversityUseCases {
   private readonly logger = new Logger(UniversityUseCases.name);
-  constructor(private readonly universityRepository: IUniversityRepository) {}
+  constructor(
+    private readonly organizationRepository: IOrganizationRepository,
+  ) {}
 
-  async getUniversities(): Promise<ApiResponse<UniversityDto[]>> {
-    const data = await this.universityRepository.getAll();
-    this.logger.log(`Fetched ${data.length} universities`);
+  async getUniversities(): Promise<ApiResponse<Partial<OrganizationDto>[]>> {
+    const universities = await this.organizationRepository.getByField({
+      type: OrganizationTypeEnum.UNIVERSITY,
+    });
+    this.logger.log(`Fetched ${universities.length} universities`);
+
+    const data: Partial<OrganizationDto>[] = universities.map((university) => ({
+      id: university.id,
+      name: university.name,
+    }));
+
     return {
       message: "Universities fetched successfully",
       code: RESPONSE_CODE.SUCCESS,

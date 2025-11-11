@@ -35,6 +35,9 @@ export class EnvironmentVariables {
   DATABASE_URL: string;
 
   @IsString()
+  DATABASE_ADAPTER_URL: string;
+
+  @IsString()
   JWT_SECRET: string;
 
   @IsString()
@@ -76,6 +79,7 @@ export class EnvironmentVariables {
   @IsString()
   CLOUDINARY_API_SECRET: string;
 
+  @IsString()
   SLACK_ERROR_WEBHOOK_URL: string;
 }
 
@@ -88,6 +92,7 @@ export default (): Record<string, any> => ({
 
   // PostgreSQL
   DATABASE_URL: process.env.DATABASE_URL,
+  DATABASE_ADAPTER_URL: process.env.DATABASE_ADAPTER_URL,
 
   JWT_SECRET: process.env.JWT_SECRET,
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,

@@ -1,3 +1,5 @@
+import { RoleEnum } from "@/common/constants/roles";
+
 export abstract class IAuthService {
   abstract verifyIdToken(idToken: string): Promise<{
     uid: string;
@@ -5,6 +7,10 @@ export abstract class IAuthService {
     name?: string;
     picture?: string;
     provider_id?: string;
+    roles?: RoleEnum[];
   }>;
   abstract signJwt(payload: any): string;
+  abstract overlapUserClaims(uid: string, claims: any): Promise<any>;
+  abstract customTokenWithClaims(uid: string, claims: any): Promise<string>;
+  abstract updateUserClaims(uid: string, claims: any): Promise<void>;
 }

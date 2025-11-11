@@ -3,13 +3,23 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Skill, User } from "../../core/entities";
+import {
+  EducationLevelEnum,
+  GenderEnum,
+  OrganizationTypeEnum,
+  OrganizationWithDetails,
+  ProviderEnum,
+  Skill,
+  User,
+  UserStatusEnum,
+} from "../../core";
 import {
   IBloomFilterService,
   IUserRepository,
   IUserExperienceRepository,
   IUserSkillRepository,
   IUserOnboardingRepository,
+  IAuthService,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -19,34 +29,34 @@ import {
   GetUserResponseDto,
   TypeAvatar,
   UpdateUserRequestDto,
-  UserDto,
   UserPublicResponseDto,
-  UserOnboardingStatusDto,
   UserOnboardingDto,
   GetAllUserResponseDto,
-  UserStatusEnum,
+  AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
-import { GenderEnum } from "@/common/constants/roles";
 import { MultipartFile } from "@fastify/multipart";
 import {
-  ICompanyRepository,
+  IOrganizationRepository,
   UserSkill,
   UserOnboarding,
   ISkillRepository,
 } from "@/core";
 import {
   CreateUserExperienceRequestDto,
-  UpdateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos/users/user-experience.dto";
-import { convertDateToStr } from "@/common/utils/date";
 import { GetUserQuery } from "@/core/entities/user.entity";
+import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { RoleEnum } from "@/common/constants/roles";
 import {
-  PaginatedResultDto,
-  PaginationResponseDto,
-} from "@/interfaces/dtos/common/query";
+  CreateUserEducationDto,
+  UpdateUserEducationDto,
+  UserEducationResponseDto,
+} from "@/interfaces/dtos/users/user-education.dto";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -58,9 +68,13 @@ export class UserUseCases implements OnModuleInit {
     private readonly userSkillRepository: IUserSkillRepository,
     public readonly bloomFilterService: IBloomFilterService,
     private readonly cloudinaryService: CloudinaryService,
-    private readonly companyRepository: ICompanyRepository,
+    private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillRepository: ISkillRepository,
+    private readonly authService: IAuthService,
+    private readonly casbinService: CasbinService,
+
+    private readonly userEducationRepository: IUserEducationRepository,
   ) {}
 
   async onModuleInit() {
@@ -78,7 +92,7 @@ export class UserUseCases implements OnModuleInit {
   private async initializeBloomFilter() {
     try {
       // Get all usernames from database
-      const users = await this.userRepository.getAll();
+      const users = await this.userRepository.getAll(["username"]);
       const usernames = users.map((user) => user.username);
 
       this.bloomFilterService.initialize(usernames);
@@ -95,22 +109,24 @@ export class UserUseCases implements OnModuleInit {
     }
   }
 
-  async getUserById(id: number): Promise<ApiResponse<GetUserResponseDto>> {
+  async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
-      throw new NotFoundException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-          code: RESPONSE_CODE.USER_NOT_FOUND,
-        }),
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
-    const userDto = GetUserResponseDto.from(user);
-    return new ApiResponse<GetUserResponseDto>({
+    const userDto = GetUserResponseDto.from({
+      ...user,
+      provider: user.provider as ProviderEnum,
+      roles: user.roles as RoleEnum[],
+    });
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
-    });
+    };
   }
 
   async getUserByAccessToken(
@@ -119,25 +135,21 @@ export class UserUseCases implements OnModuleInit {
     const id: string = payload.userId;
     const user: User | null = await this.userRepository.get(id);
     if (!user) {
-      throw new NotFoundException(
-        new ApiResponse({
-          message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-          code: RESPONSE_CODE.USER_NOT_FOUND,
-        }),
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
     }
-    const userDto = GetUserResponseDto.from(user);
-    const userOnboarding = await this.userOnboardingRepository.getByField({
-      userId: id,
+    const userDto = GetUserResponseDto.from({
+      ...user,
+      provider: user.provider as ProviderEnum,
+      roles: user.roles as RoleEnum[],
     });
-    const isOnboarded = userOnboarding.length > 0;
-    userDto.onboardingCompleted = isOnboarded;
-
-    return new ApiResponse<GetUserResponseDto>({
+    return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
-    });
+    };
   }
 
   async getUserByUsername(
@@ -150,6 +162,18 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
       });
     }
+
+    const userEducation = await this.userEducationRepository.getByField({
+      userId: user.id,
+    });
+
+    let school: OrganizationWithDetails | null = null;
+    if (userEducation.length > 0) {
+      school = await this.organizationRepository.get(
+        userEducation[userEducation.length - 1].schoolId,
+      );
+    }
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -162,6 +186,7 @@ export class UserUseCases implements OnModuleInit {
         bio: user.bio,
         bannerUrl: user.bannerUrl,
         address: user.address,
+        school: school?.name || null,
       },
     };
   }
@@ -243,46 +268,26 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
+    const userExperiencesDto = userExperiences.map((userExperience) => ({
+      experience: userExperience.experience,
+      organization: userExperience.organization
+        ? {
+            id: userExperience.organization.id,
+            name: userExperience.organization.name,
+            address: userExperience.organization.address,
+            logoUrl: userExperience.organization.logoUrl,
+          }
+        : null,
+      skills: userExperience.skills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+      })),
+    }));
     return {
       message: "User experiences fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: userExperiences,
-    };
-  }
-
-  private async preCreateBeforeCreateUserExperience(
-    userId: string,
-    data: CreateUserExperienceRequestDto,
-  ) {
-    let companyId = data.companyId;
-    if (!companyId) {
-      const company = await this.companyRepository.create({
-        name: data.companyName,
-      });
-      companyId = company.id;
-    }
-    const skillIds = data.skillIds || [];
-    const skillNames = data.skillNames || [];
-
-    // Process skill names to get or create skill IDs
-    if (skillNames.length > 0) {
-      const newSkills = await this.skillRepository.createMany(
-        skillNames.map((name) => ({ name })),
-      );
-      skillIds.push(...newSkills.map((skill) => skill.id));
-    }
-
-    // Create user-skill associations
-    if (skillIds.length > 0)
-      await this.userSkillRepository.createMany(
-        skillIds.map((skillId) => ({
-          userId,
-          skillId,
-          companyId,
-        })),
-      );
-    return {
-      companyId,
+      data: userExperiencesDto as UserExperiencesResponseDto[],
     };
   }
 
@@ -292,20 +297,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    const { companyId } = await this.preCreateBeforeCreateUserExperience(
-      userId,
-      createUserExperienceDto,
-    );
-
-    const result = await this.userExperienceRepository.create({
-      ...createUserExperienceDto,
-      userId,
-      startDate: convertDateToStr(createUserExperienceDto.startDate),
-      endDate: createUserExperienceDto.endDate
-        ? convertDateToStr(createUserExperienceDto.endDate)
-        : null,
-      companyId: companyId,
-    });
+    const result =
+      await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
+        userId,
+        createUserExperienceDto,
+      );
     if (!result) {
       throw new NotFoundException({
         message: "[createUserExperience] - [create] User experience not found",
@@ -324,45 +320,22 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
-    const userExperience = (
-      await this.userExperienceRepository.getByField({
+    const result =
+      await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-      })
-    )[0];
-    if (!userExperience) {
+        updateUserExperienceDto,
+      );
+
+    if (!result) {
       this.logger.error(
-        "[updateUserExperience] - [get] userExperience not found",
+        "[updateUserExperience] - [updateUserExperienceWithCompanyAndSkills] User experience not found",
       );
       throw new NotFoundException({
-        message: "[updateUserExperience] - [get] User experience not found",
+        message: "User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
-    await this.userSkillRepository.delete({
-      userId,
-      companyId: userExperience.companyId,
-    });
-    const { companyId } = await this.preCreateBeforeCreateUserExperience(
-      userId,
-      updateUserExperienceDto,
-    );
-
-    const updatedUserExperience = {
-      ...userExperience,
-      ...updateUserExperienceDto,
-      companyId,
-    };
-    await this.userExperienceRepository.update(
-      { userId, id },
-      {
-        ...updatedUserExperience,
-        startDate: convertDateToStr(updateUserExperienceDto.startDate),
-        endDate: updateUserExperienceDto.endDate
-          ? convertDateToStr(updateUserExperienceDto.endDate)
-          : null,
-      },
-    );
 
     return {
       message: "User experience updated successfully",
@@ -412,12 +385,12 @@ export class UserUseCases implements OnModuleInit {
   async createUserSkill(
     userId: string,
     skillId: string,
-    companyId: string,
+    organizationId: string,
   ): Promise<ApiResponse<UserSkill>> {
     const userSkill = await this.userSkillRepository.create({
       userId,
       skillId,
-      companyId,
+      organizationId,
     });
     if (!userSkill) {
       throw new NotFoundException({
@@ -438,7 +411,7 @@ export class UserUseCases implements OnModuleInit {
   ): Promise<
     ApiResponse<{
       skillId: string;
-      companyId: string | null;
+      organizationId: string | null;
     }>
   > {
     const result = (
@@ -456,7 +429,10 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User skill deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        skillId: result.skillId,
+        organizationId: result.organizationId,
+      },
     };
   }
 
@@ -537,30 +513,30 @@ export class UserUseCases implements OnModuleInit {
       code: RESPONSE_CODE.SUCCESS,
     };
   }
-  async checkUserEnterOnboarding(
-    userId: string,
-  ): Promise<ApiResponse<UserOnboardingStatusDto>> {
-    const user = await this.userRepository.get(userId);
-    if (!user) {
-      throw new NotFoundException({
-        message: "[checkUserEnterOnboarding] - User not found",
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
-    }
-    const userOnboarding = await this.userOnboardingRepository.getByField({
-      userId,
-    });
-    console.log("User onboarding record:", userOnboarding);
-    const isOnboarded = userOnboarding.length > 0;
-    console.log("User onboarding status:", isOnboarded);
-    return {
-      data: {
-        isOnboarded,
-      },
-      message: "User onboarding status checked successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
+  // async checkUserEnterOnboarding(
+  //   userId: string,
+  // ): Promise<ApiResponse<UserOnboardingStatusDto>> {
+  //   const user = await this.userRepository.get(userId);
+  //   if (!user) {
+  //     throw new NotFoundException({
+  //       message: "[checkUserEnterOnboarding] - User not found",
+  //       code: RESPONSE_CODE.USER_NOT_FOUND,
+  //     });
+  //   }
+  //   const userOnboarding = await this.userOnboardingRepository.getByField({
+  //     userId,
+  //   });
+  //   console.log("User onboarding record:", userOnboarding);
+  //   const isOnboarded = userOnboarding.length > 0;
+  //   console.log("User onboarding status:", isOnboarded);
+  //   return {
+  //     data: {
+  //       isOnboarded,
+  //     },
+  //     message: "User onboarding status checked successfully",
+  //     code: RESPONSE_CODE.SUCCESS,
+  //   };
+  // }
 
   async completeUserOnboarding(
     userOnboarding: UserOnboardingDto,
@@ -583,13 +559,14 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
-    await this.userOnboardingRepository.create(newOnboarding);
-    await this.userRepository.update(
-      { id: userId },
+
+    await this.userOnboardingRepository.createOnboardingForUser(
+      userId,
+      { ...newOnboarding } as UserOnboarding,
       {
         name: userOnboarding.name!,
-        gender: userOnboarding.gender,
-        dob: userOnboarding.dob,
+        gender: userOnboarding.gender!,
+        dob: userOnboarding.dob!,
       },
     );
     return {
@@ -607,11 +584,235 @@ export class UserUseCases implements OnModuleInit {
         data: result.data.map((user) => ({
           ...user,
           status: user.status as UserStatusEnum,
+          roles: user.roles as RoleEnum[],
         })),
         pagination: result.pagination,
       },
       message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminUpdateUser(
+    userId: string,
+    updateUserDto: AdminUpdateUserRequestDto,
+  ): Promise<ApiResponse<GetUserResponseDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    let updateUserClaims = {};
+    if (updateUserDto.roles) {
+      updateUserClaims = {
+        ...updateUserClaims,
+        roles: updateUserDto.roles,
+      };
+    }
+
+    if (Object.keys(updateUserClaims).length > 0) {
+      await this.authService.updateUserClaims(
+        user.firebaseUid!,
+        updateUserClaims,
+      );
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updateUserDto,
+    };
+
+    const updatedUserResult = await this.userRepository.update(
+      { id: userId },
+      updatedUser,
+    );
+    if (!updatedUserResult) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+        code: RESPONSE_CODE.USER_NOT_UPDATED,
+      });
+    }
+    const rolesToUpdate = updateUserDto.roles || user.roles;
+
+    for (const role of rolesToUpdate) {
+      await this.casbinService.addRoleForUser(userId, role);
+    }
+    await this.casbinService.savePolicy();
+    const userDto = GetUserResponseDto.from({
+      ...updatedUser,
+      provider: updatedUser.provider as ProviderEnum,
+      roles: rolesToUpdate as RoleEnum[],
+    });
+    return {
+      message: "User updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: userDto,
+    };
+  }
+
+  async getUserEducations(
+    userId: string,
+  ): Promise<ApiResponse<UserEducationResponseDto[]>> {
+    const userEducations = await this.userEducationRepository.getByField({
+      userId,
+    });
+
+    const universities =
+      await this.organizationRepository.getOrganizationsByTypes([
+        OrganizationTypeEnum.SCHOOL,
+        OrganizationTypeEnum.UNIVERSITY,
+      ]);
+
+    const universityMap: Record<string, string> = {};
+
+    universities.forEach((university) => {
+      universityMap[university.id] = university.name;
+    });
+
+    const data: UserEducationResponseDto[] = userEducations.map((entity) => {
+      return UserEducationResponseDto.from(entity, universityMap);
+    });
+
+    return {
+      data: data,
+      message: "Get user education successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async createUserEducation(
+    userId: string,
+    createUserEducationDto: CreateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: "[createUserEducation] - User not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    const school = await this.organizationRepository.get(
+      createUserEducationDto.schoolId,
+    );
+
+    if (!school) {
+      throw new NotFoundException({
+        message: "[createUserEducation] - School/University not found",
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    const newEducation = await this.userEducationRepository.create({
+      ...createUserEducationDto,
+      userId,
+    });
+
+    return {
+      data: {
+        schoolId: newEducation.schoolId,
+        schoolName: school.name,
+        startDate: newEducation.startDate,
+        endDate: newEducation.endDate,
+        description: newEducation.description,
+        educationLevel: newEducation.educationLevel as EducationLevelEnum,
+        major: newEducation.major,
+        gpa: newEducation.gpa,
+      },
+      message: "User education created successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateUserEducation(
+    userId: string,
+    educationId: string,
+    updateUserEducationDto: UpdateUserEducationDto,
+  ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const userEducation = await this.userEducationRepository.getByField({
+      schoolId: educationId,
+      userId,
+    });
+
+    if (!userEducation || userEducation.length === 0) {
+      throw new NotFoundException({
+        message: "[updateUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const updatedEducation = {
+      ...userEducation,
+      ...updateUserEducationDto,
+    };
+
+    const result = (
+      await this.userEducationRepository.update(
+        { id: userEducation[0].id },
+        updatedEducation,
+      )
+    )[0];
+
+    if (!result) {
+      throw new NotFoundException({
+        message: "[updateUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const school = await this.organizationRepository.get(result.schoolId);
+
+    return {
+      data: {
+        schoolId: result.schoolId,
+        schoolName: school ? school.name : "",
+        startDate: result.startDate,
+        endDate: result.endDate,
+        description: result.description,
+        educationLevel: result.educationLevel as EducationLevelEnum,
+        major: result.major,
+        gpa: result.gpa,
+      },
+      message: "User education updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async deleteUserEducation(
+    userId: string,
+    educationId: string,
+  ): Promise<ApiResponse<number>> {
+    const userEducation = await this.userEducationRepository.getByField({
+      schoolId: educationId,
+      userId,
+    });
+
+    if (!userEducation || userEducation.length === 0) {
+      throw new NotFoundException({
+        message: "[deleteUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+
+    const result = (
+      await this.userEducationRepository.delete({
+        id: userEducation[0].id,
+      })
+    )[0];
+
+    if (!result) {
+      throw new NotFoundException({
+        message: "[deleteUserEducation] - User education not found",
+        code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User education deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: result.id,
     };
   }
 }

@@ -13,29 +13,15 @@ import {
   integer,
   pgEnum,
 } from "drizzle-orm/pg-core";
-import { companies, companyRaws } from "./company.model";
+import { companyRaws } from "./company.model";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
 import { categories } from "./category.model";
 import { provinces } from "./province.model";
 import { jsonb } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
-
-export const JobStatusEnum = pgEnum("job_status", [
-  "draft",
-  "pending_approval",
-  "active",
-  "paused",
-  "closed",
-]);
-
-export const ApplyStatusEnum = pgEnum("apply_status", [
-  "pending",
-  "accepted",
-  "rejected",
-]);
-
-export const WorkTypeEnum = pgEnum("work_type", ["remote", "onsite", "hybrid"]);
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "./enums";
+import { organizations } from "./organization.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -59,9 +45,9 @@ export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: json("description"),
-  companyId: uuid("company_id")
+  organizationId: uuid("organization_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => organizations.id),
   datePosted: date("date_posted"),
   salaryMin: numeric("salary_min", { precision: 12, scale: 2 }),
   salaryMax: numeric("salary_max", { precision: 12, scale: 2 }),
@@ -75,6 +61,7 @@ export const jobs = pgTable("jobs", {
   jobRawId: bigint("job_raw_id", { mode: "number" }).references(
     () => jobRaws.id,
   ),
+  rejectReason: text("reject_reason"),
   ...timestamps,
 });
 
@@ -129,7 +116,6 @@ export const userInteractions = pgTable("user_interactions", {
 
 export const applyJobs = pgTable("apply_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id),

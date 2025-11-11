@@ -1,15 +1,12 @@
-import { OrganizationMember } from "@/core";
+import { OrganizationMember, User } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
-import {
-  IOrganizationMembersRepository,
-  MemberFilter,
-} from "@/core/abstracts/repositories/organization-members.abstract";
+import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { PaginatedResult } from "@/common/types/api";
-import { eq, and, gt, desc, or, ilike, SQL } from "drizzle-orm";
-import { OrganizationRole } from "@/common/constants/organization-roles";
+import { eq, and, gt, or, ilike, SQL, isNull, desc } from "drizzle-orm";
+import { MemberQuery } from "@/core/entities/organization-members.entity";
 
 @Injectable()
 export class OrganizationMembersRepository
@@ -19,98 +16,58 @@ export class OrganizationMembersRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, organizationMembers);
   }
-  async findMemberByUserIdAndOrganizationId(
-    userId: string,
-    organizationId: string,
-  ): Promise<OrganizationMember | null> {
-    const member = await this.db
-      .select()
-      .from(organizationMembers)
-      .where(
-        and(
-          eq(organizationMembers.userId, userId),
-          eq(organizationMembers.organizationId, organizationId),
-        ),
-      )
-      .limit(1);
-    return member.length > 0 ? member[0] : null;
-  }
-  removeMember(userId: string, organizationId: string): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-
-  async updateMemberRole(
-    userId: string,
-    organizationId: string,
-    newRole: OrganizationRole,
-  ): Promise<OrganizationMember> {
-    const updatedAt = new Date();
-    const updated = await this.db
-      .update(organizationMembers)
-      .set({ role: newRole, updatedAt })
-      .where(
-        and(
-          eq(organizationMembers.userId, userId),
-          eq(organizationMembers.organizationId, organizationId),
-        ),
-      )
-      .returning();
-    return updated[0];
-  }
-
-  async getMembersByOrganizationId(
-    organizationId: string,
-    cursor: string,
-    limit: number,
-    filter?: MemberFilter,
-  ): Promise<PaginatedResult<OrganizationMember>> {
-    const whereConditions: SQL[] = [
-      eq(organizationMembers.organizationId, organizationId),
+  async getAllMembers(
+    orgId: string,
+    query: MemberQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<User, "id" | "name" | "avatarUrl" | "email"> & { role: string }
+    >
+  > {
+    const whereConditions: SQL<unknown>[] = [
+      isNull(users.deletedAt),
+      isNull(organizationMembers.deletedAt),
     ];
 
-    // Apply filters
-    if (filter?.role) {
-      whereConditions.push(eq(organizationMembers.role, filter.role));
+    if (query.role) {
+      whereConditions.push(eq(organizationMembers.role as any, query.role));
     }
 
-    if (filter?.keyword) {
-      // Search by user name, email, or username
+    if (query.keyword) {
       whereConditions.push(
         or(
-          ilike(users.name, `%${filter.keyword}%`),
-          ilike(users.email, `%${filter.keyword}%`),
-          ilike(users.username, `%${filter.keyword}%`),
+          ilike(users.name, `%${query.keyword}%`),
+          ilike(users.email, `%${query.keyword}%`),
         )!,
       );
     }
 
-    // Add cursor condition if provided
-    if (cursor) {
-      whereConditions.push(gt(organizationMembers.createdAt, new Date(cursor)));
+    if (query.cursor) {
+      whereConditions.push(
+        gt(organizationMembers.createdAt, new Date(query.cursor)),
+      );
     }
 
-    // Fetch limit + 1 to check if there's a next page
-    const results = await this.db
+    whereConditions.push(eq(organizationMembers.organizationId, orgId));
+
+    const members = await this.db
       .select({
-        id: organizationMembers.id,
-        userId: organizationMembers.userId,
-        organizationId: organizationMembers.organizationId,
+        id: users.id,
+        name: users.name,
+        avatarUrl: users.avatarUrl,
+        email: users.email,
         role: organizationMembers.role,
         createdAt: organizationMembers.createdAt,
-        updatedAt: organizationMembers.updatedAt,
-        deletedAt: organizationMembers.deletedAt,
       })
       .from(organizationMembers)
       .innerJoin(users, eq(organizationMembers.userId, users.id))
       .where(and(...whereConditions))
       .orderBy(desc(organizationMembers.createdAt))
-      .limit(limit + 1);
+      .limit(query.limit + 1);
 
-    // Check if there's a next page
-    const hasNextPage = results.length > limit;
-    const data = hasNextPage ? results.slice(0, limit) : results;
+    const hasNextPage = members.length > query.limit;
+    const data = hasNextPage ? members.slice(0, query.limit) : members;
 
-    // Get the next cursor from the last item
     const nextCursor =
       hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
@@ -125,36 +82,21 @@ export class OrganizationMembersRepository
     };
   }
 
-  async countMembersByOrganizationId(
-    organizationId: string,
-    filter?: MemberFilter,
-  ): Promise<number> {
-    const whereConditions: SQL[] = [
-      eq(organizationMembers.organizationId, organizationId),
-    ];
-
-    // Apply filters
-    if (filter?.role) {
-      whereConditions.push(eq(organizationMembers.role, filter.role));
-    }
-
-    if (filter?.keyword) {
-      // Search by user name, email, or username
-      whereConditions.push(
-        or(
-          ilike(users.name, `%${filter.keyword}%`),
-          ilike(users.email, `%${filter.keyword}%`),
-          ilike(users.username, `%${filter.keyword}%`),
-        )!,
-      );
-    }
-
-    const result = await this.db
-      .select({ count: users.id })
+  async getMemberRole(orgId: string, userId: string): Promise<string | null> {
+    const member = await this.db
+      .select({
+        role: organizationMembers.role,
+      })
       .from(organizationMembers)
-      .innerJoin(users, eq(organizationMembers.userId, users.id))
-      .where(and(...whereConditions));
+      .where(
+        and(
+          eq(organizationMembers.organizationId, orgId),
+          eq(organizationMembers.userId, userId),
+        ),
+      )
+      .limit(1)
+      .execute();
 
-    return result.length;
+    return member[0]?.role ?? null;
   }
 }

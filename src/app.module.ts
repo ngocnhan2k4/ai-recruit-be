@@ -5,13 +5,19 @@ import {
   UploadController,
   HealthController,
   CategoryController,
-  CompanyController,
   JobController,
   ProvinceController,
   CvController,
   UniversityController,
-  MyOrganizationController,
+  AdminUserController,
+  // MyOrganizationController,
+  NotificationController,
+  CompanyController,
+  CompanyAdminController,
+  OrganizationAdminController,
+  OrganizationController,
 } from "./interfaces/controllers";
+import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -37,9 +43,14 @@ import { LoggerServiceModule } from "./frameworks/logger-services/logger.module"
 import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
 import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
-import { SkillController } from "./interfaces/controllers/skill.controller";
+import { SkillController } from "./interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
+import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
+import { WebSocketModule } from "./frameworks/websocket/websocket.module";
+import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
+import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
+import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
 
 @Module({
   imports: [
@@ -66,20 +77,30 @@ import { UniversityUseCasesModule } from "./use-cases/university/university-use-
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
+    NotificationUseCasesModule,
+    OrganizationUseCasesModule,
+    CasbinUseCasesModule,
+    WebSocketModule,
   ],
   controllers: [
     UserController,
     AuthController,
     JobController,
+    JobAdminController,
     CategoryController,
-    CompanyController,
     UploadController,
     HealthController,
     ProvinceController,
     CvController,
     SkillController,
     UniversityController,
-    MyOrganizationController,
+    CasbinController,
+    NotificationController,
+    CompanyController,
+    CompanyAdminController,
+    OrganizationAdminController,
+    OrganizationController,
+    AdminUserController,
   ],
   providers: [
     JwtStrategy,
