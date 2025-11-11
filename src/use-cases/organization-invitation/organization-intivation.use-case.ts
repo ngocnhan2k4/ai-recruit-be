@@ -144,23 +144,46 @@ export class OrganizationInvitationUseCase {
       );
     }
 
+    console.log("Invitation found:", invitation);
+
     // Update invitation status
     invitation.status =
       data.action === "ACCEPT"
         ? OrganizationInviteStatusEnum.ACCEPTED
         : OrganizationInviteStatusEnum.DECLINED;
 
-    const updatedInvitation =
-      await this.organizationMemberInvitationRepository.update(
-        {
-          id: invitationId,
-        },
-        invitation,
-      );
+    await this.organizationMemberRepository.executeWithTransaction(
+      async (tx) => {
+        const updatedInvitation =
+          await this.organizationMemberInvitationRepository.update(
+            {
+              id: invitationId,
+            },
+            invitation,
+          );
 
-    if (!updatedInvitation) {
-      throw new BadRequestException("Failed to update invitation status.");
-    }
+        if (!updatedInvitation) {
+          throw new BadRequestException("Failed to update invitation status.");
+        }
+
+        if (data.action === "ACCEPT") {
+          // Add member to organization
+          const result = await this.organizationMemberRepository.createMember(
+            {
+              organizationId: invitation.organizationId,
+              userId: invitation.receiverId!,
+              role: invitation.role,
+            },
+            tx,
+          );
+          if (!result) {
+            throw new BadRequestException(
+              "Failed to add member to organization.",
+            );
+          }
+        }
+      },
+    );
 
     return {
       data: true,

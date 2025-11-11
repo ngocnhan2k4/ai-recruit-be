@@ -403,7 +403,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Respond to organization invitation" })
   @CasbinPermission("/invitations/:invitationId", "PATCH")
-  @Patch("onboarding")
+  @Patch("/me/invitations/:invitationId")
   @ApiResponseDto(Boolean)
   async respondToOrganizationInvitation(
     @GetUser() user: TokenPayload,
