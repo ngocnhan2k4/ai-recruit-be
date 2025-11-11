@@ -4,6 +4,7 @@ import {
   OrganizationInviteStatusEnum,
   OrganizationMemberInvitation,
 } from "@/core";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import {
@@ -29,6 +30,7 @@ export class OrganizationInvitationUseCase {
   constructor(
     private readonly organizationMemberInvitationRepository: IOrganizationMemberInvitationRepository,
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
+    private readonly notificationService: INotificationService,
   ) {}
 
   async inviteMemberToOrganization(
@@ -81,6 +83,21 @@ export class OrganizationInvitationUseCase {
     if (!invitation) {
       throw new BadRequestException("Failed to create invitation.");
     }
+
+    await this.notificationService.createAndSendToUser(
+      {
+        title: "Organization Invitation",
+        senderId: inviterId,
+        message: `You have been invited to join an organization.`,
+        payload: {
+          orgId: organizationId,
+        },
+        type: "organization_invitation",
+      },
+      {
+        userId: data.inviteeId,
+      },
+    );
 
     return {
       data: invitation,
@@ -160,6 +177,7 @@ export class OrganizationInvitationUseCase {
               id: invitationId,
             },
             invitation,
+            tx,
           );
 
         if (!updatedInvitation) {
@@ -213,8 +231,9 @@ export class OrganizationInvitationUseCase {
 
     // Define role hierarchy
     const rolePriority: Record<string, number> = {
-      organization_owner: 2,
-      organization_admin: 1,
+      organization_owner: 3,
+      organization_admin: 2,
+      organization_viewer: 1,
     };
 
     // Lấy invite có role cao nhất
