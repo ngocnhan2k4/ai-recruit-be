@@ -1,7 +1,12 @@
 import { pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
-import { OrganizationRoleEnum, organizationTypeEnum } from "./enums";
+import {
+  OrganizationInviteStatusEnum,
+  OrganizationInviteTypeEnum,
+  OrganizationRoleEnum,
+  organizationTypeEnum,
+} from "./enums";
 import { users } from "./user.model";
 import { provinces } from "./province.model";
 
@@ -44,5 +49,21 @@ export const organizationLocations = pgTable("organization_locations", {
     .references(() => organizations.id),
   address: text("address").notNull(),
   provinceId: uuid("province_id").references(() => provinces.id),
+  ...timestamps,
+});
+
+export const organizationInvitations = pgTable("organization_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  actorId: uuid("actor_id")
+    .notNull()
+    .references(() => users.id),
+  receiverId: uuid("receiver_id").references(() => users.id),
+  role: OrganizationRoleEnum("role").notNull(),
+  type: OrganizationInviteTypeEnum("type").notNull(),
+  status: OrganizationInviteStatusEnum("status").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
   ...timestamps,
 });
