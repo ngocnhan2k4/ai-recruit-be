@@ -28,7 +28,7 @@ import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
 import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
 import { OrganizationWithDetails } from "@/core";
-import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
+import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Organization")
 @Controller("organizations")
