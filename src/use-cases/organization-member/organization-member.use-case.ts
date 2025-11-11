@@ -1,4 +1,4 @@
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { OrganizationRoleEnum } from "@/core";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
@@ -33,7 +33,7 @@ export class OrganizationMemberUseCase {
         })),
         pagination: result.pagination,
       },
-      message: "Organization members retrieved successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

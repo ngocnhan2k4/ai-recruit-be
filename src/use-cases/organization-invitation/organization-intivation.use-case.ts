@@ -1,4 +1,4 @@
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   OrganizationInvitationTypeEnum,
   OrganizationInviteStatusEnum,
@@ -16,9 +16,9 @@ import {
 } from "@/interfaces/dtos";
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
-  UnauthorizedException,
 } from "@nestjs/common";
 
 @Injectable()
@@ -46,24 +46,39 @@ export class OrganizationInvitationUseCase {
       });
 
     if (!inviterInOrganization) {
-      throw new UnauthorizedException(
-        "You do not have permission to invite members to this organization.",
-      );
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const inviteeInOrganization =
+      await this.organizationMemberRepository.getByField({
+        organizationId: organizationId,
+        userId: data.inviteeId,
+      });
+
+    if (inviteeInOrganization && inviteeInOrganization.length > 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVITEE_ALREADY_MEMBER,
+        code: RESPONSE_CODE.INVITEE_ALREADY_MEMBER,
+      });
     }
 
     // Check if there is already a pending invitation
     const existingInvitation =
       await this.organizationMemberInvitationRepository.getByField({
         organizationId: organizationId,
-        actorId: data.inviteeId,
+        actorId: inviterId,
         receiverId: data.inviteeId,
         type: OrganizationInvitationTypeEnum.OUTGOING,
         status: OrganizationInviteStatusEnum.PENDING,
       });
     if (existingInvitation && existingInvitation.length > 0) {
-      throw new BadRequestException(
-        "There is already a pending invitation for this user.",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVITATION_ALREADY_SENT,
+        code: RESPONSE_CODE.INVITATION_ALREADY_SENT,
+      });
     }
 
     // Create invitation
@@ -81,7 +96,10 @@ export class OrganizationInvitationUseCase {
     );
 
     if (!invitation) {
-      throw new BadRequestException("Failed to create invitation.");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.SENT_INVITATION_FAILED,
+        code: RESPONSE_CODE.SENT_INVITATION_FAILED,
+      });
     }
 
     await this.notificationService.createAndSendToUser(
@@ -120,9 +138,10 @@ export class OrganizationInvitationUseCase {
     });
 
     if (!member) {
-      throw new UnauthorizedException(
-        "You do not have permission to view invitations for this organization.",
-      );
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
     }
 
     const invitations =
@@ -136,7 +155,7 @@ export class OrganizationInvitationUseCase {
         data: invitations.data,
         pagination: invitations.pagination,
       },
-      message: "Invitations retrieved successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -151,14 +170,18 @@ export class OrganizationInvitationUseCase {
       await this.organizationMemberInvitationRepository.get(invitationId);
 
     if (!invitation) {
-      throw new BadRequestException("Invitation not found.");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVITATION_NOT_FOUND,
+        code: RESPONSE_CODE.INVITATION_NOT_FOUND,
+      });
     }
 
     // Check if the user is the receiver of the invitation
     if (invitation.receiverId !== userId) {
-      throw new UnauthorizedException(
-        "You do not have permission to respond to this invitation.",
-      );
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
     }
 
     console.log("Invitation found:", invitation);
@@ -181,7 +204,10 @@ export class OrganizationInvitationUseCase {
           );
 
         if (!updatedInvitation) {
-          throw new BadRequestException("Failed to update invitation status.");
+          throw new BadRequestException({
+            message: RESPONSE_MESSAGE.SERVER_ERROR,
+            code: RESPONSE_CODE.SERVER_ERROR,
+          });
         }
 
         if (data.action === "ACCEPT") {
@@ -195,9 +221,10 @@ export class OrganizationInvitationUseCase {
             tx,
           );
           if (!result) {
-            throw new BadRequestException(
-              "Failed to add member to organization.",
-            );
+            throw new BadRequestException({
+              message: RESPONSE_MESSAGE.SERVER_ERROR,
+              code: RESPONSE_CODE.SERVER_ERROR,
+            });
           }
         }
       },
@@ -205,7 +232,7 @@ export class OrganizationInvitationUseCase {
 
     return {
       data: true,
-      message: "Invitation response recorded successfully.",
+      message: RESPONSE_CODE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -224,8 +251,8 @@ export class OrganizationInvitationUseCase {
     if (!invitations || invitations.length === 0) {
       return {
         data: null,
-        message: "No pending invitations.",
-        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.INVITATION_NOT_FOUND,
+        code: RESPONSE_CODE.INVITATION_NOT_FOUND,
       };
     }
 
@@ -241,11 +268,11 @@ export class OrganizationInvitationUseCase {
       return rolePriority[curr.role] > rolePriority[prev.role] ? curr : prev;
     });
 
-    console.log("Highest role invitation:", highestRoleInvite);
+    // console.log("Highest role invitation:", highestRoleInvite);
 
     return {
       data: highestRoleInvite,
-      message: "Highest role pending invitation retrieved successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

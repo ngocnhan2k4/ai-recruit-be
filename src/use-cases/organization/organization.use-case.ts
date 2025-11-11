@@ -55,7 +55,7 @@ export class OrganizationUseCase {
       data: {
         exists: mightExist,
       },
-      message: "Organization name existence checked successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -122,9 +122,10 @@ export class OrganizationUseCase {
       },
     );
     if (!result) {
-      throw new BadRequestException(
-        "[OrganizationUseCase] - [createOrganization] Failed to create organization",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.CREATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.CREATE_ORGANIZATION_FAILED,
+      });
     }
     return {
       data: result,
@@ -180,9 +181,10 @@ export class OrganizationUseCase {
     );
 
     if (!updatedOrg) {
-      throw new BadRequestException(
-        "[OrganizationUseCase] - [updateOrganization] Failed to update organization",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      });
     }
 
     return {
@@ -208,9 +210,10 @@ export class OrganizationUseCase {
   ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
     const org = await this.organizationRepository.getOrganizationById(id);
     if (!org) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [getOrganizationById] Organization with ID ${id} not found`,
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
     }
 
     let role: string = OrganizationRoleEnum.ANONYMOUSLY;
@@ -307,7 +310,7 @@ export class OrganizationUseCase {
         data: usersToInvite.data,
         pagination: usersToInvite.pagination,
       },
-      message: "Users to invite retrieved successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
