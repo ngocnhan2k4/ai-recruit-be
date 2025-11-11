@@ -348,13 +348,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
   ): Promise<ApiResponse<number>> {
-    const result = (
-      await this.userExperienceRepository.delete({
-        userId,
-        id,
-      })
-    )[0];
-    if (!result) {
+    const result = await this.userExperienceRepository.deletePermanently({
+      userId,
+      id,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
@@ -414,13 +412,11 @@ export class UserUseCases implements OnModuleInit {
       organizationId: string | null;
     }>
   > {
-    const result = (
-      await this.userSkillRepository.delete({
-        userId,
-        skillId,
-      })
-    )[0];
-    if (!result) {
+    const result = await this.userSkillRepository.deletePermanently({
+      userId,
+      skillId,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserSkill] - [deleteUserSkill] User skill not found",
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
@@ -430,8 +426,8 @@ export class UserUseCases implements OnModuleInit {
       message: "User skill deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
       data: {
-        skillId: result.skillId,
-        organizationId: result.organizationId,
+        skillId: skillId,
+        organizationId: null,
       },
     };
   }
@@ -653,6 +649,24 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  async adminDeleteUser(userId: string): Promise<ApiResponse<void>> {
+    const result = await this.userRepository.delete({
+      id: userId,
+      deletedAt: null,
+    });
+    if (result.length === 0) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: undefined,
+    };
+  }
+
   async getUserEducations(
     userId: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
@@ -797,13 +811,10 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
-    const result = (
-      await this.userEducationRepository.delete({
-        id: userEducation[0].id,
-      })
-    )[0];
-
-    if (!result) {
+    const result = await this.userEducationRepository.deletePermanently({
+      id: userEducation[0].id,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserEducation] - User education not found",
         code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
@@ -812,7 +823,7 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User education deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: result.id,
+      data: 1,
     };
   }
 }

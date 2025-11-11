@@ -96,3 +96,8 @@ export enum UpdateJobTypeEnum {
   APPROVAL = "approval",
   REJECTED = "rejected",
 }
+export enum FeedbackStatusEnum {
+  PENDING = "pending",
+  READ = "read",
+  RESOLVED = "resolved",
+}

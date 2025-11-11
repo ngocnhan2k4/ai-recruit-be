@@ -235,8 +235,8 @@ export class CvUseCases {
     }
 
     // Delete CV record from database (soft delete)
-    const deleted = await this.cvRepository.delete({ id: cvId });
-    if (deleted.length === 0) {
+    const result = await this.cvRepository.deletePermanently({ id: cvId });
+    if (result.length === 0) {
       throw new BadRequestException({
         message: "Failed to delete CV from database",
         code: RESPONSE_CODE.CV_NOT_DELETED,
