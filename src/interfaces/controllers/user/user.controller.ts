@@ -16,7 +16,6 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
@@ -31,8 +30,6 @@ import {
   UserDto,
   UserPublicResponseDto,
   UserOnboardingDto,
-  GetUserQueryDto,
-  GetAllUserResponseDto,
   GetUserResponseDto,
   UserSeoPublicResponseDto,
 } from "../../dtos";
@@ -51,7 +48,6 @@ import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { type MultipartFile } from "@fastify/multipart";
-import { PaginatedResultDto } from "../../dtos/common/query";
 import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
@@ -325,17 +321,6 @@ export class UserController {
       userOnboardingDto,
       user.userId,
     );
-  }
-
-  // [TODO]: Admin only - add CasbinPermission
-  // @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "Get all users (admin only)" })
-  @Get()
-  @ApiResponseDto(PaginatedResultDto<UserDto>)
-  async getUsers(
-    @Query() query: GetUserQueryDto,
-  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
-    return await this.userUseCases.getAllUsers(query);
   }
 
   @UseGuards(JwtAuthGuard)
