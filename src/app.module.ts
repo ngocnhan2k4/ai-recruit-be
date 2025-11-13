@@ -20,6 +20,7 @@ import {
   OrganizationInvitationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
+import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -55,6 +56,8 @@ import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module
 import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
 import { OrganizationMemberUseCasesModule } from "./use-cases/organization-member/organization-member-use-case.module";
 import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module copy";
+import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
+import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
 
 @Module({
   imports: [
@@ -87,6 +90,7 @@ import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-in
     OrganizationInvitationUseCaseModule,
     CasbinUseCasesModule,
     WebSocketModule,
+    FeedbackUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -109,6 +113,8 @@ import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-in
     OrganizationMemberController,
     OrganizationInvitationController,
     AdminUserController,
+    FeedbackController,
+    FeedbackAdminController,
   ],
   providers: [
     JwtStrategy,

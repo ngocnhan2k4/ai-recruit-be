@@ -98,6 +98,19 @@ export class GenericRepository<T, TTable extends object>
     );
 
     const result = await this.db
+      .update(this._table as any)
+      .set({ deletedAt: new Date() })
+      .where(and(...conditions))
+      .returning();
+    return result as T[];
+  }
+
+  async deletePermanently(where: Partial<T>): Promise<T[]> {
+    const conditions = Object.entries(where).map(([key, value]) =>
+      eq((this._table as any)[key], value),
+    );
+
+    const result = await this.db
       .delete(this._table as any)
       .where(and(...conditions))
       .returning();

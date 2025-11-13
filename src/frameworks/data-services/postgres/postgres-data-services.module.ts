@@ -19,6 +19,7 @@ import {
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
+  IFeedbackRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -44,6 +45,7 @@ import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/o
 import { OrganizationLocationRepository } from "./repositories/organization-location.repository";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
 import { OrganizationMemberInvitationsRepository } from "./repositories/organization-member-invitation.repository";
+import { FeedbackRepository } from "./repositories/feedback.repository";
 
 @Global()
 @Module({
@@ -176,6 +178,10 @@ import { OrganizationMemberInvitationsRepository } from "./repositories/organiza
       provide: IOrganizationMemberInvitationRepository,
       useClass: OrganizationMemberInvitationsRepository,
     },
+    {
+      provide: IFeedbackRepository,
+      useClass: FeedbackRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -198,6 +204,7 @@ import { OrganizationMemberInvitationsRepository } from "./repositories/organiza
     ISchoolRepository,
     IOrganizationLocationRepository,
     IOrganizationMemberInvitationRepository,
+    IFeedbackRepository,
   ],
 })
 export class PostgresDataServicesModule {}

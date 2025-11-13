@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   Patch,
+  Delete,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import {
@@ -57,5 +58,13 @@ export class AdminUserController {
     @Body() updateUserDto: AdminUpdateUserRequestDto,
   ) {
     return await this.userUseCases.adminUpdateUser(userId, updateUserDto);
+  }
+
+  @ApiOperation({ summary: "Delete user" })
+  @Delete(":userId")
+  @ApiParam({ name: "userId", description: "User ID", example: "123" })
+  @ApiResponseDto(GetUserResponseDto)
+  async deleteUser(@Param("userId") userId: string) {
+    return await this.userUseCases.adminDeleteUser(userId);
   }
 }

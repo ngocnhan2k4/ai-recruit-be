@@ -1064,8 +1064,8 @@ export class JobRepository
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
       .leftJoin(applyJobs, eq(applyJobs.jobId, jobs.id))
+      .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
       .where(
         and(
           eq(userInteractions.userId, userId),

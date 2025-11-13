@@ -17,6 +17,8 @@ export abstract class IGenericRepository<T> {
 
   abstract delete(where: Partial<T>): Promise<T[]>;
 
+  abstract deletePermanently(where: Partial<T>): Promise<T[]>;
+
   abstract executeWithTransaction<T>(
     fn: (tx: DBDrizzleTransaction) => Promise<T>,
   ): Promise<T>;

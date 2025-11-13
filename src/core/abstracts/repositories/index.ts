@@ -16,3 +16,4 @@ export * from "./notification-repository.abstract";
 export * from "./organization-repository.abstract";
 export * from "./organization-members-repository.abstract";
 export * from "./organization-member-invitations-repository.abstract";
+export * from "./feedback-repository.abstract";

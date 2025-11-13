@@ -13,6 +13,7 @@ import {
   organizationMembers,
   schools,
   userEducations,
+  feedbacks,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -128,3 +129,6 @@ export type NewOrganizationMemberInvitation = InferInsertModel<
 
 export type NewUserEducation = InferInsertModel<typeof userEducations>;
 export type UserEducation = InferSelectModel<typeof userEducations>;
+
+export type NewFeedback = InferInsertModel<typeof feedbacks>;
+export type Feedback = InferSelectModel<typeof feedbacks>;
