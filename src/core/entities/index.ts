@@ -20,6 +20,7 @@ import {
   userNotifications,
 } from "@/frameworks/data-services/postgres/models/notification.model";
 import {
+  organizationInvitations,
   organizationLocations,
   organizations,
 } from "@/frameworks/data-services/postgres/models/organization.model";
@@ -79,10 +80,11 @@ type NewOrganization = InferInsertModel<typeof organizations>;
 
 export type OrganizationLocation = InferSelectModel<
   typeof organizationLocations
->;
-export type NewOrganizationLocation = Omit<
-  InferInsertModel<typeof organizationLocations>,
-  "organizationId"
+> & {
+  provinceName?: string | null;
+};
+export type NewOrganizationLocation = InferInsertModel<
+  typeof organizationLocations
 >;
 
 export type OrganizationWithDetails = Organization & {
@@ -96,29 +98,34 @@ export type OrganizationWithDetails = Organization & {
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {
-  companySize?: number | null;
-  taxCode?: string | null;
-  benefits?: string | null;
-  companyRawId?: number | null;
-  schoolType?: SchoolTypeEnum | null;
-  culture?: string | null;
-  locations?: NewOrganizationLocation[];
+  // companySize?: number | null;
+  // taxCode?: string | null;
+  // benefits?: string | null;
+  // companyRawId?: number | null;
+  // schoolType?: SchoolTypeEnum | null;
+  // culture?: string | null;
+  // locations?: NewOrganizationLocation[];
 };
 
 export type Company = InferSelectModel<typeof companies> & {
   locations?: OrganizationLocation[];
 } & Organization;
 
-export type NewCompany = Omit<
-  InferInsertModel<typeof companies>,
-  "organizationId"
-> & {
-  locations?: Pick<OrganizationLocation, "address" | "provinceId">[];
-} & NewOrganization;
+export type NewCompany = InferInsertModel<typeof companies>;
 
 export type School = InferSelectModel<typeof schools> & {
   locations?: OrganizationLocation[];
 } & Organization;
+
+export type NewSchool = InferInsertModel<typeof schools>;
+
+export type OrganizationMemberInvitation = InferSelectModel<
+  typeof organizationInvitations
+>;
+
+export type NewOrganizationMemberInvitation = InferInsertModel<
+  typeof organizationInvitations
+>;
 
 export type NewUserEducation = InferInsertModel<typeof userEducations>;
 export type UserEducation = InferSelectModel<typeof userEducations>;

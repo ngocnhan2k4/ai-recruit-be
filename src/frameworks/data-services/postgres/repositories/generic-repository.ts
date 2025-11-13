@@ -71,12 +71,16 @@ export class GenericRepository<T, TTable extends object>
     return result[0] as T;
   }
 
-  async update(where: Partial<T>, item: Partial<T>): Promise<T[]> {
+  async update(
+    where: Partial<T>,
+    item: Partial<T>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
     const conditions = Object.entries(where).map(([key, value]) =>
       eq((this._table as any)[key], value),
     );
 
-    const result = await this.db
+    const result = await (tx ? tx : this.db)
       .update(this._table as any)
       .set(
         item as {

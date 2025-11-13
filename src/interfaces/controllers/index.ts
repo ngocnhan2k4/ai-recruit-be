@@ -27,6 +27,8 @@ export * from "./university/university.controller";
 
 // organization controllers
 export * from "./organization/organization.controller";
+export * from "./organization/organization-member.controller";
+export * from "./organization/organization-invitation.controller";
 export * from "./organization/admin-organization.controller";
 
 // company controllers

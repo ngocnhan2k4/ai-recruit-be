@@ -55,6 +55,7 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
+  ORGANIZATION_INVITED = "organization_invited",
   SYSTEM = "system",
 }
 export enum NotificationStatusEnum {
@@ -84,6 +85,17 @@ export enum OrganizationRoleEnum {
   ORGANIZATION_ANALYST_VIEWER = "organization_analyst_viewer",
   ORGANIZATION_EMPLOYEE = "organization_employee",
   ANONYMOUSLY = "anonymously",
+}
+
+export enum OrganizationInviteStatusEnum {
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  DECLINED = "declined",
+}
+
+export enum OrganizationInvitationTypeEnum {
+  INCOMING = "incoming",
+  OUTGOING = "outgoing",
 }
 
 export enum DomainTypeEnum {

@@ -1,30 +1,30 @@
-import { Company, NewCompany } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { PaginatedResult } from "@/common/types/api";
+import { NewSchool, School } from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
-export abstract class ICompanyRepository extends IGenericRepository<Company> {
-  abstract getCompanies(
+export abstract class ISchoolRepository extends IGenericRepository<School> {
+  abstract getSchools(
     limit: number,
     filter?: CompanyFilters,
     cursor?: string,
   ): Promise<
-    PaginatedResult<Pick<Company, "id" | "name" | "logoUrl" | "address">>
+    PaginatedResult<Pick<School, "id" | "name" | "logoUrl" | "address">>
   >;
 
-  abstract getCompanyByOrganizationId(
+  abstract getSchoolByOrganizationId(
     organizationId: string,
-  ): Promise<Company | null>;
+  ): Promise<School | null>;
 
-  abstract createCompany(
-    data: NewCompany,
+  abstract createSchool(
+    data: NewSchool,
     tx?: DBDrizzleTransaction,
-  ): Promise<Company>;
+  ): Promise<School>;
 
-  abstract updateCompany(
+  abstract updateSchool(
     id: string,
-    data: Partial<NewCompany>,
+    data: Partial<NewSchool>,
     tx?: DBDrizzleTransaction,
-  ): Promise<Company>;
+  ): Promise<School>;
 }

@@ -61,6 +61,7 @@ export const NotificationTypeEnum = pgEnum("notification_type", [
   "profile_viewed",
   "cv_approved",
   "cv_rejected",
+  "organization_invitation",
   "system",
 ]);
 export const OrganizationRoleEnum = pgEnum("organization_role", [

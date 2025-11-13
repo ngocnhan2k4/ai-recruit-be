@@ -16,6 +16,8 @@ import {
   CompanyAdminController,
   OrganizationAdminController,
   OrganizationController,
+  OrganizationMemberController,
+  OrganizationInvitationController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -52,6 +54,8 @@ import { WebSocketModule } from "./frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
 import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
+import { OrganizationMemberUseCasesModule } from "./use-cases/organization-member/organization-member-use-case.module";
+import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module copy";
 import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
 
@@ -82,6 +86,8 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
     UniversityUseCasesModule,
     NotificationUseCasesModule,
     OrganizationUseCasesModule,
+    OrganizationMemberUseCasesModule,
+    OrganizationInvitationUseCaseModule,
     CasbinUseCasesModule,
     WebSocketModule,
     FeedbackUseCasesModule,
@@ -104,6 +110,8 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
     CompanyAdminController,
     OrganizationAdminController,
     OrganizationController,
+    OrganizationMemberController,
+    OrganizationInvitationController,
     AdminUserController,
     FeedbackController,
     FeedbackAdminController,

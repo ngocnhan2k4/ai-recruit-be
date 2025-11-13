@@ -5,22 +5,30 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  ICompanyRepository,
+  IOrganizationMemberInvitationRepository,
+  IOrganizationMembersRepository,
   IOrganizationRepository,
+  ISchoolRepository,
   OrganizationRoleEnum,
+  OrganizationTypeEnum,
   OrganizationWithDetails,
+  User,
 } from "@/core";
 import {
   ApiResponse,
   CreateOrganizationDto,
+  GeneralQueryDto,
   OrganizationWithDetailsDto,
+  PaginatedResultDto,
   UpdateOrganizationDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { slugify } from "@/common/utils/string";
+import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -29,6 +37,10 @@ export class OrganizationUseCase {
   constructor(
     private readonly organizationRepository: IOrganizationRepository,
     private readonly organizationMembersRepository: IOrganizationMembersRepository,
+    private readonly organizationLocationRepository: IOrganizationLocationRepository,
+    private readonly organizationMemberInvitationRepository: IOrganizationMemberInvitationRepository,
+    private readonly companyRepository: ICompanyRepository,
+    private readonly schoolRepository: ISchoolRepository,
   ) {}
 
   async checkOrganizationName(
@@ -39,13 +51,11 @@ export class OrganizationUseCase {
       0.6,
     );
 
-    console.log("mightExist", mightExist);
-
     return {
       data: {
         exists: mightExist,
       },
-      message: "Organization name existence checked successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -54,18 +64,68 @@ export class OrganizationUseCase {
     data: CreateOrganizationDto,
     userId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const slug = this.generateSlug(data.name, new Date());
-    const result = await this.organizationRepository.createOrganization(
-      {
-        ...data,
-        slug,
+    const result = await this.organizationRepository.executeWithTransaction(
+      async (tx) => {
+        const slug = this.generateSlug(data.name, new Date());
+        const org = await this.organizationRepository.createOrganization(
+          {
+            ...data,
+            slug,
+          },
+          tx,
+        );
+
+        await this.organizationMembersRepository.createMember(
+          {
+            organizationId: org.id,
+            userId: userId,
+            role: OrganizationRoleEnum.ORGANIZATION_OWNER,
+          },
+          tx,
+        );
+        let createdCom = {};
+        let createdSch = {};
+        if (data.type === OrganizationTypeEnum.COMPANY) {
+          createdCom = await this.companyRepository.createCompany(
+            {
+              organizationId: org.id,
+              ...data,
+            },
+            tx,
+          );
+        } else if (data.type === OrganizationTypeEnum.SCHOOL) {
+          createdSch = await this.schoolRepository.createSchool(
+            {
+              ...data,
+              organizationId: org.id,
+              schoolType: data?.schoolType as any,
+            },
+            tx,
+          );
+        }
+
+        const createdLocations =
+          await this.organizationLocationRepository.createOrganizationLocations(
+            data.locations?.map((loc) => ({
+              ...loc,
+              organizationId: org.id,
+            })),
+            tx,
+          );
+
+        return {
+          ...org,
+          ...createdCom,
+          ...createdSch,
+          locations: createdLocations,
+        };
       },
-      userId,
     );
     if (!result) {
-      throw new BadRequestException(
-        "[OrganizationUseCase] - [createOrganization] Failed to create organization",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.CREATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.CREATE_ORGANIZATION_FAILED,
+      });
     }
     return {
       data: result,
@@ -78,33 +138,69 @@ export class OrganizationUseCase {
     orgId: string,
     data: UpdateOrganizationDto,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const result = await this.organizationRepository.updateOrganizationById(
-      orgId,
-      data,
+    const updatedOrg = await this.organizationRepository.executeWithTransaction(
+      async (tx) => {
+        const org = await this.organizationRepository.updateOrganizationById(
+          orgId,
+          {
+            ...data,
+          },
+          tx,
+        );
+
+        let updatedCompany = {};
+        let updatedSchool = {};
+
+        if (org.type === OrganizationTypeEnum.COMPANY) {
+          updatedCompany = await this.companyRepository.updateCompany(
+            orgId,
+            {
+              ...data,
+              organizationId: org.id,
+            },
+            tx,
+          );
+        } else if (org.type === OrganizationTypeEnum.SCHOOL) {
+          updatedSchool = await this.schoolRepository.updateSchool(
+            orgId,
+            {
+              ...data,
+              organizationId: org.id,
+              schoolType: data?.schoolType as any,
+            },
+            tx,
+          );
+        }
+
+        return {
+          ...org,
+          ...(updatedCompany ? updatedCompany : {}),
+          ...(updatedSchool ? updatedSchool : {}),
+        };
+      },
     );
-    if (!result) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [updateOrganization] Organization with ID ${orgId} not found`,
-      );
+
+    if (!updatedOrg) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      });
     }
+
     return {
+      data: updatedOrg,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 
-  async deleteOrganization(id: string): Promise<ApiResponse<boolean>> {
-    const result = await this.organizationRepository.deleteOrganizationById(id);
-    if (!result) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [deleteOrganization] Organization with ID ${id} not found`,
-      );
-    }
+  async deleteOrganization(orgId: string): Promise<ApiResponse<boolean>> {
+    const deleted =
+      await this.organizationRepository.deleteOrganizationById(orgId);
     return {
+      data: deleted,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 
@@ -114,9 +210,10 @@ export class OrganizationUseCase {
   ): Promise<ApiResponse<OrganizationWithDetailsDto | null>> {
     const org = await this.organizationRepository.getOrganizationById(id);
     if (!org) {
-      throw new NotFoundException(
-        `[OrganizationUseCase] - [getOrganizationById] Organization with ID ${id} not found`,
-      );
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
     }
 
     let role: string = OrganizationRoleEnum.ANONYMOUSLY;
@@ -158,10 +255,10 @@ export class OrganizationUseCase {
       >
     >
   > {
-    const result = await this.organizationRepository.getAllOrganizations({
-      ...query,
-      userId: userId,
-    });
+    const result = await this.organizationRepository.getMyOrganizations(
+      userId,
+      query,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -191,6 +288,30 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
+    };
+  }
+
+  async getUsersToInvite(
+    _organizationId: string,
+    query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResultDto<Pick<
+        User,
+        "id" | "name" | "email" | "avatarUrl" | "username"
+      > | null>
+    >
+  > {
+    const usersToInvite =
+      await this.organizationMemberInvitationRepository.getUsersToInvite(query);
+
+    return {
+      data: {
+        data: usersToInvite.data,
+        pagination: usersToInvite.pagination,
+      },
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 

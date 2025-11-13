@@ -286,3 +286,23 @@ export class OrganizationWithDetailsDto extends OrganizationDto {
   locations?: OrganizationLocation[] | null;
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
 }
+
+export class CreateOrganizationInvitationDto {
+  @ApiProperty({ type: "string", format: "uuid" })
+  @IsNotEmpty({ message: "Invitee ID is required" })
+  @IsUUID("4", { message: "Invitee ID must be a valid UUID" })
+  inviteeId: string;
+
+  @ApiProperty({ enum: OrganizationRoleEnum })
+  @IsNotEmpty({ message: "Role is required" })
+  @IsEnum(OrganizationRoleEnum, {
+    message: "Role must be a valid organization role",
+  })
+  role: OrganizationRoleEnum;
+}
+
+export class RespondToInvitationDto {
+  @ApiProperty({ enum: ["ACCEPT", "DECLINE"] })
+  @IsNotEmpty({ message: "Action field is required" })
+  action: "ACCEPT" | "DECLINE";
+}

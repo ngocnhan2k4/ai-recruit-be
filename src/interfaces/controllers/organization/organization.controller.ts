@@ -15,13 +15,13 @@ import {
   ApiResponseDto,
   CheckOrganizationNameResponseDto,
   CompanyDto,
-  GetCompaniesQueryDto,
   GetCompanyDto,
   CreateOrganizationDto,
   UpdateOrganizationDto,
   ApiResponse,
   PaginatedResultDto,
   OrganizationWithDetailsDto,
+  GeneralQueryDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -47,7 +47,7 @@ export class OrganizationController {
   })
   async getOrganizationsByOwner(
     @GetUser() user: TokenPayload,
-    @Query() query: GetCompaniesQueryDto,
+    @Query() query: GeneralQueryDto,
   ) {
     return await this.organizationUseCase.getOrganizationsByOwner(
       user?.userId,
@@ -146,5 +146,18 @@ export class OrganizationController {
     >
   > {
     return await this.organizationUseCase.getAllOrganizations(query);
+  }
+
+  @Get(":orgId/users-to-invite")
+  @ApiOperation({
+    summary: "Get available users to invite to an organization",
+    description:
+      "Retrieve a list of users who can be invited to join a specific organization",
+  })
+  async getUsersToInvite(
+    @Param("orgId") organizationId: string,
+    @Query() query: GeneralQueryDto,
+  ) {
+    return this.organizationUseCase.getUsersToInvite(organizationId, query);
   }
 }

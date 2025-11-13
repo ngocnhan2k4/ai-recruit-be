@@ -1,12 +1,9 @@
 import { Injectable, Inject } from "@nestjs/common";
 import {
-  Company,
   IOrganizationRepository,
   NewOrganizationWithDetails,
-  OrganizationLocation,
   OrganizationTypeEnum,
   OrganizationWithDetails,
-  School,
   SchoolTypeEnum,
 } from "@/core";
 import {
@@ -16,7 +13,7 @@ import {
 } from "../models/organization.model";
 import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import {
   eq,
@@ -32,6 +29,8 @@ import {
   lt,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
+import { provinces } from "../models";
+import { GeneralQuery } from "@/common/types/api";
 
 @Injectable()
 export class OrganizationRepository
@@ -83,11 +82,23 @@ export class OrganizationRepository
     if (!result[0]) return null;
 
     const locations = await this.db
-      .select()
+      .select({
+        id: organizationLocations.id,
+        organizationId: organizationLocations.organizationId,
+        address: organizationLocations.address,
+        provinceId: organizationLocations.provinceId,
+        provinceName: provinces.name,
+        createdAt: organizationLocations.createdAt,
+        updatedAt: organizationLocations.updatedAt,
+        deletedAt: organizationLocations.deletedAt,
+      })
       .from(organizationLocations)
-      .where(eq(organizationLocations.organizationId, id));
+      .leftJoin(provinces, eq(organizationLocations.provinceId, provinces.id))
+      .where(eq(organizationLocations.organizationId, id))
+      .execute();
 
     const row = result[0];
+
     return {
       ...row,
       companySize: row.companySize,
@@ -126,10 +137,6 @@ export class OrganizationRepository
       );
     }
 
-    if (query.userId) {
-      whereConditions.push(eq(organizationMembers.userId, query.userId));
-    }
-
     if (query.cursor) {
       whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
@@ -140,7 +147,6 @@ export class OrganizationRepository
       logoUrl: organizations.logoUrl,
       description: organizations.description,
       foundedYear: organizations.foundedYear,
-      role: organizationMembers.role,
       verifiedAt: organizations.verifiedAt,
       createdAt: organizations.createdAt,
     } as const;
@@ -168,7 +174,55 @@ export class OrganizationRepository
       )
       .where(and(...whereConditions))
       .orderBy(desc(organizations.createdAt))
-      .groupBy(organizations.id, organizationMembers.role)
+      .groupBy(organizations.id)
+      .limit(query.limit + 1);
+
+    const hasNextPage = results.length > query.limit;
+    const data = hasNextPage ? results.slice(0, query.limit) : results;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+      },
+    };
+  }
+
+  async getMyOrganizations(userId: string, query: GeneralQuery) {
+    const whereConditions: SQL<unknown>[] = [
+      isNull(organizations.deletedAt),
+      isNull(organizationMembers.deletedAt),
+    ];
+
+    whereConditions.push(eq(organizationMembers.userId, userId));
+
+    if (query.cursor) {
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
+    }
+
+    const results = await this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        description: organizations.description,
+        foundedYear: organizations.foundedYear,
+        verifiedAt: organizations.verifiedAt,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations)
+      .innerJoin(
+        organizationMembers,
+        eq(organizations.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
       .limit(query.limit + 1);
 
     const hasNextPage = results.length > query.limit;
@@ -234,153 +288,43 @@ export class OrganizationRepository
 
   async createOrganization(
     data: NewOrganizationWithDetails,
-    userId: string,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails> {
-    const dt = await this.db.transaction(async (tx) => {
-      const [org] = await tx
-        .insert(organizations)
-        .values({
-          name: data.name,
-          slug: data.slug,
-          type: data.type,
-          description: data.description,
-          address: data.address,
-          logoUrl: data.logoUrl,
-          about: data.about,
-          websiteUrl: data.websiteUrl,
-          email: data.email,
-          phone: data.phone,
-          foundedYear: data.foundedYear,
-          employeesMin: data.employeesMin,
-          employeesMax: data.employeesMax,
-        })
-        .returning();
+    const dbClient = tx ?? this.db;
+    const [org] = await dbClient
+      .insert(organizations)
+      .values({
+        name: data.name,
+        slug: data.slug,
+        type: data.type,
+        description: data.description,
+        address: data.address,
+        logoUrl: data.logoUrl,
+        about: data.about,
+        websiteUrl: data.websiteUrl,
+        email: data.email,
+        phone: data.phone,
+        foundedYear: data.foundedYear,
+        employeesMin: data.employeesMin,
+        employeesMax: data.employeesMax,
+      })
+      .returning();
 
-      const locationValues = data.locations?.map((location) => ({
-        organizationId: org.id,
-        address: location.address ?? "",
-        provinceId: location.provinceId ?? "",
-      }));
-
-      const orgLocations = await tx
-        .insert(organizationLocations)
-        .values(locationValues ?? [])
-        .returning();
-
-      let company: Company = {} as Company;
-      let school: School = {} as School;
-
-      if (org.type === OrganizationTypeEnum.COMPANY) {
-        company = await tx
-          .insert(companies)
-          .values({
-            organizationId: org.id,
-            companySize: data.companySize,
-            taxCode: data.taxCode,
-            benefits: data.benefits,
-          })
-          .returning()[0];
-      } else if (org.type === OrganizationTypeEnum.SCHOOL) {
-        school = await tx
-          .insert(schools)
-          .values({
-            organizationId: org.id,
-            schoolType: (data.schoolType as any) ?? SchoolTypeEnum.UNIVERSITY,
-          })
-          .returning()[0];
-      }
-
-      await tx
-        .insert(organizationMembers)
-        .values({
-          organizationId: org.id,
-          userId: userId,
-          role: "organization_owner",
-        })
-        .execute();
-
-      return {
-        ...org,
-        ...company,
-        ...school,
-        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
-        locations: orgLocations,
-      };
-    });
-
-    return dt;
+    return org;
   }
 
   async updateOrganizationById(
     id: string,
     data: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails> {
-    const dt = this.db.transaction(async (tx) => {
-      const [org] = await tx
-        .update(organizations)
-        .set(data)
-        .where(eq(organizations.id, id))
-        .returning();
-
-      const allLocations: OrganizationLocation[] = [];
-
-      if (data.locations && data.locations.length > 0) {
-        // for-each location, if it has id then update, else insert, then return all locations
-        for (const loc of data.locations) {
-          if (loc.id) {
-            const [updatedLoc] = await tx
-              .update(organizationLocations)
-              .set({
-                address: loc.address ?? "",
-                provinceId: loc.provinceId,
-              })
-              .where(eq(organizationLocations.id, loc.id))
-              .returning();
-            if (updatedLoc) {
-              allLocations.push(updatedLoc);
-            } else {
-              const [newLoc] = await tx
-                .insert(organizationLocations)
-                .values({
-                  organizationId: id,
-                  address: loc.address ?? "",
-                  provinceId: loc.provinceId,
-                })
-                .returning();
-              allLocations.push(newLoc);
-            }
-          }
-        }
-      }
-      const [[company], [school]] = await Promise.all([
-        tx
-          .update(companies)
-          .set({
-            companySize: data.companySize,
-            taxCode: data.taxCode,
-            benefits: data.benefits,
-          })
-          .where(eq(companies.organizationId, org.id))
-          .returning(),
-        tx
-          .update(schools)
-          .set({
-            schoolType: data.schoolType as any,
-          })
-          .where(eq(schools.organizationId, org.id))
-          .returning(),
-      ]);
-
-      return {
-        ...org,
-        ...company,
-        ...school,
-        schoolType: (school?.schoolType as SchoolTypeEnum) ?? undefined,
-        locations: allLocations,
-      };
-    });
-
-    return dt;
+    const dbClient = tx ?? this.db;
+    const [org] = await dbClient
+      .update(organizations)
+      .set(data)
+      .where(eq(organizations.id, id))
+      .returning();
+    return org;
   }
 
   async deleteOrganizationById(id: string): Promise<boolean> {

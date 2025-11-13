@@ -39,6 +39,12 @@ import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { UserEducationRepository } from "./repositories/user-education.repository";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
+import { SchoolRepository } from "./repositories/school.repository copy";
+import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
+import { OrganizationLocationRepository } from "./repositories/organization-location.repository";
+import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
+import { OrganizationMemberInvitationsRepository } from "./repositories/organization-member-invitation.repository";
 import { FeedbackRepository } from "./repositories/feedback.repository";
 
 @Global()
@@ -113,6 +119,14 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
       useClass: CompanyRepository,
     },
     {
+      provide: ISchoolRepository,
+      useClass: SchoolRepository,
+    },
+    {
+      provide: IOrganizationLocationRepository,
+      useClass: OrganizationLocationRepository,
+    },
+    {
       provide: IJobRepository,
       useClass: JobRepository,
     },
@@ -161,6 +175,10 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
       useClass: UserEducationRepository,
     },
     {
+      provide: IOrganizationMemberInvitationRepository,
+      useClass: OrganizationMemberInvitationsRepository,
+    },
+    {
       provide: IFeedbackRepository,
       useClass: FeedbackRepository,
     },
@@ -170,7 +188,6 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
     IAuthRepository,
     ICategoryRepository,
     ICasbinRepository,
-    ICompanyRepository,
     ICvRepository,
     IJobRepository,
     IProvinceRepository,
@@ -179,10 +196,14 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
     IUserSkillRepository,
     IUserRepository,
     IUserOnboardingRepository,
-    IOrganizationMembersRepository,
     INotificationRepository,
-    IOrganizationRepository,
     IUserEducationRepository,
+    IOrganizationRepository,
+    ICompanyRepository,
+    IOrganizationMembersRepository,
+    ISchoolRepository,
+    IOrganizationLocationRepository,
+    IOrganizationMemberInvitationRepository,
     IFeedbackRepository,
   ],
 })
