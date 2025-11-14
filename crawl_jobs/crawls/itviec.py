@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
+from helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl, detect_block_patterns
+from scheduler.scheduler import EnhancedCrawler
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -19,6 +20,13 @@ def clean_job_url(url: str) -> str:
 def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locations: list):
     job_url = urljoin(base_url, link)
     resp = scraper.get(clean_job_url(job_url))
+    
+    # Check for blocking patterns
+    is_blocked, block_reason = detect_block_patterns(resp.text, resp.status_code)
+    if is_blocked:
+        print(f"⚠️ [ITViec] Possible block detected: {block_reason}")
+        raise Exception(f"Blocked: {block_reason}")
+    
     soup = BeautifulSoup(resp.text, "html.parser")
 
     job_title = safe_text(soup.find("h1"))
@@ -134,5 +142,28 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def itviec_crawl():
-    return crawl(scrape_page, delay=1, jitter=0)
+def itviec_crawl(pages: int = 1, use_enhanced=True):
+    """
+    Crawl ITViec job listings.
+    
+    Args:
+        pages: Number of listing pages to crawl
+        use_enhanced: If True, use EnhancedCrawler with anti-restriction features.
+                     If False, use legacy crawl() function.
+    
+    Returns:
+        Dictionary of companies and their jobs
+    """
+    if use_enhanced:
+        print("[ITViec] Using EnhancedCrawler with anti-restriction features")
+        crawler = EnhancedCrawler()
+        return crawler.crawl_pages(
+            scrape_page_callback=scrape_page,
+            base_url="https://itviec.com",
+            pages=pages,
+            min_delay=2.0,
+            max_delay=4.0
+        )
+    else:
+        print("[ITViec] Using legacy crawler")
+        return crawl(scrape_page, delay=1, jitter=0, pages=pages)

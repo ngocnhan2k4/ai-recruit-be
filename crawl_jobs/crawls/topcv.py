@@ -171,5 +171,10 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def topcv_crawl():
-    return crawl(scrape_page, delay=3, jitter=6)
+def topcv_crawl(pages: int = 1):
+    """Crawl TopCV listing pages.
+
+    Args:
+        pages: Number of listing pages to crawl
+    """
+    return crawl(scrape_page, delay=3, jitter=6, pages=pages)
