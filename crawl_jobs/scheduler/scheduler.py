@@ -1,23 +1,9 @@
-"""
-Round-robin crawler scheduler with advanced anti-restriction features.
-
-Features:
-- Round-robin domain scheduling to distribute load
-- Per-domain rate limiting and concurrency control
-- Exponential backoff with jitter on failures
-- Session pooling and connection reuse
-- Request fingerprint randomization
-- Distributed delay patterns (human-like behavior)
-"""
-
 import time
 import random
-import hashlib
 from collections import defaultdict, deque
 from typing import Callable, Dict, Any, Optional, List
 from urllib.parse import urlparse
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 import cloudscraper
 
 
@@ -97,7 +83,6 @@ class RoundRobinScheduler:
                 {'browser': 'firefox', 'platform': 'windows', 'mobile': False},
             ]
             browser_config = random.choice(browsers)
-            # cloudscraper expects a single 'browser' kwarg with a dict, not individual kwargs
             self.scraper_pool[domain] = cloudscraper.create_scraper(browser=browser_config)
 
         return self.scraper_pool[domain]
@@ -346,7 +331,6 @@ class RoundRobinScheduler:
 class EnhancedCrawler:
     """
     Enhanced crawler wrapper that integrates round-robin scheduling
-    with your existing crawl() function pattern.
     """
     
     def __init__(self, scheduler: Optional[RoundRobinScheduler] = None):
@@ -389,6 +373,7 @@ class EnhancedCrawler:
                    scrape_page_callback: Callable,
                    base_url: str,
                    pages: int = 1,
+                   start_page: int = 1,
                    min_delay: float = 2.0,
                    max_delay: float = 5.0) -> Dict[str, Any]:
         """
@@ -398,6 +383,7 @@ class EnhancedCrawler:
             scrape_page_callback: Function(scraper, page_num, headers) -> dict
             base_url: Base URL for the site
             pages: Number of pages to crawl
+            start_page: Starting page number
             min_delay: Minimum delay between requests
             max_delay: Maximum delay between requests
             
@@ -413,7 +399,7 @@ class EnhancedCrawler:
         
         all_companies = {}
         
-        for page_num in range(1, pages + 1):
+        for page_num in range(start_page, start_page + pages):
             attempts = 0
             max_attempts = 3
             
@@ -450,7 +436,7 @@ class EnhancedCrawler:
                     time.sleep(wait_time)
             
             # Wait between pages (already handled by scheduler, but add small buffer)
-            if page_num < pages:
+            if page_num < start_page + pages - 1:
                 time.sleep(random.uniform(0.5, 1.5))
         
         return all_companies

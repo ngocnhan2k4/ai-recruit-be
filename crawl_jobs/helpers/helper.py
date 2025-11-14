@@ -22,7 +22,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0",
 ]
 
-def crawl(scrape_page: Callable[..., Any], delay=3, jitter=5, pages=1):
+def crawl(scrape_page: Callable[..., Any], delay=3, jitter=5, pages=1, start_page=1):
     scraper = cloudscraper.create_scraper(
         browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
     )
@@ -31,7 +31,7 @@ def crawl(scrape_page: Callable[..., Any], delay=3, jitter=5, pages=1):
 
     all_companies = {}
 
-    for page_num in range(1, pages + 1):
+    for page_num in range(start_page, start_page + pages):
         attempts = 0
         while True:
             try:

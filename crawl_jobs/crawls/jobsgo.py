@@ -160,10 +160,11 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def jobsgo_crawl(pages: int = 1):
+def jobsgo_crawl(pages: int = 1, start_page: int = 1):
     """Crawl JobsGO listing pages.
 
     Args:
         pages: Number of listing pages to crawl
+        start_page: Starting page number
     """
-    return crawl(scrape_page, delay=1, jitter=0, pages=pages)
+    return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)

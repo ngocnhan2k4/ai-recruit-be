@@ -12,12 +12,12 @@ from helpers.helper import (
 )
 
 
-def linkedin_crawl(categories: list, pages: int = 1):
+def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0):
     companies = {}
 
     headers = get_headers()
 
-    job_ids = get_job_ids(headers, pages=pages)
+    job_ids = get_job_ids(headers, pages=pages, start_page=start_page)
 
     # Crawl job details for each job ID
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
@@ -109,12 +109,12 @@ def linkedin_crawl(categories: list, pages: int = 1):
     return companies
 
 
-def get_job_ids(headers, pages: int = 1) -> list:
+def get_job_ids(headers, pages: int = 1, start_page: int = 0) -> list:
     job_ids = []
     search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
                     "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}" 
 
-    for i in range(0, pages):
+    for i in range(start_page, start_page + pages):
         res = requests.get(search_url.format(i), headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
