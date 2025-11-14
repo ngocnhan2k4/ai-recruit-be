@@ -176,13 +176,14 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     return companies
 
 
-def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10):
+def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10, scheduler=None):
     """Crawl TopCV listing pages.
 
     Args:
         pages: Number of listing pages to crawl
         start_page: Starting page number
         max_jobs_per_page: Maximum jobs to scrape per page (default 10)
+        scheduler: Optional RoundRobinScheduler instance (not used in legacy mode)
     """
     import functools
     scrape_page_limited = functools.partial(scrape_page, max_jobs_per_page=max_jobs_per_page)

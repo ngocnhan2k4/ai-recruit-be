@@ -12,7 +12,7 @@ from helpers.helper import (
 )
 
 
-def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0):
+def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0, scheduler=None):
     companies = {}
 
     headers = get_headers()

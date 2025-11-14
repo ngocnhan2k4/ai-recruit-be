@@ -136,7 +136,7 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def itviec_crawl(pages: int = 1, start_page: int = 1, use_enhanced=True):
+def itviec_crawl(pages: int = 1, start_page: int = 1, use_enhanced=True, scheduler=None):
     """
     Crawl ITViec job listings.
     
@@ -145,13 +145,14 @@ def itviec_crawl(pages: int = 1, start_page: int = 1, use_enhanced=True):
         start_page: Starting page number
         use_enhanced: If True, use EnhancedCrawler with anti-restriction features.
                      If False, use legacy crawl() function.
+        scheduler: Optional RoundRobinScheduler instance to share across crawlers
     
     Returns:
         Dictionary of companies and their jobs
     """
     if use_enhanced:
         print(f"[ITViec] Using EnhancedCrawler (page {start_page})")
-        crawler = EnhancedCrawler()
+        crawler = EnhancedCrawler(scheduler=scheduler)
         return crawler.crawl_pages(
             scrape_page_callback=scrape_page,
             base_url="https://itviec.com",

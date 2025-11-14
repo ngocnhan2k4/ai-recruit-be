@@ -160,11 +160,12 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def jobsgo_crawl(pages: int = 1, start_page: int = 1):
+def jobsgo_crawl(pages: int = 1, start_page: int = 1, scheduler=None):
     """Crawl JobsGO listing pages.
 
     Args:
         pages: Number of listing pages to crawl
         start_page: Starting page number
+        scheduler: Optional RoundRobinScheduler instance (not used in legacy mode)
     """
     return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)
