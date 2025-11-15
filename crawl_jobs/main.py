@@ -125,14 +125,14 @@ def main():
         # total_topcv_jobs += topcv_inserted
         # print(f"✓ TopCV page {page}: {topcv_inserted} jobs inserted\n")
 
-        # JobsGO - page by page
-        print(f"🔄 JobsGO (page {page})")
-        jobsgo_companies = jobsgo_crawl(pages=1, start_page=page, scheduler=scheduler)
-        jobsgo_inserted = insert_to_db(args.db_url, jobsgo_companies)
-        total_jobsgo_jobs += jobsgo_inserted
-        print(f"✓ JobsGO page {page}: {jobsgo_inserted} jobs inserted\n")
+        # # JobsGO - page by page
+        # print(f"🔄 JobsGO (page {page})")
+        # jobsgo_companies = jobsgo_crawl(pages=1, start_page=page, scheduler=scheduler)
+        # jobsgo_inserted = insert_to_db(args.db_url, jobsgo_companies)
+        # total_jobsgo_jobs += jobsgo_inserted
+        # print(f"✓ JobsGO page {page}: {jobsgo_inserted} jobs inserted\n")
 
-        print(f"Round {page} summary: {itviec_inserted + jobsgo_inserted} jobs inserted")
+        print(f"Round {page} summary: {itviec_inserted} jobs inserted")
         # print(f"Round {page} summary: {itviec_inserted + linkedin_inserted + topcv_inserted + jobsgo_inserted} jobs inserted")
 
     # Print final statistics
