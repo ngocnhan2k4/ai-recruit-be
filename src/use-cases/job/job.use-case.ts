@@ -110,6 +110,9 @@ export class JobUseCases {
       salaryStatistics,
       totalJobs,
       totalJobByCategoryId,
+      topAppliedJobs,
+      topEmployers,
+      topSkills,
     ] = await Promise.all([
       this.jobRepository.getFrequentlyJobs(filter),
       this.jobRepository.count({
@@ -123,6 +126,9 @@ export class JobUseCases {
       this.jobRepository.count({
         ...filter,
       }),
+      this.jobRepository.getTopAppliedJobs(filter),
+      this.jobRepository.getTopEmployers(filter),
+      this.jobRepository.getTopSkills(filter),
     ]);
 
     this.logger.log(`Fetched statistics jobs`);
@@ -135,6 +141,9 @@ export class JobUseCases {
         salaryStatistics,
         totalJobs,
         totalJobByCategoryId,
+        topAppliedJobs,
+        topEmployers,
+        topSkills,
       },
     };
   }

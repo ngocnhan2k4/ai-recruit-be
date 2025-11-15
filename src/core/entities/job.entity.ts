@@ -63,3 +63,9 @@ export interface JobCounts {
     count: number;
   }[];
 }
+
+export interface TopInMarketResponse {
+  name: string;
+  count?: number;
+  percentage: number;
+}

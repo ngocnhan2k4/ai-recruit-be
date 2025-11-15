@@ -55,6 +55,7 @@ import {
   UserInteractionResponse,
   JobAnswer,
   JobCounts,
+  TopInMarketResponse,
 } from "@/core/entities/job.entity";
 import { PaginatedResult } from "@/common/types/api";
 import { GeneralQuery } from "@/common/types/api";
@@ -458,6 +459,103 @@ export class JobRepository
       avgSalaryMin: Number(r.avgSalaryMin),
       avgSalaryMax: Number(r.avgSalaryMax),
       jobCount: Number(r.jobCount),
+    }));
+  }
+
+  async getTopAppliedJobs(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery(filter);
+
+    const result = await this.db
+      .select({
+        term: jobs.title,
+        count: countDistinct(applyJobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+      .leftJoin(applyJobs, eq(jobs.id, applyJobs.jobId))
+      .where(and(...conditions, isNotNull(applyJobs.id)))
+      .groupBy(jobs.title)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalApplications = result.reduce(
+      (sum, item) => sum + Number(item.count),
+      0,
+    );
+
+    return result.map((item) => ({
+      name: item.term,
+      count: Number(item.count),
+      percentage:
+        totalApplications > 0
+          ? Math.round((Number(item.count) / totalApplications) * 100)
+          : 0,
+    }));
+  }
+
+  async getTopEmployers(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery(filter);
+
+    const result = await this.db
+      .select({
+        name: organizations.name,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+      .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .where(and(...conditions, isNotNull(organizations.name)))
+      .groupBy(organizations.name)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
+
+    return result.map((item) => ({
+      name: item.name!,
+      percentage:
+        totalJobs > 0 ? Math.round((Number(item.count) / totalJobs) * 100) : 0,
+    }));
+  }
+
+  async getTopSkills(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery(filter);
+
+    const result = await this.db
+      .select({
+        name: skills.name,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
+      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .where(and(...conditions, isNotNull(skills.name)))
+      .groupBy(skills.name)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalJobsWithSkills = result.reduce(
+      (sum, item) => sum + Number(item.count),
+      0,
+    );
+
+    return result.map((item) => ({
+      name: item.name!,
+      count: Number(item.count),
+      percentage:
+        totalJobsWithSkills > 0
+          ? Math.round((Number(item.count) / totalJobsWithSkills) * 100)
+          : 0,
     }));
   }
 

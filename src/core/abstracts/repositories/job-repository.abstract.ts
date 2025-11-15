@@ -16,6 +16,7 @@ import {
   ApplyJobResponse,
   UserInteractionResponse,
   JobCounts,
+  TopInMarketResponse,
 } from "@/core/entities/job.entity";
 import { GeneralQuery } from "@/common/types/api";
 import { PaginatedResult } from "@/common/types/api";
@@ -43,6 +44,18 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       jobCount: number;
     }[]
   >;
+
+  abstract getTopAppliedJobs(
+    filter: StatisticsJobFilter,
+  ): Promise<TopInMarketResponse[]>;
+
+  abstract getTopEmployers(
+    filter: StatisticsJobFilter,
+  ): Promise<TopInMarketResponse[]>;
+
+  abstract getTopSkills(
+    filter: StatisticsJobFilter,
+  ): Promise<TopInMarketResponse[]>;
 
   abstract applyJob(
     jobId: string,
