@@ -104,6 +104,11 @@ export class JobUseCases {
   async getStatisticsJobs(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
+    const topInMarketFiler = {
+      fromDate: filter.fromDate,
+      toDate: filter.toDate,
+    };
+
     const [
       frequentlyJobs,
       openJobCount,
@@ -126,9 +131,9 @@ export class JobUseCases {
       this.jobRepository.count({
         ...filter,
       }),
-      this.jobRepository.getTopAppliedJobs(filter),
-      this.jobRepository.getTopEmployers(filter),
-      this.jobRepository.getTopSkills(filter),
+      this.jobRepository.getTopAppliedJobs(topInMarketFiler),
+      this.jobRepository.getTopEmployers(topInMarketFiler),
+      this.jobRepository.getTopSkills(topInMarketFiler),
     ]);
 
     this.logger.log(`Fetched statistics jobs`);

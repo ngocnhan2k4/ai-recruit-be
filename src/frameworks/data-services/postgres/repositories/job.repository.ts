@@ -505,13 +505,14 @@ export class JobRepository
     const result = await this.db
       .select({
         name: organizations.name,
+        logoUrl: organizations.logoUrl,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
       .where(and(...conditions, isNotNull(organizations.name)))
-      .groupBy(organizations.name)
+      .groupBy(organizations.name, organizations.logoUrl)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
@@ -519,6 +520,7 @@ export class JobRepository
 
     return result.map((item) => ({
       name: item.name!,
+      logoUrl: item.logoUrl!,
       percentage:
         totalJobs > 0 ? Math.round((Number(item.count) / totalJobs) * 100) : 0,
     }));
