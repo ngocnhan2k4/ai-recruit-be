@@ -47,7 +47,10 @@ export class OrganizationMemberUseCase {
   }
 
   async deleteMember(orgId: string, userId: string) {
-    return await this.organizationMemberRepository.deleteMember(orgId, userId);
+    return await this.organizationMemberRepository.delete({
+      organizationId: orgId,
+      userId,
+    });
   }
 
   async updateMemberRole(organizationId: string, data: UpdateMemberRoleDto) {

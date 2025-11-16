@@ -7,12 +7,4 @@ export abstract class IOrganizationLocationRepository extends IGenericRepository
     data: NewOrganizationLocation[],
     tx?: DBDrizzleTransaction,
   ): Promise<OrganizationLocation[]>;
-
-  abstract deleteLocation(id: string): Promise<boolean>;
-
-  abstract updateLocation(
-    id: string,
-    data: Partial<NewOrganizationLocation>,
-    tx?: DBDrizzleTransaction,
-  ): Promise<OrganizationLocation>;
 }

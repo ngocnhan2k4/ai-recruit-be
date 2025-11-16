@@ -1,8 +1,7 @@
-import { Company, NewCompany } from "@/core/entities";
+import { Company } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { PaginatedResult } from "@/common/types/api";
 import { CompanyFilters } from "@/core/entities/company.entity";
-import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class ICompanyRepository extends IGenericRepository<Company> {
   abstract getCompanies(
@@ -16,15 +15,4 @@ export abstract class ICompanyRepository extends IGenericRepository<Company> {
   abstract getCompanyByOrganizationId(
     organizationId: string,
   ): Promise<Company | null>;
-
-  abstract createCompany(
-    data: NewCompany,
-    tx?: DBDrizzleTransaction,
-  ): Promise<Company>;
-
-  abstract updateCompany(
-    id: string,
-    data: Partial<NewCompany>,
-    tx?: DBDrizzleTransaction,
-  ): Promise<Company>;
 }

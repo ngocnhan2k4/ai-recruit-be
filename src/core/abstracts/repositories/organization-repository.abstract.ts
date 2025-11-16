@@ -49,8 +49,6 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails>;
 
-  abstract deleteOrganizationById(id: string): Promise<boolean>;
-
   abstract getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]>;

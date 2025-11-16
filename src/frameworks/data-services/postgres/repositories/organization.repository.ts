@@ -327,18 +327,6 @@ export class OrganizationRepository
     return org;
   }
 
-  async deleteOrganizationById(id: string): Promise<boolean> {
-    const result = await this.db
-      .update(organizations)
-      .set({
-        deletedAt: new Date(),
-      })
-      .where(eq(organizations.id, id))
-      .execute();
-
-    return (result.rowCount ?? 0) > 0;
-  }
-
   async getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]> {
