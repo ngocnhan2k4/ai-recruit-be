@@ -59,8 +59,9 @@ export class GenericRepository<T, TTable extends object>
     return result as T[];
   }
 
-  async create(item: Partial<T>): Promise<T> {
-    const result = await this.db
+  async create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T> {
+    const dbClient = tx ?? this.db;
+    const result = await dbClient
       .insert(this._table as any)
       .values(
         item as {
@@ -80,7 +81,9 @@ export class GenericRepository<T, TTable extends object>
       eq((this._table as any)[key], value),
     );
 
-    const result = await (tx ? tx : this.db)
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
       .update(this._table as any)
       .set(
         item as {
@@ -92,12 +95,14 @@ export class GenericRepository<T, TTable extends object>
     return result;
   }
 
-  async delete(where: Partial<T>): Promise<T[]> {
+  async delete(where: Partial<T>, tx?: DBDrizzleTransaction): Promise<T[]> {
     const conditions = Object.entries(where).map(([key, value]) =>
       eq((this._table as any)[key], value),
     );
 
-    const result = await this.db
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
       .update(this._table as any)
       .set({ deletedAt: new Date() })
       .where(and(...conditions))
@@ -105,12 +110,17 @@ export class GenericRepository<T, TTable extends object>
     return result as T[];
   }
 
-  async deletePermanently(where: Partial<T>): Promise<T[]> {
+  async deletePermanently(
+    where: Partial<T>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
     const conditions = Object.entries(where).map(([key, value]) =>
       eq((this._table as any)[key], value),
     );
 
-    const result = await this.db
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
       .delete(this._table as any)
       .where(and(...conditions))
       .returning();

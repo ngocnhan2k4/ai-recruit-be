@@ -20,6 +20,7 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
       receiverId: string;
       organizationId?: string;
     }[],
+    tx?: DBDrizzleTransaction,
   ): Promise<Notification[]>;
 
   abstract getNotificationsByUser(

@@ -212,7 +212,7 @@ export class OrganizationInvitationUseCase {
 
         if (data.action === "ACCEPT") {
           // Add member to organization
-          const result = await this.organizationMemberRepository.createMember(
+          const result = await this.organizationMemberRepository.create(
             {
               organizationId: invitation.organizationId,
               userId: invitation.receiverId!,
