@@ -75,7 +75,7 @@ export class OrganizationUseCase {
           tx,
         );
 
-        await this.organizationMembersRepository.createMember(
+        await this.organizationMembersRepository.create(
           {
             organizationId: org.id,
             userId: userId,
@@ -83,13 +83,14 @@ export class OrganizationUseCase {
           },
           tx,
         );
+        const { locations, ...rest } = data;
         let createdCom = {};
         let createdSch = {};
         if (data.type === OrganizationTypeEnum.COMPANY) {
-          createdCom = await this.companyRepository.createCompany(
+          createdCom = await this.companyRepository.create(
             {
               organizationId: org.id,
-              ...data,
+              ...rest,
             },
             tx,
           );
@@ -106,7 +107,7 @@ export class OrganizationUseCase {
 
         const createdLocations =
           await this.organizationLocationRepository.createOrganizationLocations(
-            data.locations?.map((loc) => ({
+            locations?.map((loc) => ({
               ...loc,
               organizationId: org.id,
             })),
@@ -152,8 +153,10 @@ export class OrganizationUseCase {
         let updatedSchool = {};
 
         if (org.type === OrganizationTypeEnum.COMPANY) {
-          updatedCompany = await this.companyRepository.updateCompany(
-            orgId,
+          updatedCompany = await this.companyRepository.update(
+            {
+              organizationId: org.id,
+            },
             {
               ...data,
               organizationId: org.id,
@@ -195,10 +198,11 @@ export class OrganizationUseCase {
   }
 
   async deleteOrganization(orgId: string): Promise<ApiResponse<boolean>> {
-    const deleted =
-      await this.organizationRepository.deleteOrganizationById(orgId);
+    const deleted = await this.organizationRepository.delete({
+      id: orgId,
+    });
     return {
-      data: deleted,
+      data: !!deleted,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };

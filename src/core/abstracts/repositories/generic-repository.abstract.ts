@@ -7,7 +7,7 @@ export abstract class IGenericRepository<T> {
 
   abstract getByField(field: Partial<T>, omit?: (keyof T)[]): Promise<T[]>;
 
-  abstract create(item: Partial<T>): Promise<T>;
+  abstract create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T>;
 
   abstract update(
     where: Partial<T>,
@@ -15,9 +15,12 @@ export abstract class IGenericRepository<T> {
     tx?: DBDrizzleTransaction,
   ): Promise<T[]>;
 
-  abstract delete(where: Partial<T>): Promise<T[]>;
+  abstract delete(where: Partial<T>, tx?: DBDrizzleTransaction): Promise<T[]>;
 
-  abstract deletePermanently(where: Partial<T>): Promise<T[]>;
+  abstract deletePermanently(
+    where: Partial<T>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]>;
 
   abstract executeWithTransaction<T>(
     fn: (tx: DBDrizzleTransaction) => Promise<T>,

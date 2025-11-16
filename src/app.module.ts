@@ -55,7 +55,7 @@ import { OrganizationUseCasesModule } from "./use-cases/organization/organizatio
 import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
 import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
 import { OrganizationMemberUseCasesModule } from "./use-cases/organization-member/organization-member-use-case.module";
-import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module copy";
+import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
 
