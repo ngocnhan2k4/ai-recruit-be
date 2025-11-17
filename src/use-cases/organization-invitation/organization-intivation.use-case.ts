@@ -56,6 +56,7 @@ export class OrganizationInvitationUseCase {
       await this.organizationMemberRepository.getByField({
         organizationId: organizationId,
         userId: data.inviteeId,
+        deletedAt: null,
       });
 
     if (inviteeInOrganization && inviteeInOrganization.length > 0) {
