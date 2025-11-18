@@ -45,6 +45,12 @@ class SalaryStatisticsDto {
   jobCount: number;
 }
 
+class TopInMarketDto {
+  name: string;
+  count?: number;
+  percentage: number;
+}
+
 export class StatisticsJobResponse {
   @ApiProperty({ type: [FrequentlyJobDto] })
   frequentlyJobs: FrequentlyJobDto[];
@@ -60,4 +66,13 @@ export class StatisticsJobResponse {
 
   @ApiProperty({ type: Number, example: 100 })
   totalJobByCategoryId: number;
+
+  @ApiProperty({ type: [TopInMarketDto] })
+  topAppliedJobs: TopInMarketDto[];
+
+  @ApiProperty({ type: [TopInMarketDto] })
+  topEmployers: TopInMarketDto[];
+
+  @ApiProperty({ type: [TopInMarketDto] })
+  topSkills: TopInMarketDto[];
 }
