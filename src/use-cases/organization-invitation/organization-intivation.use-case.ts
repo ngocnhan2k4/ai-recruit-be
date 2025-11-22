@@ -1,8 +1,10 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
+  INotificationRepository,
   OrganizationInvitationTypeEnum,
   OrganizationInviteStatusEnum,
   OrganizationMemberInvitation,
+  OrganizationRoleEnum,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -31,35 +33,77 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberInvitationRepository: IOrganizationMemberInvitationRepository,
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     private readonly notificationService: INotificationService,
+    private readonly notificationRepository: INotificationRepository,
   ) {}
+
+  /**
+   * Check if inviter has permission to invite a user with the target role.
+   * Rules:
+   * - Members (EDITOR/EMPLOYEE/etc) cannot invite anyone
+   * - Admin can only invite Viewer
+   * - Owner can invite Owner, Admin, or Viewer
+   */
+  private canInviteRole(
+    inviterRole: string,
+    targetRole: OrganizationRoleEnum,
+  ): boolean {
+    const inviterRoleEnum = inviterRole as OrganizationRoleEnum;
+    // Owner can invite Owner, Admin, or Viewer
+    if (inviterRoleEnum === OrganizationRoleEnum.ORGANIZATION_OWNER) {
+      return [
+        OrganizationRoleEnum.ORGANIZATION_OWNER,
+        OrganizationRoleEnum.ORGANIZATION_ADMIN,
+        OrganizationRoleEnum.ORGANIZATION_VIEWER,
+      ].includes(targetRole);
+    }
+
+    // Admin can only invite Viewer
+    if (inviterRoleEnum === OrganizationRoleEnum.ORGANIZATION_ADMIN) {
+      return targetRole === OrganizationRoleEnum.ORGANIZATION_VIEWER;
+    }
+
+    // All other roles (members) cannot invite
+    return false;
+  }
 
   async inviteMemberToOrganization(
     inviterId: string,
     organizationId: string,
     data: CreateOrganizationInvitationDto,
-  ): Promise<ApiResponse<OrganizationMemberInvitation>> {
+  ): Promise<ApiResponse<void>> {
     // Check permissions of inviter
     const inviterInOrganization =
       await this.organizationMemberRepository.getByField({
         organizationId: organizationId,
         userId: inviterId,
+        deletedAt: null,
       });
 
-    if (!inviterInOrganization) {
+    if (!inviterInOrganization || inviterInOrganization.length === 0) {
       throw new ForbiddenException({
         message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
 
-    const inviteeInOrganization =
-      await this.organizationMemberRepository.getByField({
-        organizationId: organizationId,
-        userId: data.inviteeId,
-        deletedAt: null,
-      });
+    const inviterRole = inviterInOrganization[0].role;
 
-    if (inviteeInOrganization && inviteeInOrganization.length > 0) {
+    // Check if inviter has permission to invite the target role
+    if (!this.canInviteRole(inviterRole, data.role)) {
+      throw new ForbiddenException({
+        message: "You do not have permission to invite users with this role.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Check if invitee is already an active member using isNull for deletedAt
+    const isAlreadyMember =
+      await this.organizationMemberRepository.isActiveMember(
+        organizationId,
+        data.inviteeId,
+      );
+
+    if (isAlreadyMember) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.INVITEE_ALREADY_MEMBER,
         code: RESPONSE_CODE.INVITEE_ALREADY_MEMBER,
@@ -70,16 +114,26 @@ export class OrganizationInvitationUseCase {
     const existingInvitation =
       await this.organizationMemberInvitationRepository.getByField({
         organizationId: organizationId,
-        actorId: inviterId,
         receiverId: data.inviteeId,
         type: OrganizationInvitationTypeEnum.OUTGOING,
         status: OrganizationInviteStatusEnum.PENDING,
+        deletedAt: null,
       });
     if (existingInvitation && existingInvitation.length > 0) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.INVITATION_ALREADY_SENT,
-        code: RESPONSE_CODE.INVITATION_ALREADY_SENT,
-      });
+      // Update role if different
+      const pendingInvite = existingInvitation[0];
+      if ((pendingInvite.role as OrganizationRoleEnum) !== data.role) {
+        pendingInvite.role = data.role;
+        await this.organizationMemberInvitationRepository.update(
+          { id: pendingInvite.id },
+          pendingInvite,
+        );
+      }
+
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+      };
     }
 
     // Create invitation
@@ -110,6 +164,7 @@ export class OrganizationInvitationUseCase {
         message: `You have been invited to join an organization.`,
         payload: {
           orgId: organizationId,
+          userId: data.inviteeId,
         },
         type: "organization_invitation",
       },
@@ -119,7 +174,6 @@ export class OrganizationInvitationUseCase {
     );
 
     return {
-      data: invitation,
       message: "Invitation sent successfully.",
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -130,10 +184,19 @@ export class OrganizationInvitationUseCase {
     organizationId: string,
     query: GeneralQueryDto,
   ): Promise<
-    ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
+    ApiResponse<
+      PaginatedResultDto<
+        | (OrganizationMemberInvitation & {
+            inviterName?: string | null;
+            inviteeName?: string | null;
+            inviteeAvatarUrl?: string | null;
+          })
+        | null
+      >
+    >
   > {
     // Check if user is a member of the organization
-    const member = await this.organizationMemberRepository.getByField({
+    const [member] = await this.organizationMemberRepository.getByField({
       organizationId: organizationId,
       userId: userId,
     });
@@ -145,17 +208,18 @@ export class OrganizationInvitationUseCase {
       });
     }
 
+    // Repository already enriches data with user info via joins
     const invitations =
       await this.organizationMemberInvitationRepository.getByOrganizationId(
         organizationId,
         query,
       );
 
+    console.log("Fetched invitations:", { invitations });
+    console.log("Query:", { query });
+
     return {
-      data: {
-        data: invitations.data,
-        pagination: invitations.pagination,
-      },
+      data: invitations,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -184,8 +248,6 @@ export class OrganizationInvitationUseCase {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
-
-    console.log("Invitation found:", invitation);
 
     // Update invitation status
     invitation.status =
@@ -228,6 +290,12 @@ export class OrganizationInvitationUseCase {
             });
           }
         }
+
+        await this.notificationRepository.deleteInviationNotifications(
+          invitation.organizationId,
+          invitation.receiverId!,
+          tx,
+        );
       },
     );
 
@@ -238,42 +306,166 @@ export class OrganizationInvitationUseCase {
     };
   }
 
-  async getHighestRoleInvitation(
+  async getJoinInvitation(
     organizationId: string,
     userId: string,
   ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
-    const invitations =
+    const invitation =
       await this.organizationMemberInvitationRepository.getByField({
-        organizationId,
+        organizationId: organizationId,
         receiverId: userId,
+        type: OrganizationInvitationTypeEnum.OUTGOING,
+        status: OrganizationInviteStatusEnum.PENDING,
+        deletedAt: null,
+      });
+    return {
+      data: invitation && invitation.length > 0 ? invitation[0] : null,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async checkUserInvitationExists(
+    organizationId: string,
+    inviteeId: string,
+  ): Promise<boolean> {
+    const existingInvitation =
+      await this.organizationMemberInvitationRepository.getByField({
+        organizationId: organizationId,
+        receiverId: inviteeId,
+        type: OrganizationInvitationTypeEnum.OUTGOING,
         status: OrganizationInviteStatusEnum.PENDING,
       });
+    return !!(existingInvitation && existingInvitation.length > 0);
+  }
 
-    if (!invitations || invitations.length === 0) {
-      return {
-        data: null,
+  async updateInvitationRole(
+    userId: string,
+    invitationId: string,
+    newRole: string,
+  ): Promise<ApiResponse<void>> {
+    const invitation =
+      await this.organizationMemberInvitationRepository.get(invitationId);
+    if (!invitation) {
+      throw new BadRequestException({
         message: RESPONSE_MESSAGE.INVITATION_NOT_FOUND,
         code: RESPONSE_CODE.INVITATION_NOT_FOUND,
-      };
+      });
     }
 
-    // Define role hierarchy
-    const rolePriority: Record<string, number> = {
-      organization_owner: 3,
-      organization_admin: 2,
-      organization_viewer: 1,
-    };
+    // Use canInviteRole to check if userId has permission to update the role
+    const inviterInOrganization =
+      await this.organizationMemberRepository.getByField({
+        organizationId: invitation.organizationId,
+        userId: userId,
+      });
 
-    // Lấy invite có role cao nhất
-    const highestRoleInvite = invitations.reduce((prev, curr) => {
-      return rolePriority[curr.role] > rolePriority[prev.role] ? curr : prev;
-    });
+    if (!inviterInOrganization || inviterInOrganization.length === 0) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
 
-    // console.log("Highest role invitation:", highestRoleInvite);
+    const inviterRole = inviterInOrganization[0].role;
+
+    // Check if inviter has permission to invite the target role
+    if (!this.canInviteRole(inviterRole, newRole as OrganizationRoleEnum)) {
+      throw new ForbiddenException({
+        message: "You do not have permission to assign this role.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    invitation.role = newRole as OrganizationRoleEnum;
+    await this.organizationMemberInvitationRepository.update(
+      { id: invitation.id },
+      invitation,
+    );
 
     return {
-      data: highestRoleInvite,
       message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async revokeInvitation(
+    userId: string,
+    invitationId: string,
+  ): Promise<ApiResponse<void>> {
+    // Get invitation
+    const invitation =
+      await this.organizationMemberInvitationRepository.get(invitationId);
+
+    if (!invitation) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVITATION_NOT_FOUND,
+        code: RESPONSE_CODE.INVITATION_NOT_FOUND,
+      });
+    }
+
+    // Check if invitation is still pending
+    if (
+      (invitation.status as OrganizationInviteStatusEnum) !==
+      OrganizationInviteStatusEnum.PENDING
+    ) {
+      throw new BadRequestException({
+        message: "Cannot revoke invitation that is not pending.",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    // Check permission: only the inviter (actor) or organization admin/owner can revoke
+    const userInOrganization =
+      await this.organizationMemberRepository.getByField({
+        organizationId: invitation.organizationId,
+        userId: userId,
+      });
+
+    if (!userInOrganization || userInOrganization.length === 0) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const userRole = userInOrganization[0].role as OrganizationRoleEnum;
+    const isInviter = invitation.actorId === userId;
+    const isAdminOrOwner =
+      userRole === OrganizationRoleEnum.ORGANIZATION_OWNER ||
+      userRole === OrganizationRoleEnum.ORGANIZATION_ADMIN;
+
+    if (!isInviter && !isAdminOrOwner) {
+      throw new ForbiddenException({
+        message:
+          "You do not have permission to revoke this invitation. Only the inviter or organization admin/owner can revoke.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Soft delete invitation and delete related notification in transaction
+    await this.organizationMemberRepository.executeWithTransaction(
+      async (tx) => {
+        // Soft delete invitation
+        await this.organizationMemberInvitationRepository.update(
+          { id: invitationId },
+          { deletedAt: new Date() },
+          tx,
+        );
+
+        // Delete related notification
+        if (invitation.receiverId) {
+          await this.notificationRepository.deleteInviationNotifications(
+            invitation.organizationId,
+            invitation.receiverId,
+            tx,
+          );
+        }
+      },
+    );
+
+    return {
+      message: "Invitation revoked successfully.",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

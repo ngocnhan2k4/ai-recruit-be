@@ -62,7 +62,7 @@ export class OrganizationMemberUseCase {
     orgId: string,
     actorId: string,
     kickedMemberId: string,
-  ): Promise<ApiResponse<boolean>> {
+  ): Promise<ApiResponse<void>> {
     const actor = (
       await this.organizationMemberRepository.getByField({
         organizationId: orgId,

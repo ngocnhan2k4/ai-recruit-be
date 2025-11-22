@@ -103,4 +103,26 @@ export class OrganizationMembersRepository
 
     return member[0]?.role ?? null;
   }
+
+  async isActiveMember(
+    organizationId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const member = await this.db
+      .select({
+        id: organizationMembers.id,
+      })
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.userId, userId),
+          isNull(organizationMembers.deletedAt),
+        ),
+      )
+      .limit(1)
+      .execute();
+
+    return member.length > 0;
+  }
 }

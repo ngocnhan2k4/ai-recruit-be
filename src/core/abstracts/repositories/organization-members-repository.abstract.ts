@@ -16,4 +16,9 @@ export abstract class IOrganizationMembersRepository extends IGenericRepository<
   >;
 
   abstract getMemberRole(orgId: string, userId: string): Promise<string | null>;
+
+  abstract isActiveMember(
+    organizationId: string,
+    userId: string,
+  ): Promise<boolean>;
 }

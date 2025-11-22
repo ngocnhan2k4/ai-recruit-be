@@ -67,7 +67,7 @@ export class OrganizationMemberController {
     @GetUser() user: TokenPayload,
     @Param("organizationId") orgId: string,
     @Body() data: { kickedMemberId: string },
-  ): Promise<ApiResponse<boolean>> {
+  ): Promise<ApiResponse<void>> {
     return this.organizationMemberUseCase.kickMember(
       orgId,
       user.userId,
