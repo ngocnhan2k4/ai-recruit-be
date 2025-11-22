@@ -97,7 +97,7 @@ def main():
     total_topcv_jobs = 0
     total_jobsgo_jobs = 0
 
-    for page in range(1, args.pages + 1):
+    for page in range(36, 49):
         print(f"\n{'='*60}")
         print(f"📄 Round {page}/{args.pages}")
         print(f"{'='*60}\n")
