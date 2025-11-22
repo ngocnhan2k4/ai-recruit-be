@@ -97,7 +97,7 @@ def main():
     total_topcv_jobs = 0
     total_jobsgo_jobs = 0
 
-    for page in range(36, 49):
+    for page in range(1, args.pages + 1):
         print(f"\n{'='*60}")
         print(f"📄 Round {page}/{args.pages}")
         print(f"{'='*60}\n")
@@ -105,7 +105,7 @@ def main():
         # ITViec - page by page
         print(f"🔄 ITViec (page {page})")
         itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True, scheduler=scheduler)
-        itviec_inserted = insert_to_db(args.db_url, itviec_companies)
+        itviec_inserted = insert_to_db(args.db_url, itviec_companies) or 0
         total_itviec_jobs += itviec_inserted
         print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
 
