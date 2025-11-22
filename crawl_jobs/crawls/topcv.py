@@ -148,7 +148,7 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
     }
 
 
-def scrape_page(scraper, page_num, headers):
+def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     base_url = "https://www.topcv.vn/viec-lam-it"
     listing_url = f"{base_url}?page={page_num}"
 
@@ -163,7 +163,12 @@ def scrape_page(scraper, page_num, headers):
 
     companies = {}
 
-    for card in soup.find_all("div", class_="job-item-2"):
+    job_cards = soup.find_all("div", class_="job-item-2")
+    if max_jobs_per_page:
+        job_cards = job_cards[:max_jobs_per_page]
+        print(f"[TopCV] Limiting to {max_jobs_per_page} jobs per page")
+
+    for card in job_cards:
         link = card.find("a")["href"].replace("?ta_source=ITJobs_LinkDetail", "", 1)
 
         scrape_job_detail(scraper, card, base_url, link, companies)
@@ -171,5 +176,15 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def topcv_crawl():
-    return crawl(scrape_page, delay=3, jitter=6)
+def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10, scheduler=None):
+    """Crawl TopCV listing pages.
+
+    Args:
+        pages: Number of listing pages to crawl
+        start_page: Starting page number
+        max_jobs_per_page: Maximum jobs to scrape per page (default 10)
+        scheduler: Optional RoundRobinScheduler instance (not used in legacy mode)
+    """
+    import functools
+    scrape_page_limited = functools.partial(scrape_page, max_jobs_per_page=max_jobs_per_page)
+    return crawl(scrape_page_limited, delay=3, jitter=6, pages=pages, start_page=start_page)

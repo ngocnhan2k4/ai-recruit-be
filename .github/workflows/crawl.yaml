@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install dependencies
         working-directory: ./crawl_jobs
@@ -34,7 +34,7 @@ jobs:
       - name: Run crawler
         id: run_crawler
         working-directory: ./crawl_jobs
-        run: python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT"
+        run: python main.py --db-url "${{ secrets.DATABASE_URL }}" --gha-output "$GITHUB_OUTPUT" --pages 1
 
       - name: Notify Slack
         if: always()
