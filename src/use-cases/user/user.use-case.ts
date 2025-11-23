@@ -826,4 +826,22 @@ export class UserUseCases implements OnModuleInit {
       data: 1,
     };
   }
+
+  async deleteUserAccount(userId: string): Promise<ApiResponse<boolean>> {
+    const result = await this.userRepository.delete({
+      id: userId,
+      deletedAt: null,
+    });
+    if (result.length === 0) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User account deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: true,
+    };
+  }
 }

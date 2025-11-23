@@ -39,6 +39,7 @@ export class AuthUseCases {
       picture?: string;
       provider_id?: string;
       roles?: RoleEnum[];
+      emailVerified?: boolean;
     };
     try {
       decode = await this.authService.verifyIdToken(idToken);
@@ -66,6 +67,7 @@ export class AuthUseCases {
         dob: null,
         phone: null,
         provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
+        emailVerified: decode.emailVerified,
       };
       user = await this.userRepository.createUser(newUser);
 
