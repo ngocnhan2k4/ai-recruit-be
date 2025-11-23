@@ -7,7 +7,7 @@ from crawlers.linkedin import linkedin_crawl
 
 from helpers.helper import vietnam_time_now, is_safe_db_url, is_crawl_time_optimal, estimate_crawl_duration
 
-from crawl_jobs.database.connection import insert_to_db
+from database.connection import insert_to_db
 
 from scheduler.scheduler import RoundRobinScheduler
 
