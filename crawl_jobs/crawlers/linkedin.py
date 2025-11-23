@@ -103,7 +103,6 @@ def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords
 
 def get_job_ids(headers, pages: int = 1, start_page: int = 0, keywords: str = "Web Development") -> list:
     job_ids = []
-    # Convert keywords to URL format (spaces to +)
     keywords_encoded = keywords.replace(" ", "+")
     search_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords_encoded}&location=Vietnam&geoId=104195383&f_TPR=r604800&start={{}}" 
 
