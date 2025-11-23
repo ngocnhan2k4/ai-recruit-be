@@ -1,9 +1,9 @@
 import argparse
 
-from crawls.itviec import itviec_crawl
-from crawls.topcv import topcv_crawl
-from crawls.jobsgo import jobsgo_crawl
-from crawls.linkedin import linkedin_crawl
+from crawlers.itviec import itviec_crawl
+from crawlers.topcv import topcv_crawl
+from crawlers.jobsgo import jobsgo_crawl
+from crawlers.linkedin import linkedin_crawl
 
 from helpers.helper import vietnam_time_now, is_safe_db_url, is_crawl_time_optimal, estimate_crawl_duration
 
