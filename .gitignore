@@ -62,5 +62,5 @@ venv/
 __pycache__/
 *.pyc
 checkpoints/
-multi_class_model/
 data/
+multi_class_model/

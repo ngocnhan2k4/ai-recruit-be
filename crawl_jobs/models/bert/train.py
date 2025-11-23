@@ -17,7 +17,7 @@ def clean_text(row):
 
 print("Loading jobs.csv...")
 try:
-    df = pd.read_csv("../data/combine.csv") 
+    df = pd.read_csv("../data/jobs.csv") 
 except FileNotFoundError:
     print("Error: 'jobs.csv' not found.")
     exit()

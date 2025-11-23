@@ -3,6 +3,7 @@ import pandas as pd
 import json
 
 MODEL_PATH = "./multi_class_model"
+CONF_THRESHOLD = 0.4
 
 print(f"Loading model from {MODEL_PATH}...")
 classifier = pipeline("text-classification", model=MODEL_PATH)
@@ -27,16 +28,12 @@ results = classifier(inputs)
 final_categories = []
 final_scores = []
 
-print("\n--- TOP 5 PREDICTIONS (DEBUG) ---")
 for i, result in enumerate(results):
     score = result['score']
     label = result['label']
-    
-    # Print the first 5 to the screen so you can see them immediately
-    if i < 5:
-        print(f"Job: {df.iloc[i]['title']}")
-        print(f"   AI Guess: {label} (Confidence: {score:.4f})")
-        print("---")
+
+    if score < CONF_THRESHOLD:
+        label = "Other"
 
     final_categories.append(label)
     final_scores.append(score)
