@@ -17,9 +17,9 @@ export class FireBaseAuthService implements IAuthService {
     picture?: string;
     provider_id?: string;
     roles?: RoleEnum[];
+    emailVerified?: boolean;
   }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
-
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
@@ -28,6 +28,7 @@ export class FireBaseAuthService implements IAuthService {
       provider_id:
         decodedToken.provider_id || decodedToken.firebase.sign_in_provider,
       roles: (decodedToken as any).roles || [RoleEnum.USER],
+      emailVerified: decodedToken.email_verified,
     };
   }
 
