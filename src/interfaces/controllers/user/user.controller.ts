@@ -401,4 +401,14 @@ export class UserController {
       respondToInvitationDto,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Delete user account" })
+  @Delete("/me")
+  @ApiResponseDto(Boolean)
+  async deleteUserAccount(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<boolean>> {
+    return this.userUseCases.deleteUserAccount(user.userId);
+  }
 }

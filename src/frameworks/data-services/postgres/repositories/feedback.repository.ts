@@ -4,7 +4,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { feedbacks } from "../models/feedback.model";
 import { Feedback } from "@/core/entities";
 import { IFeedbackRepository } from "@/core/abstracts/repositories/feedback-repository.abstract";
-import { eq, and, desc, SQL, count, gte, lte } from "drizzle-orm";
+import { eq, and, desc, SQL, count, gte, lte, isNotNull } from "drizzle-orm";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
 import { PaginatedResult } from "@/common/types/api";
 
@@ -20,7 +20,7 @@ export class FeedbackRepository
   async getFeedbacks(
     filter: FeedbackFilter,
   ): Promise<PaginatedResult<Feedback>> {
-    const whereConditions: SQL[] = [];
+    const whereConditions: SQL[] = [isNotNull(feedbacks.deletedAt)];
 
     if (filter.userId) {
       whereConditions.push(eq(feedbacks.userId, filter.userId));
