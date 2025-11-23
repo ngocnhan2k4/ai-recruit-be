@@ -5,12 +5,12 @@ psycopg2
 aiohttp>=3.9.0
 asyncio
 # Multi-Class Classification
-pandas
-torch
-transformers
-scikit-learn 
-matplotlib
-datasets
-accelerate
-hf_xet
+# pandas
+# torch
+# transformers
+# scikit-learn 
+# matplotlib
+# datasets
+# accelerate
+# hf_xet
 # huggingface_hub

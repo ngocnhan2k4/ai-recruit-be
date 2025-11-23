@@ -7,7 +7,7 @@ from crawls.linkedin import linkedin_crawl
 
 from helpers.helper import vietnam_time_now, is_safe_db_url, is_crawl_time_optimal, estimate_crawl_duration
 
-from database.database import insert_to_db, get_all_category
+from crawl_jobs.database.connection import insert_to_db
 
 from scheduler.scheduler import RoundRobinScheduler
 
@@ -41,6 +41,12 @@ def main():
         type=int,
         default=1,
         help="Number of listing pages to crawl per site"
+    )
+    parser.add_argument(
+        "--linkedin-keywords",
+        type=str,
+        default="Web Development",
+        help="Keywords to search for on LinkedIn (default: Web Development)"
     )
 
     args = parser.parse_args()
@@ -102,19 +108,19 @@ def main():
         print(f"📄 Round {page}/{args.pages}")
         print(f"{'='*60}\n")
 
-        # ITViec - page by page
-        print(f"🔄 ITViec (page {page})")
-        itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True, scheduler=scheduler)
-        itviec_inserted = insert_to_db(args.db_url, itviec_companies) or 0
-        total_itviec_jobs += itviec_inserted
-        print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
+        # # ITViec - page by page
+        # print(f"🔄 ITViec (page {page})")
+        # itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True, scheduler=scheduler)
+        # itviec_inserted = insert_to_db(args.db_url, itviec_companies) or 0
+        # total_itviec_jobs += itviec_inserted
+        # print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
 
-        # # LinkedIn - page by page (note: LinkedIn uses 0-based indexing)
-        # print(f"🔄 LinkedIn (page {page})")
-        # linkedin_companies = linkedin_crawl(categories, pages=1, start_page=page-1, scheduler=scheduler)
-        # linkedin_inserted = insert_to_db(args.db_url, linkedin_companies)
-        # total_linkedin_jobs += linkedin_inserted
-        # print(f"✓ LinkedIn page {page}: {linkedin_inserted} jobs inserted\n")
+        # LinkedIn - page by page
+        print(f"🔄 LinkedIn (page {page}) - Keywords: {args.linkedin_keywords}")
+        linkedin_companies = linkedin_crawl(pages=1, start_page=page-1, scheduler=scheduler, keywords=args.linkedin_keywords)
+        linkedin_inserted = insert_to_db(args.db_url, linkedin_companies)
+        total_linkedin_jobs += linkedin_inserted
+        print(f"✓ LinkedIn page {page}: {linkedin_inserted} jobs inserted\n")
 
         # # TopCV - page by page (max 10 jobs per page)
         # print(f"🔄 TopCV (page {page}, max 10 jobs)")

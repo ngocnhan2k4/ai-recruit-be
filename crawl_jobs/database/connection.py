@@ -219,7 +219,20 @@ def get_all_category(db_url):
         return [row[0] for row in rows]
 
 
-def _link_job_to_category(cur, job_id, category_id):
+def _link_job_to_category(cur, job_id, category_name, valid_categories):
+    """Link job to category only if category exists in database"""
+    if category_name not in valid_categories:
+        return None
+    
+    cur.execute(
+        "SELECT id FROM categories WHERE name = %s LIMIT 1",
+        (category_name,)
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    
+    category_id = row[0]
     cur.execute(
         """
         INSERT INTO job_categories (job_id, category_id) VALUES (%s, %s)
@@ -227,6 +240,7 @@ def _link_job_to_category(cur, job_id, category_id):
         """,
         (job_id, category_id)
     )
+    return category_id
 
 
 def insert_to_db(db_url: str, companies: dict):
@@ -235,6 +249,9 @@ def insert_to_db(db_url: str, companies: dict):
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
+        
+        # Get all valid categories from database
+        valid_categories = get_all_category(db_url)
         
         for name, cdata in companies.items():
             try:
@@ -264,8 +281,7 @@ def insert_to_db(db_url: str, companies: dict):
                     jobs_inserted += 1
 
                     if jdata.get("category"):
-                        category_id = _get_or_create_category(cur, jdata["category"])
-                        _link_job_to_category(cur, job_id, category_id)
+                        _link_job_to_category(cur, job_id, jdata["category"], valid_categories)
 
                     for skill in jdata.get("skills", []):
                         skill_id = _get_or_create_skill(cur, skill)
@@ -290,7 +306,7 @@ def insert_to_db(db_url: str, companies: dict):
         if conn:
             conn.rollback()
         print(f"Database operation failed: {e}")
-        return 0  # Return 0 instead of None to avoid TypeError
+        return 0
     finally:
         if conn:
             conn.close()

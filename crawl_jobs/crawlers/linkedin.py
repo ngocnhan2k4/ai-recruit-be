@@ -12,12 +12,12 @@ from helpers.helper import (
 )
 
 
-def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0, scheduler=None):
+def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords: str = "Web Development"):
     companies = {}
 
     headers = get_headers()
 
-    job_ids = get_job_ids(headers, pages=pages, start_page=start_page)
+    job_ids = get_job_ids(headers, pages=pages, start_page=start_page, keywords=keywords)
 
     # Crawl job details for each job ID
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
@@ -45,13 +45,6 @@ def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0, schedu
         # description
         desc_wrap = soup.select_one("div.show-more-less-html__markup")
         description_parts = [{"title": "", "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip()}]
-
-        # category
-        category = None
-        for key in categories:
-            if key in safe_text(desc_wrap):
-                category = key
-                break
 
         human_delay(base=3, jitter=2)
 
@@ -99,7 +92,6 @@ def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0, schedu
         companies[company_name]["jobs"][job_title] = {
             "description": description_parts,
             "locations": locations,
-            "category": category,
             "job_url": job_url,
             "date_posted": process,
             "crawled_at": datetime.now(timezone.utc),
@@ -109,10 +101,11 @@ def linkedin_crawl(categories: list, pages: int = 1, start_page: int = 0, schedu
     return companies
 
 
-def get_job_ids(headers, pages: int = 1, start_page: int = 0) -> list:
+def get_job_ids(headers, pages: int = 1, start_page: int = 0, keywords: str = "Web Development") -> list:
     job_ids = []
-    search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/" \
-                    "search?keywords=Web+Development&location=Vietnam&geoId=104195383&f_TPR=r604800&start={}" 
+    # Convert keywords to URL format (spaces to +)
+    keywords_encoded = keywords.replace(" ", "+")
+    search_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords_encoded}&location=Vietnam&geoId=104195383&f_TPR=r604800&start={{}}" 
 
     for i in range(start_page, start_page + pages):
         res = requests.get(search_url.format(i), headers=headers)

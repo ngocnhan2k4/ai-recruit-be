@@ -62,5 +62,6 @@ venv/
 __pycache__/
 *.pyc
 checkpoints/
-data/
+**/data/*.csv
 multi_class_model/
+artifacts/

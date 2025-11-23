@@ -1,9 +1,6 @@
+import argparse
 import pandas as pd
 import psycopg2
-
-DB_URL = "postgresql://neondb_owner:npg_VFCRk1Q0cTju@ep-tiny-art-a1vu0die-pooler.ap-southeast-1.aws.neon.tech/airecruit?sslmode=require&channel_binding=require"
-
-CSV_FILE = "../data/results.csv"
 
 def get_or_create_category_id(cur, category_name):
     """
@@ -27,19 +24,19 @@ def get_or_create_category_id(cur, category_name):
         new_id = cur.fetchone()[0]
         return new_id
 
-def update_database():
-    print(f"Loading {CSV_FILE}...")
+def update_database(db_url, csv_file):
+    print(f"Loading {csv_file}...")
     try:
-        df = pd.read_csv(CSV_FILE)
+        df = pd.read_csv(csv_file)
     except FileNotFoundError:
-        print(f"Error: {CSV_FILE} not found.")
+        print(f"Error: {csv_file} not found.")
         return
 
     print("Connecting to PostgreSQL...")
     conn = None
     try:
-        # --- CONNECT USING URL ---
-        conn = psycopg2.connect(DB_URL)
+        # Connect using the argument provided
+        conn = psycopg2.connect(db_url)
         cur = conn.cursor()
 
         print(f"Processing {len(df)} jobs...")
@@ -55,6 +52,7 @@ def update_database():
 
             category_id = get_or_create_category_id(cur, predicted_cat)
 
+            # Update the linkage
             cur.execute("DELETE FROM job_categories WHERE job_id = %s", (job_id,))
             
             cur.execute(
@@ -85,4 +83,11 @@ def update_database():
             conn.close()
 
 if __name__ == "__main__":
-    update_database()
+    parser = argparse.ArgumentParser(description="Update Job Categories in Database")
+    
+    parser.add_argument("--db_url", type=str, required=True, help="PostgreSQL Connection URL")
+    parser.add_argument("--csv_file", type=str, default="../classifier/data/results.csv", help="Path to the CSV file")
+
+    args = parser.parse_args()
+
+    update_database(args.db_url, args.csv_file)

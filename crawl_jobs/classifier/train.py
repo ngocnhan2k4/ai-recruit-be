@@ -17,7 +17,7 @@ def clean_text(row):
 
 print("Loading jobs.csv...")
 try:
-    df = pd.read_csv("../data/jobs.csv") 
+    df = pd.read_csv("./data/jobs.csv") 
 except FileNotFoundError:
     print("Error: 'jobs.csv' not found.")
     exit()
@@ -100,7 +100,7 @@ print("Starting Training...")
 trainer.train()
 
 # --- SAVE MODEL ---
-final_path = "./multi_class_model"
+final_path = "./artifacts/multi_class_model"
 print(f"Saving model to {final_path}...")
 model.save_pretrained(final_path)
 tokenizer.save_pretrained(final_path)

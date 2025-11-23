@@ -59,11 +59,6 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     for skill in skill_wrap[:-1]:
         skills.append(safe_text(skill))
     
-
-    
-    # category
-    category = skills[0]
-    
     # description
     description_parts = []
     desc_wrap = soup.select_one("div.job-detail-card")
@@ -126,7 +121,6 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         "locations": locations,
         "job_url": job_url,
         "date_posted": date_posted,
-        "category": category,
         "skills": skills,
         "experience_min": experience_min,
         "experience_max": experience_max,
