@@ -21,6 +21,7 @@ import {
   skills,
   jobSkills,
   jobCategories,
+  categories,
   provinces,
   userInteractions,
   applyJobs,
@@ -526,7 +527,7 @@ export class JobRepository
     }));
   }
 
-  async getTopSkills(
+  async getTopCategories(
     filter: StatisticsJobFilter,
     limit = 10,
   ): Promise<TopInMarketResponse[]> {
@@ -534,19 +535,18 @@ export class JobRepository
 
     const result = await this.db
       .select({
-        name: skills.name,
+        name: categories.name,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
-      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
-      .where(and(...conditions, isNotNull(skills.name)))
-      .groupBy(skills.name)
+      .leftJoin(categories, eq(jobCategories.categoryId, categories.id))
+      .where(and(...conditions, isNotNull(categories.name)))
+      .groupBy(categories.name)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
-    const totalJobsWithSkills = result.reduce(
+    const totalJobsWithCategories = result.reduce(
       (sum, item) => sum + Number(item.count),
       0,
     );
@@ -555,8 +555,8 @@ export class JobRepository
       name: item.name!,
       count: Number(item.count),
       percentage:
-        totalJobsWithSkills > 0
-          ? Math.round((Number(item.count) / totalJobsWithSkills) * 100)
+        totalJobsWithCategories > 0
+          ? Math.round((Number(item.count) / totalJobsWithCategories) * 100)
           : 0,
     }));
   }

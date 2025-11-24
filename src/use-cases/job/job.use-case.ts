@@ -5,12 +5,17 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
-import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CompanyDto,
+  JobCountsDto,
+  StatisticsJobResponse,
+  TopInMarketDtoResponse,
+} from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
-  StatisticsJobResponse,
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   CreateJobDto,
@@ -101,23 +106,15 @@ export class JobUseCases {
     };
   }
 
-  async getStatisticsJobs(
+  async getJobStatistics(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
-    const topInMarketFiler = {
-      fromDate: filter.fromDate,
-      toDate: filter.toDate,
-    };
-
     const [
       frequentlyJobs,
       openJobCount,
       salaryStatistics,
       totalJobs,
       totalJobByCategoryId,
-      topAppliedJobs,
-      topEmployers,
-      topSkills,
     ] = await Promise.all([
       this.jobRepository.getFrequentlyJobs(filter),
       this.jobRepository.count({
@@ -131,12 +128,9 @@ export class JobUseCases {
       this.jobRepository.count({
         ...filter,
       }),
-      this.jobRepository.getTopAppliedJobs(topInMarketFiler),
-      this.jobRepository.getTopEmployers(topInMarketFiler),
-      this.jobRepository.getTopSkills(topInMarketFiler),
     ]);
 
-    this.logger.log(`Fetched statistics jobs`);
+    this.logger.log(`Fetched job statistics`);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -146,9 +140,32 @@ export class JobUseCases {
         salaryStatistics,
         totalJobs,
         totalJobByCategoryId,
+      },
+    };
+  }
+
+  async getTopInMarket(
+    filter: StatisticsJobFilterRequestDto,
+  ): Promise<ApiResponse<TopInMarketDtoResponse>> {
+    const topInMarketFilter = {
+      fromDate: filter.fromDate,
+      toDate: filter.toDate,
+    };
+
+    const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([
+      this.jobRepository.getTopAppliedJobs(topInMarketFilter),
+      this.jobRepository.getTopEmployers(topInMarketFilter),
+      this.jobRepository.getTopCategories(topInMarketFilter),
+    ]);
+
+    this.logger.log(`Fetched top in market data`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
         topAppliedJobs,
         topEmployers,
-        topSkills,
+        topCategories,
       },
     };
   }

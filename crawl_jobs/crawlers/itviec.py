@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl, detect_block_patterns
+from helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
 from scheduler.scheduler import EnhancedCrawler
 
 def clean_job_url(url: str) -> str:
