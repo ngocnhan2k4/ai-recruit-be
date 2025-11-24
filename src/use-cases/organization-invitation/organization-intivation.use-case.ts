@@ -91,7 +91,7 @@ export class OrganizationInvitationUseCase {
     // Check if inviter has permission to invite the target role
     if (!this.canInviteRole(inviterRole, data.role)) {
       throw new ForbiddenException({
-        message: "You do not have permission to invite users with this role.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -165,6 +165,7 @@ export class OrganizationInvitationUseCase {
         payload: {
           orgId: organizationId,
           userId: data.inviteeId,
+          orgInvitationId: invitation.id,
         },
         type: "organization_invitation",
       },
@@ -214,9 +215,6 @@ export class OrganizationInvitationUseCase {
         organizationId,
         query,
       );
-
-    console.log("Fetched invitations:", { invitations });
-    console.log("Query:", { query });
 
     return {
       data: invitations,
