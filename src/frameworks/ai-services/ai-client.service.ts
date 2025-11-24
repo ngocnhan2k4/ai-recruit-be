@@ -3,8 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { HttpService } from "@nestjs/axios";
 import { IAIService } from "@/core/abstracts";
 import {
-  GeneratedRoadmap,
-  RoadmapGenerate,
+  PreviewRoadmapResponse,
+  RoadmapGenerateRequest,
 } from "@/core/entities/learning-path.entity";
 import { firstValueFrom, retry, timeout, catchError } from "rxjs";
 import { AxiosError } from "axios";
@@ -30,11 +30,13 @@ export class AIClientService implements IAIService {
       this.configService.get<number>("AI_SERVICE_MAX_RETRIES") || 3;
   }
 
-  async generateRoadmap(request: RoadmapGenerate): Promise<GeneratedRoadmap> {
+  async generateRoadmap(
+    request: RoadmapGenerateRequest,
+  ): Promise<PreviewRoadmapResponse> {
     const url = `${this.aiServiceUrl}/api/v1/generate-roadmap`;
 
     const response$ = this.httpService
-      .post<GeneratedRoadmap>(url, request, {
+      .post<PreviewRoadmapResponse>(url, request, {
         headers: {
           "Content-Type": "application/json",
         },

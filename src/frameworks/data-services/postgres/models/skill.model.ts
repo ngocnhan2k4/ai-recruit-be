@@ -1,6 +1,26 @@
-import { pgTable, uuid, varchar } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, jsonb } from "drizzle-orm/pg-core";
+import { timestamps } from "./helpers";
 
 export const skills = pgTable("skills", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 255 }).notNull().unique(),
+  slug: varchar("slug", { length: 255 }).unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+
+  proficiencyLevels: jsonb("proficiency_levels").$type<{
+    beginner?: {
+      summary: string;
+      criteria: string[];
+    };
+    intermediate?: {
+      summary: string;
+      criteria: string[];
+    };
+    advanced?: {
+      summary: string;
+      criteria: string[];
+    };
+  }>(),
+
+  ...timestamps,
 });

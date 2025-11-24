@@ -44,7 +44,7 @@ export class UserExperienceRepository
         OrganizationWithDetails,
         "id" | "name" | "address" | "logoUrl"
       >;
-      skills: Skill[];
+      skills: Pick<Skill, "id" | "name">[];
     }[]
   > {
     const rows = await this.db
@@ -114,7 +114,7 @@ export class UserExperienceRepository
               OrganizationWithDetails,
               "id" | "name" | "address" | "logoUrl"
             >;
-            skills: Skill[];
+            skills: Pick<Skill, "id" | "name">[];
           }
         >,
       ),

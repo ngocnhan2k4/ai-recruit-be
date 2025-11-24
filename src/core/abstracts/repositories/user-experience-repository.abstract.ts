@@ -17,7 +17,7 @@ export abstract class IUserExperienceRepository extends IGenericRepository<UserE
         OrganizationWithDetails,
         "id" | "name" | "address" | "logoUrl"
       >;
-      skills: Skill[];
+      skills: Pick<Skill, "id" | "name">[];
     }[]
   >;
 

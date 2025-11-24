@@ -1,70 +1,86 @@
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import {
+  learningRoadmaps,
+  roadmapPhases,
+  roadmapSkills,
+} from "@/frameworks/data-services/postgres/models";
 import {
   SkillLevelEnum,
   ResourceTypeEnum,
   GapDifficultyEnum,
 } from "./enum.entity";
 
-interface SkillLevel {
+export type NewLearningRoadmap = InferInsertModel<typeof learningRoadmaps>;
+export type LearningRoadmap = InferSelectModel<typeof learningRoadmaps>;
+
+export type NewRoadmapPhase = InferInsertModel<typeof roadmapPhases>;
+export type RoadmapPhase = InferSelectModel<typeof roadmapPhases>;
+
+export type NewRoadmapSkill = InferInsertModel<typeof roadmapSkills>;
+export type RoadmapSkill = InferSelectModel<typeof roadmapSkills>;
+
+export interface SkillLevel {
+  skillId: string;
   level: SkillLevelEnum;
-  confidence: number; // 0-10
 }
 
-interface Resource {
+export interface Resource {
   title: string;
   type: ResourceTypeEnum;
   url?: string;
   isFree: boolean;
 }
 
-interface Skill {
-  skillId: string;
-  name: string;
-  description: string;
-  estimatedHours: number;
-  weekStart: number;
-  weekEnd: number;
-  prerequisites: string[];
-  resources: Resource[];
-  keyConcepts: string[];
+export interface DependencyGraph {
+  nodes: Array<{ id: string; label: string }>;
+  edges: Array<{ from: string; to: string }>;
 }
 
-interface Phase {
-  phaseId: string;
-  name: string;
-  description: string;
-  durationWeeks: number;
-  skills: Skill[];
-}
-
-interface DependencyEdge {
-  fromSkill: string;
-  toSkill: string;
-}
-
-interface DependencyGraph {
-  nodes: string[];
-  edges: DependencyEdge[];
-}
-
-interface GapAnalysis {
+export interface GapAnalysis {
   missingSkills: string[];
   skillsToImprove: string[];
   estimatedDifficulty: GapDifficultyEnum;
 }
 
-export interface RoadmapGenerate {
+export interface RoadmapGenerateRequest {
   currentRole?: string;
   targetRole: string;
   timelineWeeks: number;
   timeCommitmentHoursPerWeek: number;
-  currentSkills?: Record<string, SkillLevel>;
+  currentSkills?: SkillLevel[];
 }
 
-export interface GeneratedRoadmap {
-  roadmapId: string;
-  generatedAt: string;
+export interface PreviewRoadmapResponse {
   gapAnalysis: GapAnalysis;
   totalWeeks: number;
-  phases: Phase[];
+  phases: Array<{
+    name: string;
+    description: string;
+    durationWeeks: number;
+    orderIndex: number;
+    skills: Array<{
+      skillId: string;
+      estimatedHours: number;
+      weekStart: number;
+      weekEnd: number;
+      prerequisites: string[];
+      resources: Resource[];
+      keyConcepts: string[];
+      orderIndex: number;
+    }>;
+  }>;
   dependencyGraph: DependencyGraph;
+}
+
+export interface LearningRoadmapWithDetails extends LearningRoadmap {
+  phases: Array<RoadmapPhase & { skills: RoadmapSkill[] }>;
+}
+
+export interface RoadmapProgressStats {
+  totalSkills: number;
+  completedSkills: number;
+  totalPhases: number;
+  completedPhases: number;
+  overallProgress: number;
+  estimatedCompletionDate: Date | null;
 }

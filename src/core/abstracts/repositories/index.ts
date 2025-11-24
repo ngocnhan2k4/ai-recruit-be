@@ -17,3 +17,6 @@ export * from "./organization-repository.abstract";
 export * from "./organization-members-repository.abstract";
 export * from "./organization-member-invitations-repository.abstract";
 export * from "./feedback-repository.abstract";
+export * from "./learning-roadmap-repository.abstract";
+export * from "./roadmap-phase-repository.abstract";
+export * from "./roadmap-skill-repository.abstract";

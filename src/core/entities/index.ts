@@ -132,3 +132,5 @@ export type UserEducation = InferSelectModel<typeof userEducations>;
 
 export type NewFeedback = InferInsertModel<typeof feedbacks>;
 export type Feedback = InferSelectModel<typeof feedbacks>;
+
+export * from "./learning-path.entity";
