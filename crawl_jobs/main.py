@@ -1,13 +1,13 @@
 import argparse
 
-from crawls.itviec import itviec_crawl
-from crawls.topcv import topcv_crawl
-from crawls.jobsgo import jobsgo_crawl
-from crawls.linkedin import linkedin_crawl
+from crawlers.itviec import itviec_crawl
+from crawlers.topcv import topcv_crawl
+from crawlers.jobsgo import jobsgo_crawl
+from crawlers.linkedin import linkedin_crawl
 
 from helpers.helper import vietnam_time_now, is_safe_db_url, is_crawl_time_optimal, estimate_crawl_duration
 
-from database.database import insert_to_db, get_all_category
+from database.connection import insert_to_db
 
 from scheduler.scheduler import RoundRobinScheduler
 
@@ -41,6 +41,12 @@ def main():
         type=int,
         default=1,
         help="Number of listing pages to crawl per site"
+    )
+    parser.add_argument(
+        "--linkedin-keywords",
+        type=str,
+        default="Web Development",
+        help="Keywords to search for on LinkedIn (default: Web Development)"
     )
 
     args = parser.parse_args()
@@ -87,8 +93,6 @@ def main():
     estimated_duration = estimate_crawl_duration(total_pages * num_domains, avg_delay, num_domains)
     print(f"⏱️  Estimated crawl duration: ~{estimated_duration}\n")
 
-    categories = get_all_category(args.db_url)
-
     # Round-robin crawling: crawl 1 page from each site, insert, repeat
     print("=" * 60)
     print("🔄 Starting Round-Robin Crawl (page-by-page across all sites)")
@@ -104,35 +108,35 @@ def main():
         print(f"📄 Round {page}/{args.pages}")
         print(f"{'='*60}\n")
 
-        # ITViec - page by page
-        print(f"🔄 ITViec (page {page})")
-        itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True, scheduler=scheduler)
-        itviec_inserted = insert_to_db(args.db_url, itviec_companies)
-        total_itviec_jobs += itviec_inserted
-        print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
+        # # ITViec - page by page
+        # print(f"🔄 ITViec (page {page})")
+        # itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True, scheduler=scheduler)
+        # itviec_inserted = insert_to_db(args.db_url, itviec_companies) or 0
+        # total_itviec_jobs += itviec_inserted
+        # print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
 
-        # LinkedIn - page by page (note: LinkedIn uses 0-based indexing)
-        print(f"🔄 LinkedIn (page {page})")
-        linkedin_companies = linkedin_crawl(categories, pages=1, start_page=page-1, scheduler=scheduler)
+        # LinkedIn - page by page
+        print(f"🔄 LinkedIn (page {page}) - Keywords: {args.linkedin_keywords}")
+        linkedin_companies = linkedin_crawl(pages=1, start_page=page-1, scheduler=scheduler, keywords=args.linkedin_keywords)
         linkedin_inserted = insert_to_db(args.db_url, linkedin_companies)
         total_linkedin_jobs += linkedin_inserted
         print(f"✓ LinkedIn page {page}: {linkedin_inserted} jobs inserted\n")
 
-        # TopCV - page by page (max 10 jobs per page)
-        print(f"🔄 TopCV (page {page}, max 10 jobs)")
-        topcv_companies = topcv_crawl(pages=1, start_page=page, max_jobs_per_page=10, scheduler=scheduler)
-        topcv_inserted = insert_to_db(args.db_url, topcv_companies)
-        total_topcv_jobs += topcv_inserted
-        print(f"✓ TopCV page {page}: {topcv_inserted} jobs inserted\n")
+        # # TopCV - page by page (max 10 jobs per page)
+        # print(f"🔄 TopCV (page {page}, max 10 jobs)")
+        # topcv_companies = topcv_crawl(pages=1, start_page=page, max_jobs_per_page=10, scheduler=scheduler)
+        # topcv_inserted = insert_to_db(args.db_url, topcv_companies)
+        # total_topcv_jobs += topcv_inserted
+        # print(f"✓ TopCV page {page}: {topcv_inserted} jobs inserted\n")
 
-        # JobsGO - page by page
-        print(f"🔄 JobsGO (page {page})")
-        jobsgo_companies = jobsgo_crawl(pages=1, start_page=page, scheduler=scheduler)
-        jobsgo_inserted = insert_to_db(args.db_url, jobsgo_companies)
-        total_jobsgo_jobs += jobsgo_inserted
-        print(f"✓ JobsGO page {page}: {jobsgo_inserted} jobs inserted\n")
+        # # JobsGO - page by page
+        # print(f"🔄 JobsGO (page {page})")
+        # jobsgo_companies = jobsgo_crawl(pages=1, start_page=page, scheduler=scheduler)
+        # jobsgo_inserted = insert_to_db(args.db_url, jobsgo_companies)
+        # total_jobsgo_jobs += jobsgo_inserted
+        # print(f"✓ JobsGO page {page}: {jobsgo_inserted} jobs inserted\n")
 
-        print(f"Round {page} summary: {itviec_inserted + linkedin_inserted + topcv_inserted + jobsgo_inserted} jobs inserted")
+        # print(f"Round {page} summary: {itviec_inserted + linkedin_inserted + topcv_inserted + jobsgo_inserted} jobs inserted")
 
     # Print final statistics
     print("\n" + "=" * 60)

@@ -15,6 +15,7 @@ export class StatisticsJobFilterRequestDto {
 
   @ApiProperty({ type: String, example: "category-uuid" })
   @IsString()
+  @IsOptional()
   categoryId: string;
 
   @ApiProperty({ type: String, example: "province-uuid", required: false })
@@ -45,10 +46,22 @@ class SalaryStatisticsDto {
   jobCount: number;
 }
 
-class TopInMarketDto {
+export class TopInMarketDto {
   name: string;
+  logoUrl?: string;
   count?: number;
   percentage: number;
+}
+
+export class TopInMarketDtoResponse {
+  @ApiProperty({ type: [TopInMarketDto] })
+  topAppliedJobs: TopInMarketDto[];
+
+  @ApiProperty({ type: [TopInMarketDto] })
+  topEmployers: TopInMarketDto[];
+
+  @ApiProperty({ type: [TopInMarketDto] })
+  topCategories: TopInMarketDto[];
 }
 
 export class StatisticsJobResponse {
@@ -66,13 +79,4 @@ export class StatisticsJobResponse {
 
   @ApiProperty({ type: Number, example: 100 })
   totalJobByCategoryId: number;
-
-  @ApiProperty({ type: [TopInMarketDto] })
-  topAppliedJobs: TopInMarketDto[];
-
-  @ApiProperty({ type: [TopInMarketDto] })
-  topEmployers: TopInMarketDto[];
-
-  @ApiProperty({ type: [TopInMarketDto] })
-  topSkills: TopInMarketDto[];
 }
