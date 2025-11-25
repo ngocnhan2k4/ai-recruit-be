@@ -13,8 +13,10 @@ import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitati
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -39,13 +41,13 @@ export class OrganizationInvitationController {
     @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
     @Body() data: CreateOrganizationInvitationDto,
-  ): Promise<ApiResponse<OrganizationMemberInvitation>> {
+  ): Promise<ApiResponse<void>> {
     console.log("Invite member called with data:", {
       inviterId: user.userId,
       organizationId,
       data,
     });
-    return this.organizationInvitationUseCase.inviteMemberToOrganization(
+    return await this.organizationInvitationUseCase.inviteMemberToOrganization(
       user.userId, // actorID
       organizationId, // organizationId
       data,
@@ -78,13 +80,48 @@ export class OrganizationInvitationController {
     description: "Retrieve my invitations for a specific organization",
   })
   @ApiResponseDto(Boolean)
-  async getHighestRoleInvitation(
+  async getJoinInvitation(
     @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
   ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
-    return await this.organizationInvitationUseCase.getHighestRoleInvitation(
+    return await this.organizationInvitationUseCase.getJoinInvitation(
       organizationId,
       user.userId,
+    );
+  }
+
+  @Patch(":invitationId/role")
+  @ApiOperation({
+    summary: "Update invitation role",
+    description: "Update the role of an organization invitation",
+  })
+  @ApiResponseDto(Boolean)
+  async updateInivitationRole(
+    @GetUser() user: TokenPayload,
+    @Param("invitationId") invitationId: string,
+    @Body() body: { newRole: string },
+  ): Promise<ApiResponse<void>> {
+    return await this.organizationInvitationUseCase.updateInvitationRole(
+      user.userId,
+      invitationId,
+      body.newRole,
+    );
+  }
+
+  @Delete(":invitationId")
+  @ApiOperation({
+    summary: "Revoke invitation",
+    description:
+      "Revoke a pending invitation. Only the inviter or organization admin/owner can revoke.",
+  })
+  @ApiResponseDto(Boolean)
+  async revokeInvitation(
+    @GetUser() user: TokenPayload,
+    @Param("invitationId") invitationId: string,
+  ): Promise<ApiResponse<void>> {
+    return await this.organizationInvitationUseCase.revokeInvitation(
+      user.userId,
+      invitationId,
     );
   }
 }

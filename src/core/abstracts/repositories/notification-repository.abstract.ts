@@ -30,6 +30,12 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
 
   abstract markAsDeleted(userNotificationIds: string[]): Promise<void>;
 
+  abstract deleteInviationNotifications(
+    organizationId: string,
+    inviteeId: string,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void>;
+
   abstract getUnreadCount(
     userId: string,
     organizationId?: string,

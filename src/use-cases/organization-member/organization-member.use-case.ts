@@ -7,7 +7,12 @@ import {
   OrganizationMemberDto,
   UpdateMemberRoleDto,
 } from "@/interfaces/dtos/organization/organization-member.dto";
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 
 @Injectable()
 export class OrganizationMemberUseCase {
@@ -53,6 +58,62 @@ export class OrganizationMemberUseCase {
     });
   }
 
+  async kickMember(
+    orgId: string,
+    actorId: string,
+    kickedMemberId: string,
+  ): Promise<ApiResponse<void>> {
+    const actor = (
+      await this.organizationMemberRepository.getByField({
+        organizationId: orgId,
+        userId: actorId,
+      })
+    )[0];
+
+    if (!actor) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const kickedMember = (
+      await this.organizationMemberRepository.getByField({
+        organizationId: orgId,
+        userId: kickedMemberId,
+      })
+    )[0];
+
+    if (!kickedMember) {
+      throw new BadRequestException({
+        message: "The member to be kicked does not exist in the organization.",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    if (
+      this.compareRoles(
+        actor.role as OrganizationRoleEnum,
+        kickedMember.role as OrganizationRoleEnum,
+      ) <= 0
+    ) {
+      throw new ForbiddenException({
+        message: "You do not have permission to kick this member.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    await this.organizationMemberRepository.delete({
+      organizationId: orgId,
+      userId: kickedMemberId,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
   async updateMemberRole(organizationId: string, data: UpdateMemberRoleDto) {
     return await this.organizationMemberRepository.update(
       {
@@ -63,5 +124,22 @@ export class OrganizationMemberUseCase {
         role: data.role,
       },
     );
+  }
+
+  compareRoles(
+    role1: OrganizationRoleEnum,
+    role2: OrganizationRoleEnum,
+  ): number {
+    const roleHierarchy = {
+      [OrganizationRoleEnum.ORGANIZATION_OWNER]: 3,
+      [OrganizationRoleEnum.ORGANIZATION_ADMIN]: 2,
+      [OrganizationRoleEnum.ORGANIZATION_VIEWER]: 1,
+      [OrganizationRoleEnum.ANONYMOUSLY]: 0,
+    };
+
+    const rank1 = roleHierarchy[role1] || 0;
+    const rank2 = roleHierarchy[role2] || 0;
+
+    return rank1 - rank2;
   }
 }

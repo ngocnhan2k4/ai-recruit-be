@@ -1,5 +1,7 @@
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import type { TokenPayload } from "@/common/types/token";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { ApiResponseDto } from "@/interfaces/dtos";
+import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
   GetMemberQueryDto,
   UpdateMemberRoleDto,
@@ -53,6 +55,23 @@ export class OrganizationMemberController {
     return this.organizationMemberUseCase.deleteMember(
       organizationId,
       body.userId,
+    );
+  }
+
+  @Post("kick-member")
+  @ApiOperation({
+    summary: "Kick a member from an organization",
+    description: "Kick a member out of a specific organization",
+  })
+  async kickMember(
+    @GetUser() user: TokenPayload,
+    @Param("organizationId") orgId: string,
+    @Body() data: { kickedMemberId: string },
+  ): Promise<ApiResponse<void>> {
+    return this.organizationMemberUseCase.kickMember(
+      orgId,
+      user.userId,
+      data.kickedMemberId,
     );
   }
 
