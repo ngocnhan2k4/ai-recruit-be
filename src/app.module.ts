@@ -58,6 +58,7 @@ import { OrganizationMemberUseCasesModule } from "./use-cases/organization-membe
 import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
+import { EmailModule } from "./frameworks/email-services/email.module";
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
     CasbinUseCasesModule,
     WebSocketModule,
     FeedbackUseCasesModule,
+    EmailModule,
   ],
   controllers: [
     UserController,

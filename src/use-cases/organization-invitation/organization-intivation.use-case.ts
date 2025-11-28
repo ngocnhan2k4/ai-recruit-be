@@ -5,6 +5,8 @@ import {
   OrganizationInviteStatusEnum,
   OrganizationMemberInvitation,
   OrganizationRoleEnum,
+  IUserRepository,
+  IOrganizationRepository,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -22,6 +24,9 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
+import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
+import { EmailJobType } from "@/frameworks/email-services/interfaces/email-job.interface";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class OrganizationInvitationUseCase {
@@ -34,6 +39,9 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     private readonly notificationService: INotificationService,
     private readonly notificationRepository: INotificationRepository,
+    private readonly emailQueueService: EmailQueueService,
+    private readonly userRepository: IUserRepository,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   /**
@@ -173,6 +181,41 @@ export class OrganizationInvitationUseCase {
         userId: data.inviteeId,
       },
     );
+
+    // Queue email invitation (non-blocking)
+    try {
+      const [invitee, inviter, organization] = await Promise.all([
+        this.userRepository.get(data.inviteeId),
+        this.userRepository.get(inviterId),
+        this.organizationRepository.get(organizationId),
+      ]);
+
+      if (invitee?.email && inviter?.name && organization?.name) {
+        const invitationLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard/organizations/${organizationId}/overview`;
+        const roleMap: Partial<Record<OrganizationRoleEnum, string>> = {
+          [OrganizationRoleEnum.ORGANIZATION_OWNER]: "Chủ sở hữu",
+          [OrganizationRoleEnum.ORGANIZATION_ADMIN]: "Quản trị viên",
+          [OrganizationRoleEnum.ORGANIZATION_VIEWER]: "Thành viên",
+        };
+
+        this.emailQueueService.addToQueue({
+          id: randomUUID(),
+          type: EmailJobType.ORGANIZATION_INVITATION,
+          data: {
+            to: invitee.email,
+            organizationName: organization.name,
+            inviterName: inviter.name,
+            invitationLink,
+            role: roleMap[data.role] || data.role,
+          },
+          attempts: 0,
+          maxAttempts: 3,
+          createdAt: new Date(),
+        });
+      }
+    } catch (error) {
+      this.logger.error("Failed to queue invitation email", error);
+    }
 
     return {
       message: "Invitation sent successfully.",
@@ -356,7 +399,9 @@ export class OrganizationInvitationUseCase {
       await this.organizationMemberRepository.getByField({
         organizationId: invitation.organizationId,
         userId: userId,
+        deletedAt: null,
       });
+    console.log({ inviterInOrganization });
 
     if (!inviterInOrganization || inviterInOrganization.length === 0) {
       throw new ForbiddenException({

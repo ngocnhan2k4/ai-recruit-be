@@ -29,6 +29,8 @@ import { OrganizationUseCase } from "@/use-cases/organization/organization.use-c
 import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
 import { OrganizationWithDetails } from "@/core";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
+import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -159,5 +161,28 @@ export class OrganizationController {
     @Query() query: GeneralQueryDto,
   ) {
     return this.organizationUseCase.getUsersToInvite(organizationId, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("/:orgId/logo")
+  @ApiOperation({
+    summary: "Update organization logo",
+    description:
+      "Upload a new logo for the organization. Accepts image files (JPEG, PNG, WebP). Max size: 5MB",
+  })
+  @ApiResponseDto(String)
+  async updateOrganizationLogo(
+    @Param("orgId") orgId: string,
+    @UploadFileAndBody()
+    uploadFile: { file: MultipartFile },
+  ): Promise<ApiResponse<{ logoUrl: string }>> {
+    if (!uploadFile?.file) {
+      throw new Error("No file provided");
+    }
+
+    return await this.organizationUseCase.updateOrganizationLogo(
+      orgId,
+      uploadFile.file,
+    );
   }
 }

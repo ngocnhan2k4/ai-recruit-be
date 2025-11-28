@@ -29,6 +29,8 @@ import { PaginatedResult } from "@/common/types/api";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { slugify } from "@/common/utils/string";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { MultipartFile } from "@fastify/multipart";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -41,6 +43,7 @@ export class OrganizationUseCase {
     private readonly organizationMemberInvitationRepository: IOrganizationMemberInvitationRepository,
     private readonly companyRepository: ICompanyRepository,
     private readonly schoolRepository: ISchoolRepository,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async checkOrganizationName(
@@ -315,6 +318,46 @@ export class OrganizationUseCase {
         pagination: usersToInvite.pagination,
       },
       message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateOrganizationLogo(
+    orgId: string,
+    file: MultipartFile,
+  ): Promise<ApiResponse<{ logoUrl: string }>> {
+    // Validate file (images only, max 5MB)
+    await this.cloudinaryService.validateFile(file, {
+      maxSize: 5 * 1024 * 1024, // 5MB
+      allowedTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
+    });
+
+    // Upload to Cloudinary
+    const uploadResult = await this.cloudinaryService.uploadFile(file);
+
+    if (!uploadResult || !uploadResult.secure_url) {
+      throw new BadRequestException({
+        message: "Failed to upload logo",
+        code: RESPONSE_CODE.SERVER_ERROR,
+      });
+    }
+
+    // Update organization logo URL
+    const updated = await this.organizationRepository.update(
+      { id: orgId },
+      { logoUrl: uploadResult.secure_url },
+    );
+
+    if (!updated || updated.length === 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      });
+    }
+
+    return {
+      data: { logoUrl: uploadResult.secure_url },
+      message: "Organization logo updated successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
