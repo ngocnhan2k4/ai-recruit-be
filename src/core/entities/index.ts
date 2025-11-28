@@ -73,7 +73,12 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
-  UserNotification;
+  UserNotification & {
+    senderName?: string | null;
+    senderAvatarUrl?: string | null;
+    organizationName?: string | null;
+    organizationLogoUrl?: string | null;
+  };
 
 type Organization = InferSelectModel<typeof organizations>;
 type NewOrganization = InferInsertModel<typeof organizations>;

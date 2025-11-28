@@ -219,7 +219,20 @@ def get_all_category(db_url):
         return [row[0] for row in rows]
 
 
-def _link_job_to_category(cur, job_id, category_id):
+def _link_job_to_category(cur, job_id, category_name, valid_categories):
+    """Link job to category only if category exists in database"""
+    if category_name not in valid_categories:
+        return None
+    
+    cur.execute(
+        "SELECT id FROM categories WHERE name = %s LIMIT 1",
+        (category_name,)
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    
+    category_id = row[0]
     cur.execute(
         """
         INSERT INTO job_categories (job_id, category_id) VALUES (%s, %s)
@@ -227,6 +240,7 @@ def _link_job_to_category(cur, job_id, category_id):
         """,
         (job_id, category_id)
     )
+    return category_id
 
 
 def insert_to_db(db_url: str, companies: dict):
@@ -234,8 +248,16 @@ def insert_to_db(db_url: str, companies: dict):
     conn = None
     try:
         conn = psycopg2.connect(db_url)
-        with conn.cursor() as cur:
-            for name, cdata in companies.items():
+        cur = conn.cursor()
+        
+        # Get all valid categories from database
+        valid_categories = get_all_category(db_url)
+        
+        for name, cdata in companies.items():
+            try:
+                # Create a savepoint for this company
+                cur.execute("SAVEPOINT company_savepoint")
+                
                 print(f"Processing company: {name}")
 
                 company_raw_id = _get_or_create_company_raw(cur, name, cdata)
@@ -259,13 +281,24 @@ def insert_to_db(db_url: str, companies: dict):
                     jobs_inserted += 1
 
                     if jdata.get("category"):
-                        category_id = _get_or_create_category(cur, jdata["category"])
-                        _link_job_to_category(cur, job_id, category_id)
+                        _link_job_to_category(cur, job_id, jdata["category"], valid_categories)
 
                     for skill in jdata.get("skills", []):
                         skill_id = _get_or_create_skill(cur, skill)
                         _link_job_to_skill(cur, job_id, skill_id)
-                        
+                
+                # Release savepoint if successful
+                cur.execute("RELEASE SAVEPOINT company_savepoint")
+                
+            except Exception as company_error:
+                # Rollback to savepoint - only this company's changes
+                cur.execute("ROLLBACK TO SAVEPOINT company_savepoint")
+                cur.execute("RELEASE SAVEPOINT company_savepoint")
+                print(f"⚠️  Error processing company '{name}': {company_error}")
+                print(f"   Skipping company and continuing...")
+                continue
+        
+        cur.close()
         conn.commit()
         print("Import completed for raw and processed data.")
         return jobs_inserted
@@ -273,6 +306,7 @@ def insert_to_db(db_url: str, companies: dict):
         if conn:
             conn.rollback()
         print(f"Database operation failed: {e}")
+        return 0
     finally:
         if conn:
             conn.close()

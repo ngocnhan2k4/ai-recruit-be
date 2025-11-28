@@ -9,6 +9,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { ilike, or, and, lt, isNull, desc, SQL, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 @Injectable()
 export class OrganizationMemberInvitationsRepository
@@ -22,14 +23,24 @@ export class OrganizationMemberInvitationsRepository
     super(db, organizationInvitations);
   }
 
-  // Get invitations by organization ID
+  // Get invitations by organization ID with user info
   async getByOrganizationId(
     organizationId: string,
     query: GeneralQuery,
-  ): Promise<PaginatedResult<OrganizationMemberInvitation | null>> {
+  ): Promise<
+    PaginatedResult<
+      | (OrganizationMemberInvitation & {
+          inviterName?: string | null;
+          inviteeName?: string | null;
+          inviteeAvatarUrl?: string | null;
+        })
+      | null
+    >
+  > {
     const whereConditions: SQL<unknown>[] = [
       isNull(organizationInvitations.deletedAt),
       eq(organizationInvitations.organizationId, organizationId),
+      eq(organizationInvitations.status, "pending"), // Only return pending invitations
     ];
 
     if (query.cursor) {
@@ -38,15 +49,44 @@ export class OrganizationMemberInvitationsRepository
       );
     }
 
+    // Create aliases for users table to join twice (inviter and invitee)
+    const inviterTable = alias(users, "inviter");
+    const inviteeTable = alias(users, "invitee");
+
     const result = await this.db
-      .select()
+      .select({
+        // Invitation fields
+        id: organizationInvitations.id,
+        organizationId: organizationInvitations.organizationId,
+        actorId: organizationInvitations.actorId,
+        receiverId: organizationInvitations.receiverId,
+        type: organizationInvitations.type,
+        status: organizationInvitations.status,
+        role: organizationInvitations.role,
+        expiresAt: organizationInvitations.expiresAt,
+        createdAt: organizationInvitations.createdAt,
+        updatedAt: organizationInvitations.updatedAt,
+        deletedAt: organizationInvitations.deletedAt,
+        // User enrichment fields
+        inviterName: inviterTable.name,
+        inviteeName: inviteeTable.name,
+        inviteeAvatarUrl: inviteeTable.avatarUrl,
+      })
       .from(organizationInvitations)
+      .leftJoin(
+        inviterTable,
+        eq(organizationInvitations.actorId, inviterTable.id),
+      )
+      .leftJoin(
+        inviteeTable,
+        eq(organizationInvitations.receiverId, inviteeTable.id),
+      )
       .where(and(...whereConditions))
       .orderBy(desc(organizationInvitations.createdAt))
-      .limit(query.limit || 10);
+      .limit((query.limit || 10) + 1);
 
-    const hasNextPage = result.length > query.limit;
-    const data = hasNextPage ? result.slice(0, query.limit) : result;
+    const hasNextPage = result.length > (query.limit || 10);
+    const data = hasNextPage ? result.slice(0, query.limit || 10) : result;
 
     const nextCursor =
       hasNextPage && data.length > 0
@@ -71,7 +111,7 @@ export class OrganizationMemberInvitationsRepository
       "id" | "name" | "email" | "avatarUrl" | "username"
     > | null>
   > {
-    const whereConditions: any[] = [isNull(users.deletedAt)];
+    const whereConditions: any = [isNull(users.deletedAt)];
 
     if (query.keyword) {
       whereConditions.push(

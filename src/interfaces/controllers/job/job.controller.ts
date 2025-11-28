@@ -11,7 +11,11 @@ import {
   Param,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../../dtos";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  TopInMarketDtoResponse,
+} from "../../dtos";
 import {
   QueryJobDto,
   CreateJobDto,
@@ -76,12 +80,23 @@ export class JobController {
     description:
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
-  @ApiResponseDto(StatisticsJobResponse)
   @Get("statistics")
-  async getStatisticsJob(
+  async getJobStatistics(
     @Query() filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
-    return this.jobUseCases.getStatisticsJobs(filter);
+    return this.jobUseCases.getJobStatistics(filter);
+  }
+
+  @ApiOperation({
+    summary: "Get top in market",
+    description:
+      "Retrieve top applied jobs, top employers, and top job categories in the market.",
+  })
+  @Get("statistics/top-in-market")
+  async getTopInMarket(
+    @Query() filter: StatisticsJobFilterRequestDto,
+  ): Promise<ApiResponse<TopInMarketDtoResponse>> {
+    return this.jobUseCases.getTopInMarket(filter);
   }
 
   @ApiOperation({

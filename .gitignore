@@ -61,3 +61,7 @@ drizzle/migrations/meta/_journal.json
 venv/
 __pycache__/
 *.pyc
+checkpoints/
+**/data/*.csv
+multi_class_model/
+artifacts/

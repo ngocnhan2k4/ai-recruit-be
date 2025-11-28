@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
 import {
@@ -40,9 +40,14 @@ export class GenericRepository<T, TTable extends object>
     if (keys.length === 0) {
       return [];
     }
-    const conditions = keys.map((key) =>
-      eq((this._table as any)[key as string], field[key]),
-    );
+    const conditions = keys.map((key) => {
+      const value = field[key];
+      // Use isNull() for null values to generate proper "IS NULL" SQL
+      if (value === null) {
+        return isNull((this._table as any)[key as string]);
+      }
+      return eq((this._table as any)[key as string], value);
+    });
 
     const allColumns = Object.keys(this._table) as (keyof T)[];
     const selectedColumns = allColumns.filter((c) => !omit.includes(c));

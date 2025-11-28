@@ -44,6 +44,16 @@ export class NotificationDto {
 
   @ApiProperty({ type: Date, nullable: true })
   readAt: Date | null;
+
+  organization?: {
+    name?: string | null;
+    logoUrl?: string | null;
+  } | null;
+
+  sender?: {
+    name?: string | null;
+    avatarUrl?: string | null;
+  } | null;
 }
 
 export class GetNotificationResponseDto {
