@@ -65,3 +65,7 @@ checkpoints/
 **/data/*.csv
 multi_class_model/
 artifacts/
+
+MyResumo
+plan-aiGenerateCVAts*
+ai-service
