@@ -133,3 +133,8 @@ export enum GapDifficultyEnum {
   MEDIUM = "medium",
   HARD = "hard",
 }
+
+export enum CvLanguageEnum {
+  ENGLISH = "en",
+  VIETNAMESE = "vi",
+}

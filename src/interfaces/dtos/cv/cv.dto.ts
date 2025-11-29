@@ -104,3 +104,68 @@ export class CvListResponseDto {
   })
   cvs: CvDto[];
 }
+
+// DTOs for CV Optimize ATS
+
+export interface CVPersonalInfo {
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+}
+
+export interface CVExperience {
+  company: string;
+  position: string;
+  startDate: string; // Format: "YYYY-MM"
+  endDate: string; // Format: "YYYY-MM" or "Present"
+  location?: string;
+  achievements: string[];
+}
+
+export interface CVEducation {
+  institution: string;
+  degree: string;
+  field: string;
+  startDate: string; // Format: "YYYY"
+  endDate: string; // Format: "YYYY" or "Present"
+  location?: string;
+}
+
+export interface CVProject {
+  name: string;
+  description: string;
+  technologies: string[];
+  url?: string | null;
+}
+
+export interface CVSkills {
+  technical: string[];
+  soft: string[];
+}
+
+export interface CVCertification {
+  name: string;
+  issuer: string;
+  date: string;
+  url?: string;
+}
+
+export interface CVLanguage {
+  name: string;
+  proficiency: string;
+}
+
+export interface CVData {
+  personalInfo: CVPersonalInfo;
+  summary: string;
+  experience: CVExperience[];
+  education: CVEducation[];
+  skills: CVSkills;
+  projects: CVProject[];
+  certifications?: CVCertification[];
+  languages?: CVLanguage[];
+  personal_info?: CVPersonalInfo;
+}
