@@ -40,3 +40,5 @@ export * from "./notification/notification.controller";
 
 // casbin controllers
 export * from "./casbin/casbin.controller";
+
+export * from "./learning-path/learning-path.controller";

@@ -20,6 +20,9 @@ import {
   INotificationRepository,
   IOrganizationRepository,
   IFeedbackRepository,
+  ILearningRoadmapRepository,
+  IRoadmapPhaseRepository,
+  IRoadmapSkillRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -46,6 +49,9 @@ import { OrganizationLocationRepository } from "./repositories/organization-loca
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
 import { OrganizationMemberInvitationsRepository } from "./repositories/organization-member-invitation.repository";
 import { FeedbackRepository } from "./repositories/feedback.repository";
+import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
+import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
+import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
 
 @Global()
 @Module({
@@ -182,6 +188,18 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
       provide: IFeedbackRepository,
       useClass: FeedbackRepository,
     },
+    {
+      provide: ILearningRoadmapRepository,
+      useClass: LearningRoadmapRepository,
+    },
+    {
+      provide: IRoadmapPhaseRepository,
+      useClass: RoadmapPhaseRepository,
+    },
+    {
+      provide: IRoadmapSkillRepository,
+      useClass: RoadmapSkillRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -205,6 +223,9 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
     IOrganizationLocationRepository,
     IOrganizationMemberInvitationRepository,
     IFeedbackRepository,
+    ILearningRoadmapRepository,
+    IRoadmapPhaseRepository,
+    IRoadmapSkillRepository,
   ],
 })
 export class PostgresDataServicesModule {}

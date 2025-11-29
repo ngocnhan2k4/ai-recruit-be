@@ -18,6 +18,7 @@ import {
   OrganizationController,
   OrganizationMemberController,
   OrganizationInvitationController,
+  LearningPathController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -58,6 +59,7 @@ import { OrganizationMemberUseCasesModule } from "./use-cases/organization-membe
 import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
+import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 
 @Module({
   imports: [
@@ -91,6 +93,7 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
     CasbinUseCasesModule,
     WebSocketModule,
     FeedbackUseCasesModule,
+    LearningPathUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -115,6 +118,7 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
     AdminUserController,
     FeedbackController,
     FeedbackAdminController,
+    LearningPathController,
   ],
   providers: [
     JwtStrategy,
