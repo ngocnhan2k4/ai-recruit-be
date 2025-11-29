@@ -17,11 +17,15 @@ import {
   CompanyDto,
   GetCompanyDto,
   CreateOrganizationDto,
-  UpdateOrganizationDto,
   ApiResponse,
   PaginatedResultDto,
   OrganizationWithDetailsDto,
   GeneralQueryDto,
+  UpdateOrganizationEmailDto,
+  DeleteOrganizationDto,
+  UpdateOrganizationBasicInfoDto,
+  UpdateOrganizationLocationDto,
+  UpdateOrganizationAdditionalInfoDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -67,7 +71,6 @@ export class OrganizationController {
     return await this.organizationUseCase.checkOrganizationName(name);
   }
 
-  // [TODO-PHAT]: check api
   @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId")
   @ApiOperation({
@@ -85,7 +88,6 @@ export class OrganizationController {
     );
   }
 
-  // [TODO-PHAT]: check api
   @UseGuards(JwtAuthGuard)
   @Post()
   @ApiOperation({
@@ -103,30 +105,94 @@ export class OrganizationController {
     );
   }
 
-  // [TODO-PHAT]: check api
   @UseGuards(JwtAuthGuard)
-  @Patch("/:orgId")
+  @Patch("/:orgId/basic-info")
   @ApiOperation({
-    summary: "Update an organization",
-    description: "Update an organization",
+    summary: "Update organization basic information",
+    description:
+      "Update basic information including name, description, websiteUrl, and phone. Only sends changed fields.",
   })
-  @ApiResponseDto(String)
-  async updateOrganization(
+  @ApiResponseDto(OrganizationWithDetailsDto)
+  async updateOrganizationBasicInfo(
     @Param("orgId") orgId: string,
-    @Body() data: UpdateOrganizationDto,
+    @Body() data: UpdateOrganizationBasicInfoDto,
   ) {
-    return await this.organizationUseCase.updateOrganization(orgId, data);
+    return await this.organizationUseCase.updateOrganizationBasicInfo(
+      orgId,
+      data,
+    );
   }
 
-  // [TODO-PHAT]: check api
+  @UseGuards(JwtAuthGuard)
+  @Patch("/:orgId/locations")
+  @ApiOperation({
+    summary: "Update organization locations",
+    description:
+      "Replace all organization locations with new list. Frontend sends FULL list of current locations. All existing locations will be deleted and replaced with new ones.",
+  })
+  @ApiResponseDto(String, { isArray: true })
+  async updateOrganizationLocations(
+    @Param("orgId") orgId: string,
+    @Body() data: UpdateOrganizationLocationDto,
+  ) {
+    return await this.organizationUseCase.updateOrganizationLocations(
+      orgId,
+      data.locations,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("/:orgId/additional-info")
+  @ApiOperation({
+    summary: "Update organization additional information (Culture & Benefits)",
+    description:
+      "Update culture and benefits information. Only for COMPANY type organizations. Only sends changed fields.",
+  })
+  @ApiResponseDto(OrganizationWithDetailsDto)
+  async updateOrganizationAdditionalInfo(
+    @Param("orgId") orgId: string,
+    @Body() data: UpdateOrganizationAdditionalInfoDto,
+  ) {
+    return await this.organizationUseCase.updateOrganizationAdditionalInfo(
+      orgId,
+      data,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("/:orgId/email")
+  @ApiOperation({
+    summary: "Update organization email",
+    description:
+      "Update organization email address. This will reset email verification status (verifiedAt = null).",
+  })
+  @ApiResponseDto(String)
+  async updateOrganizationEmail(
+    @Param("orgId") orgId: string,
+    @Body() data: UpdateOrganizationEmailDto,
+  ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
+    return await this.organizationUseCase.updateOrganizationEmail(
+      orgId,
+      data.email,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete("/:orgId")
   @ApiOperation({
     summary: "Delete an organization",
-    description: "Delete an organization",
+    description:
+      "Delete an organization. Requires confirmation by entering the exact organization name.",
   })
   @ApiResponseDto(String)
-  async deleteOrganization(@Param("orgId") orgId: string) {
-    return await this.organizationUseCase.deleteOrganization(orgId);
+  async deleteOrganization(
+    @Param("orgId") orgId: string,
+    @Body() data: DeleteOrganizationDto,
+  ): Promise<ApiResponse<boolean>> {
+    return await this.organizationUseCase.deleteOrganization(
+      orgId,
+      data.confirmationName,
+    );
   }
 
   @Get("/all")
