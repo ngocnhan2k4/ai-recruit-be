@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Inject } from "@nestjs/common";
 import { IAIService } from "@/core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import {
   OptimizeAtsDto,
   OptimizeAtsResponseDto,
@@ -61,7 +61,7 @@ export class CvOptimizeUseCase {
   private async validateFile(file: MultipartFile): Promise<void> {
     if (!file) {
       throw new BadRequestException({
-        message: "CV file is required",
+        message: RESPONSE_MESSAGE.CV_FILE_REQUIRED,
         code: RESPONSE_CODE.CV_FILE_REQUIRED,
       });
     }
@@ -76,19 +76,6 @@ export class CvOptimizeUseCase {
       throw new BadRequestException({
         message: `File size exceeds limit. Maximum: ${maxSize / 1024 / 1024}MB`,
         code: RESPONSE_CODE.FILE_TOO_LARGE,
-      });
-    }
-
-    // Validate file type
-    const allowedMimeTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/msword",
-    ];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException({
-        message: "Invalid file type. Only PDF and DOCX files are supported.",
-        code: RESPONSE_CODE.INVALID_FILE_TYPE,
       });
     }
   }

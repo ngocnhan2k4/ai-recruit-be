@@ -84,4 +84,7 @@ export const RESPONSE_MESSAGE = {
   CREATE_ORGANIZATION_FAILED: "Failed to create organization.",
   UPDATE_ORGANIZATION_FAILED: "Failed to update organization.",
   CV_NOT_UPLOADED: "No CV file uploaded",
+  CV_FILE_REQUIRED: "CV file is required",
+  INVALID_FILE_TYPE:
+    "Invalid file type. Only PDF and DOCX files are supported.",
 };
