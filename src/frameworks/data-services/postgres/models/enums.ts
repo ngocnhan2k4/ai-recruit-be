@@ -96,3 +96,23 @@ export const OrganizationInviteTypeEnum = pgEnum("organization_invite_type", [
   "outgoing", // from the organization's perspective
   "incoming", // from the user's perspective
 ]);
+
+export const PgSkillLevelEnum = pgEnum("skill_level", [
+  "beginner",
+  "intermediate",
+  "advanced",
+]);
+
+export const ResourceTypeEnum = pgEnum("resource_type", [
+  "video",
+  "course",
+  "article",
+  "book",
+  "documentation",
+]);
+
+export const GapDifficultyEnum = pgEnum("gap_difficulty", [
+  "easy",
+  "medium",
+  "hard",
+]);

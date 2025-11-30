@@ -81,6 +81,15 @@ export class EnvironmentVariables {
 
   @IsString()
   SLACK_ERROR_WEBHOOK_URL: string;
+
+  @IsString()
+  AI_SERVICE_URL: string;
+
+  @IsNumber()
+  AI_SERVICE_TIMEOUT: number;
+
+  @IsNumber()
+  AI_SERVICE_MAX_RETRIES: number;
 }
 
 export default (): Record<string, any> => ({
@@ -115,6 +124,10 @@ export default (): Record<string, any> => ({
   // Slack
   SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
   SLACK_INFO_WEBHOOK_URL: process.env.SLACK_INFO_WEBHOOK_URL,
+
+  AI_SERVICE_URL: process.env.AI_SERVICE_URL,
+  AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,
+  AI_SERVICE_MAX_RETRIES: Number(process.env.AI_SERVICE_MAX_RETRIES) || 3,
 });
 
 export const validateConfig = (

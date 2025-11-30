@@ -16,7 +16,6 @@ export class EmailWorkerService implements OnModuleInit {
 
   onModuleInit() {
     this.logger.log("Email Worker Service initialized");
-    this.logQueueStats();
   }
 
   @Cron(CronExpression.EVERY_5_SECONDS)
@@ -25,7 +24,7 @@ export class EmailWorkerService implements OnModuleInit {
       return;
     }
 
-    const jobs = this.emailQueueService.getAllJobs(20); // Lấy tối đa 20 jobs
+    const jobs = this.emailQueueService.getAllJobs(20);
     if (jobs.length === 0) {
       return;
     }
@@ -33,19 +32,11 @@ export class EmailWorkerService implements OnModuleInit {
     this.isProcessing = true;
 
     try {
-      this.logger.log(`Processing ${jobs.length} jobs...`);
-
       // Process all jobs in parallel using Promise.allSettled
       const results = await Promise.allSettled(
         jobs.map(async (job) => {
-          this.logger.log(
-            `Processing job ${job.id} (${job.type}), attempt ${job.attempts + 1}/${job.maxAttempts}`,
-          );
-
           await this.sendEmailByType(job);
-
           this.emailQueueService.removeJob(job.id);
-          this.logger.log(`Job ${job.id} completed successfully`);
           return job;
         }),
       );
@@ -61,10 +52,6 @@ export class EmailWorkerService implements OnModuleInit {
           this.handleFailedJob(job, result.reason);
         }
       });
-
-      this.logger.log(
-        `Completed processing. Success: ${results.filter((r) => r.status === "fulfilled").length}, Failed: ${results.filter((r) => r.status === "rejected").length}`,
-      );
     } finally {
       this.isProcessing = false;
     }
@@ -79,27 +66,6 @@ export class EmailWorkerService implements OnModuleInit {
           job.data.inviterName,
           job.data.invitationLink,
           job.data.role,
-        );
-        break;
-
-      case EmailJobType.VERIFICATION:
-        await this.emailService.sendVerificationEmail(
-          job.data.to as string,
-          job.data.verificationLink,
-        );
-        break;
-
-      case EmailJobType.PASSWORD_RESET:
-        await this.emailService.sendPasswordResetEmail(
-          job.data.to as string,
-          job.data.resetLink,
-        );
-        break;
-
-      case EmailJobType.WELCOME:
-        await this.emailService.sendWelcomeEmail(
-          job.data.to as string,
-          job.data.userName,
         );
         break;
 
@@ -140,16 +106,6 @@ export class EmailWorkerService implements OnModuleInit {
 
       this.logger.warn(
         `Job ${job.id} will retry in ${delaySeconds} seconds (attempt ${job.attempts}/${job.maxAttempts})`,
-      );
-    }
-  }
-
-  @Cron(CronExpression.EVERY_MINUTE)
-  private logQueueStats() {
-    const stats = this.emailQueueService.getQueueStats();
-    if (stats.total > 0) {
-      this.logger.log(
-        `Queue stats - Total: ${stats.total}, Pending: ${stats.pending}, Retrying: ${stats.retrying}`,
       );
     }
   }

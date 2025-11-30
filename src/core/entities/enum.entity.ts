@@ -113,3 +113,23 @@ export enum FeedbackStatusEnum {
   READ = "read",
   RESOLVED = "resolved",
 }
+
+export enum SkillLevelEnum {
+  BEGINNER = "beginner",
+  INTERMEDIATE = "intermediate",
+  ADVANCED = "advanced",
+}
+
+export enum ResourceTypeEnum {
+  VIDEO = "video",
+  COURSE = "course",
+  ARTICLE = "article",
+  BOOK = "book",
+  DOCUMENTATION = "documentation",
+}
+
+export enum GapDifficultyEnum {
+  EASY = "easy",
+  MEDIUM = "medium",
+  HARD = "hard",
+}
