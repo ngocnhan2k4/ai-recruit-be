@@ -59,6 +59,7 @@ import { OrganizationMemberUseCasesModule } from "./use-cases/organization-membe
 import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
+import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 
 @Module({
@@ -93,6 +94,7 @@ import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-p
     CasbinUseCasesModule,
     WebSocketModule,
     FeedbackUseCasesModule,
+    EmailModule,
     LearningPathUseCasesModule,
   ],
   controllers: [
