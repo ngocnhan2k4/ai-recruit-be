@@ -19,4 +19,9 @@ export abstract class IRoadmapSkillRepository extends IGenericRepository<Roadmap
   abstract getUnlockedSkills(roadmapId: string): Promise<RoadmapSkill[]>;
 
   abstract checkPrerequisitesCompleted(skillId: string): Promise<boolean>;
+
+  abstract createManySkills(
+    skills: Partial<RoadmapSkill>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<RoadmapSkill[]>;
 }

@@ -137,4 +137,18 @@ export class RoadmapSkillRepository
 
     return prerequisiteSkills.every((p) => p.completedAt !== null);
   }
+
+  async createManySkills(
+    skills: Partial<RoadmapSkill>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<RoadmapSkill[]> {
+    const dbInstance = tx ?? this.db;
+
+    const result = await dbInstance
+      .insert(roadmapSkills)
+      .values(skills as RoadmapSkill[])
+      .returning();
+
+    return result;
+  }
 }

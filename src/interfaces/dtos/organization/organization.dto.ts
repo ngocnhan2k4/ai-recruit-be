@@ -1,12 +1,15 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
   IsArray,
+  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  IsUrl,
+  Matches,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -17,7 +20,6 @@ import {
   OrganizationTypeEnum,
   SchoolTypeEnum,
 } from "@/core";
-import { IsEmail } from "class-validator";
 import { Type } from "class-transformer";
 
 export class OrganizationDto {
@@ -176,20 +178,20 @@ export class UpdateOrganizationDto {
   @IsString()
   name?: string;
 
-  @ApiProperty({ type: "string" })
-  @IsOptional()
-  @IsString()
-  slug?: string;
+  // @ApiProperty({ type: "string" })
+  // @IsOptional()
+  // @IsString()
+  // slug?: string;
 
   @ApiProperty({ type: "string" })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ type: "array", items: { type: "string" } })
-  @IsOptional()
-  @IsArray()
-  address?: string[];
+  // @ApiProperty({ type: "array", items: { type: "string" } })
+  // @IsOptional()
+  // @IsArray()
+  // address?: string[];
 
   @ApiProperty({ type: "string" })
   @IsOptional()
@@ -206,20 +208,20 @@ export class UpdateOrganizationDto {
   @IsString()
   websiteUrl?: string;
 
-  @ApiProperty({ type: "string" })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @ApiProperty({ type: "string" })
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
   @ApiProperty({ type: "string" })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiProperty({ type: "number" })
-  @IsOptional()
-  @IsNumber()
-  foundedYear?: number;
+  // @ApiProperty({ type: "number" })
+  // @IsOptional()
+  // @IsNumber()
+  // foundedYear?: number;
 
   @ApiProperty({ type: "number" })
   @IsOptional()
@@ -231,11 +233,22 @@ export class UpdateOrganizationDto {
   @IsNumber()
   employeesMax?: number;
 
-  // Flat company and school fields
-  @ApiProperty({ type: "string" })
+  @ApiProperty({ type: () => CreateLocationDto, isArray: true })
   @IsOptional()
-  @IsString()
-  taxCode?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateLocationDto)
+  locations?: {
+    id: string;
+    address: string;
+    provinceId: string;
+  }[];
+
+  // Flat company and school fields
+  // @ApiProperty({ type: "string" })
+  // @IsOptional()
+  // @IsString()
+  // taxCode?: string;
 
   @ApiProperty({ type: "string" })
   @IsOptional()
@@ -305,4 +318,115 @@ export class RespondToInvitationDto {
   @ApiProperty({ enum: ["ACCEPT", "DECLINE"] })
   @IsNotEmpty({ message: "Action field is required" })
   action: "ACCEPT" | "DECLINE";
+}
+
+export class UpdateOrganizationEmailDto {
+  @ApiProperty({
+    type: "string",
+    example: "newemail@company.com",
+    description: "New email address for the organization",
+  })
+  @IsNotEmpty({ message: "Email is required" })
+  @IsEmail({}, { message: "Invalid email format" })
+  email: string;
+}
+
+export class DeleteOrganizationDto {
+  @ApiProperty({
+    type: "string",
+    example: "My Company Name",
+    description:
+      "Organization name for confirmation. Must match exactly to proceed with deletion.",
+  })
+  @IsNotEmpty({ message: "Organization name confirmation is required" })
+  @IsString()
+  confirmationName: string;
+}
+
+export class UpdateOrganizationBasicInfoDto {
+  @ApiProperty({
+    type: "string",
+    example: "Tech Solutions Inc.",
+    description: "Organization name",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({
+    type: "string",
+    example: "Leading technology solutions provider",
+    description: "Short description of the organization",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({
+    type: "string",
+    example: "https://techsolutions.com",
+    description: "Organization website URL",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @IsUrl({}, { message: "Invalid URL format" })
+  websiteUrl?: string;
+
+  @ApiProperty({
+    type: "string",
+    example: "0123456789",
+    description: "Organization phone number (10-11 digits)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^0\d{9,10}$/, {
+    message: "Phone must be 10-11 digits and start with 0",
+  })
+  phone?: string;
+}
+
+export class UpdateOrganizationLocationDto {
+  @ApiProperty({
+    type: () => CreateLocationDto,
+    isArray: true,
+    description: "List of organization locations",
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateLocationDto)
+  locations: {
+    id?: string;
+    address: string;
+    provinceId: string;
+  }[];
+}
+
+export class UpdateOrganizationAdditionalInfoDto {
+  @ApiProperty({
+    type: "string",
+    example:
+      "Văn hóa làm việc năng động, sáng tạo, coi trọng sự đổi mới và phát triển bền vững.",
+    description: "Company culture description (max 500 characters)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500, { message: "Culture must not exceed 500 characters" })
+  culture?: string;
+
+  @ApiProperty({
+    type: "string",
+    example:
+      "Lương thưởng cạnh tranh, bảo hiểm đầy đủ, du lịch hàng năm, đào tạo nâng cao kỹ năng.",
+    description: "Employee benefits (max 500 characters)",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500, { message: "Benefits must not exceed 500 characters" })
+  benefits?: string;
 }

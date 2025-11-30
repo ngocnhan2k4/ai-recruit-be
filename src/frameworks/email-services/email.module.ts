@@ -1,0 +1,32 @@
+import { Module } from "@nestjs/common";
+import { MailerModule } from "@nestjs-modules/mailer";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { EmailService } from "./email.service";
+import { EmailQueueService } from "./email-queue.service";
+import { EmailWorkerService } from "./email-worker.service";
+
+@Module({
+  imports: [
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>("MAIL_HOST"),
+          port: 587,
+          secure: false,
+          auth: {
+            user: configService.get<string>("MAIL_USER"),
+            pass: configService.get<string>("MAIL_PASSWORD"),
+          },
+        },
+        defaults: {
+          from: configService.get<string>("MAIL_FROM"),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+  providers: [EmailService, EmailQueueService, EmailWorkerService],
+  exports: [EmailService, EmailQueueService],
+})
+export class EmailModule {}

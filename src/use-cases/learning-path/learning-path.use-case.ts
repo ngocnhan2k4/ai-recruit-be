@@ -23,6 +23,7 @@ import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
   PreviewRoadmapResponse,
+  RoadmapSkill,
 } from "@/core";
 
 @Injectable()
@@ -91,35 +92,37 @@ export class LearningPathUseCase {
           tx,
         );
 
-        for (const phase of preview.phases) {
-          const newPhase = await this.phaseRepository.create(
-            {
-              roadmapId: newRoadmap.id,
-              name: phase.name,
-              description: phase.description,
-              durationWeeks: phase.durationWeeks,
-              orderIndex: phase.orderIndex,
-            },
-            tx,
-          );
-
-          for (const skill of phase.skills) {
-            await this.skillRepository.create(
+        await Promise.all(
+          preview.phases.map(async (phase) => {
+            const newPhase = await this.phaseRepository.create(
               {
-                phaseId: newPhase.id,
-                skillId: skill.skillId,
-                estimatedHours: skill.estimatedHours,
-                weekStart: skill.weekStart,
-                weekEnd: skill.weekEnd,
-                prerequisites: skill.prerequisites,
-                resources: skill.resources,
-                keyConcepts: skill.keyConcepts,
-                orderIndex: skill.orderIndex,
+                roadmapId: newRoadmap.id,
+                name: phase.name,
+                description: phase.description,
+                durationWeeks: phase.durationWeeks,
+                orderIndex: phase.orderIndex,
               },
               tx,
             );
-          }
-        }
+
+            if (phase.skills?.length) {
+              const skillCreates: Partial<RoadmapSkill>[] = phase.skills.map(
+                (skill) => ({
+                  phaseId: newPhase.id,
+                  skillId: skill.skillId,
+                  estimatedHours: skill.estimatedHours,
+                  weekStart: skill.weekStart,
+                  weekEnd: skill.weekEnd,
+                  prerequisites: skill.prerequisites,
+                  resources: skill.resources,
+                  keyConcepts: skill.keyConcepts,
+                  orderIndex: skill.orderIndex,
+                }),
+              );
+              await this.skillRepository.createManySkills(skillCreates, tx);
+            }
+          }),
+        );
 
         return newRoadmap;
       },
