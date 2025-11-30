@@ -56,8 +56,13 @@ export class CvProjectDto {
   url?: string;
 }
 
+export class CvSkillGroupDto {
+  category: string;
+  items: string[];
+}
+
 export class CvSkillsDto {
-  technical: string[];
+  technical: CvSkillGroupDto[];
   soft: string[];
 }
 
