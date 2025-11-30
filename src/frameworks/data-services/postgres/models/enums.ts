@@ -116,3 +116,5 @@ export const GapDifficultyEnum = pgEnum("gap_difficulty", [
   "medium",
   "hard",
 ]);
+
+export const LanguageEnum = pgEnum("language", ["vi", "en"]);
