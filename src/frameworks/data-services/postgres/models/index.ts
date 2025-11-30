@@ -12,3 +12,4 @@ export * from "./school.model";
 export * from "./notification.model";
 export * from "./feedback.model";
 export * from "./learning-path.model";
+export * from "./ai-cvs.model";
