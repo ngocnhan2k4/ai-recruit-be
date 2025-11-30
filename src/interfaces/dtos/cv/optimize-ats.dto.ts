@@ -42,11 +42,12 @@ export class CvExperienceDto {
 
 export class CvEducationDto {
   institution: string;
-  degree: string;
-  field: string;
-  startDate: string;
-  endDate: string;
-  location?: string;
+  degree: string | null;
+  field: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  gpa: string | null;
+  location: string | null;
 }
 
 export class CvProjectDto {
@@ -54,6 +55,15 @@ export class CvProjectDto {
   description: string;
   technologies: string[];
   url?: string;
+}
+
+export class CvCertificateDto {
+  name: string;
+  issuer: string;
+  issueDate: string | null;
+  expiryDate: string | null;
+  credentialId: string | null;
+  credentialUrl: string | null;
 }
 
 export class CvSkillGroupDto {
@@ -67,12 +77,14 @@ export class CvSkillsDto {
 }
 
 export class OptimizedCvDataDto {
+  targetJobTitle: string | null;
   personalInfo: CvPersonalInfoDto;
   summary: string;
   experience: CvExperienceDto[];
   education: CvEducationDto[];
   skills: CvSkillsDto;
   projects: CvProjectDto[];
+  certificates: CvCertificateDto[];
 }
 
 export class OptimizeAtsResponseDto {

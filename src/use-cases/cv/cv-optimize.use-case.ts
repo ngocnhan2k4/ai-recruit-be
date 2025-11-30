@@ -40,6 +40,8 @@ export class CvOptimizeUseCase {
         language: dto.language || CvLanguageEnum.VIETNAMESE,
       });
 
+      this.logger.log(result);
+
       this.logger.log(
         `CV optimized successfully (ATS score: ${result.atsScore})`,
       );
