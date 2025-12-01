@@ -200,6 +200,10 @@ export class CreateJobDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds: string[] | null;
+
+  @ApiProperty({ type: "string", format: "uuid", nullable: true })
+  @IsUUID()
+  categoryId: string | null;
 }
 
 export class UpdateJobDto {

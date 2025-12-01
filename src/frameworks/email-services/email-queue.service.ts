@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { EmailJob } from "./interfaces/email-job.interface";
+import { EmailJob } from "../../core/entities/email-job.entity";
 
 @Injectable()
 export class EmailQueueService {
