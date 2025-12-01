@@ -140,3 +140,4 @@ export type Feedback = InferSelectModel<typeof feedbacks>;
 
 export * from "./learning-path.entity";
 export * from "./otp.entity";
+export * from "./ai-cv.entity";
