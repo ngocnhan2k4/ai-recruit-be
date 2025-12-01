@@ -1,5 +1,4 @@
-import { OptimizeAtsResponseDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
-import { CvLanguageEnum } from "../entities";
+import { OptimizeAtsRequest, OptimizeAtsResponse } from "../entities";
 import {
   PreviewRoadmapResponse,
   RoadmapGenerateRequest,
@@ -10,9 +9,7 @@ export abstract class IAIService {
     request: RoadmapGenerateRequest,
   ): Promise<PreviewRoadmapResponse>;
 
-  abstract optimizeCvAts(params: {
-    cvText: string;
-    jobDescription: string;
-    language?: CvLanguageEnum;
-  }): Promise<OptimizeAtsResponseDto>;
+  abstract optimizeCvAts(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponse>;
 }

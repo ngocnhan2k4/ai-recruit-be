@@ -29,9 +29,10 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import {
   OptimizeAtsDto,
-  OptimizeAtsResponseDto,
+  OptimizeAtsUploadDto,
 } from "@/interfaces/dtos/cv/optimize-ats.dto";
 import { CvOptimizeUseCase } from "@/use-cases/cv/cv-optimize.use-case";
+import { OptimizeAtsResponse } from "@/core";
 
 @ApiTags("CV")
 @Controller("cv")
@@ -177,38 +178,15 @@ export class CvController {
       "Upload a CV file (PDF/DOCX) and get ATS-optimized version based on job description.",
   })
   @ApiConsumes("multipart/form-data")
-  @ApiBody({
-    schema: {
-      type: "object",
-      required: ["cvFile", "jobDescription"],
-      properties: {
-        cvFile: {
-          type: "string",
-          format: "binary",
-          description: "CV file (PDF or DOCX, max 5MB)",
-        },
-        jobDescription: {
-          type: "string",
-          description: "Target job description",
-          example: "Looking for Senior Backend Developer with Python...",
-        },
-        language: {
-          type: "string",
-          enum: ["vi", "en"],
-          default: "vi",
-          description: "Output language",
-        },
-      },
-    },
-  })
-  @ApiResponseDto(OptimizeAtsResponseDto)
+  @ApiResponseDto(OptimizeAtsResponse)
+  @ApiBody({ type: OptimizeAtsUploadDto })
   async optimizeAts(
     @UploadFileAndBody()
     uploadFile: {
       file: MultipartFile;
       body: OptimizeAtsDto;
     },
-  ): Promise<ApiResponse<OptimizeAtsResponseDto>> {
+  ): Promise<ApiResponse<OptimizeAtsResponse>> {
     if (!uploadFile.file) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.CV_NOT_UPLOADED,

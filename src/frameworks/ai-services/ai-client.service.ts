@@ -7,9 +7,9 @@ import {
   RoadmapGenerateRequest,
 } from "@/core/entities/learning-path.entity";
 import { firstValueFrom, retry, timeout, catchError, map } from "rxjs";
-import { AxiosError } from "axios";
-import { OptimizeAtsResponseDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
-import { CvLanguageEnum } from "@/core";
+import { AxiosError, AxiosResponse } from "axios";
+
+import { OptimizeAtsRequest, OptimizeAtsResponse } from "@/core";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -64,19 +64,17 @@ export class AIClientService implements IAIService {
   }
 
   // Optimize CV for ATS compatibility
-  async optimizeCvAts(params: {
-    cvText: string;
-    jobDescription: string;
-    language?: CvLanguageEnum;
-  }): Promise<OptimizeAtsResponseDto> {
+  async optimizeCvAts(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponse> {
     const url = `${this.aiServiceUrl}/api/v1/optimize-cv-ats`;
 
     return firstValueFrom(
       this.httpService
-        .post<OptimizeAtsResponseDto>(url, {
-          cv_text: params.cvText,
-          job_description: params.jobDescription,
-          language: params.language || CvLanguageEnum.VIETNAMESE,
+        .post<OptimizeAtsResponse>(url, request, {
+          headers: {
+            "Content-Type": "application/json",
+          },
         })
         .pipe(
           timeout(this.aiServiceTimeout),
@@ -94,7 +92,11 @@ export class AIClientService implements IAIService {
 
             throw new Error(`AI Service CV optimization failed: ${errorMsg}`);
           }),
-          map((response) => response.data),
+          map(
+            (
+              response: AxiosResponse<OptimizeAtsResponse>,
+            ): OptimizeAtsResponse => response.data,
+          ),
         ),
     );
   }

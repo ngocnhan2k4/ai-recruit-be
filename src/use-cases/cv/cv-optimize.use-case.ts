@@ -3,12 +3,9 @@ import { Inject } from "@nestjs/common";
 import { IAIService } from "@/core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import {
-  OptimizeAtsDto,
-  OptimizeAtsResponseDto,
-} from "@/interfaces/dtos/cv/optimize-ats.dto";
+import { OptimizeAtsDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
 import { FileTextExtractor } from "@/common/utils/file-text-extractor";
-import { CvLanguageEnum } from "@/core";
+import { CvLanguageEnum, OptimizeAtsResponse } from "@/core";
 import type { MultipartFile } from "@fastify/multipart";
 
 @Injectable()
@@ -23,7 +20,7 @@ export class CvOptimizeUseCase {
   async optimizeCvForAts(
     file: MultipartFile,
     dto: OptimizeAtsDto,
-  ): Promise<ApiResponse<OptimizeAtsResponseDto>> {
+  ): Promise<ApiResponse<OptimizeAtsResponse>> {
     this.logger.log("Starting CV optimization for ATS");
 
     // Validate file upload
