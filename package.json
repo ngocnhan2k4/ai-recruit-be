@@ -79,6 +79,7 @@
     "cloudinary": "^2.7.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
+    "date-fns": "^4.1.0",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
     "drizzle-seed": "^0.3.1",

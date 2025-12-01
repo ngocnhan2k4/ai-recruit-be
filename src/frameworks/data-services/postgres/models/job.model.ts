@@ -62,6 +62,7 @@ export const jobs = pgTable("jobs", {
     () => jobRaws.id,
   ),
   rejectReason: text("reject_reason"),
+  categoryId: uuid("category_id").references(() => categories.id),
   ...timestamps,
 });
 
@@ -78,23 +79,6 @@ export const jobSkills = pgTable(
   (table) => [
     primaryKey({
       columns: [table.jobId, table.skillId],
-    }),
-  ],
-);
-
-export const jobCategories = pgTable(
-  "job_categories",
-  {
-    jobId: uuid("job_id")
-      .notNull()
-      .references(() => jobs.id),
-    categoryId: uuid("category_id")
-      .notNull()
-      .references(() => categories.id),
-  },
-  (table) => [
-    primaryKey({
-      columns: [table.jobId, table.categoryId],
     }),
   ],
 );
