@@ -68,4 +68,74 @@ export class EmailService {
       html,
     });
   }
+
+  async sendVerifyOrganizationEmailOtp(
+    to: string,
+    organizationName: string,
+    otp: string,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-bottom: 20px;">Xác thực email cho doanh nghiệp</h2>
+          <p style="color: #555; line-height: 1.6;">
+            Bạn đang cố gắng xác thực email cho doanh nghiệp 
+            <strong style="color: #2196F3;">${organizationName}</strong>.
+          </p>
+          <p style="color: #555; line-height: 1.6;">
+            Mã OTP của bạn là:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="display: inline-block; padding: 15px 25px; background-color: #2196F3; color: white; font-size: 24px; letter-spacing: 5px; border-radius: 5px; font-weight: bold;">
+              ${otp}
+            </span>
+          </div>
+          <p style="color: #777; font-size: 14px; line-height: 1.6;">
+            Mã OTP này sẽ hết hạn sau 10 phút. Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `Xác thực email cho ${organizationName}`,
+      html,
+    });
+  }
+
+  async sendChangeOrganizationEmailOtp(
+    to: string,
+    organizationName: string,
+    otp: string,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-bottom: 20px;">Xác thực email cho doanh nghiệp</h2>
+          <p style="color: #555; line-height: 1.6;">
+            Bạn đang thực hiện thay đổi email cho doanh nghiệp
+            <strong style="color: #2196F3;">${organizationName}</strong>.
+          </p>
+          <p style="color: #555; line-height: 1.6;">
+            Mã OTP của bạn là:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="display: inline-block; padding: 15px 25px; background-color: #2196F3; color: white; font-size: 24px; letter-spacing: 5px; border-radius: 5px; font-weight: bold;">
+              ${otp}
+            </span>
+          </div>
+          <p style="color: #777; font-size: 14px; line-height: 1.6;">
+            Mã OTP này sẽ hết hạn sau 10 phút. Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `Xác thực email cho ${organizationName}`,
+      html,
+    });
+  }
 }

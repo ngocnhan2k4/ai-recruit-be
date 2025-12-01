@@ -1,9 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { EmailJob } from "./interfaces/email-job.interface";
+import { IEmailQueueStorageService } from "@/core/abstracts/email-queue-storage.abstract";
+import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
-export class EmailQueueService {
-  private readonly logger = new Logger(EmailQueueService.name);
+export class InMemoryEmailQueueStorageService
+  implements IEmailQueueStorageService
+{
+  private readonly logger = new Logger(InMemoryEmailQueueStorageService.name);
   private queue: EmailJob[] = [];
 
   addToQueue(job: EmailJob): void {
@@ -42,6 +45,7 @@ export class EmailQueueService {
     const job = this.queue.find((j) => j.id === jobId);
     if (job) {
       Object.assign(job, updates);
+      this.logger.debug(`Updated job ${jobId} with updates:`, updates);
     }
   }
 

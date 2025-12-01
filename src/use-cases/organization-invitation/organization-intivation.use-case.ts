@@ -7,6 +7,7 @@ import {
   OrganizationRoleEnum,
   IUserRepository,
   IOrganizationRepository,
+  EmailJobType,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -24,8 +25,7 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
-import { EmailJobType } from "@/frameworks/email-services/interfaces/email-job.interface";
+import { IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
 
 @Injectable()
@@ -39,7 +39,7 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     private readonly notificationService: INotificationService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly emailQueueService: EmailQueueService,
+    private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
   ) {}
@@ -182,10 +182,30 @@ export class OrganizationInvitationUseCase {
       },
     );
 
+    // Fire-and-forget: Queue email asynchronously without blocking response
+    void this.sentEmailInvitation(
+      data.inviteeId,
+      inviterId,
+      organizationId,
+      data.role,
+    );
+
+    return {
+      message: "Invitation sent successfully.",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async sentEmailInvitation(
+    inviteeId: string,
+    inviterId: string,
+    organizationId: string,
+    role: OrganizationRoleEnum,
+  ): Promise<void> {
     // Queue email invitation (non-blocking)
     try {
       const [invitee, inviter, organization] = await Promise.all([
-        this.userRepository.get(data.inviteeId),
+        this.userRepository.get(inviteeId),
         this.userRepository.get(inviterId),
         this.organizationRepository.get(organizationId),
       ]);
@@ -198,7 +218,7 @@ export class OrganizationInvitationUseCase {
           [OrganizationRoleEnum.ORGANIZATION_VIEWER]: "Thành viên",
         };
 
-        this.emailQueueService.addToQueue({
+        this.emailQueueStorage.addToQueue({
           id: randomUUID(),
           type: EmailJobType.ORGANIZATION_INVITATION,
           data: {
@@ -206,7 +226,7 @@ export class OrganizationInvitationUseCase {
             organizationName: organization.name,
             inviterName: inviter.name,
             invitationLink,
-            role: roleMap[data.role] || data.role,
+            role: roleMap[role] || role,
           },
           attempts: 0,
           maxAttempts: 3,
@@ -216,11 +236,6 @@ export class OrganizationInvitationUseCase {
     } catch (error) {
       this.logger.error("Failed to queue invitation email", error);
     }
-
-    return {
-      message: "Invitation sent successfully.",
-      code: RESPONSE_CODE.SUCCESS,
-    };
   }
 
   async getByOrganizationId(
