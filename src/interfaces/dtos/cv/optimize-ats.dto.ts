@@ -32,7 +32,7 @@ export class CvPersonalInfoDto {
 }
 
 export class CvExperienceDto {
-  company: string;
+  company?: string;
   position: string;
   startDate: string;
   endDate: string;
