@@ -1,5 +1,6 @@
 import { PDFParse } from "pdf-parse";
 import { extractRawText } from "mammoth";
+import { MultipartFile } from "@fastify/multipart";
 
 export class FileTextExtractor {
   static async extractFromPdf(buffer: Buffer): Promise<string> {
@@ -21,30 +22,51 @@ export class FileTextExtractor {
     }
   }
 
-  /**
-   * Extract text from file based on mime type
-   */
-  static async extractText(buffer: Buffer, mimeType: string): Promise<string> {
-    switch (mimeType) {
-      case "application/pdf":
-        return this.extractFromPdf(buffer);
+  // Extract text from file based on mime type
+  static async extractText(file: MultipartFile): Promise<string> {
+    try {
+      const buffer = await this.validateFile(file);
+      const mimeType = file.mimetype;
+      let text = "";
 
-      case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      case "application/msword":
-        return this.extractFromDocx(buffer);
+      if (mimeType === "application/pdf") {
+        const parser = new PDFParse({ data: buffer });
+        const result = await parser.getText();
+        text = result.text;
+      } else if (
+        mimeType ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        mimeType === "application/msword"
+      ) {
+        const result = await extractRawText({ buffer });
+        text = result.value;
+      } else {
+        throw new Error(`Unsupported file type: ${mimeType}`);
+      }
 
-      default:
+      text = text.trim();
+
+      if (text.length < 100) {
         throw new Error(
-          `Unsupported file type: ${mimeType}. Only PDF and DOCX are supported.`,
+          "Extracted text is too short (<100 chars). File might be an image scan.",
         );
+      }
+
+      return text;
+    } catch (error) {
+      throw new Error(`CV Processing Failed: ${error.message}`);
     }
   }
 
-  static validateText(text: string, minLength: number = 100): void {
-    if (!text || text.length < minLength) {
-      throw new Error(
-        `Extracted text is too short (${text.length} chars). Minimum required: ${minLength} chars.`,
-      );
+  static async validateFile(file: MultipartFile): Promise<Buffer> {
+    if (!file) throw new Error("File is required");
+
+    const buffer = await file.toBuffer();
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (buffer.length > maxSize) {
+      throw new Error(`File size exceeds 5MB limit`);
     }
+    return buffer;
   }
 }

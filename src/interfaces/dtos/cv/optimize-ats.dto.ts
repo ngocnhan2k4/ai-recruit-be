@@ -1,4 +1,5 @@
 import { CvLanguageEnum } from "@/core";
+import type { MultipartFile } from "@fastify/multipart";
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsEnum, IsOptional } from "class-validator";
 
@@ -21,11 +22,7 @@ export class OptimizeAtsDto {
   language?: CvLanguageEnum;
 }
 
-export class OptimizeAtsUploadDto extends OptimizeAtsDto {
-  @ApiProperty({
-    type: "string",
-    format: "binary",
-    description: "CV file (PDF or DOCX, max 5MB)",
-  })
-  cvFile: any;
+export class OptimizeAtsUploadDto {
+  file: MultipartFile;
+  body: OptimizeAtsDto;
 }
