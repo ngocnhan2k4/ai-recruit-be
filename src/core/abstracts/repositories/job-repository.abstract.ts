@@ -182,4 +182,32 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       applyStatus: ApplyStatusEnum;
     }>
   >;
+
+  /**
+   * Lấy danh sách users đã apply job cùng với thông tin skills và categories từ các job đã apply
+   */
+  abstract getUsersWithAppliedJobs(): Promise<
+    Array<{
+      userId: string;
+      email: string;
+      name: string;
+      appliedJobIds: string[];
+      skillIds: string[];
+      categoryIds: string[];
+    }>
+  >;
+
+  /**
+   * Tìm các job liên quan dựa trên skills và categories từ các job đã apply
+   */
+  abstract findRecommendedJobs(
+    userId: string,
+    appliedJobIds: string[],
+    skillIds: string[],
+    categoryIds: string[],
+    createdAtStart: Date,
+    createdAtEnd: Date,
+    isJobSystem: boolean,
+    limit?: number,
+  ): Promise<JobResponse[]>;
 }

@@ -3,6 +3,7 @@ export enum EmailJobType {
   VERIFICATION = "verification",
   PASSWORD_RESET = "password_reset",
   WELCOME = "welcome",
+  JOB_RECOMMENDATIONS = "job_recommendations",
   CUSTOM = "custom",
 }
 
