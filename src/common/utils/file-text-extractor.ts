@@ -1,6 +1,7 @@
 import { PDFParse } from "pdf-parse";
 import { extractRawText } from "mammoth";
 import { MultipartFile } from "@fastify/multipart";
+import { RESPONSE_MESSAGE } from "../constants/response";
 
 export class FileTextExtractor {
   static async extractFromPdf(buffer: Buffer): Promise<string> {
@@ -41,7 +42,7 @@ export class FileTextExtractor {
         const result = await extractRawText({ buffer });
         text = result.value;
       } else {
-        throw new Error(`Unsupported file type: ${mimeType}`);
+        throw new Error(RESPONSE_MESSAGE.INVALID_FILE_TYPE);
       }
 
       text = text.trim();
@@ -65,7 +66,7 @@ export class FileTextExtractor {
     const maxSize = 5 * 1024 * 1024; // 5MB
 
     if (buffer.length > maxSize) {
-      throw new Error(`File size exceeds 5MB limit`);
+      throw new Error(RESPONSE_MESSAGE.FILE_TOO_LARGE);
     }
     return buffer;
   }
