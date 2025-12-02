@@ -741,8 +741,8 @@ export class OrganizationUseCase {
 
     if (!uploadResult || !uploadResult.secure_url) {
       throw new BadRequestException({
-        message: RESPONSE_MESSAGE.FILE_UPLOAD_FAILED,
-        code: RESPONSE_CODE.FILE_UPLOAD_FAILED,
+        message: RESPONSE_MESSAGE.ERROR_UPLOADING_FILE,
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
       });
     }
 

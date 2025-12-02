@@ -55,7 +55,6 @@ export const RESPONSE_CODE = {
   ORGANIZATION_EMAIL_ALREADY_VERIFIED: "ORGANIZATION_EMAIL_ALREADY_VERIFIED",
   ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH:
     "ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH",
-  FILE_UPLOAD_FAILED: "FILE_UPLOAD_FAILED",
   UPDATE_INVITATION_FAILED: "UPDATE_INVITATION_FAILED",
   ADD_MEMBER_FAILED: "ADD_MEMBER_FAILED",
   MEMBER_NOT_FOUND: "MEMBER_NOT_FOUND",
@@ -77,6 +76,7 @@ export const RESPONSE_MESSAGE = {
   PHONE_ALREADY_EXISTS: "Phone number already exists.",
   EMAIL_ALREADY_EXISTS: "Email already exists.",
   CV_NOT_FOUND: "CV not found.",
+  ERROR_UPLOADING_FILE: "Error uploading file.",
   ORGANIZATION_NOT_FOUND: "Organization not found.",
   ORGANIZATION_ID_REQUIRED: "organizationId is required for this action.",
   INVALID_NOTIFICATION_STATUS:
@@ -98,7 +98,6 @@ export const RESPONSE_MESSAGE = {
     "The organization's email is already verified.",
   ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH:
     "Organization name confirmation does not match. Please enter the exact organization name to confirm deletion.",
-  FILE_UPLOAD_FAILED: "Failed to upload file.",
   UPDATE_INVITATION_FAILED: "Failed to update invitation.",
   ADD_MEMBER_FAILED: "Failed to add member to the organization.",
   MEMBER_NOT_FOUND:
