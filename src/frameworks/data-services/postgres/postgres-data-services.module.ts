@@ -23,6 +23,12 @@ import {
   ILearningRoadmapRepository,
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
+  IAreaRepository,
+  IQuestionRepository,
+  ILevelRepository,
+  IUserTestRepository,
+  IUserAnswerRepository,
+  IImportLogRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -52,6 +58,12 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
 import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
 import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { AreaRepository } from "./repositories/area.repository";
+import { QuestionRepository } from "./repositories/question.repository";
+import { LevelRepository } from "./repositories/level.repository";
+import { UserTestRepository } from "./repositories/user-test.repository";
+import { UserAnswerRepository } from "./repositories/user-answer.repository";
+import { ImportLogRepository } from "./repositories/import-log.repository";
 
 @Global()
 @Module({
@@ -200,6 +212,30 @@ import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository"
       provide: IRoadmapSkillRepository,
       useClass: RoadmapSkillRepository,
     },
+    {
+      provide: IAreaRepository,
+      useClass: AreaRepository,
+    },
+    {
+      provide: IQuestionRepository,
+      useClass: QuestionRepository,
+    },
+    {
+      provide: ILevelRepository,
+      useClass: LevelRepository,
+    },
+    {
+      provide: IUserTestRepository,
+      useClass: UserTestRepository,
+    },
+    {
+      provide: IUserAnswerRepository,
+      useClass: UserAnswerRepository,
+    },
+    {
+      provide: IImportLogRepository,
+      useClass: ImportLogRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -226,6 +262,12 @@ import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository"
     ILearningRoadmapRepository,
     IRoadmapPhaseRepository,
     IRoadmapSkillRepository,
+    IAreaRepository,
+    IQuestionRepository,
+    ILevelRepository,
+    IUserTestRepository,
+    IUserAnswerRepository,
+    IImportLogRepository,
   ],
 })
 export class PostgresDataServicesModule {}

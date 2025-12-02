@@ -1,0 +1,6 @@
+area,areaId,skill,skillId,questionText,options,correctAnswer,point,difficulty
+Programming,,JavaScript,,What is JavaScript?,"[""A programming language"",""A framework"",""A database"",""An operating system""]",A programming language,10,easy
+Programming,,JavaScript,,What does 'const' keyword do?,"[""Declares a constant variable"",""Declares a function"",""Declares a class"",""Declares an object""]",Declares a constant variable,10,medium
+Programming,,Python,,What is Python?,"[""A programming language"",""A snake"",""A framework"",""A tool""]",A programming language,10,easy
+Programming,,TypeScript,,What is TypeScript?,"[""A superset of JavaScript"",""A database"",""A framework"",""An IDE""]",A superset of JavaScript,15,medium
+Programming,,React,,What is React?,"[""A JavaScript library for building UIs"",""A database"",""A programming language"",""An operating system""]",A JavaScript library for building UIs,15,medium

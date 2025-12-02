@@ -14,6 +14,12 @@ import {
   schools,
   userEducations,
   feedbacks,
+  areas,
+  questions,
+  levels,
+  userTests,
+  userAnswers,
+  importLogs,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -140,3 +146,22 @@ export type Feedback = InferSelectModel<typeof feedbacks>;
 
 export * from "./learning-path.entity";
 export * from "./ai-cv.entity";
+
+// Exam System entities
+export type NewArea = InferInsertModel<typeof areas>;
+export type Area = InferSelectModel<typeof areas>;
+
+export type NewQuestion = InferInsertModel<typeof questions>;
+export type Question = InferSelectModel<typeof questions>;
+
+export type NewLevel = InferInsertModel<typeof levels>;
+export type Level = InferSelectModel<typeof levels>;
+
+export type NewUserTest = InferInsertModel<typeof userTests>;
+export type UserTest = InferSelectModel<typeof userTests>;
+
+export type NewUserAnswer = InferInsertModel<typeof userAnswers>;
+export type UserAnswer = InferSelectModel<typeof userAnswers>;
+
+export type NewImportLog = InferInsertModel<typeof importLogs>;
+export type ImportLog = InferSelectModel<typeof importLogs>;

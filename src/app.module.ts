@@ -22,6 +22,8 @@ import {
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
+import { AdminExamController } from "./interfaces/controllers/exam/admin-exam.controller";
+import { ExamController } from "./interfaces/controllers/exam/exam.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -61,6 +63,7 @@ import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
 import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
 import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
+import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
 
 @Module({
   imports: [
@@ -96,6 +99,7 @@ import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-p
     FeedbackUseCasesModule,
     EmailModule,
     LearningPathUseCasesModule,
+    ExamUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -121,6 +125,8 @@ import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-p
     FeedbackController,
     FeedbackAdminController,
     LearningPathController,
+    AdminExamController,
+    ExamController,
   ],
   providers: [
     JwtStrategy,
