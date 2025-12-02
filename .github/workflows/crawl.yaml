@@ -63,7 +63,7 @@ jobs:
           python main.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --gha-output "$GITHUB_OUTPUT" \
-            --pages 1 \
+            --pages 2 \
             --linkedin-keywords "${{ steps.keyword.outputs.keyword }}"
 
       - name: Notify Slack
