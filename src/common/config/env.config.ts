@@ -90,6 +90,21 @@ export class EnvironmentVariables {
 
   @IsNumber()
   AI_SERVICE_MAX_RETRIES: number;
+
+  @IsString()
+  FRONTEND_URL: string;
+
+  @IsString()
+  MAIL_USER: string;
+
+  @IsString()
+  MAIL_PASSWORD: string;
+
+  @IsString()
+  MAIL_FROM: string;
+
+  @IsString()
+  MAIL_HOST: string;
 }
 
 export default (): Record<string, any> => ({
@@ -128,6 +143,12 @@ export default (): Record<string, any> => ({
   AI_SERVICE_URL: process.env.AI_SERVICE_URL,
   AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,
   AI_SERVICE_MAX_RETRIES: Number(process.env.AI_SERVICE_MAX_RETRIES) || 3,
+  FRONTEND_URL: process.env.FRONTEND_URL,
+
+  MAIL_USER: process.env.MAIL_USER,
+  MAIL_PASSWORD: process.env.MAIL_PASSWORD,
+  MAIL_FROM: process.env.MAIL_FROM,
+  MAIL_HOST: process.env.MAIL_HOST,
 });
 
 export const validateConfig = (

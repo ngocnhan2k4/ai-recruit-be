@@ -20,13 +20,13 @@ import {
   companies,
   skills,
   jobSkills,
-  jobCategories,
   categories,
   provinces,
   userInteractions,
   applyJobs,
   cvs,
   jobRaws,
+  users,
 } from "../models";
 import {
   DBDrizzleTransaction,
@@ -43,6 +43,7 @@ import {
   Notification,
   NotificationType,
   IUserRepository,
+  Category,
 } from "@/core";
 import {
   Job,
@@ -123,6 +124,18 @@ export class JobRepository
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
+    if (filters?.createdAtStart) {
+      whereConditions.push(gte(jobs.createdAt, filters.createdAtStart));
+    }
+
+    if (filters?.createdAtEnd) {
+      whereConditions.push(lte(jobs.createdAt, filters.createdAtEnd));
+    }
+
+    if (filters?.isJobSystem) {
+      whereConditions.push(isNull(jobs.jobRawId));
+    }
+
     const offset = (Math.max(page || 1, 1) - 1) * limit;
 
     // Add one extra item to check if there's a next page
@@ -135,6 +148,7 @@ export class JobRepository
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
+        category: categories,
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -157,6 +171,7 @@ export class JobRepository
         ) s_lateral`,
         sql`TRUE`,
       )
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
       .offset(offset)
@@ -165,6 +180,7 @@ export class JobRepository
       provinces: Province[];
       organization: OrganizationWithDetails;
       skills: Skill[];
+      category: Category;
     }[];
 
     const total = (
@@ -173,7 +189,7 @@ export class JobRepository
           total: countDistinct(jobs.id).as("total"),
         })
         .from(jobs)
-        .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+        .leftJoin(categories, eq(jobs.categoryId, categories.id))
         .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     )[0]?.total;
 
@@ -292,6 +308,7 @@ export class JobRepository
               LIMIT 1
             )`.as("applyId")
           : sql`NULL`.as("applyId"),
+        category: categories,
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -314,6 +331,7 @@ export class JobRepository
         ) s_lateral`,
         sql`TRUE`,
       )
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(asc(jobs.id))
       .limit(limit + 1)) as {
@@ -321,6 +339,7 @@ export class JobRepository
       provinces: Province[];
       organization: OrganizationWithDetails;
       skills: Skill[];
+      category: Category;
     }[];
 
     // Check if there's a next page
@@ -353,7 +372,6 @@ export class JobRepository
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions))
       .groupBy(jobs.datePosted);
 
@@ -368,7 +386,6 @@ export class JobRepository
         totalJobs: countDistinct(jobs.id).as("totalJobs"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions));
 
     return result[0]?.totalJobs ?? 0;
@@ -393,7 +410,7 @@ export class JobRepository
         ? gte(jobsTable.datePosted, convertDateToStr(fromDate))
         : undefined,
       toDate ? lte(jobsTable.datePosted, convertDateToStr(toDate)) : undefined,
-      categoryId ? eq(jobCategories.categoryId, categoryId) : undefined,
+      categoryId ? eq(jobsTable.categoryId, categoryId) : undefined,
       provinceId ? eq(jobsTable.provinceId, provinceId) : undefined,
       isOpen
         ? or(
@@ -475,7 +492,6 @@ export class JobRepository
         count: countDistinct(applyJobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .leftJoin(applyJobs, eq(jobs.id, applyJobs.jobId))
       .where(and(...conditions, isNotNull(applyJobs.id)))
       .groupBy(jobs.title)
@@ -510,7 +526,6 @@ export class JobRepository
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
       .where(and(...conditions, isNotNull(organizations.name)))
       .groupBy(organizations.name, organizations.logoUrl)
@@ -539,8 +554,7 @@ export class JobRepository
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
-      .leftJoin(categories, eq(jobCategories.categoryId, categories.id))
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(...conditions, isNotNull(categories.name)))
       .groupBy(categories.name)
       .orderBy(desc(sql`count(*)`))
@@ -1249,12 +1263,14 @@ export class JobRepository
             LIMIT 1
           )`.as("applyId")
           : sql`NULL`.as("applyId"),
+        category: categories,
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
       .groupBy(jobs.id, organizations.id, provinces.id)
       .limit(1);
@@ -1275,6 +1291,7 @@ export class JobRepository
       isApplied: (data.isApplied || undefined) as boolean | undefined,
       applyStatus: (data.applyStatus || undefined) as string | undefined,
       applyId: (data.applyId || undefined) as string | undefined,
+      category: data.category as Category,
     };
   }
   async getNumberOfSavedJobs(userId: string): Promise<number> {
@@ -1371,5 +1388,157 @@ export class JobRepository
         total: total,
       },
     };
+  }
+
+  async getUsersWithAppliedJobs(): Promise<
+    Array<{
+      userId: string;
+      email: string;
+      name: string;
+      appliedJobIds: string[];
+      skillIds: string[];
+      categoryIds: string[];
+    }>
+  > {
+    const result = await this.db
+      .select({
+        userId: cvs.userId,
+        email: users.email,
+        name: users.name,
+        jobId: applyJobs.jobId,
+        skillId: jobSkills.skillId,
+        categoryId: jobs.categoryId,
+      })
+      .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(users, eq(cvs.userId, users.id))
+      .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
+      .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(and(isNotNull(users.email), isNull(users.deletedAt)));
+
+    // Group by user
+    const userMap = new Map<
+      string,
+      {
+        userId: string;
+        email: string;
+        name: string;
+        appliedJobIds: string[];
+        skillIds: string[];
+        categoryIds: string[];
+      }
+    >();
+
+    for (const row of result) {
+      if (!row.userId || !row.email) continue;
+
+      if (!userMap.has(row.userId)) {
+        userMap.set(row.userId, {
+          userId: row.userId,
+          email: row.email,
+          name: row.name || "User",
+          appliedJobIds: [],
+          skillIds: [],
+          categoryIds: [],
+        });
+      }
+
+      const user = userMap.get(row.userId)!;
+
+      if (row.jobId && !user.appliedJobIds.includes(row.jobId)) {
+        user.appliedJobIds.push(row.jobId);
+      }
+
+      if (row.skillId && !user.skillIds.includes(row.skillId)) {
+        user.skillIds.push(row.skillId);
+      }
+
+      if (row.categoryId && !user.categoryIds.includes(row.categoryId)) {
+        user.categoryIds.push(row.categoryId);
+      }
+    }
+
+    return Array.from(userMap.values());
+  }
+
+  async findRecommendedJobs(
+    userId: string,
+    appliedJobIds: string[],
+    skillIds: string[],
+    categoryIds: string[],
+    createdAtStart: Date,
+    createdAtEnd: Date,
+    isJobSystem: boolean,
+    limit = 20,
+  ): Promise<JobResponse[]> {
+    if (
+      appliedJobIds.length === 0 ||
+      (skillIds.length === 0 && categoryIds.length === 0)
+    ) {
+      return [];
+    }
+
+    // Build filters để tìm jobs có cùng skills hoặc categories
+    const filters: JobFilters = {
+      limit,
+      page: 1,
+      user: {
+        userId,
+        roles: [],
+      },
+      createdAtStart,
+      createdAtEnd,
+      isJobSystem,
+    };
+
+    // Lấy jobs với filters
+    const allJobs = await this.getJobsByAdmin(filters);
+
+    // Filter jobs:
+    // 1. Không phải job đã apply
+    // 2. Có status = 'active'
+    // 3. Chưa hết hạn
+    // 4. Có skill hoặc category trùng với applied jobs
+    const recommendedJobs = allJobs.data.filter((jobResponse) => {
+      const job = jobResponse.job;
+
+      // Bỏ qua nếu đã apply
+      if (appliedJobIds.includes(job.id)) {
+        return false;
+      }
+
+      // Bỏ qua nếu status không phải active
+      if (job.status !== "active") {
+        return false;
+      }
+
+      // Bỏ qua nếu đã hết hạn
+      if (job.endDate && new Date(job.endDate) < new Date()) {
+        return false;
+      }
+
+      // Kiểm tra có skill hoặc category trùng
+      const hasMatchingSkill =
+        skillIds.length > 0 &&
+        jobResponse.skills.some((skill) => skillIds.includes(skill.id));
+
+      // Note: categories không có trong JobResponse, cần query thêm nếu cần
+      // Tạm thời chỉ dùng skills để match
+
+      return hasMatchingSkill;
+    });
+
+    // Sắp xếp theo độ liên quan (số lượng skills trùng)
+    recommendedJobs.sort((a, b) => {
+      const aMatchCount = a.skills.filter((skill) =>
+        skillIds.includes(skill.id),
+      ).length;
+      const bMatchCount = b.skills.filter((skill) =>
+        skillIds.includes(skill.id),
+      ).length;
+      return bMatchCount - aMatchCount;
+    });
+
+    return recommendedJobs;
   }
 }

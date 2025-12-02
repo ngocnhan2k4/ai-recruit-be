@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { MailerService } from "@nestjs-modules/mailer";
+import { ConfigService } from "@nestjs/config";
+import { JobResponse } from "@/core/entities/job.entity";
 
 export interface SendEmailOptions {
   to: string | string[];
@@ -11,7 +13,10 @@ export interface SendEmailOptions {
 
 @Injectable()
 export class EmailService {
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async sendEmail(options: SendEmailOptions): Promise<void> {
     await this.mailerService.sendMail({
@@ -104,6 +109,109 @@ export class EmailService {
     });
   }
 
+  async sendJobRecommendationsEmail(
+    to: string,
+    userName: string,
+    jobs: JobResponse[],
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL")!;
+
+    const formatSalary = (min: string | null, max: string | null): string => {
+      if (!min && !max) return "Thỏa thuận";
+      if (min && max) {
+        const minNum = parseInt(min) / 1000000;
+        const maxNum = parseInt(max) / 1000000;
+        return `${minNum} - ${maxNum} triệu VNĐ`;
+      }
+      if (min) {
+        const minNum = parseInt(min) / 1000000;
+        return `Từ ${minNum} triệu VNĐ`;
+      }
+      if (max) {
+        const maxNum = parseInt(max) / 1000000;
+        return `Đến ${maxNum} triệu VNĐ`;
+      }
+      return "Thỏa thuận";
+    };
+
+    const formatSkills = (skills: any[]): string => {
+      if (!skills || skills.length === 0) return "Không yêu cầu";
+      return skills
+        .slice(0, 5)
+        .map((s) => s.name as string)
+        .join(", ");
+    };
+
+    const formatProvince = (provinces: any[]): string => {
+      if (!provinces || provinces.length === 0) return "Không xác định";
+      return provinces.map((p) => p.name as string).join(", ");
+    };
+
+    const jobsHtml = jobs
+      .map((jobResponse) => {
+        const job = jobResponse.job;
+        const jobUrl = `${frontendUrl}/dashboard/jobs/${job.id}`;
+        const salary = formatSalary(job.salaryMin, job.salaryMax);
+        const skills = formatSkills(jobResponse.skills);
+        const province = formatProvince(jobResponse.provinces);
+        const organization = jobResponse.organization;
+
+        return `
+          <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: #fafafa;">
+            <h3 style="color: #2196F3; margin-top: 0; margin-bottom: 10px;">
+              <a href="${jobUrl}" style="color: #2196F3; text-decoration: none;">${job.title}</a>
+            </h3>
+            <p style="color: #666; margin: 5px 0; font-size: 14px;">
+              <strong>Công ty:</strong> ${organization.name || "N/A"}
+            </p>
+            <p style="color: #666; margin: 5px 0; font-size: 14px;">
+              <strong>Địa điểm:</strong> ${province}
+            </p>
+            <p style="color: #666; margin: 5px 0; font-size: 14px;">
+              <strong>Mức lương:</strong> ${salary}
+            </p>
+            <p style="color: #666; margin: 5px 0; font-size: 14px;">
+              <strong>Kỹ năng:</strong> ${skills}
+            </p>
+            <div style="margin-top: 15px;">
+              <a href="${jobUrl}" 
+                 style="display: inline-block; padding: 8px 20px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 5px; font-size: 14px;">
+                Xem chi tiết
+              </a>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-bottom: 20px;">Việc làm phù hợp với bạn</h2>
+          <p style="color: #555; line-height: 1.6; margin-bottom: 20px;">
+            Xin chào <strong>${userName}</strong>,
+          </p>
+          <p style="color: #555; line-height: 1.6; margin-bottom: 20px;">
+            Dựa trên các công việc bạn đã ứng tuyển, chúng tôi đã tìm thấy <strong>${jobs.length}</strong> việc làm phù hợp với bạn:
+          </p>
+          ${jobsHtml}
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            Email này được gửi tự động dựa trên sở thích và lịch sử ứng tuyển của bạn.
+            <br>
+            Bạn có thể tắt thông báo này trong cài đặt tài khoản.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `Việc làm phù hợp với bạn - ${jobs.length} công việc mới`,
+      html,
+    });
+  }
+
   async sendChangeOrganizationEmailOtp(
     to: string,
     organizationName: string,
@@ -131,7 +239,6 @@ export class EmailService {
         </div>
       </div>
     `;
-
     await this.sendEmail({
       to,
       subject: `Xác thực email cho ${organizationName}`,
