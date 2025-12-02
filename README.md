@@ -44,3 +44,6 @@ await this.transactionManager.execute(async (tx) => {
   const user = await this.userRepo.create(tx, data);
   const exp = await this.expRepo.createUserExperienceWithCompanyAndSkills(tx, user.id, expData);
 });
+
+# Note
+  - [UPDATE], [FIX], [TODO] 
