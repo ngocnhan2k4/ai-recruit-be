@@ -445,7 +445,7 @@ export class JobRepository
           OR (j.experience_min IS NULL AND b.exp_year < j.experience_max)
           OR (j.experience_max IS NULL AND b.exp_year >= j.experience_min)
           OR (b.exp_year BETWEEN j.experience_min AND j.experience_max)
-      LEFT JOIN job_categories jc ON j.id = jc.job_id
+      LEFT JOIN categories c ON j.category_id = c.id
       `);
 
     const where: SQL[] = [
@@ -459,7 +459,7 @@ export class JobRepository
       where.push(sql`j.date_posted <= ${convertDateToStr(toDate)}`);
     }
     if (categoryId) {
-      where.push(sql`jc.category_id = ${categoryId}`);
+      where.push(sql`c.id = ${categoryId}`);
     }
     if (provinceId) {
       where.push(sql`j.province_id = ${provinceId}`);
@@ -1272,7 +1272,7 @@ export class JobRepository
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, provinces.id)
+      .groupBy(jobs.id, organizations.id, provinces.id, categories.id)
       .limit(1);
 
     if (!result || result.length === 0) {
