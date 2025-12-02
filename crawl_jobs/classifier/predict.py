@@ -1,60 +1,58 @@
 import argparse
-import json
-
 import pandas as pd
+import json
 from transformers import pipeline
 
-
-def clean_text(row):
+def combine_text(row):
+    """
+    Combines Title + Skills + Description just like the training script.
+    """
+    title = str(row.get('title', ''))
+    skills = str(row.get('associated_skills', '')) 
+    
     try:
-        desc_data = json.loads(row["description"])
-        desc_text = " ".join([item.get("body", "") for item in desc_data])
+        desc_data = json.loads(row['description'])
+        desc_text = " ".join([item.get('body', '') for item in desc_data])
     except:
-        desc_text = str(row["description"])
-    return f"{row['title']} . {desc_text}"[:512]
-
+        desc_text = str(row['description'])
+    
+    return f"Title: {title} . Skills: {skills} . Description: {desc_text}"[:512]
 
 def main():
     parser = argparse.ArgumentParser(description="Predict job categories")
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="./data/predict_jobs.csv",
-        required=True,
-        help="Hugging Face Repo ID or Local Path",
-    )
-    parser.add_argument(
-        "--input_file", type=str, required=True, help="Path to input CSV"
-    )
-    parser.add_argument(
-        "--output_file",
-        type=str,
-        default="./data/results.csv",
-        help="Path to save output CSV",
-    )
-    parser.add_argument(
-        "--threshold", type=float, default=0.4, help="Confidence threshold for 'Other'"
-    )
-
+    parser.add_argument("--model", type=str, default="./artifacts/multi_class_model")
+    parser.add_argument("--input_file", type=str, default="./data/predict_jobs.csv")
+    parser.add_argument("--output_file", type=str, default="./data/results.csv")
+    parser.add_argument("--threshold", type=float, default=0.4)
+    
     args = parser.parse_args()
 
-    print(f"Loading model: {args.model}")
+    # --- LOAD MODEL ---
+    print(f"🚀 Loading model from: {args.model} ...")
     classifier = pipeline("text-classification", model=args.model)
 
-    print(f"Reading data: {args.input_file}")
-    df = pd.read_csv(args.input_file)
+    # --- LOAD DATA ---
+    print(f"📂 Reading data from: {args.input_file} ...")
+    try:
+        df = pd.read_csv(args.input_file)
+    except FileNotFoundError:
+        print(f"❌ Error: File '{args.input_file}' not found.")
+        return
 
-    inputs = df.apply(clean_text, axis=1).tolist()
+    # --- PREPARE INPUTS ---
+    inputs = df.apply(combine_text, axis=1).tolist()
 
-    print(f"Classifying {len(inputs)} records...")
+    # --- PREDICT ---
+    print(f"🧠 Classifying {len(inputs)} records...")
     results = classifier(inputs)
 
+    # --- PROCESS RESULTS ---
     final_categories = []
     final_scores = []
 
     for result in results:
-        score = result["score"]
-        label = result["label"]
+        score = result['score']
+        label = result['label']
 
         if score < args.threshold:
             label = "Other"
@@ -62,14 +60,13 @@ def main():
         final_categories.append(label)
         final_scores.append(score)
 
-    df["predicted_category"] = final_categories
-    df["confidence"] = final_scores
+    df['predicted_category'] = final_categories
+    df['confidence'] = final_scores
 
-    output_df = df.drop(columns=["description"], errors="ignore")
-
+    # Clean up output
+    output_df = df.drop(columns=['description', 'category'], errors='ignore')
     output_df.to_csv(args.output_file, index=False)
-    print(f"\n✅ Saved predictions to {args.output_file}")
-
+    print(f"✅ Success! Saved predictions to '{args.output_file}'")
 
 if __name__ == "__main__":
     main()
