@@ -48,7 +48,7 @@ def main():
 
         # # ITViec - page by page
         print(f"🔄 ITViec (page {page})")
-        itviec_companies = itviec_crawl(pages=1, start_page=page, use_enhanced=True)
+        itviec_companies = itviec_crawl(pages=1, start_page=page)
         itviec_inserted = insert_to_db(args.db_url, itviec_companies) or 0
         total_itviec_jobs += itviec_inserted
         print(f"✓ ITViec page {page}: {itviec_inserted} jobs inserted\n")
