@@ -44,11 +44,21 @@ export const RESPONSE_CODE = {
   INVALID_NOTIFICATION_STATUS: "INVALID_NOTIFICATION_STATUS",
   INVITEE_ALREADY_MEMBER: "INVITEE_ALREADY_MEMBER",
   INVITATION_ALREADY_SENT: "INVITATION_ALREADY_SENT",
+  INVITATION_NOT_PENDING: "INVITATION_NOT_PENDING",
   SENT_INVITATION_FAILED: "SENT_INVITATION_FAILED",
   INVITATION_NOT_FOUND: "INVITATION_NOT_FOUND",
   CREATE_ORGANIZATION_FAILED: "CREATE_ORGANIZATION_FAILED",
   UPDATE_ORGANIZATION_FAILED: "UPDATE_ORGANIZATION_FAILED",
   FEEDBACK_NOT_FOUND: "FEEDBACK_NOT_FOUND",
+  OTP_NOT_VALID: "OTP_NOT_VALID",
+  EMAIL_NOT_MATCH: "EMAIL_NOT_MATCH",
+  ORGANIZATION_EMAIL_ALREADY_VERIFIED: "ORGANIZATION_EMAIL_ALREADY_VERIFIED",
+  ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH:
+    "ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH",
+  FILE_UPLOAD_FAILED: "FILE_UPLOAD_FAILED",
+  UPDATE_INVITATION_FAILED: "UPDATE_INVITATION_FAILED",
+  ADD_MEMBER_FAILED: "ADD_MEMBER_FAILED",
+  MEMBER_NOT_FOUND: "MEMBER_NOT_FOUND",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -78,4 +88,19 @@ export const RESPONSE_MESSAGE = {
   INVITATION_NOT_FOUND: "Invitation not found.",
   CREATE_ORGANIZATION_FAILED: "Failed to create organization.",
   UPDATE_ORGANIZATION_FAILED: "Failed to update organization.",
+  INVITATION_NOT_PENDING: "Invitation is not pending.",
+  ADDITIONAL_INFO_ONLY_FOR_COMPANIES:
+    "Additional info (culture, benefits) is only available for companies",
+  OTP_NOT_VALID: "The provided OTP is invalid or has expired.",
+  EMAIL_NOT_MATCH:
+    "The provided email does not match the organization's email.",
+  ORGANIZATION_EMAIL_ALREADY_VERIFIED:
+    "The organization's email is already verified.",
+  ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH:
+    "Organization name confirmation does not match. Please enter the exact organization name to confirm deletion.",
+  FILE_UPLOAD_FAILED: "Failed to upload file.",
+  UPDATE_INVITATION_FAILED: "Failed to update invitation.",
+  ADD_MEMBER_FAILED: "Failed to add member to the organization.",
+  MEMBER_NOT_FOUND:
+    "The member to be kicked does not exist in the organization.",
 };

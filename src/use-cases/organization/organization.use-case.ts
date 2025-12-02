@@ -247,7 +247,7 @@ export class OrganizationUseCase {
         id: orgId,
         locations: updatedLocations,
       },
-      message: "Cập nhật địa chỉ thành công",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -270,8 +270,7 @@ export class OrganizationUseCase {
     // Only allow update for COMPANY type organizations
     if (org.type !== OrganizationTypeEnum.COMPANY) {
       throw new BadRequestException({
-        message:
-          "Additional info (culture, benefits) is only available for companies",
+        message: RESPONSE_MESSAGE.ADDITIONAL_INFO_ONLY_FOR_COMPANIES,
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
@@ -280,7 +279,7 @@ export class OrganizationUseCase {
     if (Object.keys(data).length === 0) {
       return {
         data: org,
-        message: "Cập nhật thông tin bổ sung thành công",
+        message: RESPONSE_MESSAGE.SUCCESS,
         code: RESPONSE_CODE.SUCCESS,
       };
     }
@@ -312,7 +311,7 @@ export class OrganizationUseCase {
 
     return {
       data: updatedOrg,
-      message: "Cập nhật thông tin bổ sung thành công",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -359,7 +358,7 @@ export class OrganizationUseCase {
 
       return {
         data: "REQUIRE_OTP",
-        message: `OTP verification code has been sent to ${newEmail}. Please verify to complete email change.`,
+        message: RESPONSE_MESSAGE.SUCCESS,
         code: RESPONSE_CODE.SUCCESS,
       };
     }
@@ -382,8 +381,7 @@ export class OrganizationUseCase {
 
     return {
       data: "SUCCESS",
-      message:
-        "Organization email updated successfully. Please verify the new email.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -412,9 +410,8 @@ export class OrganizationUseCase {
 
     if (!isValid) {
       throw new BadRequestException({
-        message:
-          "Invalid or expired OTP code, or email does not match. Please request a new verification code.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.OTP_NOT_VALID,
+        code: RESPONSE_CODE.OTP_NOT_VALID,
       });
     }
 
@@ -443,8 +440,7 @@ export class OrganizationUseCase {
         email: newEmail,
         verifiedAt: null,
       },
-      message:
-        "Organization email updated successfully. Please verify the new email address.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -465,17 +461,16 @@ export class OrganizationUseCase {
     // Check if email matches organization's email
     if (org.email !== email) {
       throw new BadRequestException({
-        message:
-          "Email does not match organization's email. Please update email first.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.EMAIL_NOT_MATCH,
+        code: RESPONSE_CODE.EMAIL_NOT_MATCH,
       });
     }
 
     // Check if already verified
     if (org.verifiedAt) {
       throw new BadRequestException({
-        message: "Organization email is already verified.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+        code: RESPONSE_CODE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
       });
     }
 
@@ -511,7 +506,7 @@ export class OrganizationUseCase {
         message: `Verification code has been sent to ${email}`,
         expiryMinutes: 10,
       },
-      message: "OTP sent successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -533,16 +528,16 @@ export class OrganizationUseCase {
     // Check if email matches
     if (org.email !== email) {
       throw new BadRequestException({
-        message: "Email does not match organization's email.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.EMAIL_NOT_MATCH,
+        code: RESPONSE_CODE.EMAIL_NOT_MATCH,
       });
     }
 
     // Check if already verified
     if (org.verifiedAt) {
       throw new BadRequestException({
-        message: "Organization email is already verified.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+        code: RESPONSE_CODE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
       });
     }
 
@@ -584,7 +579,7 @@ export class OrganizationUseCase {
 
     return {
       data: { verifiedAt },
-      message: "Email verified successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -605,9 +600,8 @@ export class OrganizationUseCase {
     // Verify confirmation name matches
     if (org.name !== confirmationName) {
       throw new BadRequestException({
-        message:
-          "Organization name confirmation does not match. Please enter the exact organization name to confirm deletion.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH,
+        code: RESPONSE_CODE.ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH,
       });
     }
 
@@ -747,8 +741,8 @@ export class OrganizationUseCase {
 
     if (!uploadResult || !uploadResult.secure_url) {
       throw new BadRequestException({
-        message: "Failed to upload logo",
-        code: RESPONSE_CODE.SERVER_ERROR,
+        message: RESPONSE_MESSAGE.FILE_UPLOAD_FAILED,
+        code: RESPONSE_CODE.FILE_UPLOAD_FAILED,
       });
     }
 
@@ -767,7 +761,7 @@ export class OrganizationUseCase {
 
     return {
       data: { logoUrl: uploadResult.secure_url },
-      message: "Organization logo updated successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

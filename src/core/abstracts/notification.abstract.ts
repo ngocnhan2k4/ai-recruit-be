@@ -1,3 +1,4 @@
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 import { NewNotification, Notification } from "../entities";
 
 export abstract class INotificationService {
@@ -7,5 +8,6 @@ export abstract class INotificationService {
       userId: string;
       organizationId?: string;
     },
+    tx?: DBDrizzleTransaction,
   ): Promise<{ success: boolean; notification?: Notification }>;
 }

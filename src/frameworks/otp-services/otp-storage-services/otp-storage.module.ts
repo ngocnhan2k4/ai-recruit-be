@@ -1,12 +1,14 @@
 import { IOtpStorageService } from "@/core/abstracts/otp-storage.abstract";
 import { Module } from "@nestjs/common";
-import { InMemoryOtpStorageService } from "./in-memory-otp-storage.service";
+import { RedisOtpStorageService } from "./redis-otp-storage.service";
+import { RedisModule } from "@/frameworks/redis/redis.module";
 
 @Module({
+  imports: [RedisModule],
   providers: [
     {
       provide: IOtpStorageService,
-      useClass: InMemoryOtpStorageService,
+      useClass: RedisOtpStorageService,
     },
   ],
   exports: [IOtpStorageService],

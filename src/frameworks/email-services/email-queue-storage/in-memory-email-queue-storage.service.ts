@@ -16,18 +16,9 @@ export class InMemoryEmailQueueStorageService
     );
   }
 
-  getNextJob(): EmailJob | undefined {
-    const now = new Date();
-    const job = this.queue.find((j) => !j.nextRetryAt || j.nextRetryAt <= now);
-    return job;
-  }
-
-  getAllJobs(count: number = 10): EmailJob[] {
-    const now = new Date();
-    const jobs = this.queue
-      .filter((j) => !j.nextRetryAt || j.nextRetryAt <= now)
-      .slice(0, count);
-    return jobs;
+  getAllJobsAsync(count: number): Promise<EmailJob[]> {
+    const jobs = this.queue.slice(0, count);
+    return Promise.resolve(jobs);
   }
 
   removeJob(jobId: string): void {
@@ -49,25 +40,8 @@ export class InMemoryEmailQueueStorageService
     }
   }
 
-  getQueueSize(): number {
-    return this.queue.length;
-  }
-
-  getQueueStats(): {
-    total: number;
-    pending: number;
-    retrying: number;
-  } {
-    const now = new Date();
-    const retrying = this.queue.filter(
-      (j) => j.nextRetryAt && j.nextRetryAt > now,
-    ).length;
-
-    return {
-      total: this.queue.length,
-      pending: this.queue.length - retrying,
-      retrying,
-    };
+  getQueueSizeAsync(): Promise<number> {
+    return Promise.resolve(this.queue.length);
   }
 
   clearQueue(): void {

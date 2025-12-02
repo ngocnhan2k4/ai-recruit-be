@@ -1,12 +1,14 @@
 import { Module } from "@nestjs/common";
 import { IEmailQueueStorageService } from "@/core/abstracts/email-queue-storage.abstract";
-import { InMemoryEmailQueueStorageService } from "./in-memory-email-queue-storage.service";
+import { RedisEmailQueueStorageService } from "./redis-email-queue-storage.service";
+import { RedisModule } from "@/frameworks/redis/redis.module";
 
 @Module({
+  imports: [RedisModule],
   providers: [
     {
       provide: IEmailQueueStorageService,
-      useClass: InMemoryEmailQueueStorageService,
+      useClass: RedisEmailQueueStorageService,
     },
   ],
   exports: [IEmailQueueStorageService],

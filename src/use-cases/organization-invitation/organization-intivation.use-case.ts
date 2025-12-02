@@ -146,41 +146,48 @@ export class OrganizationInvitationUseCase {
       };
     }
 
-    // Create invitation
-    const invitation = await this.organizationMemberInvitationRepository.create(
-      {
-        organizationId: organizationId,
-        actorId: inviterId,
-        receiverId: data.inviteeId,
-        type: OrganizationInvitationTypeEnum.OUTGOING,
-        status: OrganizationInviteStatusEnum.PENDING,
-        role: data.role,
-        // 1 month expiration
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    );
+    await this.organizationMemberInvitationRepository.executeWithTransaction(
+      async (tx) => {
+        // Create invitation
+        const invitation =
+          await this.organizationMemberInvitationRepository.create(
+            {
+              organizationId: organizationId,
+              actorId: inviterId,
+              receiverId: data.inviteeId,
+              type: OrganizationInvitationTypeEnum.OUTGOING,
+              status: OrganizationInviteStatusEnum.PENDING,
+              role: data.role,
+              // 1 month expiration
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+            tx,
+          );
 
-    if (!invitation) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.SENT_INVITATION_FAILED,
-        code: RESPONSE_CODE.SENT_INVITATION_FAILED,
-      });
-    }
+        if (!invitation) {
+          throw new BadRequestException({
+            message: RESPONSE_MESSAGE.SENT_INVITATION_FAILED,
+            code: RESPONSE_CODE.SENT_INVITATION_FAILED,
+          });
+        }
 
-    await this.notificationService.createAndSendToUser(
-      {
-        title: "Organization Invitation",
-        senderId: inviterId,
-        message: `You have been invited to join an organization.`,
-        payload: {
-          orgId: organizationId,
-          userId: data.inviteeId,
-          orgInvitationId: invitation.id,
-        },
-        type: "organization_invitation",
-      },
-      {
-        userId: data.inviteeId,
+        await this.notificationService.createAndSendToUser(
+          {
+            title: "Organization Invitation",
+            senderId: inviterId,
+            message: `You have been invited to join an organization.`,
+            payload: {
+              orgId: organizationId,
+              userId: data.inviteeId,
+              orgInvitationId: invitation.id,
+            },
+            type: "organization_invitation",
+          },
+          {
+            userId: data.inviteeId,
+          },
+          tx,
+        );
       },
     );
 
@@ -193,7 +200,7 @@ export class OrganizationInvitationUseCase {
     );
 
     return {
-      message: "Invitation sent successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -326,8 +333,8 @@ export class OrganizationInvitationUseCase {
 
         if (!updatedInvitation) {
           throw new BadRequestException({
-            message: RESPONSE_MESSAGE.SERVER_ERROR,
-            code: RESPONSE_CODE.SERVER_ERROR,
+            message: RESPONSE_MESSAGE.UPDATE_INVITATION_FAILED,
+            code: RESPONSE_CODE.UPDATE_INVITATION_FAILED,
           });
         }
 
@@ -343,8 +350,8 @@ export class OrganizationInvitationUseCase {
           );
           if (!result) {
             throw new BadRequestException({
-              message: RESPONSE_MESSAGE.SERVER_ERROR,
-              code: RESPONSE_CODE.SERVER_ERROR,
+              message: RESPONSE_MESSAGE.ADD_MEMBER_FAILED,
+              code: RESPONSE_CODE.ADD_MEMBER_FAILED,
             });
           }
         }
@@ -432,7 +439,7 @@ export class OrganizationInvitationUseCase {
     // Check if inviter has permission to invite the target role
     if (!this.canInviteRole(inviterRole, newRole as OrganizationRoleEnum)) {
       throw new ForbiddenException({
-        message: "You do not have permission to assign this role.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -470,8 +477,8 @@ export class OrganizationInvitationUseCase {
       OrganizationInviteStatusEnum.PENDING
     ) {
       throw new BadRequestException({
-        message: "Cannot revoke invitation that is not pending.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.INVITATION_NOT_PENDING,
+        code: RESPONSE_CODE.INVITATION_NOT_PENDING,
       });
     }
 
@@ -497,8 +504,7 @@ export class OrganizationInvitationUseCase {
 
     if (!isInviter && !isAdminOrOwner) {
       throw new ForbiddenException({
-        message:
-          "You do not have permission to revoke this invitation. Only the inviter or organization admin/owner can revoke.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -525,7 +531,7 @@ export class OrganizationInvitationUseCase {
     );
 
     return {
-      message: "Invitation revoked successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

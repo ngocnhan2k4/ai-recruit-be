@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { EmailJobType, IEmailQueueStorageService } from "@/core";
 import { EmailService } from "./email.service";
+import { JobResponse } from "@/core/entities/job.entity";
 import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
@@ -24,7 +25,9 @@ export class EmailWorkerService implements OnModuleInit {
       return;
     }
 
-    const jobs = this.emailQueueStorage.getAllJobs(20);
+    // Support both sync and async storage implementations
+    const jobs = await this.emailQueueStorage.getAllJobsAsync(20);
+
     if (jobs.length === 0) {
       return;
     }
@@ -71,6 +74,14 @@ export class EmailWorkerService implements OnModuleInit {
           job.data.inviterName,
           job.data.invitationLink,
           job.data.role,
+        );
+        break;
+
+      case EmailJobType.JOB_RECOMMENDATIONS:
+        await this.emailService.sendJobRecommendationsEmail(
+          job.data.to as string,
+          job.data.userName as string,
+          job.data.jobs as JobResponse[],
         );
         break;
 
