@@ -1,11 +1,4 @@
-export enum EmailJobType {
-  ORGANIZATION_INVITATION = "organization_invitation",
-  VERIFICATION = "verification",
-  PASSWORD_RESET = "password_reset",
-  WELCOME = "welcome",
-  JOB_RECOMMENDATIONS = "job_recommendations",
-  CUSTOM = "custom",
-}
+import { EmailJobType } from "./enum.entity";
 
 export interface EmailJobData {
   to: string | string[];

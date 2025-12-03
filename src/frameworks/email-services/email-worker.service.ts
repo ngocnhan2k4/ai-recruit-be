@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { EmailQueueService } from "./email-queue.service";
+import { EmailJobType, IEmailQueueStorageService } from "@/core";
 import { EmailService } from "./email.service";
-import { EmailJob, EmailJobType } from "../../core/entities/email-job.entity";
 import { JobResponse } from "@/core/entities/job.entity";
+import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
 export class EmailWorkerService implements OnModuleInit {
@@ -11,7 +11,7 @@ export class EmailWorkerService implements OnModuleInit {
   private isProcessing = false;
 
   constructor(
-    private readonly emailQueueService: EmailQueueService,
+    private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly emailService: EmailService,
   ) {}
 
@@ -25,7 +25,9 @@ export class EmailWorkerService implements OnModuleInit {
       return;
     }
 
-    const jobs = this.emailQueueService.getAllJobs(20);
+    // Support both sync and async storage implementations
+    const jobs = await this.emailQueueStorage.getAllJobsAsync(20);
+
     if (jobs.length === 0) {
       return;
     }
@@ -37,7 +39,7 @@ export class EmailWorkerService implements OnModuleInit {
       const results = await Promise.allSettled(
         jobs.map(async (job) => {
           await this.sendEmailByType(job);
-          this.emailQueueService.removeJob(job.id);
+          this.emailQueueStorage.removeJob(job.id);
           return job;
         }),
       );
@@ -59,14 +61,19 @@ export class EmailWorkerService implements OnModuleInit {
   }
 
   private async sendEmailByType(job: EmailJob): Promise<void> {
+    // Helper to get single email address (methods only accept string, not array)
+    const getFirstEmail = (to: string | string[]): string => {
+      return Array.isArray(to) ? to[0] : String(to);
+    };
+
     switch (job.type) {
       case EmailJobType.ORGANIZATION_INVITATION:
         await this.emailService.sendOrganizationInvitationEmail(
-          job.data.to as string,
-          job.data.organizationName as string,
-          job.data.inviterName as string,
-          job.data.invitationLink as string,
-          job.data.role as string,
+          getFirstEmail(job.data.to),
+          job.data.organizationName,
+          job.data.inviterName,
+          job.data.invitationLink,
+          job.data.role,
         );
         break;
 
@@ -75,6 +82,22 @@ export class EmailWorkerService implements OnModuleInit {
           job.data.to as string,
           job.data.userName as string,
           job.data.jobs as JobResponse[],
+        );
+        break;
+
+      case EmailJobType.ORGANIZATION_VERIFICATION:
+        await this.emailService.sendVerifyOrganizationEmailOtp(
+          getFirstEmail(job.data.to),
+          job.data.organizationName,
+          job.data.otpCode,
+        );
+        break;
+
+      case EmailJobType.ORGANIZATION_CHANGE_EMAIL:
+        await this.emailService.sendChangeOrganizationEmailOtp(
+          getFirstEmail(job.data.to),
+          job.data.organizationName,
+          job.data.otpCode,
         );
         break;
 
@@ -89,7 +112,7 @@ export class EmailWorkerService implements OnModuleInit {
 
       default:
         throw new Error(
-          `[EmailService] Failed to send email: Unknown job type ${job.type as any}`,
+          "[EmailService] Failed to send email: Unknown job type",
         );
     }
   }
@@ -102,12 +125,12 @@ export class EmailWorkerService implements OnModuleInit {
       this.logger.error(
         `Job ${job.id} exceeded max attempts (${job.maxAttempts}). Removing from queue.`,
       );
-      this.emailQueueService.removeJob(job.id);
+      this.emailQueueStorage.removeJob(job.id);
     } else {
       const delaySeconds = Math.pow(2, job.attempts) * 5;
       job.nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
 
-      this.emailQueueService.updateJob(job.id, {
+      this.emailQueueStorage.updateJob(job.id, {
         attempts: job.attempts,
         nextRetryAt: job.nextRetryAt,
         error: job.error,
