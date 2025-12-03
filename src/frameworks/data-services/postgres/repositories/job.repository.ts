@@ -445,7 +445,6 @@ export class JobRepository
           OR (j.experience_min IS NULL AND b.exp_year < j.experience_max)
           OR (j.experience_max IS NULL AND b.exp_year >= j.experience_min)
           OR (b.exp_year BETWEEN j.experience_min AND j.experience_max)
-      LEFT JOIN job_categories jc ON j.id = jc.job_id
       `);
 
     const where: SQL[] = [
@@ -459,7 +458,7 @@ export class JobRepository
       where.push(sql`j.date_posted <= ${convertDateToStr(toDate)}`);
     }
     if (categoryId) {
-      where.push(sql`jc.category_id = ${categoryId}`);
+      where.push(sql`j.category_id = ${categoryId}`);
     }
     if (provinceId) {
       where.push(sql`j.province_id = ${provinceId}`);
@@ -1461,6 +1460,7 @@ export class JobRepository
     return Array.from(userMap.values());
   }
 
+  // [UPDATE]: Update logic to find recommended jobs
   async findRecommendedJobs(
     userId: string,
     appliedJobIds: string[],
@@ -1478,7 +1478,6 @@ export class JobRepository
       return [];
     }
 
-    // Build filters để tìm jobs có cùng skills hoặc categories
     const filters: JobFilters = {
       limit,
       page: 1,
@@ -1491,7 +1490,6 @@ export class JobRepository
       isJobSystem,
     };
 
-    // Lấy jobs với filters
     const allJobs = await this.getJobsByAdmin(filters);
 
     // Filter jobs:
@@ -1502,17 +1500,14 @@ export class JobRepository
     const recommendedJobs = allJobs.data.filter((jobResponse) => {
       const job = jobResponse.job;
 
-      // Bỏ qua nếu đã apply
       if (appliedJobIds.includes(job.id)) {
         return false;
       }
 
-      // Bỏ qua nếu status không phải active
       if (job.status !== "active") {
         return false;
       }
 
-      // Bỏ qua nếu đã hết hạn
       if (job.endDate && new Date(job.endDate) < new Date()) {
         return false;
       }
@@ -1528,7 +1523,6 @@ export class JobRepository
       return hasMatchingSkill;
     });
 
-    // Sắp xếp theo độ liên quan (số lượng skills trùng)
     recommendedJobs.sort((a, b) => {
       const aMatchCount = a.skills.filter((skill) =>
         skillIds.includes(skill.id),
