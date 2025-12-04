@@ -1,3 +1,4 @@
+import { OptimizeAtsRequest, OptimizeAtsResponse } from "../entities";
 import {
   PreviewRoadmapResponse,
   RoadmapGenerateRequest,
@@ -7,4 +8,8 @@ export abstract class IAIService {
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Promise<PreviewRoadmapResponse>;
+
+  abstract optimizeCvAts(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponse>;
 }

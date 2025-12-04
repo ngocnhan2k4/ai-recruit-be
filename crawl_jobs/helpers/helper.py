@@ -1,17 +1,16 @@
-import time
-import random
-from datetime import datetime, timezone, timedelta
-import re
-from typing import Callable, Any, Tuple, Optional
-from urllib.parse import urlparse
-import math
-import unicodedata
-import socket
-import ipaddress
-import socket
-import ipaddress
-import cloudscraper
 import hashlib
+import ipaddress
+import math
+import random
+import re
+import socket
+import time
+import unicodedata
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Optional, Tuple
+from urllib.parse import urlparse
+
+import cloudscraper
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
@@ -22,9 +21,10 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0",
 ]
 
+
 def crawl(scrape_page: Callable[..., Any], delay=3, jitter=5, pages=1, start_page=1):
     scraper = cloudscraper.create_scraper(
-        browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
+        browser={"browser": "chrome", "platform": "windows", "mobile": False}
     )
 
     headers = get_headers()
@@ -75,9 +75,12 @@ def fetch_page(scraper, url, headers=None, max_retries=5, delay=3):
         resp = scraper.get(url, headers=headers)
         if resp.status_code == 200 and "Just a moment..." not in resp.text:
             return resp.text
-        print(f"[!] Blocked or challenge on {url}, retrying ({attempt+1}/{max_retries})...")
+        print(
+            f"[!] Blocked or challenge on {url}, retrying ({attempt + 1}/{max_retries})..."
+        )
         time.sleep(delay + random.uniform(0, 2))
     return None
+
 
 def safe_text(el, is_strip=True, sep=""):
     if not el:
@@ -100,7 +103,7 @@ def vn_parse_posted_date(text: str) -> datetime:
     clean = re.sub(r"\s+", " ", text).strip().lower()
 
     m = re.search(r"(\d+)\s*(giây|phút|giờ|ngày)", clean)
-    
+
     if not m:
         raise ValueError(f"Unrecognized date string: {text!r}")
 
@@ -144,7 +147,7 @@ def parse_posted_date(text: str) -> datetime:
         return now - timedelta(days=value * 30)
     else:
         raise ValueError(f"Unknown unit in date string: {text!r}")
-    
+
 
 def extract_employees(company_size: str):
     if "-" in company_size:
@@ -153,69 +156,71 @@ def extract_employees(company_size: str):
     elif "+" in company_size:
         fields = company_size.split("+")
         return int(fields[0]), None
-    
+
+
 def extract_salary(salary: str) -> tuple[int, int]:
     s = salary.replace(",", "").lower().strip()
     USD_CONVERSION_FACTOR = 25.0
 
     if "thoả thuận" in s:
-        return 0, 0 
+        return 0, 0
 
     if s.startswith("tới"):
         match = re.search(r"(\d+)\s*(triệu|usd)", s)
         if match:
             value = float(match.group(1))
             unit = match.group(2)
-            
+
             max_salary = value
             if unit == "usd":
                 max_salary = value * USD_CONVERSION_FACTOR / 1000
-            
+
             return 0, int(round(max_salary))
 
     if "-" in s:
         parts = s.split("-")
-        
+
         min_match = re.search(r"(\d+)", parts[0])
         max_match = re.search(r"(\d+)\s*(triệu|usd)", parts[1])
-        
+
         if min_match and max_match:
             min_value = float(min_match.group(1))
             max_value = float(max_match.group(1))
             unit = max_match.group(2)
-            
+
             if unit == "triệu":
                 min_salary = min_value
                 max_salary = max_value
             elif unit == "usd":
                 min_salary = min_value * USD_CONVERSION_FACTOR / 1000
                 max_salary = max_value * USD_CONVERSION_FACTOR / 1000
-            
+
             return int(round(min_salary)), int(round(max_salary))
-        
+
     return 0, 0
 
 
 def extract_experience_years(experience_str: str) -> int:
     s = experience_str.lower().strip()
-    
+
     if "không yêu cầu" in s:
         return 0
-    
+
     match = re.search(r"(\d+)\s*năm", s)
-    
+
     if match:
         value = int(match.group(1))
         return value
-        
+
     return 0
+
 
 def extract_experience_years_jobsgo(experience_str: str):
     s = experience_str.lower().replace("năm", "").strip()
-    
+
     if "không yêu cầu" in s:
         return 0, None
-    
+
     if "dưới" in s:
         try:
             max_val = math.ceil(float(s.replace("dưới", "").strip()))
@@ -251,19 +256,20 @@ def process_province(locations: list[str]) -> list:
         return [locations[1] if ("Vietnam" not in locations[1]) else locations[0]]
     elif "Vietnam" in locations[0]:
         return []
-    
+
     return locations
+
 
 def extract_employee_range(text: str) -> Tuple[Optional[int], Optional[int]]:
     if not isinstance(text, str):
         return (None, None)
 
-    number_strings = re.findall(r'[\d,.]+', text)
+    number_strings = re.findall(r"[\d,.]+", text)
 
     numbers = []
     for s in number_strings:
         try:
-            cleaned_num = int(s.replace('.', '').replace(',', ''))
+            cleaned_num = int(s.replace(".", "").replace(",", ""))
             numbers.append(cleaned_num)
         except ValueError:
             continue
@@ -274,7 +280,7 @@ def extract_employee_range(text: str) -> Tuple[Optional[int], Optional[int]]:
         return (numbers[0], None)
     else:
         return (None, None)
-    
+
 
 def is_safe_db_url(url_string: str) -> bool:
     """
@@ -283,14 +289,14 @@ def is_safe_db_url(url_string: str) -> bool:
     """
     # 1. Blacklist of dangerous URL schemes
     DISALLOWED_SCHEMES = ["file", "ftp", "gopher", "dict"]
-    
+
     # 2. Blacklist of private and reserved IP networks
     BLACKLISTED_NETWORKS = [
-        ipaddress.ip_network("10.0.0.0/8"),     # Private range
+        ipaddress.ip_network("10.0.0.0/8"),  # Private range
         ipaddress.ip_network("172.16.0.0/12"),  # Private range
-        ipaddress.ip_network("192.168.0.0/16"), # Private range
-        ipaddress.ip_network("169.254.0.0/16"), # Link-local
-        ipaddress.ip_network("0.0.0.0/8"),      # Reserved
+        ipaddress.ip_network("192.168.0.0/16"),  # Private range
+        ipaddress.ip_network("169.254.0.0/16"),  # Link-local
+        ipaddress.ip_network("0.0.0.0/8"),  # Reserved
     ]
 
     try:
@@ -300,7 +306,7 @@ def is_safe_db_url(url_string: str) -> bool:
         if not hostname:
             print("Error: DB URL has no hostname.")
             return False
-            
+
         if parsed_url.scheme in DISALLOWED_SCHEMES:
             print(f"Error: URL scheme '{parsed_url.scheme}' is not allowed.")
             return False
@@ -311,7 +317,9 @@ def is_safe_db_url(url_string: str) -> bool:
         # Check if the resolved IP is in any blacklisted network
         for network in BLACKLISTED_NETWORKS:
             if resolved_ip in network:
-                print(f"Error: DB host '{hostname}' resolves to a blacklisted IP address '{resolved_ip}'.")
+                print(
+                    f"Error: DB host '{hostname}' resolves to a blacklisted IP address '{resolved_ip}'."
+                )
                 return False
 
     except (ValueError, socket.gaierror) as e:
@@ -321,9 +329,11 @@ def is_safe_db_url(url_string: str) -> bool:
     # If all checks pass, the URL is considered safe
     return True
 
+
 def vietnam_time_now():
     vn_tz = timezone(timedelta(hours=7))
     return datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+
 
 def slugify(text):
     # Normalize and remove accents (Vietnamese, etc.)
@@ -337,20 +347,21 @@ def slugify(text):
 # Enhanced Anti-Detection Utilities
 # ============================================================================
 
+
 def create_request_fingerprint(url: str, timestamp: float = None) -> str:
     """
     Create a unique fingerprint for a request to help with caching/deduplication.
-    
+
     Args:
         url: URL being requested
         timestamp: Optional timestamp (defaults to current time)
-    
+
     Returns:
         Hexadecimal fingerprint string
     """
     if timestamp is None:
         timestamp = time.time()
-    
+
     data = f"{url}:{timestamp}"
     return hashlib.sha256(data.encode()).hexdigest()[:16]
 
@@ -358,10 +369,10 @@ def create_request_fingerprint(url: str, timestamp: float = None) -> str:
 def generate_realistic_headers(referer: Optional[str] = None) -> dict:
     """
     Generate realistic HTTP headers that mimic browser behavior.
-    
+
     Args:
         referer: Optional referer URL
-    
+
     Returns:
         Dictionary of HTTP headers
     """
@@ -371,7 +382,7 @@ def generate_realistic_headers(referer: Optional[str] = None) -> dict:
         "vi-VN,vi;q=0.9,en;q=0.8",
         "en-GB,en;q=0.9",
     ]
-    
+
     headers = {
         "User-Agent": random.choice(USER_AGENTS),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -384,45 +395,43 @@ def generate_realistic_headers(referer: Optional[str] = None) -> dict:
         "Sec-Fetch-Site": "none",
         "Cache-Control": "max-age=0",
     }
-    
+
     # Randomly include DNT header (Do Not Track)
     if random.random() > 0.3:
         headers["DNT"] = "1"
-    
+
     # Add referer if provided
     if referer:
         headers["Referer"] = referer
         headers["Sec-Fetch-Site"] = "same-origin"
-    
+
     return headers
 
 
 def adaptive_delay(
-    base_delay: float,
-    failure_rate: float = 0.0,
-    time_of_day_factor: bool = True
+    base_delay: float, failure_rate: float = 0.0, time_of_day_factor: bool = True
 ) -> float:
     """
     Calculate adaptive delay based on failure rate and time of day.
-    
+
     Args:
         base_delay: Base delay in seconds
         failure_rate: Current failure rate (0.0 to 1.0)
         time_of_day_factor: Whether to adjust for time of day
-    
+
     Returns:
         Adjusted delay in seconds
     """
     delay = base_delay
-    
+
     # Increase delay based on failure rate
     if failure_rate > 0.2:
-        delay *= (1 + failure_rate)
-    
+        delay *= 1 + failure_rate
+
     # Add jitter (±20%)
     jitter = delay * random.uniform(-0.2, 0.2)
     delay += jitter
-    
+
     # Adjust for time of day (slower during peak hours)
     if time_of_day_factor:
         hour = datetime.now().hour
@@ -431,34 +440,36 @@ def adaptive_delay(
             delay *= random.uniform(1.1, 1.3)
         else:
             delay *= random.uniform(0.9, 1.0)
-    
+
     return max(0.5, delay)
 
 
-def should_rotate_session(request_count: int, failure_count: int, threshold: int = 50) -> bool:
+def should_rotate_session(
+    request_count: int, failure_count: int, threshold: int = 50
+) -> bool:
     """
     Determine if session should be rotated based on usage and failures.
-    
+
     Args:
         request_count: Number of requests made with current session
         failure_count: Number of recent failures
         threshold: Request count threshold for rotation
-    
+
     Returns:
         True if session should be rotated
     """
     # Rotate after threshold requests
     if request_count >= threshold:
         return True
-    
+
     # Rotate if too many failures
     if failure_count >= 5:
         return True
-    
+
     # Random rotation (5% chance) to avoid patterns
     if random.random() < 0.05:
         return True
-    
+
     return False
 
 
@@ -466,47 +477,47 @@ def calculate_request_priority(url: str, domain_stats: dict) -> int:
     """
     Calculate priority for a request based on domain statistics.
     Lower priority = higher importance.
-    
+
     Args:
         url: URL to prioritize
         domain_stats: Dictionary with domain statistics
-    
+
     Returns:
         Priority score (0-100)
     """
     domain = urlparse(url).netloc.lower()
-    
+
     if domain not in domain_stats:
         return 50  # Default medium priority
-    
+
     stats = domain_stats[domain]
-    failure_rate = stats.get('failure_rate', 0)
-    avg_response_time = stats.get('avg_response_time', 1.0)
-    
+    failure_rate = stats.get("failure_rate", 0)
+    avg_response_time = stats.get("avg_response_time", 1.0)
+
     # Higher failure rate = lower priority (higher number)
     priority = 50
     priority += int(failure_rate * 30)  # Max +30 for high failure rate
     priority += min(int(avg_response_time * 5), 20)  # Max +20 for slow responses
-    
+
     return min(priority, 100)
 
 
 def detect_block_patterns(response_text: str, status_code: int) -> Tuple[bool, str]:
     """
     Detect common blocking patterns in response.
-    
+
     Args:
         response_text: Response body text
         status_code: HTTP status code
-    
+
     Returns:
         Tuple of (is_blocked, reason)
     """
     if not response_text:
         return False, ""
-    
+
     text_lower = response_text.lower()
-    
+
     # Common blocking patterns
     block_patterns = [
         ("just a moment", "Cloudflare challenge"),
@@ -519,11 +530,11 @@ def detect_block_patterns(response_text: str, status_code: int) -> Tuple[bool, s
         ("suspicious activity", "Suspicious activity detected"),
         ("verify you are human", "Human verification required"),
     ]
-    
+
     for pattern, reason in block_patterns:
         if pattern in text_lower:
             return True, reason
-    
+
     # Check status codes
     if status_code == 429:
         return True, "Rate limit (429)"
@@ -531,18 +542,18 @@ def detect_block_patterns(response_text: str, status_code: int) -> Tuple[bool, s
         return True, "Forbidden (403)"
     elif status_code == 503:
         return True, "Service unavailable (503)"
-    
+
     # Check for minimal content (possible block page)
     if len(response_text) < 500 and status_code == 200:
         return True, "Suspiciously short response"
-    
+
     return False, ""
 
 
 def get_optimal_crawl_time() -> Tuple[int, int]:
     """
     Get optimal time window for crawling (less likely to be detected).
-    
+
     Returns:
         Tuple of (start_hour, end_hour) in 24-hour format
     """
@@ -554,39 +565,41 @@ def get_optimal_crawl_time() -> Tuple[int, int]:
 def is_crawl_time_optimal() -> bool:
     """
     Check if current time is optimal for crawling.
-    
+
     Returns:
         True if optimal time
     """
     current_hour = datetime.now().hour
     start_hour, end_hour = get_optimal_crawl_time()
-    
+
     if start_hour > end_hour:  # Crosses midnight
         return current_hour >= start_hour or current_hour < end_hour
     else:
         return start_hour <= current_hour < end_hour
 
 
-def estimate_crawl_duration(num_urls: int, avg_delay: float, num_domains: int = 1) -> str:
+def estimate_crawl_duration(
+    num_urls: int, avg_delay: float, num_domains: int = 1
+) -> str:
     """
     Estimate total crawl duration.
-    
+
     Args:
         num_urls: Number of URLs to crawl
         avg_delay: Average delay per request (seconds)
         num_domains: Number of different domains (for parallelization)
-    
+
     Returns:
         Human-readable duration estimate
     """
     # Account for parallelization across domains
     effective_urls = num_urls / max(num_domains, 1)
     total_seconds = effective_urls * avg_delay
-    
+
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
-    
+
     if hours > 0:
         return f"{hours}h {minutes}m {seconds}s"
     elif minutes > 0:
@@ -598,20 +611,20 @@ def estimate_crawl_duration(num_urls: int, avg_delay: float, num_domains: int = 
 def create_browser_config(randomize: bool = True) -> dict:
     """
     Create browser configuration for cloudscraper.
-    
+
     Args:
         randomize: Whether to randomize browser selection
-    
+
     Returns:
         Browser configuration dictionary
     """
     if randomize:
         browsers = [
-            {'browser': 'chrome', 'platform': 'windows', 'mobile': False},
-            {'browser': 'chrome', 'platform': 'darwin', 'mobile': False},
-            {'browser': 'firefox', 'platform': 'windows', 'mobile': False},
-            {'browser': 'firefox', 'platform': 'darwin', 'mobile': False},
+            {"browser": "chrome", "platform": "windows", "mobile": False},
+            {"browser": "chrome", "platform": "darwin", "mobile": False},
+            {"browser": "firefox", "platform": "windows", "mobile": False},
+            {"browser": "firefox", "platform": "darwin", "mobile": False},
         ]
         return random.choice(browsers)
     else:
-        return {'browser': 'chrome', 'platform': 'windows', 'mobile': False}
+        return {"browser": "chrome", "platform": "windows", "mobile": False}

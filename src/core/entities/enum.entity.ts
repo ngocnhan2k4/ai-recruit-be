@@ -134,6 +134,11 @@ export enum GapDifficultyEnum {
   HARD = "hard",
 }
 
+export enum CvLanguageEnum {
+  ENGLISH = "en",
+  VIETNAMESE = "vi",
+}
+
 export enum EmailJobType {
   ORGANIZATION_INVITATION = "organization_invitation",
   ORGANIZATION_VERIFICATION = "organization_verification",

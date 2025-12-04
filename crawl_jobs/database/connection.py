@@ -142,7 +142,7 @@ def _get_or_create_job_raw(cur, title, jdata, company_raw_id):
     return cur.fetchone()[0]
 
 
-def _insert_job(cur, title, jdata, organization_id, province_id, job_raw_id):
+def _insert_job(cur, title, jdata, organization_id, province_id, job_raw_id, category_id=None):
     cur.execute("SELECT id FROM jobs WHERE title = %s AND organization_id = %s", (title, organization_id))
     if cur.fetchone():
         print(f"Job '{title}' already exists for organization '{organization_id}', skipping.")
@@ -152,15 +152,15 @@ def _insert_job(cur, title, jdata, organization_id, province_id, job_raw_id):
         """
         INSERT INTO jobs
             (title, description, date_posted, organization_id, province_id, created_at, 
-             salary_min, salary_max, experience_min, experience_max, end_date, job_raw_id, status, work_type)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+             salary_min, salary_max, experience_min, experience_max, end_date, job_raw_id, status, work_type, category_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         """,
         (
             title, Json(jdata.get("description")), jdata.get("date_posted"),
             organization_id, province_id, jdata.get("crawled_at"),
             jdata.get("salary_min"), jdata.get("salary_max"),
             jdata.get("experience_min"), jdata.get("experience_max"),
-            jdata.get("end_date"), job_raw_id, JobStatus.ACTIVE, WorkType.ONSITE
+            jdata.get("end_date"), job_raw_id, JobStatus.ACTIVE, WorkType.ONSITE, category_id
         ),
     )
     return cur.fetchone()[0]
@@ -219,8 +219,8 @@ def get_all_category(db_url):
         return [row[0] for row in rows]
 
 
-def _link_job_to_category(cur, job_id, category_name, valid_categories):
-    """Link job to category only if category exists in database"""
+def _get_category_id(cur, category_name, valid_categories):
+    """Get category ID if category exists in database"""
     if category_name not in valid_categories:
         return None
     
@@ -232,15 +232,7 @@ def _link_job_to_category(cur, job_id, category_name, valid_categories):
     if not row:
         return None
     
-    category_id = row[0]
-    cur.execute(
-        """
-        INSERT INTO job_categories (job_id, category_id) VALUES (%s, %s)
-        ON CONFLICT (job_id, category_id) DO NOTHING
-        """,
-        (job_id, category_id)
-    )
-    return category_id
+    return row[0]
 
 
 def insert_to_db(db_url: str, companies: dict):
@@ -274,14 +266,15 @@ def insert_to_db(db_url: str, companies: dict):
 
                     _insert_organization_location(cur, organization_id, province_id, cdata.get("address"))
 
-                    job_id = _insert_job(cur, title, jdata, company_id, province_id, job_raw_id)
+                    category_id = None
+                    if jdata.get("category"):
+                        category_id = _get_category_id(cur, jdata["category"], valid_categories)
+
+                    job_id = _insert_job(cur, title, jdata, company_id, province_id, job_raw_id, category_id)
                     if not job_id:
                         continue
                     
                     jobs_inserted += 1
-
-                    if jdata.get("category"):
-                        _link_job_to_category(cur, job_id, jdata["category"], valid_categories)
 
                     for skill in jdata.get("skills", []):
                         skill_id = _get_or_create_skill(cur, skill)

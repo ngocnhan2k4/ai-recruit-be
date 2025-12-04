@@ -1,11 +1,16 @@
-from urllib.parse import urlparse, urljoin
 import re
 from datetime import datetime, timezone
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
+from helpers.helper import (
+    crawl,
+    extract_employees,
+    get_date_posted,
+    parse_posted_date,
+    safe_text,
+)
 
-from helpers.helper import parse_posted_date, safe_text, get_date_posted, extract_employees, crawl
-from scheduler.scheduler import EnhancedCrawler
 
 def clean_job_url(url: str) -> str:
     p = urlparse(url)
@@ -17,18 +22,23 @@ def clean_job_url(url: str) -> str:
     return f"{p.scheme}://{p.netloc}/{'/'.join(parts)}"
 
 
-def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locations: list):
+def scrape_job_detail(
+    scraper, base_url: str, link: str, companies: dict, locations: list
+):
     job_url = urljoin(base_url, link)
     resp = scraper.get(clean_job_url(job_url))
-    
+
     soup = BeautifulSoup(resp.text, "html.parser")
 
     job_title = safe_text(soup.find("h1"))
     company_name = safe_text(soup.select_one(".employer-name"))
 
     logo_tag = soup.find("img", class_="employer-logo")
-    logo = (logo_tag.get("src") or logo_tag.get("data-src") or "").strip() if logo_tag else None
-
+    logo = (
+        (logo_tag.get("src") or logo_tag.get("data-src") or "").strip()
+        if logo_tag
+        else None
+    )
 
     # date posted
     imb_3_wrap = soup.find("div", class_="imb-3")
@@ -58,10 +68,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
         title = safe_text(p.find("h2"))
         body_items = [li.get_text(strip=True) for li in p.find_all("li")]
         body_text = ", ".join(b for b in body_items if b) or "N/A"
-        description_parts.append({
-            "title": title,
-            "body": body_text
-        })
+        description_parts.append({"title": title, "body": body_text})
     description = description_parts if description_parts else []
 
     # --- Company page ---
@@ -78,7 +85,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
                 text = safe_text(div)
                 if re.search(r"\d", text):
                     company_size = text.replace("\nemployees", "").strip()
-    
+
         company_description_wrap = comp_soup.find("div", class_="paragraph")
 
         # Company Website
@@ -92,14 +99,16 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
 
         companies[company_name] = {
             "logo": logo,
-            "description": safe_text(company_description_wrap, is_strip=False)\
-                .replace("\n", "", 1).replace("\n", ". ", -1).replace("\xa0", " ", -1),
+            "description": safe_text(company_description_wrap, is_strip=False)
+            .replace("\n", "", 1)
+            .replace("\n", ". ", -1)
+            .replace("\xa0", " ", -1),
             "employees_min": min,
             "employees_max": max,
             "website_url": website_url,
             "crawled_at": datetime.now(),
             "source": "itviec",
-            "jobs": {}
+            "jobs": {},
         }
 
     companies[company_name]["jobs"][job_title] = {
@@ -110,7 +119,7 @@ def scrape_job_detail(scraper, base_url: str, link: str, companies: dict, locati
         "date_posted": date_posted,
         "skills": skills,
         "crawled_at": datetime.now(timezone.utc),
-        "source": "itviec"
+        "source": "itviec",
     }
 
 
@@ -136,31 +145,16 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def itviec_crawl(pages: int = 1, start_page: int = 1, use_enhanced=True, scheduler=None):
+def itviec_crawl(pages: int = 1, start_page: int = 1):
     """
     Crawl ITViec job listings.
-    
+
     Args:
         pages: Number of listing pages to crawl
         start_page: Starting page number
-        use_enhanced: If True, use EnhancedCrawler with anti-restriction features.
-                     If False, use legacy crawl() function.
-        scheduler: Optional RoundRobinScheduler instance to share across crawlers
-    
+
     Returns:
         Dictionary of companies and their jobs
     """
-    if use_enhanced:
-        print(f"[ITViec] Using EnhancedCrawler (page {start_page})")
-        crawler = EnhancedCrawler(scheduler=scheduler)
-        return crawler.crawl_pages(
-            scrape_page_callback=scrape_page,
-            base_url="https://itviec.com",
-            pages=pages,
-            start_page=start_page,
-            min_delay=2.0,
-            max_delay=4.0
-        )
-    else:
-        print(f"[ITViec] Using legacy crawler (page {start_page})")
-        return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)
+    print(f"[ITViec] Crawling (page {start_page})")
+    return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)

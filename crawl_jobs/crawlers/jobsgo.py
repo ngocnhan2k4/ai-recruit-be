@@ -1,14 +1,13 @@
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
-
 from helpers.helper import (
-    safe_text, 
-    extract_salary, 
-    vn_parse_posted_date, 
+    crawl,
     extract_experience_years_jobsgo,
+    extract_salary,
     fetch_page,
-    crawl
+    safe_text,
+    vn_parse_posted_date,
 )
 
 
@@ -20,7 +19,10 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
 
     # logo
     logo = card.find("img")["src"]
-    if logo == "https://media.jobsgo.vn/media/img/employer/98495-200x200.jpg?v=1670378027":
+    if (
+        logo
+        == "https://media.jobsgo.vn/media/img/employer/98495-200x200.jpg?v=1670378027"
+    ):
         return
 
     div_wrap = card.select_one("div.align-items-center").find_all("span")
@@ -42,8 +44,9 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         if span["title"] == "Thời gian cập nhật":
             date_posted = vn_parse_posted_date(safe_text(span))
         elif span["title"] == "Yêu cầu kinh nghiệm":
-            experience_min, experience_max = extract_experience_years_jobsgo(safe_text(span))
-
+            experience_min, experience_max = extract_experience_years_jobsgo(
+                safe_text(span)
+            )
 
     resp = scraper.get(job_url)
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -58,7 +61,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     skill_wrap = body.find_all("a")
     for skill in skill_wrap[:-1]:
         skills.append(safe_text(skill))
-    
+
     # description
     description_parts = []
     desc_wrap = soup.select_one("div.job-detail-card")
@@ -66,10 +69,9 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     body_wrap = desc_wrap.find_all("div")
 
     for index in range(0, len(title_wrap)):
-        description_parts.append({
-            "title": safe_text(title_wrap[index]),
-            "body": safe_text(body_wrap[index])
-        })
+        description_parts.append(
+            {"title": safe_text(title_wrap[index]), "body": safe_text(body_wrap[index])}
+        )
 
     # --- Company page ---
     company_url = soup.select_one("div.card-company").find("a")["href"]
@@ -102,7 +104,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
             addr_span = addr_li.find_next("span")
             if addr_span:
                 comp_addr = safe_text(addr_span, is_strip=False).split("\n")
-        
+
         comp_addr = [address.strip() for address in comp_addr]
 
     if company_name not in companies:
@@ -112,8 +114,8 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
             "description": company_desc,
             "website_url": website_url,
             "crawled_at": datetime.now(),
-            "source": "jobsgo",  
-            "jobs": {}
+            "source": "jobsgo",
+            "jobs": {},
         }
 
     companies[company_name]["jobs"][job_title] = {
@@ -127,7 +129,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         "crawled_at": datetime.now(timezone.utc),
         "salary_min": salary_min,
         "salary_max": salary_max,
-        "source": "jobsgo"
+        "source": "jobsgo",
     }
 
 
@@ -154,12 +156,11 @@ def scrape_page(scraper, page_num, headers):
     return companies
 
 
-def jobsgo_crawl(pages: int = 1, start_page: int = 1, scheduler=None):
+def jobsgo_crawl(pages: int = 1, start_page: int = 1):
     """Crawl JobsGO listing pages.
 
     Args:
         pages: Number of listing pages to crawl
         start_page: Starting page number
-        scheduler: Optional RoundRobinScheduler instance (not used in legacy mode)
     """
     return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)

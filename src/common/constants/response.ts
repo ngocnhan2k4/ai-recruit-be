@@ -26,6 +26,8 @@ export const RESPONSE_CODE = {
   CV_NOT_FOUND: "CV_NOT_FOUND",
   CV_NOT_UPDATED: "CV_NOT_UPDATED",
   CV_NOT_DELETED: "CV_NOT_DELETED",
+  CV_OPTIMIZATION_FAILED: "CV_OPTIMIZATION_FAILED",
+  CV_NOT_UPLOADED: "CV_NOT_UPLOADED",
   FILE_NOT_PROVIDE: "FILE_NOT_PROVIDE",
   FILE_TYPE_NOT_SUPPORTED: "FILE_TYPE_NOT_SUPPORTED",
   JOB_NOT_FOUND: "JOB_NOT_FOUND",
@@ -88,6 +90,11 @@ export const RESPONSE_MESSAGE = {
   INVITATION_NOT_FOUND: "Invitation not found.",
   CREATE_ORGANIZATION_FAILED: "Failed to create organization.",
   UPDATE_ORGANIZATION_FAILED: "Failed to update organization.",
+  CV_NOT_UPLOADED: "No CV file uploaded",
+  CV_FILE_REQUIRED: "CV file is required",
+  INVALID_FILE_TYPE:
+    "Invalid file type. Only PDF and DOCX files are supported.",
+  FILE_TOO_LARGE: "File size exceeds 5MB limit.",
   INVITATION_NOT_PENDING: "Invitation is not pending.",
   ADDITIONAL_INFO_ONLY_FOR_COMPANIES:
     "Additional info (culture, benefits) is only available for companies",

@@ -1271,7 +1271,7 @@ export class JobRepository
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, provinces.id)
+      .groupBy(jobs.id, organizations.id, provinces.id, categories.id)
       .limit(1);
 
     if (!result || result.length === 0) {
