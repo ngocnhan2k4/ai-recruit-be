@@ -62,6 +62,8 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
 import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
+import { OtpModule } from "./frameworks/otp-services/otp.module";
+import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 
 @Module({
   imports: [
@@ -98,6 +100,8 @@ import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching
     EmailModule,
     LearningPathUseCasesModule,
     JobMatchingUseCasesModule,
+    OtpModule,
+    OtpStorageModule,
   ],
   controllers: [
     UserController,

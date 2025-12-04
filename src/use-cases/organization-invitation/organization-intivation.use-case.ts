@@ -7,6 +7,7 @@ import {
   OrganizationRoleEnum,
   IUserRepository,
   IOrganizationRepository,
+  EmailJobType,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -24,8 +25,7 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
-import { EmailJobType } from "@/core/entities/email-job.entity";
+import { IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
 import { ConfigService } from "@nestjs/config";
 
@@ -40,7 +40,7 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     private readonly notificationService: INotificationService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly emailQueueService: EmailQueueService,
+    private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly configService: ConfigService,
@@ -146,48 +146,75 @@ export class OrganizationInvitationUseCase {
       };
     }
 
-    // Create invitation
-    const invitation = await this.organizationMemberInvitationRepository.create(
-      {
-        organizationId: organizationId,
-        actorId: inviterId,
-        receiverId: data.inviteeId,
-        type: OrganizationInvitationTypeEnum.OUTGOING,
-        status: OrganizationInviteStatusEnum.PENDING,
-        role: data.role,
-        // 1 month expiration
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    await this.organizationMemberInvitationRepository.executeWithTransaction(
+      async (tx) => {
+        // Create invitation
+        const invitation =
+          await this.organizationMemberInvitationRepository.create(
+            {
+              organizationId: organizationId,
+              actorId: inviterId,
+              receiverId: data.inviteeId,
+              type: OrganizationInvitationTypeEnum.OUTGOING,
+              status: OrganizationInviteStatusEnum.PENDING,
+              role: data.role,
+              // 1 month expiration
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+            tx,
+          );
+
+        if (!invitation) {
+          throw new BadRequestException({
+            message: RESPONSE_MESSAGE.SENT_INVITATION_FAILED,
+            code: RESPONSE_CODE.SENT_INVITATION_FAILED,
+          });
+        }
+
+        await this.notificationService.createAndSendToUser(
+          {
+            title: "Organization Invitation",
+            senderId: inviterId,
+            message: `You have been invited to join an organization.`,
+            payload: {
+              orgId: organizationId,
+              userId: data.inviteeId,
+              orgInvitationId: invitation.id,
+            },
+            type: "organization_invitation",
+          },
+          {
+            userId: data.inviteeId,
+          },
+          tx,
+        );
       },
     );
 
-    if (!invitation) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.SENT_INVITATION_FAILED,
-        code: RESPONSE_CODE.SENT_INVITATION_FAILED,
-      });
-    }
-
-    await this.notificationService.createAndSendToUser(
-      {
-        title: "Organization Invitation",
-        senderId: inviterId,
-        message: `You have been invited to join an organization.`,
-        payload: {
-          orgId: organizationId,
-          userId: data.inviteeId,
-          orgInvitationId: invitation.id,
-        },
-        type: "organization_invitation",
-      },
-      {
-        userId: data.inviteeId,
-      },
+    // Fire-and-forget: Queue email asynchronously without blocking response
+    void this.sentEmailInvitation(
+      data.inviteeId,
+      inviterId,
+      organizationId,
+      data.role,
     );
 
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async sentEmailInvitation(
+    inviteeId: string,
+    inviterId: string,
+    organizationId: string,
+    role: OrganizationRoleEnum,
+  ): Promise<void> {
     // Queue email invitation (non-blocking)
     try {
       const [invitee, inviter, organization] = await Promise.all([
-        this.userRepository.get(data.inviteeId),
+        this.userRepository.get(inviteeId),
         this.userRepository.get(inviterId),
         this.organizationRepository.get(organizationId),
       ]);
@@ -200,7 +227,7 @@ export class OrganizationInvitationUseCase {
           [OrganizationRoleEnum.ORGANIZATION_VIEWER]: "Thành viên",
         };
 
-        this.emailQueueService.addToQueue({
+        this.emailQueueStorage.addToQueue({
           id: randomUUID(),
           type: EmailJobType.ORGANIZATION_INVITATION,
           data: {
@@ -208,7 +235,7 @@ export class OrganizationInvitationUseCase {
             organizationName: organization.name,
             inviterName: inviter.name,
             invitationLink,
-            role: roleMap[data.role] || data.role,
+            role: roleMap[role] || role,
           },
           attempts: 0,
           maxAttempts: 3,
@@ -218,11 +245,6 @@ export class OrganizationInvitationUseCase {
     } catch (error) {
       this.logger.error("Failed to queue invitation email", error);
     }
-
-    return {
-      message: "Invitation sent successfully.",
-      code: RESPONSE_CODE.SUCCESS,
-    };
   }
 
   async getByOrganizationId(
@@ -311,8 +333,8 @@ export class OrganizationInvitationUseCase {
 
         if (!updatedInvitation) {
           throw new BadRequestException({
-            message: RESPONSE_MESSAGE.SERVER_ERROR,
-            code: RESPONSE_CODE.SERVER_ERROR,
+            message: RESPONSE_MESSAGE.UPDATE_INVITATION_FAILED,
+            code: RESPONSE_CODE.UPDATE_INVITATION_FAILED,
           });
         }
 
@@ -328,8 +350,8 @@ export class OrganizationInvitationUseCase {
           );
           if (!result) {
             throw new BadRequestException({
-              message: RESPONSE_MESSAGE.SERVER_ERROR,
-              code: RESPONSE_CODE.SERVER_ERROR,
+              message: RESPONSE_MESSAGE.ADD_MEMBER_FAILED,
+              code: RESPONSE_CODE.ADD_MEMBER_FAILED,
             });
           }
         }
@@ -417,7 +439,7 @@ export class OrganizationInvitationUseCase {
     // Check if inviter has permission to invite the target role
     if (!this.canInviteRole(inviterRole, newRole as OrganizationRoleEnum)) {
       throw new ForbiddenException({
-        message: "You do not have permission to assign this role.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -455,8 +477,8 @@ export class OrganizationInvitationUseCase {
       OrganizationInviteStatusEnum.PENDING
     ) {
       throw new BadRequestException({
-        message: "Cannot revoke invitation that is not pending.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.INVITATION_NOT_PENDING,
+        code: RESPONSE_CODE.INVITATION_NOT_PENDING,
       });
     }
 
@@ -482,8 +504,7 @@ export class OrganizationInvitationUseCase {
 
     if (!isInviter && !isAdminOrOwner) {
       throw new ForbiddenException({
-        message:
-          "You do not have permission to revoke this invitation. Only the inviter or organization admin/owner can revoke.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -510,7 +531,7 @@ export class OrganizationInvitationUseCase {
     );
 
     return {
-      message: "Invitation revoked successfully.",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

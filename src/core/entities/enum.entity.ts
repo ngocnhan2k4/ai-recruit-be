@@ -138,3 +138,17 @@ export enum CvLanguageEnum {
   ENGLISH = "en",
   VIETNAMESE = "vi",
 }
+
+export enum EmailJobType {
+  ORGANIZATION_INVITATION = "organization_invitation",
+  ORGANIZATION_VERIFICATION = "organization_verification",
+  ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
+  JOB_RECOMMENDATIONS = "job_recommendations",
+  CUSTOM = "custom",
+}
+
+export enum OtpPurpose {
+  VERIFY_EMAIL = "VERIFY_EMAIL",
+  VERIFY_ORGANIZATION_EMAIL = "VERIFY_ORGANIZATION_EMAIL",
+  CHANGE_ORGANIZATION_EMAIL = "CHANGE_ORGANIZATION_EMAIL",
+}
