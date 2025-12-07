@@ -64,6 +64,8 @@ import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-p
 import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
 import { OtpModule } from "./frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
+import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
+import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 
 @Module({
   imports: [
@@ -102,6 +104,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     JobMatchingUseCasesModule,
     OtpModule,
     OtpStorageModule,
+    AiCvUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -127,6 +130,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     FeedbackController,
     FeedbackAdminController,
     LearningPathController,
+    AiCvController,
   ],
   providers: [
     JwtStrategy,

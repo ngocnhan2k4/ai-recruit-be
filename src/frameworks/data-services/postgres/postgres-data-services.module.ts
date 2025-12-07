@@ -52,6 +52,8 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
 import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
 import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
+import { AiCvRepository } from "./repositories/ai-cv.repository";
 
 @Global()
 @Module({
@@ -200,6 +202,10 @@ import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository"
       provide: IRoadmapSkillRepository,
       useClass: RoadmapSkillRepository,
     },
+    {
+      provide: IAiCvRepository,
+      useClass: AiCvRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -226,6 +232,7 @@ import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository"
     ILearningRoadmapRepository,
     IRoadmapPhaseRepository,
     IRoadmapSkillRepository,
+    IAiCvRepository,
   ],
 })
 export class PostgresDataServicesModule {}
