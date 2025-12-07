@@ -25,7 +25,7 @@ import {
   StartExamDto,
   SubmitExamDto,
   ImportResultDto,
-} from "./dto";
+} from "../../interfaces/dtos/exam";
 import {
   QuestionImportService,
   QuestionRandomizerService,
@@ -332,17 +332,20 @@ export class ExamUseCases {
       );
     }
 
-    if (allQuestions.length < 20) {
-      throw new BadRequestException(
-        `Not enough questions for this skill. Found ${allQuestions.length}, need 20. Try selecting different difficulty levels or contact admin.`,
-      );
-    }
+    // TODO: Re-enable this validation for production
+    // if (allQuestions.length < 20) {
+    //   throw new BadRequestException(
+    //     `Not enough questions for this skill. Found ${allQuestions.length}, need 20. Try selecting different difficulty levels or contact admin.`,
+    //   );
+    // }
 
-    // Randomize and select 20 questions (no skill balancing needed for single skill)
+    // Randomize and select questions (use available count or 20, whichever is less)
+    // For development: using all available questions if less than 20
+    const questionCount = Math.min(allQuestions.length, 20);
     const selectedQuestions = this.randomizerService.randomizeQuestions(
       allQuestions,
       {
-        totalQuestions: 20,
+        totalQuestions: questionCount,
         balanceBySkill: false,
       },
     );

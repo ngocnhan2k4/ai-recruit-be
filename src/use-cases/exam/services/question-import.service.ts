@@ -5,7 +5,7 @@ import {
   IImportLogRepository,
   Question,
 } from "@/core";
-import { ImportResultDto } from "../dto";
+import { ImportResultDto } from "@/interfaces/dtos/exam";
 
 export interface ImportRow {
   skill?: string;

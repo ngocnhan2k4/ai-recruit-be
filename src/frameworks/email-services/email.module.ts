@@ -2,11 +2,12 @@ import { Module } from "@nestjs/common";
 import { MailerModule } from "@nestjs-modules/mailer";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EmailService } from "./email.service";
-import { EmailQueueService } from "./email-queue.service";
 import { EmailWorkerService } from "./email-worker.service";
+import { EmailQueueStorageModule } from "./email-queue-storage/email-queue-storage.module";
 
 @Module({
   imports: [
+    EmailQueueStorageModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -26,7 +27,7 @@ import { EmailWorkerService } from "./email-worker.service";
       inject: [ConfigService],
     }),
   ],
-  providers: [EmailService, EmailQueueService, EmailWorkerService],
-  exports: [EmailService, EmailQueueService],
+  providers: [EmailService, EmailWorkerService],
+  exports: [EmailService, EmailQueueStorageModule],
 })
 export class EmailModule {}

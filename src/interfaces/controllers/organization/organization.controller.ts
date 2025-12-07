@@ -22,10 +22,13 @@ import {
   OrganizationWithDetailsDto,
   GeneralQueryDto,
   UpdateOrganizationEmailDto,
+  ConfirmUpdateOrganizationEmailDto,
   DeleteOrganizationDto,
   UpdateOrganizationBasicInfoDto,
   UpdateOrganizationLocationDto,
   UpdateOrganizationAdditionalInfoDto,
+  SendEmailVerificationDto,
+  VerifyOrganizationEmailDto,
 } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
@@ -160,19 +163,76 @@ export class OrganizationController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch("/:orgId/email")
   @ApiOperation({
-    summary: "Update organization email",
+    summary: "Update organization email (Request)",
     description:
-      "Update organization email address. This will reset email verification status (verifiedAt = null).",
+      "Request to update organization email. If email is NOT verified, it will be updated immediately. If email IS verified, an OTP will be sent to the NEW email for confirmation.",
   })
   @ApiResponseDto(String)
   async updateOrganizationEmail(
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationEmailDto,
-  ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
+  ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     return await this.organizationUseCase.updateOrganizationEmail(
       orgId,
+      data.email,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("/:orgId/email/confirm")
+  @ApiOperation({
+    summary: "Confirm email change with OTP",
+    description:
+      "Confirm organization email change using the OTP code sent to the NEW email address. This will update the email and reset verifiedAt to null.",
+  })
+  @ApiResponseDto(String)
+  async confirmUpdateOrganizationEmail(
+    @Param("orgId") orgId: string,
+    @Body() data: ConfirmUpdateOrganizationEmailDto,
+  ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
+    return await this.organizationUseCase.confirmUpdateOrganizationEmail(
+      orgId,
+      data.otpCode,
+      data.email,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("/:orgId/email/send-verification")
+  @ApiOperation({
+    summary: "Send email verification OTP",
+    description:
+      "Send a 6-digit OTP code to the organization's email for verification. OTP expires in 10 minutes.",
+  })
+  @ApiResponseDto(String)
+  async sendEmailVerificationOtp(
+    @Param("orgId") orgId: string,
+    @Body() data: SendEmailVerificationDto,
+  ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
+    return await this.organizationUseCase.sendEmailVerificationOtp(
+      orgId,
+      data.email,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("/:orgId/email/verify")
+  @ApiOperation({
+    summary: "Verify organization email with OTP",
+    description:
+      "Verify the organization's email using the OTP code sent via email. Sets verifiedAt timestamp upon successful verification.",
+  })
+  @ApiResponseDto(String)
+  async verifyOrganizationEmail(
+    @Param("orgId") orgId: string,
+    @Body() data: VerifyOrganizationEmailDto,
+  ): Promise<ApiResponse<{ verifiedAt: Date }>> {
+    return await this.organizationUseCase.verifyOrganizationEmail(
+      orgId,
+      data.otpCode,
       data.email,
     );
   }
@@ -188,7 +248,7 @@ export class OrganizationController {
   async deleteOrganization(
     @Param("orgId") orgId: string,
     @Body() data: DeleteOrganizationDto,
-  ): Promise<ApiResponse<boolean>> {
+  ): Promise<ApiResponse<void>> {
     return await this.organizationUseCase.deleteOrganization(
       orgId,
       data.confirmationName,

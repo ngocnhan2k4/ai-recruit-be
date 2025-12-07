@@ -65,6 +65,8 @@ import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
 import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
+import { OtpModule } from "./frameworks/otp-services/otp.module";
+import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 
 @Module({
   imports: [
@@ -102,6 +104,8 @@ import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching
     LearningPathUseCasesModule,
     ExamUseCasesModule,
     JobMatchingUseCasesModule,
+    OtpModule,
+    OtpStorageModule,
   ],
   controllers: [
     UserController,

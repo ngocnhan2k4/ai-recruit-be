@@ -78,6 +78,37 @@
         "tags": [
           "Users"
         ]
+      },
+      "delete": {
+        "operationId": "UserController_deleteUserAccount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete user account",
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/users/{username}": {
@@ -650,96 +681,143 @@
         ]
       }
     },
-    "/users": {
+    "/users/me/education": {
       "get": {
-        "operationId": "UserController_getUsers",
+        "operationId": "UserController_getUserEducation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/UserEducationResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get user education",
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "operationId": "UserController_createUserEducation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserEducationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserEducationResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create user education",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/me/education/{educationId}": {
+      "put": {
+        "operationId": "UserController_updateUserEducation",
         "parameters": [
           {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "Number of items to return",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "example": 0,
-              "type": "number"
-            }
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "description": "Number of items to skip",
-            "schema": {
-              "example": 1,
-              "type": "number"
-            }
-          },
-          {
-            "name": "sortBy",
-            "required": false,
-            "in": "query",
-            "description": "Field to sort by",
+            "name": "educationId",
+            "required": true,
+            "in": "path",
             "schema": {
               "type": "string"
             }
-          },
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserEducationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserEducationResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update user education",
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UserController_deleteUserEducation",
+        "parameters": [
           {
-            "name": "sortDirection",
-            "required": false,
-            "in": "query",
-            "description": "Sort direction (asc or desc)",
+            "name": "educationId",
+            "required": true,
+            "in": "path",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "cursor",
-            "required": false,
-            "in": "query",
-            "description": "Cursor for pagination",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "keyword",
-            "required": false,
-            "in": "query",
-            "description": "Keyword to search",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
-            "name": "isActive",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "isDeleted",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
             }
           }
         ],
@@ -756,7 +834,7 @@
                     {
                       "properties": {
                         "data": {
-                          "$ref": "#/components/schemas/PaginatedResultDto"
+                          "type": "number"
                         }
                       }
                     }
@@ -766,7 +844,59 @@
             }
           }
         },
-        "summary": "Get all users (admin only)",
+        "summary": "Delete user education",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/me/invitations/{invitationId}": {
+      "patch": {
+        "operationId": "UserController_respondToOrganizationInvitation",
+        "parameters": [
+          {
+            "name": "invitationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondToInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Respond to organization invitation",
         "tags": [
           "Users"
         ]
@@ -949,20 +1079,6 @@
             }
           },
           {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
             "name": "salaryMin",
             "required": false,
             "in": "query",
@@ -1019,6 +1135,16 @@
             "description": "Company ID to filter by",
             "schema": {
               "example": "uuid-company-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "required": false,
+            "in": "query",
+            "description": "Organization ID to filter by",
+            "schema": {
+              "example": "uuid-organization-id",
               "type": "string"
             }
           },
@@ -1115,7 +1241,7 @@
     "/jobs/statistics": {
       "get": {
         "description": "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
-        "operationId": "JobController_getStatisticsJob",
+        "operationId": "JobController_getJobStatistics",
         "parameters": [
           {
             "name": "fromDate",
@@ -1158,28 +1284,65 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ApiResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/StatisticsJobResponse"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
+            "description": ""
           }
         },
         "summary": "Get job statistics",
+        "tags": [
+          "Jobs"
+        ]
+      }
+    },
+    "/jobs/statistics/top-in-market": {
+      "get": {
+        "description": "Retrieve top applied jobs, top employers, and top job categories in the market.",
+        "operationId": "JobController_getTopInMarket",
+        "parameters": [
+          {
+            "name": "fromDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2023-01-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "toDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2023-12-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "category-uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "provinceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "province-uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get top in market",
         "tags": [
           "Jobs"
         ]
@@ -1274,6 +1437,7 @@
     },
     "/jobs/apply/{applyId}": {
       "put": {
+        "description": "Update the status of a job application and send notification to applicants",
         "operationId": "JobController_updateApplyJob",
         "parameters": [
           {
@@ -1318,6 +1482,7 @@
             }
           }
         },
+        "summary": "Update job application status",
         "tags": [
           "Jobs"
         ]
@@ -1544,6 +1709,37 @@
         "tags": [
           "Jobs"
         ]
+      },
+      "delete": {
+        "description": "Delete a job posting (for organization)",
+        "operationId": "JobController_deleteJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a job",
+        "tags": [
+          "Jobs"
+        ]
       }
     },
     "/jobs/saved": {
@@ -1607,20 +1803,6 @@
             "description": "Keyword to search",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
             }
           }
         ],
@@ -1749,20 +1931,6 @@
             "description": "Keyword to search",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
             }
           }
         ],
@@ -1894,20 +2062,6 @@
             }
           },
           {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
             "name": "salaryMin",
             "required": false,
             "in": "query",
@@ -1964,6 +2118,16 @@
             "description": "Company ID to filter by",
             "schema": {
               "example": "uuid-company-id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "required": false,
+            "in": "query",
+            "description": "Organization ID to filter by",
+            "schema": {
+              "example": "uuid-organization-id",
               "type": "string"
             }
           },
@@ -2060,6 +2224,47 @@
       }
     },
     "/admin/jobs/{id}": {
+      "get": {
+        "description": "Retrieve a specific job by its ID",
+        "operationId": "JobAdminController_getJobById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/JobResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get job by ID",
+        "tags": [
+          "Jobs Admin"
+        ]
+      },
       "put": {
         "description": "Update an existing job posting",
         "operationId": "JobAdminController_updateJob",
@@ -2597,6 +2802,66 @@
         ]
       }
     },
+    "/cv/optimize-ats": {
+      "post": {
+        "description": "Upload a CV file (PDF/DOCX) and get ATS-optimized version based on job description.",
+        "operationId": "CvController_optimizeAts",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "body"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CV file (PDF or DOCX, max 5MB)"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "JSON string containing jobDescription and language",
+                    "example": "{\"jobDescription\": \"Senior Java Dev...\", \"language\": \"vi\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OptimizeAtsResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Optimize CV for ATS",
+        "tags": [
+          "CV"
+        ]
+      }
+    },
     "/skills/all": {
       "get": {
         "operationId": "SkillController_getSkills",
@@ -2737,20 +3002,6 @@
             "description": "Keyword to search",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
             }
           }
         ],
@@ -3265,20 +3516,6 @@
             }
           },
           {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
             "name": "ptype",
             "required": true,
             "in": "query",
@@ -3431,20 +3668,6 @@
             "description": "Keyword to search",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
             }
           },
           {
@@ -3933,20 +4156,6 @@
             }
           },
           {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
             "name": "organizationId",
             "required": true,
             "in": "query",
@@ -3979,6 +4188,101 @@
           }
         },
         "summary": "Get notification by user id, org id",
+        "tags": [
+          "Notification"
+        ]
+      },
+      "patch": {
+        "description": "Mark multiple notifications as read or deleted in a single operation. Use query param ?status=read or ?status=deleted",
+        "operationId": "NotificationController_updateMultipleNotificationsStatus",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationActionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/NotificationActionResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update multiple notifications status",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/notifications/{id}": {
+      "patch": {
+        "description": "Mark a notification as read or deleted (soft delete)",
+        "operationId": "NotificationController_updateNotificationStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationStatusRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UpdateNotificationStatusResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update notification status",
         "tags": [
           "Notification"
         ]
@@ -4045,20 +4349,6 @@
             "description": "Keyword to search",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
             }
           },
           {
@@ -4133,6 +4423,1368 @@
         ]
       }
     },
+    "/organizations/me": {
+      "get": {
+        "description": "Retrieve a list of organizations associated with a specific user using cursor-based pagination",
+        "operationId": "OrganizationController_getOrganizationsByOwner",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/CompanyDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get organizations by user ID with cursor pagination",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/check-name/{name}": {
+      "get": {
+        "description": "Check if a company name exists",
+        "operationId": "OrganizationController_checkNameExists",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CheckOrganizationNameResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check if a company name exists",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}": {
+      "get": {
+        "description": "Retrieve an organization by its ID",
+        "operationId": "OrganizationController_getOrganization",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetCompanyDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get organization by ID",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "delete": {
+        "description": "Delete an organization. Requires confirmation by entering the exact organization name.",
+        "operationId": "OrganizationController_deleteOrganization",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete an organization",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations": {
+      "post": {
+        "description": "Create a new organization",
+        "operationId": "OrganizationController_createOrganization",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a new organization",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/basic-info": {
+      "patch": {
+        "description": "Update basic information including name, description, websiteUrl, and phone. Only sends changed fields.",
+        "operationId": "OrganizationController_updateOrganizationBasicInfo",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationBasicInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OrganizationWithDetailsDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update organization basic information",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/locations": {
+      "patch": {
+        "description": "Replace all organization locations with new list. Frontend sends FULL list of current locations. All existing locations will be deleted and replaced with new ones.",
+        "operationId": "OrganizationController_updateOrganizationLocations",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationLocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/String"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update organization locations",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/additional-info": {
+      "patch": {
+        "description": "Update culture and benefits information. Only for COMPANY type organizations. Only sends changed fields.",
+        "operationId": "OrganizationController_updateOrganizationAdditionalInfo",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationAdditionalInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/OrganizationWithDetailsDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update organization additional information (Culture & Benefits)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/email": {
+      "patch": {
+        "description": "Request to update organization email. If email is NOT verified, it will be updated immediately. If email IS verified, an OTP will be sent to the NEW email for confirmation.",
+        "operationId": "OrganizationController_updateOrganizationEmail",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update organization email (Request)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/email/confirm": {
+      "post": {
+        "description": "Confirm organization email change using the OTP code sent to the NEW email address. This will update the email and reset verifiedAt to null.",
+        "operationId": "OrganizationController_confirmUpdateOrganizationEmail",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmUpdateOrganizationEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Confirm email change with OTP",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/email/send-verification": {
+      "post": {
+        "description": "Send a 6-digit OTP code to the organization's email for verification. OTP expires in 10 minutes.",
+        "operationId": "OrganizationController_sendEmailVerificationOtp",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendEmailVerificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Send email verification OTP",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/email/verify": {
+      "post": {
+        "description": "Verify the organization's email using the OTP code sent via email. Sets verifiedAt timestamp upon successful verification.",
+        "operationId": "OrganizationController_verifyOrganizationEmail",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOrganizationEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verify organization email with OTP",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/all": {
+      "get": {
+        "description": "Get all organizations (only basic information)",
+        "operationId": "OrganizationController_getAllOrganizations",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all organizations",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/users-to-invite": {
+      "get": {
+        "description": "Retrieve a list of users who can be invited to join a specific organization",
+        "operationId": "OrganizationController_getUsersToInvite",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get available users to invite to an organization",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{orgId}/logo": {
+      "patch": {
+        "description": "Upload a new logo for the organization. Accepts image files (JPEG, PNG, WebP). Max size: 5MB",
+        "operationId": "OrganizationController_updateOrganizationLogo",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/String"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update organization logo",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/members": {
+      "get": {
+        "description": "Retrieve a list of members belonging to a specific organization",
+        "operationId": "OrganizationMemberController_getOrganizationMembers",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "organization_owner",
+                "organization_admin",
+                "organization_editor",
+                "organization_viewer",
+                "organization_content_admin",
+                "organization_content_editor",
+                "organization_content_viewer",
+                "organization_recruiter_admin",
+                "organization_recruiter_editor",
+                "organization_recruiter_viewer",
+                "organization_analyst_admin",
+                "organization_analyst_editor",
+                "organization_analyst_viewer",
+                "organization_employee",
+                "anonymously"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get members of an organization",
+        "tags": [
+          "Organization Members"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/members/delete": {
+      "post": {
+        "description": "Remove a member from a specific organization",
+        "operationId": "OrganizationMemberController_deleteMember",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a member from an organization",
+        "tags": [
+          "Organization Members"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/members/kick-member": {
+      "post": {
+        "description": "Kick a member out of a specific organization",
+        "operationId": "OrganizationMemberController_kickMember",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Kick a member from an organization",
+        "tags": [
+          "Organization Members"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/members/update-role": {
+      "put": {
+        "description": "Update the role of a member within a specific organization",
+        "operationId": "OrganizationMemberController_updateMemberRole",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UpdateMemberRoleDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a member's role in an organization",
+        "tags": [
+          "Organization Members"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/invitations": {
+      "post": {
+        "description": "Add a member to an organization",
+        "operationId": "OrganizationInvitationController_inviteMember",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Add a member to an organization",
+        "tags": [
+          "Organization Invitation"
+        ]
+      },
+      "get": {
+        "description": "Retrieve a list of invitations for a specific organization",
+        "operationId": "OrganizationInvitationController_getOrganizationInvitations",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get invitations for an organization",
+        "tags": [
+          "Organization Invitation"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/invitations/me": {
+      "get": {
+        "description": "Retrieve my invitations for a specific organization",
+        "operationId": "OrganizationInvitationController_getJoinInvitation",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get my invitations for an organization",
+        "tags": [
+          "Organization Invitation"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/invitations/{invitationId}/role": {
+      "patch": {
+        "description": "Update the role of an organization invitation",
+        "operationId": "OrganizationInvitationController_updateInivitationRole",
+        "parameters": [
+          {
+            "name": "invitationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update invitation role",
+        "tags": [
+          "Organization Invitation"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/invitations/{invitationId}": {
+      "delete": {
+        "description": "Revoke a pending invitation. Only the inviter or organization admin/owner can revoke.",
+        "operationId": "OrganizationInvitationController_revokeInvitation",
+        "parameters": [
+          {
+            "name": "invitationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Revoke invitation",
+        "tags": [
+          "Organization Invitation"
+        ]
+      }
+    },
     "/admin/users/{userId}": {
       "get": {
         "operationId": "AdminUserController_getUser",
@@ -4181,7 +5833,7 @@
           "Admin Users"
         ]
       },
-      "put": {
+      "patch": {
         "operationId": "AdminUserController_adminUpdateUser",
         "parameters": [
           {
@@ -4234,6 +5886,53 @@
           }
         ],
         "summary": "Update user",
+        "tags": [
+          "Admin Users"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminUserController_deleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "example": "123",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetUserResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete user",
         "tags": [
           "Admin Users"
         ]
@@ -4302,20 +6001,6 @@
             }
           },
           {
-            "name": "pagination",
-            "required": false,
-            "in": "query",
-            "description": "Type of pagination (page or cursor)",
-            "schema": {
-              "example": "page",
-              "type": "string",
-              "enum": [
-                "page",
-                "cursor"
-              ]
-            }
-          },
-          {
             "name": "isActive",
             "required": false,
             "in": "query",
@@ -4363,6 +6048,957 @@
         "summary": "Get all users",
         "tags": [
           "Admin Users"
+        ]
+      }
+    },
+    "/feedbacks": {
+      "post": {
+        "description": "Submit user feedback with optional images. Can be used with or without authentication.",
+        "operationId": "FeedbackController_createFeedback",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeedbackRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CreateFeedbackResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit feedback",
+        "tags": [
+          "Feedback"
+        ]
+      }
+    },
+    "/admin/feedbacks": {
+      "get": {
+        "description": "Get paginated list of feedbacks (Admin only)",
+        "operationId": "FeedbackAdminController_getFeedbacks",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetFeedbacksResponseDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all feedbacks",
+        "tags": [
+          "Feedback Admin"
+        ]
+      }
+    },
+    "/admin/feedbacks/{id}": {
+      "patch": {
+        "description": "Update the status of a feedback (Admin only)",
+        "operationId": "FeedbackAdminController_updateFeedbackStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeedbackRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update feedback status",
+        "tags": [
+          "Feedback Admin"
+        ]
+      },
+      "delete": {
+        "description": "Delete a feedback (Admin only)",
+        "operationId": "FeedbackAdminController_deleteFeedback",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete feedback",
+        "tags": [
+          "Feedback Admin"
+        ]
+      }
+    },
+    "/learning-roadmaps/preview": {
+      "post": {
+        "description": "Generate a roadmap preview without saving to database. Use this before creating a roadmap.",
+        "operationId": "LearningPathController_previewRoadmap",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRoadmapDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Preview learning roadmap",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/learning-roadmaps": {
+      "post": {
+        "description": "Save a learning roadmap to database using preview data from /preview endpoint. Does NOT call AI again.",
+        "operationId": "LearningPathController_saveRoadmap",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveRoadmapDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save learning roadmap",
+        "tags": [
+          "Learning Path"
+        ]
+      },
+      "get": {
+        "description": "Get paginated list of learning roadmaps for current user",
+        "operationId": "LearningPathController_getRoadmaps",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by user ID (admin only)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user's learning roadmaps",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/learning-roadmaps/{roadmapId}": {
+      "get": {
+        "description": "Get detailed roadmap information including all phases and skills",
+        "operationId": "LearningPathController_getRoadmapDetails",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "required": true,
+            "in": "path",
+            "description": "Roadmap ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roadmap details",
+        "tags": [
+          "Learning Path"
+        ]
+      },
+      "delete": {
+        "description": "Soft delete a learning roadmap and all associated data",
+        "operationId": "LearningPathController_deleteRoadmap",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "required": true,
+            "in": "path",
+            "description": "Roadmap ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete learning roadmap",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/learning-roadmaps/{roadmapId}/skills/{skillId}/complete": {
+      "put": {
+        "description": "Mark a skill as completed. This will unlock dependent skills and update overall progress.",
+        "operationId": "LearningPathController_completeSkill",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "required": true,
+            "in": "path",
+            "description": "Roadmap ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          },
+          {
+            "name": "skillId",
+            "required": true,
+            "in": "path",
+            "description": "Skill ID to mark as completed",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440001",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark skill as completed",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/learning-roadmaps/{roadmapId}/progress": {
+      "get": {
+        "description": "Get detailed progress statistics including completed skills, phases, and estimated completion date",
+        "operationId": "LearningPathController_getProgressStats",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "required": true,
+            "in": "path",
+            "description": "Roadmap ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roadmap progress statistics",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/admin/exam/questions": {
+      "post": {
+        "description": "Create a question with skillId and 1-3 difficulty levels. No area required.",
+        "operationId": "AdminExamController_createQuestion",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new question",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      },
+      "get": {
+        "description": "Filter by skillId, difficultyLevels, and active status. No area filter.",
+        "operationId": "AdminExamController_getQuestions",
+        "parameters": [
+          {
+            "name": "skillId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "difficultyLevels",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": [
+                "easy",
+                "medium"
+              ],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all questions with filters and pagination",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/admin/exam/questions/{id}": {
+      "put": {
+        "description": "Update question details including difficulty levels array.",
+        "operationId": "AdminExamController_updateQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a question",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminExamController_deleteQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a question",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      },
+      "get": {
+        "operationId": "AdminExamController_getQuestionById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get question by ID",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/admin/exam/questions/{id}/status": {
+      "put": {
+        "operationId": "AdminExamController_toggleQuestionStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleQuestionStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle question active status",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/admin/exam/questions/import/csv": {
+      "post": {
+        "description": "Import questions with skillId and difficultyLevels array. No area required.",
+        "operationId": "AdminExamController_importQuestionsCSV",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import questions from CSV file",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/admin/exam/questions/import/json": {
+      "post": {
+        "description": "Import questions with skillId and difficultyLevels array. No area required.",
+        "operationId": "AdminExamController_importQuestionsJSON",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import questions from JSON",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/admin/exam/questions/import/logs": {
+      "get": {
+        "operationId": "AdminExamController_getImportLogs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get import logs",
+        "tags": [
+          "Admin - Exam System"
+        ]
+      }
+    },
+    "/exam/start": {
+      "post": {
+        "description": "Select 1 skill and optionally difficulty levels. System will generate 20 randomized questions for that skill.",
+        "operationId": "ExamController_startExam",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartExamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start an exam",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/submit": {
+      "post": {
+        "description": "Submit answers for all questions. System will calculate score and assign skill level.",
+        "operationId": "ExamController_submitExam",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitExamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit exam answers",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/my-tests": {
+      "get": {
+        "description": "Get all tests taken by the authenticated user.",
+        "operationId": "ExamController_getMyTests",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user's exam history",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/my-tests/{testId}": {
+      "get": {
+        "description": "Get detailed results of a specific test including all answers and skill-level assessments.",
+        "operationId": "ExamController_getTestDetails",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get test details",
+        "tags": [
+          "Exam"
         ]
       }
     }
@@ -4569,6 +7205,16 @@
           "provider": {
             "type": "string"
           },
+          "roles": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "SUPER_ADMIN",
+              "ADMIN",
+              "MODERATOR",
+              "USER"
+            ]
+          },
           "onboardingCompleted": {
             "type": "boolean"
           },
@@ -4601,6 +7247,7 @@
           "emailVerified",
           "phoneVerified",
           "provider",
+          "roles",
           "onboardingCompleted",
           "status",
           "deletedAt"
@@ -4854,42 +7501,128 @@
           "experienceDetails"
         ]
       },
-      "PaginationResponseDto": {
+      "UserEducationResponseDto": {
         "type": "object",
         "properties": {
-          "nextCursor": {
-            "type": "object",
-            "example": "<cursor>",
-            "description": "Cursor for the next page"
+          "schoolId": {
+            "type": "string"
           },
-          "hasNextPage": {
-            "type": "boolean",
-            "example": true,
-            "description": "Indicates if there is a next page"
+          "schoolName": {
+            "type": "string"
           },
-          "total": {
-            "type": "number",
-            "example": 100,
-            "description": "Total number of items available"
-          }
-        }
-      },
-      "PaginatedResultDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "type": "array"
-            }
+          "startDate": {
+            "type": "string"
           },
-          "pagination": {
-            "$ref": "#/components/schemas/PaginationResponseDto"
+          "endDate": {
+            "type": "object"
+          },
+          "description": {
+            "type": "object"
+          },
+          "educationLevel": {
+            "type": "object"
+          },
+          "major": {
+            "type": "object"
+          },
+          "gpa": {
+            "type": "object"
           }
         },
         "required": [
-          "data",
-          "pagination"
+          "schoolId",
+          "schoolName",
+          "startDate",
+          "endDate",
+          "description",
+          "educationLevel",
+          "major",
+          "gpa"
+        ]
+      },
+      "CreateUserEducationDto": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "educationLevel": {
+            "type": "string"
+          },
+          "major": {
+            "type": "string"
+          },
+          "gpa": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schoolId",
+          "startDate",
+          "endDate",
+          "description",
+          "educationLevel",
+          "major",
+          "gpa"
+        ]
+      },
+      "UpdateUserEducationDto": {
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "educationLevel": {
+            "type": "string"
+          },
+          "major": {
+            "type": "string"
+          },
+          "gpa": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "startDate",
+          "endDate",
+          "description",
+          "educationLevel",
+          "major",
+          "gpa"
+        ]
+      },
+      "Boolean": {
+        "type": "object",
+        "properties": {}
+      },
+      "RespondToInvitationDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "ACCEPT",
+              "DECLINE"
+            ]
+          }
+        },
+        "required": [
+          "action"
         ]
       },
       "LoginResponseDto": {
@@ -5234,6 +7967,26 @@
           "skills"
         ]
       },
+      "PaginationResponseDto": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": "object",
+            "example": "<cursor>",
+            "description": "Cursor for the next page"
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates if there is a next page"
+          },
+          "total": {
+            "type": "number",
+            "example": 100,
+            "description": "Total number of items available"
+          }
+        }
+      },
       "JobPaginationResponseDto": {
         "type": "object",
         "properties": {
@@ -5251,86 +8004,6 @@
         "required": [
           "data",
           "pagination"
-        ]
-      },
-      "FrequentlyJobDto": {
-        "type": "object",
-        "properties": {
-          "date": {
-            "type": "string",
-            "example": "2025-09-21"
-          },
-          "count": {
-            "type": "number",
-            "example": 10
-          }
-        },
-        "required": [
-          "date",
-          "count"
-        ]
-      },
-      "SalaryStatisticsDto": {
-        "type": "object",
-        "properties": {
-          "expYear": {
-            "type": "number",
-            "example": 1
-          },
-          "avgSalaryMin": {
-            "type": "number",
-            "example": 500
-          },
-          "avgSalaryMax": {
-            "type": "number",
-            "example": 1000
-          },
-          "jobCount": {
-            "type": "number",
-            "example": 20
-          }
-        },
-        "required": [
-          "expYear",
-          "avgSalaryMin",
-          "avgSalaryMax",
-          "jobCount"
-        ]
-      },
-      "StatisticsJobResponse": {
-        "type": "object",
-        "properties": {
-          "frequentlyJobs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FrequentlyJobDto"
-            }
-          },
-          "openJobCount": {
-            "type": "number",
-            "example": 150
-          },
-          "salaryStatistics": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SalaryStatisticsDto"
-            }
-          },
-          "totalJobs": {
-            "type": "number",
-            "example": 500
-          },
-          "totalJobByCategoryId": {
-            "type": "number",
-            "example": 100
-          }
-        },
-        "required": [
-          "frequentlyJobs",
-          "openJobCount",
-          "salaryStatistics",
-          "totalJobs",
-          "totalJobByCategoryId"
         ]
       },
       "JobAnswerDto": {
@@ -5546,7 +8219,7 @@
             "description": "Job description in JSON format",
             "additionalProperties": {}
           },
-          "companyId": {
+          "organizationId": {
             "type": "string",
             "format": "uuid"
           },
@@ -5624,12 +8297,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         },
         "required": [
           "title",
           "description",
-          "companyId",
+          "organizationId",
           "salaryMin",
           "salaryMax",
           "experienceMin",
@@ -5639,7 +8317,8 @@
           "status",
           "provinceId",
           "questions",
-          "skillIds"
+          "skillIds",
+          "categoryId"
         ]
       },
       "UpdateJobDto": {
@@ -5752,6 +8431,10 @@
           "rejectReason": {
             "type": "string",
             "nullable": true
+          },
+          "updateType": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -5765,7 +8448,8 @@
           "provinceId",
           "questions",
           "skillIds",
-          "rejectReason"
+          "rejectReason",
+          "updateType"
         ]
       },
       "SavedJobsResponseDto": {
@@ -6087,11 +8771,18 @@
           "cvs"
         ]
       },
+      "OptimizeAtsResponse": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateSkillDto": {
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -6215,10 +8906,13 @@
               "job_posted",
               "job_approved",
               "job_applied",
+              "admin_job_approved",
+              "admin_job_rejected",
               "job_matched",
               "profile_viewed",
               "cv_approved",
               "cv_rejected",
+              "organization_invited",
               "system"
             ]
           },
@@ -6273,6 +8967,566 @@
           "pagination"
         ]
       },
+      "UpdateNotificationStatusResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateNotificationStatusRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "read",
+              "deleted"
+            ],
+            "description": "Status to update: read or deleted"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "NotificationActionResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "NotificationActionRequestDto": {
+        "type": "object",
+        "properties": {
+          "userNotificationIds": {
+            "description": "Array of user notification IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "userNotificationIds"
+        ]
+      },
+      "CheckOrganizationNameResponseDto": {
+        "type": "object",
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "exists"
+        ]
+      },
+      "GetCompanyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "about": {
+            "type": "string"
+          },
+          "websiteUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "foundedYear": {
+            "type": "number"
+          },
+          "employeesMin": {
+            "type": "number"
+          },
+          "employeesMax": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companySize": {
+            "type": "number"
+          },
+          "taxCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "benefits": {
+            "type": "string",
+            "nullable": true
+          },
+          "culture": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "type",
+          "description",
+          "address",
+          "logoUrl",
+          "about",
+          "websiteUrl",
+          "email",
+          "phone",
+          "foundedYear",
+          "employeesMin",
+          "employeesMax",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "verifiedAt",
+          "organizationId",
+          "companySize",
+          "taxCode",
+          "benefits",
+          "culture"
+        ]
+      },
+      "String": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateLocationDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "provinceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "provinceId"
+        ]
+      },
+      "CreateOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "company",
+              "school",
+              "nonprofit",
+              "university"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "about": {
+            "type": "string"
+          },
+          "websiteUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "foundedYear": {
+            "type": "number"
+          },
+          "employeesMin": {
+            "type": "number"
+          },
+          "employeesMax": {
+            "type": "number"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateLocationDto"
+            }
+          },
+          "taxCode": {
+            "type": "string"
+          },
+          "culture": {
+            "type": "string"
+          },
+          "benefit": {
+            "type": "string"
+          },
+          "schoolType": {
+            "type": "string",
+            "enum": [
+              "college",
+              "university",
+              "high_school",
+              "secondary",
+              "primary"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "description",
+          "logoUrl",
+          "about",
+          "websiteUrl",
+          "email",
+          "phone",
+          "foundedYear",
+          "employeesMin",
+          "employeesMax",
+          "locations",
+          "taxCode",
+          "culture",
+          "benefit",
+          "schoolType"
+        ]
+      },
+      "OrganizationWithDetailsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "about": {
+            "type": "string"
+          },
+          "websiteUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "foundedYear": {
+            "type": "number"
+          },
+          "employeesMin": {
+            "type": "number"
+          },
+          "employeesMax": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "type",
+          "description",
+          "address",
+          "logoUrl",
+          "about",
+          "websiteUrl",
+          "email",
+          "phone",
+          "foundedYear",
+          "employeesMin",
+          "employeesMax",
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "verifiedAt"
+        ]
+      },
+      "UpdateOrganizationBasicInfoDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Tech Solutions Inc.",
+            "description": "Organization name"
+          },
+          "description": {
+            "type": "string",
+            "example": "Leading technology solutions provider",
+            "description": "Short description of the organization"
+          },
+          "websiteUrl": {
+            "type": "string",
+            "example": "https://techsolutions.com",
+            "description": "Organization website URL"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0123456789",
+            "description": "Organization phone number (10-11 digits)"
+          }
+        }
+      },
+      "UpdateOrganizationLocationDto": {
+        "type": "object",
+        "properties": {
+          "locations": {
+            "description": "List of organization locations",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateLocationDto"
+            }
+          }
+        },
+        "required": [
+          "locations"
+        ]
+      },
+      "UpdateOrganizationAdditionalInfoDto": {
+        "type": "object",
+        "properties": {
+          "culture": {
+            "type": "string",
+            "example": "Văn hóa làm việc năng động, sáng tạo, coi trọng sự đổi mới và phát triển bền vững.",
+            "description": "Company culture description (max 500 characters)"
+          },
+          "benefits": {
+            "type": "string",
+            "example": "Lương thưởng cạnh tranh, bảo hiểm đầy đủ, du lịch hàng năm, đào tạo nâng cao kỹ năng.",
+            "description": "Employee benefits (max 500 characters)"
+          }
+        }
+      },
+      "UpdateOrganizationEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "newemail@company.com",
+            "description": "New email address for the organization"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ConfirmUpdateOrganizationEmailDto": {
+        "type": "object",
+        "properties": {
+          "otpCode": {
+            "type": "string",
+            "example": "123456",
+            "description": "6-digit OTP code sent to the NEW email address",
+            "minLength": 6,
+            "maxLength": 6
+          },
+          "email": {
+            "type": "string",
+            "example": "newemail@company.com",
+            "description": "The NEW email address to be confirmed"
+          }
+        },
+        "required": [
+          "otpCode",
+          "email"
+        ]
+      },
+      "SendEmailVerificationDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "organization@company.com",
+            "description": "Email address to send verification OTP"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "VerifyOrganizationEmailDto": {
+        "type": "object",
+        "properties": {
+          "otpCode": {
+            "type": "string",
+            "example": "123456",
+            "description": "6-digit OTP code sent to email",
+            "minLength": 6,
+            "maxLength": 6
+          },
+          "email": {
+            "type": "string",
+            "example": "organization@company.com",
+            "description": "Email address being verified"
+          }
+        },
+        "required": [
+          "otpCode",
+          "email"
+        ]
+      },
+      "DeleteOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "confirmationName": {
+            "type": "string",
+            "example": "My Company Name",
+            "description": "Organization name for confirmation. Must match exactly to proceed with deletion."
+          }
+        },
+        "required": [
+          "confirmationName"
+        ]
+      },
+      "UpdateMemberRoleDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "organization_owner",
+              "organization_admin",
+              "organization_editor",
+              "organization_viewer",
+              "organization_content_admin",
+              "organization_content_editor",
+              "organization_content_viewer",
+              "organization_recruiter_admin",
+              "organization_recruiter_editor",
+              "organization_recruiter_viewer",
+              "organization_analyst_admin",
+              "organization_analyst_editor",
+              "organization_analyst_viewer",
+              "organization_employee",
+              "anonymously"
+            ]
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "CreateOrganizationInvitationDto": {
+        "type": "object",
+        "properties": {
+          "inviteeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "organization_owner",
+              "organization_admin",
+              "organization_editor",
+              "organization_viewer",
+              "organization_content_admin",
+              "organization_content_editor",
+              "organization_content_viewer",
+              "organization_recruiter_admin",
+              "organization_recruiter_editor",
+              "organization_recruiter_viewer",
+              "organization_analyst_admin",
+              "organization_analyst_editor",
+              "organization_analyst_viewer",
+              "organization_employee",
+              "anonymously"
+            ]
+          }
+        },
+        "required": [
+          "inviteeId",
+          "role"
+        ]
+      },
       "GetAllUserResponseDto": {
         "type": "object",
         "properties": {
@@ -6309,6 +9563,16 @@
             "type": "boolean",
             "nullable": false
           },
+          "roles": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "SUPER_ADMIN",
+              "ADMIN",
+              "MODERATOR",
+              "USER"
+            ]
+          },
           "status": {
             "type": "string",
             "nullable": false,
@@ -6333,6 +9597,7 @@
           "updatedAt",
           "emailVerified",
           "phoneVerified",
+          "roles",
           "status",
           "deletedAt"
         ]
@@ -6347,6 +9612,409 @@
             }
           }
         }
+      },
+      "FeedbackDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "images": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "userId",
+          "name",
+          "subject",
+          "message",
+          "images",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateFeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackDto"
+          }
+        },
+        "required": [
+          "feedback"
+        ]
+      },
+      "CreateFeedbackRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the user submitting feedback"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject of the feedback"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message content"
+          },
+          "images": {
+            "description": "Array of image URLs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "subject",
+          "message"
+        ]
+      },
+      "GetFeedbacksResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "Array of job responses",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponseDto"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "UpdateFeedbackRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "SkillLevelDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "description": "Skill ID from database",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "level": {
+            "type": "string",
+            "description": "Skill proficiency level",
+            "example": "intermediate",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ]
+          }
+        },
+        "required": [
+          "skillId",
+          "level"
+        ]
+      },
+      "PreviewRoadmapDto": {
+        "type": "object",
+        "properties": {
+          "currentRole": {
+            "type": "string",
+            "description": "Current job role",
+            "example": "Junior Frontend Developer"
+          },
+          "targetRole": {
+            "type": "string",
+            "description": "Target job role",
+            "example": "Senior Full-stack Developer"
+          },
+          "timelineWeeks": {
+            "type": "number",
+            "description": "Learning timeline in weeks",
+            "example": 24
+          },
+          "timeCommitmentHoursPerWeek": {
+            "type": "number",
+            "description": "Hours per week commitment",
+            "example": 15
+          },
+          "currentSkills": {
+            "description": "Current skills with proficiency levels",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillLevelDto"
+            }
+          }
+        },
+        "required": [
+          "targetRole",
+          "timelineWeeks",
+          "timeCommitmentHoursPerWeek"
+        ]
+      },
+      "SaveRoadmapDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Roadmap title",
+            "example": "My Journey to Senior Full-stack Developer"
+          },
+          "currentRole": {
+            "type": "string",
+            "description": "Current job role",
+            "example": "Junior Frontend Developer"
+          },
+          "targetRole": {
+            "type": "string",
+            "description": "Target job role",
+            "example": "Senior Full-stack Developer"
+          },
+          "timelineWeeks": {
+            "type": "number",
+            "description": "Learning timeline in weeks",
+            "example": 24
+          },
+          "timeCommitmentHoursPerWeek": {
+            "type": "number",
+            "description": "Hours per week commitment",
+            "example": 15
+          },
+          "currentSkills": {
+            "description": "Current skills with proficiency levels",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillLevelDto"
+            }
+          },
+          "previewData": {
+            "type": "object",
+            "description": "Preview roadmap response from /preview endpoint (complete JSON)"
+          }
+        },
+        "required": [
+          "title",
+          "targetRole",
+          "timelineWeeks",
+          "timeCommitmentHoursPerWeek",
+          "previewData"
+        ]
+      },
+      "CreateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "questionText": {
+            "type": "string",
+            "example": "What is TypeScript?"
+          },
+          "options": {
+            "example": [
+              "A programming language",
+              "A framework",
+              "A library",
+              "A tool"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "A programming language"
+          },
+          "point": {
+            "type": "number",
+            "example": 10
+          },
+          "difficultyLevels": {
+            "example": [
+              "medium"
+            ],
+            "description": "Array of 1-3 difficulty levels",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "skillId",
+          "questionText",
+          "options",
+          "correctAnswer",
+          "point",
+          "difficultyLevels"
+        ]
+      },
+      "UpdateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "questionText": {
+            "type": "string",
+            "example": "What is TypeScript?"
+          },
+          "options": {
+            "example": [
+              "A programming language",
+              "A framework",
+              "A library",
+              "A tool"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "A programming language"
+          },
+          "point": {
+            "type": "number",
+            "example": 10
+          },
+          "difficultyLevels": {
+            "example": [
+              "medium"
+            ],
+            "description": "Array of 1-3 difficulty levels",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        }
+      },
+      "ToggleQuestionStatusDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "isActive"
+        ]
+      },
+      "StartExamDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174001",
+            "description": "Select 1 skill to test"
+          },
+          "difficultyLevels": {
+            "example": [
+              "easy",
+              "medium"
+            ],
+            "description": "Optional: Filter by difficulty levels. If not provided, random mix of all difficulties",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "skillId"
+        ]
+      },
+      "AnswerDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "chosenAnswer": {
+            "type": "string",
+            "example": "A programming language"
+          }
+        },
+        "required": [
+          "questionId",
+          "chosenAnswer"
+        ]
+      },
+      "SubmitExamDto": {
+        "type": "object",
+        "properties": {
+          "userTestId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          }
+        },
+        "required": [
+          "userTestId",
+          "answers"
+        ]
       }
     }
   },

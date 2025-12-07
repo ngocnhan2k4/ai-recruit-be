@@ -1,10 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { IJobRepository } from "@/core";
-import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
-import { EmailJob, EmailJobType } from "@/core/entities/email-job.entity";
+import { IEmailQueueStorageService, IJobRepository } from "@/core";
+import { EmailJobType } from "@/core/entities";
 import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
+import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -12,17 +12,13 @@ export class JobMatchingUseCases {
 
   constructor(
     private readonly jobRepository: IJobRepository,
-    private readonly emailQueueService: EmailQueueService,
+    private readonly emailStorageService: IEmailQueueStorageService,
   ) {}
 
-  /**
-   * Tìm các job liên quan dựa trên các job user đã apply và gửi email
-   */
   async sendJobRecommendationsToUsers(): Promise<void> {
     this.logger.log("Starting job recommendations email process...");
 
     try {
-      // Lấy tất cả users đã apply job
       const usersWithAppliedJobs =
         await this.jobRepository.getUsersWithAppliedJobs();
 
@@ -32,7 +28,6 @@ export class JobMatchingUseCases {
 
       for (const user of usersWithAppliedJobs) {
         try {
-          // Tìm các job liên quan
           const recommendedJobs = await this.jobRepository.findRecommendedJobs(
             user.userId,
             user.appliedJobIds,
@@ -51,21 +46,20 @@ export class JobMatchingUseCases {
             continue;
           }
 
-          // Queue email job
           const emailJob: EmailJob = {
             id: randomUUID(),
             type: EmailJobType.JOB_RECOMMENDATIONS,
             data: {
               to: user.email,
               userName: user.name,
-              jobs: recommendedJobs.slice(0, 10), // Giới hạn 10 jobs mỗi email
+              jobs: recommendedJobs.slice(0, 10),
             },
             attempts: 0,
             maxAttempts: 3,
             createdAt: new Date(),
           };
 
-          this.emailQueueService.addToQueue(emailJob);
+          this.emailStorageService.addToQueue(emailJob);
           this.logger.log(
             `Queued job recommendations email for user ${user.userId} with ${recommendedJobs.length} jobs`,
           );
@@ -87,10 +81,6 @@ export class JobMatchingUseCases {
     }
   }
 
-  /**
-   * Cron job chạy mỗi ngày lúc 8:00 AM để gửi email job recommendations
-   */
-  // @Cron(CronExpression.EVERY_DAY_AT_8AM)
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async scheduledJobRecommendations(): Promise<void> {
     this.logger.log("Running scheduled job recommendations cron job...");

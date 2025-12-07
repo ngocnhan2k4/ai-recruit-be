@@ -25,7 +25,7 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
-} from "@/use-cases/exam/dto";
+} from "@/interfaces/dtos/exam";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 

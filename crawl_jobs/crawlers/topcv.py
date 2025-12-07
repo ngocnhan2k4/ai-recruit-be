@@ -3,20 +3,19 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-
 from helpers.helper import (
-    safe_text, 
-    extract_salary, 
-    vn_parse_posted_date, 
-    extract_experience_years, 
-    extract_employees, 
-    human_delay, 
+    crawl,
+    extract_employees,
+    extract_experience_years,
+    extract_salary,
     fetch_page,
-    crawl
+    human_delay,
+    safe_text,
+    vn_parse_posted_date,
 )
 
 
-def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
+def scrape_job_detail(scraper, card, base_url: str, link: str, companies: dict):
     job_url = urljoin(base_url, link)
     if "brand" in job_url:
         return
@@ -78,10 +77,7 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
         body = safe_text(d.find("p"))
 
         if body != "N/A":
-            description_parts.append({
-                "title": title,
-                "body": body
-            })
+            description_parts.append({"title": title, "body": body})
 
     # experiences
     experiences = safe_text(soup.select_one("div#job-detail-info-experience"))
@@ -115,10 +111,11 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
             if item.has_attr("href"):
                 company_website = item["href"]
 
-
             text = safe_text(item)
             if "nhân viên" in text:
-                employees_min, employees_max = extract_employees(text.replace("nhân viên", ""))
+                employees_min, employees_max = extract_employees(
+                    text.replace("nhân viên", "")
+                )
 
     if company_name not in companies:
         companies[company_name] = {
@@ -130,7 +127,7 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
             "website_url": company_website,
             "crawled_at": datetime.now(),
             "source": "topcv",
-            "jobs": {}
+            "jobs": {},
         }
 
     companies[company_name]["jobs"][job_title] = {
@@ -144,7 +141,7 @@ def scrape_job_detail(scraper ,card, base_url: str, link: str, companies: dict):
         "crawled_at": datetime.now(timezone.utc),
         "salary_min": salary_min,
         "salary_max": salary_max,
-        "source": "topcv"
+        "source": "topcv",
     }
 
 
@@ -176,15 +173,21 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     return companies
 
 
-def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10, scheduler=None):
+def topcv_crawl(
+    pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10
+):
     """Crawl TopCV listing pages.
 
     Args:
         pages: Number of listing pages to crawl
         start_page: Starting page number
         max_jobs_per_page: Maximum jobs to scrape per page (default 10)
-        scheduler: Optional RoundRobinScheduler instance (not used in legacy mode)
     """
     import functools
-    scrape_page_limited = functools.partial(scrape_page, max_jobs_per_page=max_jobs_per_page)
-    return crawl(scrape_page_limited, delay=3, jitter=6, pages=pages, start_page=start_page)
+
+    scrape_page_limited = functools.partial(
+        scrape_page, max_jobs_per_page=max_jobs_per_page
+    )
+    return crawl(
+        scrape_page_limited, delay=3, jitter=6, pages=pages, start_page=start_page
+    )

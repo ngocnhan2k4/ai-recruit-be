@@ -331,6 +331,67 @@ export class UpdateOrganizationEmailDto {
   email: string;
 }
 
+export class SendEmailVerificationDto {
+  @ApiProperty({
+    type: "string",
+    example: "organization@company.com",
+    description: "Email address to send verification OTP",
+  })
+  @IsNotEmpty({ message: "Email is required" })
+  @IsEmail({}, { message: "Invalid email format" })
+  email: string;
+}
+
+export class VerifyOrganizationEmailDto {
+  @ApiProperty({
+    type: "string",
+    example: "123456",
+    description: "6-digit OTP code sent to email",
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsNotEmpty({ message: "OTP code is required" })
+  @IsString()
+  @MinLength(6, { message: "OTP must be 6 digits" })
+  @MaxLength(6, { message: "OTP must be 6 digits" })
+  @Matches(/^\d{6}$/, { message: "OTP must be 6 digits" })
+  otpCode: string;
+
+  @ApiProperty({
+    type: "string",
+    example: "organization@company.com",
+    description: "Email address being verified",
+  })
+  @IsNotEmpty({ message: "Email is required" })
+  @IsEmail({}, { message: "Invalid email format" })
+  email: string;
+}
+
+export class ConfirmUpdateOrganizationEmailDto {
+  @ApiProperty({
+    type: "string",
+    example: "123456",
+    description: "6-digit OTP code sent to the NEW email address",
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsNotEmpty({ message: "OTP code is required" })
+  @IsString()
+  @MinLength(6, { message: "OTP must be 6 digits" })
+  @MaxLength(6, { message: "OTP must be 6 digits" })
+  @Matches(/^\d{6}$/, { message: "OTP must be 6 digits" })
+  otpCode: string;
+
+  @ApiProperty({
+    type: "string",
+    example: "newemail@company.com",
+    description: "The NEW email address to be confirmed",
+  })
+  @IsNotEmpty({ message: "Email is required" })
+  @IsEmail({}, { message: "Invalid email format" })
+  email: string;
+}
+
 export class DeleteOrganizationDto {
   @ApiProperty({
     type: "string",

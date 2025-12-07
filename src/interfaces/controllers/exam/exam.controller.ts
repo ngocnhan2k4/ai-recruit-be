@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
-import { StartExamDto, SubmitExamDto } from "@/use-cases/exam/dto";
+import { StartExamDto, SubmitExamDto } from "@/interfaces/dtos/exam";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 

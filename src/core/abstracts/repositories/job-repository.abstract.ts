@@ -183,9 +183,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     }>
   >;
 
-  /**
-   * Lấy danh sách users đã apply job cùng với thông tin skills và categories từ các job đã apply
-   */
   abstract getUsersWithAppliedJobs(): Promise<
     Array<{
       userId: string;
@@ -197,9 +194,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     }>
   >;
 
-  /**
-   * Tìm các job liên quan dựa trên skills và categories từ các job đã apply
-   */
   abstract findRecommendedJobs(
     userId: string,
     appliedJobIds: string[],
