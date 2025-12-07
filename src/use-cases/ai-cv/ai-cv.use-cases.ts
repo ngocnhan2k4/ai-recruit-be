@@ -185,7 +185,7 @@ export class AiCvUseCases {
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: { message: "AI CV deleted successfully" },
+      data: { message: RESPONSE_CODE.SUCCESS },
     };
   }
 }
