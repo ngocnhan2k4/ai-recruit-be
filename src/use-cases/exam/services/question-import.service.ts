@@ -2,21 +2,19 @@ import { Injectable } from "@nestjs/common";
 import {
   IQuestionRepository,
   ISkillRepository,
-  IAreaRepository,
   IImportLogRepository,
+  Question,
 } from "@/core";
 import { ImportResultDto } from "../dto";
 
-interface ImportRow {
-  area?: string;
-  areaId?: string;
+export interface ImportRow {
   skill?: string;
   skillId?: string;
   questionText: string;
   options: string | string[];
   correctAnswer: string;
   point: number | string;
-  difficulty: string;
+  difficultyLevels: string | string[];
 }
 
 @Injectable()
@@ -24,7 +22,6 @@ export class QuestionImportService {
   constructor(
     private readonly questionRepo: IQuestionRepository,
     private readonly skillRepo: ISkillRepository,
-    private readonly areaRepo: IAreaRepository,
     private readonly importLogRepo: IImportLogRepository,
   ) {}
 
@@ -38,11 +35,11 @@ export class QuestionImportService {
     const rows: ImportRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       const values = this.parseCSVLine(lines[i]);
-      const row: any = {};
+      const row: Partial<ImportRow> & Record<string, string> = {};
       headers.forEach((header, index) => {
         row[header] = values[index]?.trim();
       });
-      rows.push(row);
+      rows.push(row as ImportRow);
     }
 
     return await this.processImport(rows, fileName);
@@ -60,12 +57,11 @@ export class QuestionImportService {
     fileName: string,
   ): Promise<ImportResultDto> {
     const errors: string[] = [];
-    const validQuestions: any[] = [];
+    const validQuestions: Partial<Question>[] = [];
     let successCount = 0;
 
-    // Cache for skills and areas
+    // Cache for skills
     const skillCache = new Map<string, string>();
-    const areaCache = new Map<string, string>();
 
     for (let i = 0; i < rows.length; i++) {
       const rowNum = i + 2; // +2 because of 0-index and header
@@ -119,13 +115,45 @@ export class QuestionImportService {
           continue;
         }
 
-        // Validate difficulty
-        const validDifficulties = ["easy", "medium", "hard"];
-        const difficulty = row.difficulty?.toLowerCase();
-        if (!validDifficulties.includes(difficulty)) {
+        // Parse and validate difficultyLevels
+        let difficultyLevels: string[];
+        if (typeof row.difficultyLevels === "string") {
+          try {
+            difficultyLevels = JSON.parse(row.difficultyLevels);
+          } catch {
+            difficultyLevels = row.difficultyLevels
+              .split(/[,;|]/)
+              .map((d) => d.trim().toLowerCase());
+          }
+        } else if (Array.isArray(row.difficultyLevels)) {
+          difficultyLevels = row.difficultyLevels.map((d) => d.toLowerCase());
+        } else {
+          errors.push(`Row ${rowNum}: Missing difficultyLevels`);
+          continue;
+        }
+
+        const validDifficulties = [
+          "easy",
+          "medium",
+          "hard",
+          "advanced",
+          "expert",
+        ] as const;
+        const invalidLevels = difficultyLevels.filter(
+          (d) =>
+            !validDifficulties.includes(
+              d as (typeof validDifficulties)[number],
+            ),
+        );
+        if (invalidLevels.length > 0) {
           errors.push(
-            `Row ${rowNum}: Invalid difficulty (must be easy/medium/hard)`,
+            `Row ${rowNum}: Invalid difficulty levels: ${invalidLevels.join(", ")}`,
           );
+          continue;
+        }
+
+        if (difficultyLevels.length < 1 || difficultyLevels.length > 3) {
+          errors.push(`Row ${rowNum}: Must have 1-3 difficulty levels`);
           continue;
         }
 
@@ -148,33 +176,19 @@ export class QuestionImportService {
           continue;
         }
 
-        // Resolve area ID
-        let areaId = row.areaId;
-        if (!areaId && row.area) {
-          if (!areaCache.has(row.area)) {
-            const areas = await this.areaRepo.getByField({ name: row.area });
-            if (areas.length === 0) {
-              errors.push(`Row ${rowNum}: Area '${row.area}' not found`);
-              continue;
-            }
-            areaCache.set(row.area, areas[0].id);
-          }
-          areaId = areaCache.get(row.area);
-        }
-
-        if (!areaId) {
-          errors.push(`Row ${rowNum}: Missing areaId or area name`);
-          continue;
-        }
-
         validQuestions.push({
           skillId,
-          areaId,
           questionText: row.questionText,
           options,
           correctAnswer: row.correctAnswer,
           point,
-          difficulty,
+          difficultyLevels: difficultyLevels as (
+            | "easy"
+            | "medium"
+            | "hard"
+            | "advanced"
+            | "expert"
+          )[],
           isActive: true,
         });
         successCount++;

@@ -3,31 +3,34 @@ import {
   IsUUID,
   IsNotEmpty,
   IsArray,
-  ArrayMaxSize,
   ArrayMinSize,
   IsString,
   ValidateNested,
+  IsOptional,
+  IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
 
 export class StartExamDto {
-  @ApiProperty({ example: "123e4567-e89b-12d3-a456-426614174000" })
-  @IsUUID()
+  @ApiProperty({
+    example: "123e4567-e89b-12d3-a456-426614174001",
+    description: "Select 1 skill to test",
+  })
+  @IsUUID("4")
   @IsNotEmpty()
-  areaId: string;
+  skillId: string;
 
   @ApiProperty({
-    example: [
-      "123e4567-e89b-12d3-a456-426614174001",
-      "123e4567-e89b-12d3-a456-426614174002",
-    ],
+    example: ["easy", "medium"],
     type: [String],
+    required: false,
+    description:
+      "Optional: Filter by difficulty levels. If not provided, random mix of all difficulties",
   })
   @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(5)
-  @IsUUID("4", { each: true })
-  skillIds: string[];
+  @IsOptional()
+  @IsIn(["easy", "medium", "hard", "advanced", "expert"], { each: true })
+  difficultyLevels?: string[];
 }
 
 export class AnswerDto {

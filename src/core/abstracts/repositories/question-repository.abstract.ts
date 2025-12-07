@@ -3,10 +3,9 @@ import { IGenericRepository } from "./generic-repository.abstract";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 
 export interface QuestionFilters {
-  areaId?: string;
   skillId?: string;
   skillIds?: string[];
-  difficulty?: string;
+  difficultyLevels?: string[];
   isActive?: boolean;
 }
 
@@ -17,7 +16,7 @@ export abstract class IQuestionRepository extends IGenericRepository<Question> {
 
   abstract getActiveQuestionsBySkills(
     skillIds: string[],
-    areaId?: string,
+    difficultyLevels?: string[],
   ): Promise<Question[]>;
 
   abstract createMany(questions: Partial<Question>[]): Promise<Question[]>;

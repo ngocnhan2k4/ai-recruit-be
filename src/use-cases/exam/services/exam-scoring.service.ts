@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ILevelRepository, Question } from "@/core";
 
 export interface ScoringResult {
@@ -13,13 +13,14 @@ export interface ScoringResult {
 }
 
 export interface ExamResult extends ScoringResult {
-  levelAssessed: string | null;
-  levelName: string;
+  skillLevelsAssessed: Record<string, string>;
 }
 
 @Injectable()
 export class ExamScoringService {
   constructor(private readonly levelRepo: ILevelRepository) {}
+
+  private readonly logger = new Logger(ExamScoringService.name);
 
   /**
    * Calculate score from user answers
@@ -72,46 +73,74 @@ export class ExamScoringService {
   }
 
   /**
-   * Evaluate level based on score
+   * Evaluate level per skill based on percentage correct
    */
-  async evaluateLevel(
-    areaId: string,
-    totalScore: number,
-  ): Promise<{ levelId: string | null; levelName: string }> {
-    const level = await this.levelRepo.findLevelByScore(areaId, totalScore);
+  evaluateSkillLevels(
+    questions: Question[],
+    answersDetails: Array<{ questionId: string; isCorrect: boolean }>,
+  ): Record<string, string> {
+    // Group questions by skill
+    const questionsBySkill = new Map<string, Question[]>();
+    questions.forEach((q) => {
+      if (!questionsBySkill.has(q.skillId)) {
+        questionsBySkill.set(q.skillId, []);
+      }
+      questionsBySkill.get(q.skillId)!.push(q);
+    });
 
-    if (level) {
-      return {
-        levelId: level.id,
-        levelName: level.levelName,
-      };
-    }
+    const skillLevels: Record<string, string> = {};
 
-    // Default level if no match found
-    return {
-      levelId: null,
-      levelName: "Not Assessed",
-    };
+    // Calculate percentage correct per skill
+    questionsBySkill.forEach((skillQuestions, skillId) => {
+      const skillQuestionIds = new Set(skillQuestions.map((q) => q.id));
+      const skillAnswers = answersDetails.filter((a) =>
+        skillQuestionIds.has(a.questionId),
+      );
+
+      const correctCount = skillAnswers.filter((a) => a.isCorrect).length;
+      const totalCount = skillAnswers.length;
+
+      // Skip skills with no answers
+      if (totalCount === 0) {
+        return;
+      }
+
+      const percentage = Math.round((correctCount / totalCount) * 100);
+
+      // Assign level based on percentage thresholds
+      let level = "Beginner";
+      if (percentage >= 90) level = "Expert";
+      else if (percentage >= 75) level = "Advanced";
+      else if (percentage >= 60) level = "Intermediate";
+      else if (percentage >= 40) level = "Basic";
+      else level = "Beginner";
+
+      this.logger.debug(
+        `Skill ${skillId}: ${correctCount}/${totalCount} correct (${percentage}%) -> ${level}`,
+      );
+
+      skillLevels[skillId] = level;
+    });
+
+    return skillLevels;
   }
 
   /**
-   * Calculate score and evaluate level
+   * Calculate score and evaluate per-skill levels
    */
-  async scoreAndEvaluate(
-    areaId: string,
+  scoreAndEvaluate(
     questions: Question[],
     answers: Array<{ questionId: string; chosenAnswer: string }>,
-  ): Promise<ExamResult> {
+  ): ExamResult {
     const scoringResult = this.calculateScore(questions, answers);
-    const levelResult = await this.evaluateLevel(
-      areaId,
-      scoringResult.totalScore,
+    const skillLevels = this.evaluateSkillLevels(
+      questions,
+      scoringResult.answersDetails,
     );
 
     return {
       ...scoringResult,
-      levelAssessed: levelResult.levelId,
-      levelName: levelResult.levelName,
+      skillLevelsAssessed: skillLevels,
     };
   }
 }

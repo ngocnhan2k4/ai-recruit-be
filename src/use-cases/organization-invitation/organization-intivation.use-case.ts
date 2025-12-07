@@ -25,8 +25,9 @@ import {
   Logger,
 } from "@nestjs/common";
 import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
-import { EmailJobType } from "@/frameworks/email-services/interfaces/email-job.interface";
+import { EmailJobType } from "@/core/entities/email-job.entity";
 import { randomUUID } from "crypto";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class OrganizationInvitationUseCase {
@@ -42,6 +43,7 @@ export class OrganizationInvitationUseCase {
     private readonly emailQueueService: EmailQueueService,
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -191,7 +193,7 @@ export class OrganizationInvitationUseCase {
       ]);
 
       if (invitee?.email && inviter?.name && organization?.name) {
-        const invitationLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard/organizations/${organizationId}/overview`;
+        const invitationLink = `${this.configService.get<string>("FRONTEND_URL")}/dashboard/organizations/${organizationId}/overview`;
         const roleMap: Partial<Record<OrganizationRoleEnum, string>> = {
           [OrganizationRoleEnum.ORGANIZATION_OWNER]: "Chủ sở hữu",
           [OrganizationRoleEnum.ORGANIZATION_ADMIN]: "Quản trị viên",

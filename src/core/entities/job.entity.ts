@@ -1,7 +1,7 @@
 import { TokenPayload } from "@/common/types/token";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
 import { GeneralQuery } from "@/common/types/api";
-import { Job, OrganizationWithDetails, Province, Skill } from ".";
+import { Category, Job, OrganizationWithDetails, Province, Skill } from ".";
 
 export interface JobFilters extends GeneralQuery {
   organizationId?: string;
@@ -14,6 +14,9 @@ export interface JobFilters extends GeneralQuery {
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   user?: TokenPayload;
+  createdAtStart?: Date;
+  createdAtEnd?: Date;
+  isJobSystem?: boolean;
 }
 
 export interface StatisticsJobFilter {
@@ -33,6 +36,7 @@ export interface JobResponse {
   isApplied?: boolean;
   applyStatus?: string;
   applyId?: string;
+  category: Category;
 }
 
 // Job Application Related Entities

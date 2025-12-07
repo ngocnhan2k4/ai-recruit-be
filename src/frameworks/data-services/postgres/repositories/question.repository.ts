@@ -1,10 +1,15 @@
-import { IQuestionRepository, Question, QuestionFilters } from "@/core";
+import {
+  IQuestionRepository,
+  Question,
+  QuestionFilters,
+  NewQuestion,
+} from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
-import { count, ilike, and, SQL, eq, inArray } from "drizzle-orm";
+import { count, ilike, and, SQL, eq, inArray, sql } from "drizzle-orm";
 
 @Injectable()
 export class QuestionRepository
@@ -28,10 +33,6 @@ export class QuestionRepository
       whereConditions.push(ilike(questions.questionText, `%${keyword}%`));
     }
 
-    if (query.areaId) {
-      whereConditions.push(eq(questions.areaId, query.areaId));
-    }
-
     if (query.skillId) {
       whereConditions.push(eq(questions.skillId, query.skillId));
     }
@@ -40,8 +41,16 @@ export class QuestionRepository
       whereConditions.push(inArray(questions.skillId, query.skillIds));
     }
 
-    if (query.difficulty) {
-      whereConditions.push(eq(questions.difficulty, query.difficulty as any));
+    if (query.difficultyLevels && query.difficultyLevels.length > 0) {
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${questions.difficultyLevels}) elem
+          WHERE elem = ANY(ARRAY[${sql.join(
+            query.difficultyLevels.map((level) => sql.raw(`'${level}'`)),
+            sql`, `,
+          )}]::text[])
+        )`,
+      );
     }
 
     if (query.isActive !== undefined) {
@@ -76,15 +85,23 @@ export class QuestionRepository
 
   async getActiveQuestionsBySkills(
     skillIds: string[],
-    areaId?: string,
+    difficultyLevels?: string[],
   ): Promise<Question[]> {
     const whereConditions: SQL[] = [
       eq(questions.isActive, true),
       inArray(questions.skillId, skillIds),
     ];
 
-    if (areaId) {
-      whereConditions.push(eq(questions.areaId, areaId));
+    if (difficultyLevels && difficultyLevels.length > 0) {
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${questions.difficultyLevels}) elem
+          WHERE elem = ANY(ARRAY[${sql.join(
+            difficultyLevels.map((level) => sql.raw(`'${level}'`)),
+            sql`, `,
+          )}]::text[])
+        )`,
+      );
     }
 
     return await this.db
@@ -96,7 +113,7 @@ export class QuestionRepository
   async createMany(questionValues: Partial<Question>[]): Promise<Question[]> {
     const result = await this.db
       .insert(questions)
-      .values(questionValues as any)
+      .values(questionValues as unknown as NewQuestion[])
       .returning();
 
     return result;

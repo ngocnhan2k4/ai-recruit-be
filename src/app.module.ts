@@ -64,6 +64,7 @@ import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedb
 import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
+import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
     EmailModule,
     LearningPathUseCasesModule,
     ExamUseCasesModule,
+    JobMatchingUseCasesModule,
   ],
   controllers: [
     UserController,

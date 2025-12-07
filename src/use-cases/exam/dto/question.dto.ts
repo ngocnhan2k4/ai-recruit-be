@@ -5,17 +5,20 @@ import {
   IsArray,
   IsUUID,
   IsNumber,
-  IsEnum,
   IsBoolean,
   IsOptional,
   ArrayMinSize,
+  ArrayMaxSize,
   Min,
+  IsIn,
 } from "class-validator";
 
 export enum DifficultyEnum {
   EASY = "easy",
   MEDIUM = "medium",
   HARD = "hard",
+  ADVANCED = "advanced",
+  EXPERT = "expert",
 }
 
 export class CreateQuestionDto {
@@ -23,11 +26,6 @@ export class CreateQuestionDto {
   @IsUUID()
   @IsNotEmpty()
   skillId: string;
-
-  @ApiProperty({ example: "123e4567-e89b-12d3-a456-426614174000" })
-  @IsUUID()
-  @IsNotEmpty()
-  areaId: string;
 
   @ApiProperty({ example: "What is TypeScript?" })
   @IsString()
@@ -53,9 +51,16 @@ export class CreateQuestionDto {
   @Min(1)
   point: number;
 
-  @ApiProperty({ enum: DifficultyEnum, example: DifficultyEnum.MEDIUM })
-  @IsEnum(DifficultyEnum)
-  difficulty: DifficultyEnum;
+  @ApiProperty({
+    example: ["medium"],
+    type: [String],
+    description: "Array of 1-3 difficulty levels",
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @IsIn(["easy", "medium", "hard", "advanced", "expert"], { each: true })
+  difficultyLevels: string[];
 
   @ApiPropertyOptional({ example: true, default: true })
   @IsBoolean()
@@ -75,17 +80,16 @@ export class QueryQuestionsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  areaId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
   skillId?: string;
 
-  @ApiPropertyOptional({ enum: DifficultyEnum })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["easy", "medium"],
+  })
   @IsOptional()
-  @IsEnum(DifficultyEnum)
-  difficulty?: DifficultyEnum;
+  @IsArray()
+  @IsIn(["easy", "medium", "hard", "advanced", "expert"], { each: true })
+  difficultyLevels?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

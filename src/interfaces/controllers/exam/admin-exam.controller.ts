@@ -21,14 +21,10 @@ import {
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
 import {
-  CreateAreaDto,
-  UpdateAreaDto,
   CreateQuestionDto,
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
-  CreateLevelDto,
-  UpdateLevelDto,
 } from "@/use-cases/exam/dto";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
@@ -41,51 +37,22 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 export class AdminExamController {
   constructor(private readonly examUseCases: ExamUseCases) {}
 
-  // ==================== AREA MANAGEMENT ====================
-
-  @ApiOperation({ summary: "Create a new area" })
-  @Post("areas")
-  async createArea(@Body() dto: CreateAreaDto) {
-    return this.examUseCases.createArea(dto);
-  }
-
-  @ApiOperation({ summary: "Update an area" })
-  @Put("areas/:id")
-  async updateArea(@Param("id") id: string, @Body() dto: UpdateAreaDto) {
-    return this.examUseCases.updateArea(id, dto);
-  }
-
-  @ApiOperation({ summary: "Delete an area" })
-  @Delete("areas/:id")
-  async deleteArea(@Param("id") id: string) {
-    return this.examUseCases.deleteArea(id);
-  }
-
-  @ApiOperation({ summary: "Get all areas with pagination" })
-  @Get("areas")
-  async getAreas(
-    @Query("page") page?: number,
-    @Query("limit") limit?: number,
-    @Query("keyword") keyword?: string,
-  ) {
-    return this.examUseCases.getAreas({ page, limit, keyword });
-  }
-
-  @ApiOperation({ summary: "Get area by ID" })
-  @Get("areas/:id")
-  async getAreaById(@Param("id") id: string) {
-    return this.examUseCases.getAreaById(id);
-  }
-
   // ==================== QUESTION MANAGEMENT ====================
 
-  @ApiOperation({ summary: "Create a new question" })
+  @ApiOperation({
+    summary: "Create a new question",
+    description:
+      "Create a question with skillId and 1-3 difficulty levels. No area required.",
+  })
   @Post("questions")
   async createQuestion(@Body() dto: CreateQuestionDto) {
     return this.examUseCases.createQuestion(dto);
   }
 
-  @ApiOperation({ summary: "Update a question" })
+  @ApiOperation({
+    summary: "Update a question",
+    description: "Update question details including difficulty levels array.",
+  })
   @Put("questions/:id")
   async updateQuestion(
     @Param("id") id: string,
@@ -109,7 +76,11 @@ export class AdminExamController {
     return this.examUseCases.toggleQuestionStatus(id, dto);
   }
 
-  @ApiOperation({ summary: "Get all questions with filters and pagination" })
+  @ApiOperation({
+    summary: "Get all questions with filters and pagination",
+    description:
+      "Filter by skillId, difficultyLevels, and active status. No area filter.",
+  })
   @Get("questions")
   async getQuestions(@Query() query: QueryQuestionsDto) {
     return this.examUseCases.getQuestions(query);
@@ -123,7 +94,11 @@ export class AdminExamController {
 
   // ==================== QUESTION IMPORT ====================
 
-  @ApiOperation({ summary: "Import questions from CSV file" })
+  @ApiOperation({
+    summary: "Import questions from CSV file",
+    description:
+      "Import questions with skillId and difficultyLevels array. No area required.",
+  })
   @ApiConsumes("multipart/form-data")
   @Post("questions/import/csv")
   @UseInterceptors(FileInterceptor("file"))
@@ -136,7 +111,11 @@ export class AdminExamController {
     return this.examUseCases.importQuestionsCSV(fileContent, file.originalname);
   }
 
-  @ApiOperation({ summary: "Import questions from JSON" })
+  @ApiOperation({
+    summary: "Import questions from JSON",
+    description:
+      "Import questions with skillId and difficultyLevels array. No area required.",
+  })
   @Post("questions/import/json")
   async importQuestionsJSON(@Body() body: { data: any[]; fileName: string }) {
     return this.examUseCases.importQuestionsJSON(body.data, body.fileName);
@@ -146,31 +125,5 @@ export class AdminExamController {
   @Get("questions/import/logs")
   async getImportLogs(@Query("limit") limit?: number) {
     return this.examUseCases.getImportLogs(limit || 10);
-  }
-
-  // ==================== LEVEL MANAGEMENT ====================
-
-  @ApiOperation({ summary: "Create a new level" })
-  @Post("levels")
-  async createLevel(@Body() dto: CreateLevelDto) {
-    return this.examUseCases.createLevel(dto);
-  }
-
-  @ApiOperation({ summary: "Update a level" })
-  @Put("levels/:id")
-  async updateLevel(@Param("id") id: string, @Body() dto: UpdateLevelDto) {
-    return this.examUseCases.updateLevel(id, dto);
-  }
-
-  @ApiOperation({ summary: "Delete a level" })
-  @Delete("levels/:id")
-  async deleteLevel(@Param("id") id: string) {
-    return this.examUseCases.deleteLevel(id);
-  }
-
-  @ApiOperation({ summary: "Get all levels for an area" })
-  @Get("levels/area/:areaId")
-  async getLevelsByArea(@Param("areaId") areaId: string) {
-    return this.examUseCases.getLevelsByArea(areaId);
   }
 }

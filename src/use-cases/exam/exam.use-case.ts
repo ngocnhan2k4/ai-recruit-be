@@ -30,6 +30,7 @@ import {
   QuestionImportService,
   QuestionRandomizerService,
   ExamScoringService,
+  ImportRow,
 } from "./services";
 
 @Injectable()
@@ -119,14 +120,7 @@ export class ExamUseCases {
   // ==================== QUESTION MANAGEMENT ====================
 
   async createQuestion(dto: CreateQuestionDto) {
-    // Validate area exists
-    const area = await this.areaRepo.get(dto.areaId);
-
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    const question = await this.questionRepo.create(dto);
+    const question = await this.questionRepo.create(dto as Partial<Question>);
     this.logger.log(`Created question: ${question.id}`);
     return {
       success: true,
@@ -141,7 +135,10 @@ export class ExamUseCases {
       throw new NotFoundException("Question not found");
     }
 
-    const [updated] = await this.questionRepo.update({ id }, dto);
+    const [updated] = await this.questionRepo.update(
+      { id },
+      dto as Partial<Question>,
+    );
     this.logger.log(`Updated question: ${id}`);
     return {
       success: true,
@@ -226,7 +223,7 @@ export class ExamUseCases {
   }
 
   async importQuestionsJSON(
-    data: any[],
+    data: ImportRow[],
     fileName: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
     const result = await this.importService.importFromJSON(data, fileName);
@@ -323,53 +320,42 @@ export class ExamUseCases {
   // ==================== EXAM FLOW ====================
 
   async startExam(userId: string, dto: StartExamDto) {
-    // Validate area exists
-    const area = await this.areaRepo.get(dto.areaId);
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    // Validate max 5 skills
-    if (dto.skillIds.length > 5) {
-      throw new BadRequestException("Maximum 5 skills allowed");
-    }
-
-    // Fetch all active questions for selected skills
+    // Fetch all active questions for single skill and optional difficulty levels
     const allQuestions = await this.questionRepo.getActiveQuestionsBySkills(
-      dto.skillIds,
-      dto.areaId,
+      [dto.skillId],
+      dto.difficultyLevels,
     );
 
     if (allQuestions.length === 0) {
       throw new BadRequestException(
-        "No active questions found for selected skills",
+        "No active questions found for selected skill and difficulty levels",
       );
     }
 
     if (allQuestions.length < 20) {
       throw new BadRequestException(
-        `Not enough questions. Need 20, found ${allQuestions.length}`,
+        `Not enough questions for this skill. Found ${allQuestions.length}, need 20. Try selecting different difficulty levels or contact admin.`,
       );
     }
 
-    // Randomize and select 20 questions with skill balancing
+    // Randomize and select 20 questions (no skill balancing needed for single skill)
     const selectedQuestions = this.randomizerService.randomizeQuestions(
       allQuestions,
       {
         totalQuestions: 20,
-        balanceBySkill: true,
+        balanceBySkill: false,
       },
     );
 
-    // Optionally randomize answer options
+    // Randomize answer options
     const questionsWithRandomOptions =
       this.randomizerService.randomizeOptions(selectedQuestions);
 
     // Create user test record
     const userTest = await this.userTestRepo.create({
       userId,
-      selectedSkillIds: dto.skillIds,
-      areaId: dto.areaId,
+      selectedSkillIds: [dto.skillId],
+      selectedDifficultyLevels: dto.difficultyLevels as any,
     });
 
     // Return questions without correct answers
@@ -378,7 +364,7 @@ export class ExamUseCases {
       questionText: q.questionText,
       options: q.options,
       point: q.point,
-      difficulty: q.difficulty,
+      difficultyLevels: q.difficultyLevels,
     }));
 
     this.logger.log(`Started exam for user ${userId}, test ID: ${userTest.id}`);
@@ -420,9 +406,8 @@ export class ExamUseCases {
       throw new BadRequestException("Some questions not found");
     }
 
-    // Calculate score and evaluate level
-    const examResult = await this.scoringService.scoreAndEvaluate(
-      userTest.areaId,
+    // Calculate score and evaluate per-skill levels
+    const examResult = this.scoringService.scoreAndEvaluate(
       validQuestions,
       dto.answers,
     );
@@ -442,17 +427,21 @@ export class ExamUseCases {
 
       await this.userAnswerRepo.createMany(answersToSave, tx);
 
-      // Update test result
+      // Update test result with skill-based levels
       await this.userTestRepo.updateTestResult(
         dto.userTestId,
         examResult.totalScore,
-        examResult.levelName,
+        examResult.skillLevelsAssessed,
         tx,
       );
     });
 
+    // Since it's single skill, extract the single level
+    const skillId = validQuestions[0].skillId;
+    const levelAssessed = examResult.skillLevelsAssessed[skillId] || "Beginner";
+
     this.logger.log(
-      `Submitted exam for user ${userId}, score: ${examResult.totalScore}, level: ${examResult.levelName}`,
+      `Submitted exam for user ${userId}, score: ${examResult.totalScore}, skill: ${skillId}, level: ${levelAssessed}`,
     );
 
     return {
@@ -462,7 +451,9 @@ export class ExamUseCases {
         totalScore: examResult.totalScore,
         correctAnswers: examResult.correctAnswers,
         incorrectAnswers: examResult.incorrectAnswers,
-        levelAssessed: examResult.levelName,
+        skillId,
+        levelAssessed,
+        skillLevelsAssessed: examResult.skillLevelsAssessed,
       },
     };
   }

@@ -1,16 +1,10 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-  Request,
-} from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
 import { StartExamDto, SubmitExamDto } from "@/use-cases/exam/dto";
+import { GetUser } from "@/common/decorators/get-user.decorator";
+import type { TokenPayload } from "@/common/types/token";
 
 @ApiTags("Exam")
 @Controller("exam")
@@ -22,25 +16,23 @@ export class ExamController {
   @ApiOperation({
     summary: "Start an exam",
     description:
-      "Select an area and up to 5 skills. System will generate 20 randomized questions.",
+      "Select 1 skill and optionally difficulty levels. System will generate 20 randomized questions for that skill.",
   })
   @Post("start")
   @ApiBearerAuth()
-  async startExam(@Request() req: any, @Body() dto: StartExamDto) {
-    const userId = req.user.id;
-    return this.examUseCases.startExam(userId, dto);
+  async startExam(@GetUser() user: TokenPayload, @Body() dto: StartExamDto) {
+    return this.examUseCases.startExam(user.userId, dto);
   }
 
   @ApiOperation({
     summary: "Submit exam answers",
     description:
-      "Submit answers for all questions. System will calculate score and assign level.",
+      "Submit answers for all questions. System will calculate score and assign skill level.",
   })
   @Post("submit")
   @ApiBearerAuth()
-  async submitExam(@Request() req: any, @Body() dto: SubmitExamDto) {
-    const userId = req.user.id;
-    return this.examUseCases.submitExam(userId, dto);
+  async submitExam(@GetUser() user: TokenPayload, @Body() dto: SubmitExamDto) {
+    return this.examUseCases.submitExam(user.userId, dto);
   }
 
   @ApiOperation({
@@ -49,40 +41,21 @@ export class ExamController {
   })
   @Get("my-tests")
   @ApiBearerAuth()
-  async getMyTests(@Request() req: any) {
-    const userId = req.user.id;
-    return this.examUseCases.getUserTests(userId);
+  async getMyTests(@GetUser() user: TokenPayload) {
+    return this.examUseCases.getUserTests(user.userId);
   }
 
   @ApiOperation({
     summary: "Get test details",
     description:
-      "Get detailed results of a specific test including all answers.",
+      "Get detailed results of a specific test including all answers and skill-level assessments.",
   })
   @Get("my-tests/:testId")
   @ApiBearerAuth()
-  async getTestDetails(@Request() req: any, @Param("testId") testId: string) {
-    const userId = req.user.id;
-    return this.examUseCases.getTestDetails(userId, testId);
-  }
-
-  @ApiOperation({
-    summary: "Get all areas",
-    description: "Get list of all available areas for selection.",
-  })
-  @Get("areas")
-  @ApiBearerAuth()
-  async getAreas() {
-    return this.examUseCases.getAreas({});
-  }
-
-  @ApiOperation({
-    summary: "Get area by ID",
-    description: "Get details of a specific area.",
-  })
-  @Get("areas/:id")
-  @ApiBearerAuth()
-  async getAreaById(@Param("id") id: string) {
-    return this.examUseCases.getAreaById(id);
+  async getTestDetails(
+    @GetUser() user: TokenPayload,
+    @Param("testId") testId: string,
+  ) {
+    return this.examUseCases.getTestDetails(user.userId, testId);
   }
 }

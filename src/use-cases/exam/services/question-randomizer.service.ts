@@ -108,16 +108,23 @@ export class QuestionRandomizerService {
 
   /**
    * Select questions by difficulty distribution
+   * Note: This method is deprecated since difficulty filtering now happens at query time
    */
   private selectByDifficulty(
     allQuestions: Question[],
     totalNeeded: number,
     distribution: { easy: number; medium: number; hard: number },
   ): Question[] {
-    // Group by difficulty
-    const easy = allQuestions.filter((q) => q.difficulty === "easy");
-    const medium = allQuestions.filter((q) => q.difficulty === "medium");
-    const hard = allQuestions.filter((q) => q.difficulty === "hard");
+    // Group by difficulty levels (questions can have multiple levels)
+    const easy = allQuestions.filter((q) =>
+      q.difficultyLevels.includes("easy"),
+    );
+    const medium = allQuestions.filter((q) =>
+      q.difficultyLevels.includes("medium"),
+    );
+    const hard = allQuestions.filter((q) =>
+      q.difficultyLevels.includes("hard"),
+    );
 
     // Calculate counts
     const easyCount = Math.round((totalNeeded * distribution.easy) / 100);

@@ -25,14 +25,14 @@ export class UserTestRepository
   async updateTestResult(
     testId: string,
     totalScore: number,
-    levelAssessed: string,
+    skillLevelsAssessed: Record<string, string>,
     tx?: DBDrizzleTransaction,
   ): Promise<UserTest> {
     const dbContext = tx || this.db;
 
     const result = await dbContext
       .update(userTests)
-      .set({ totalScore, levelAssessed })
+      .set({ totalScore, skillLevelsAssessed })
       .where(eq(userTests.id, testId))
       .returning();
 

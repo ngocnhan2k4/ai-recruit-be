@@ -2,7 +2,8 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { EmailQueueService } from "./email-queue.service";
 import { EmailService } from "./email.service";
-import { EmailJob, EmailJobType } from "./interfaces/email-job.interface";
+import { EmailJob, EmailJobType } from "../../core/entities/email-job.entity";
+import { JobResponse } from "@/core/entities/job.entity";
 
 @Injectable()
 export class EmailWorkerService implements OnModuleInit {
@@ -62,10 +63,18 @@ export class EmailWorkerService implements OnModuleInit {
       case EmailJobType.ORGANIZATION_INVITATION:
         await this.emailService.sendOrganizationInvitationEmail(
           job.data.to as string,
-          job.data.organizationName,
-          job.data.inviterName,
-          job.data.invitationLink,
-          job.data.role,
+          job.data.organizationName as string,
+          job.data.inviterName as string,
+          job.data.invitationLink as string,
+          job.data.role as string,
+        );
+        break;
+
+      case EmailJobType.JOB_RECOMMENDATIONS:
+        await this.emailService.sendJobRecommendationsEmail(
+          job.data.to as string,
+          job.data.userName as string,
+          job.data.jobs as JobResponse[],
         );
         break;
 

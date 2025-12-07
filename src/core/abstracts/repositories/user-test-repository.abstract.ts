@@ -8,7 +8,7 @@ export abstract class IUserTestRepository extends IGenericRepository<UserTest> {
   abstract updateTestResult(
     testId: string,
     totalScore: number,
-    levelAssessed: string,
+    skillLevelsAssessed: Record<string, string>,
     tx?: DBDrizzleTransaction,
   ): Promise<UserTest>;
 }
