@@ -126,36 +126,69 @@ class ResourceDto {
   isFree: boolean;
 }
 
-export class SkillDto {
+export class SkillOptionDto {
   @ApiProperty({
     description: "Unique skill identifier",
-    example: "skill-001",
+    example: "21bbc963-d284-40ab-884d-da539e9c011b",
   })
   @IsString()
   skillId: string;
 
   @ApiProperty({
     description: "Skill name",
-    example: "TypeScript Fundamentals",
+    example: "Go",
   })
   @IsString()
-  name: string;
-
-  @ApiProperty({
-    description: "Skill description",
-    example:
-      "Learn TypeScript basics including types, interfaces, and generics",
-  })
-  @IsString()
-  description: string;
+  skillName: string;
 
   @ApiProperty({
     description: "Estimated hours to learn",
-    example: 20,
+    example: 45,
   })
   @IsInt()
   @Min(1)
   estimatedHours: number;
+
+  @ApiProperty({
+    description: "Learning resources",
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResourceDto)
+  resources: ResourceDto[];
+
+  @ApiProperty({
+    description: "Key concepts to learn",
+    example: ["Goroutines & Channels", "Interfaces & Struct embedding"],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  keyConcepts: string[];
+
+  @ApiProperty({
+    description: "Reason why this skill is recommended",
+    example:
+      "Hiệu năng cao, cú pháp đơn giản, mạnh mẽ cho lập trình đồng thời và microservices.",
+  })
+  @IsString()
+  reason: string;
+}
+
+export class RoadmapPositionDto {
+  @ApiProperty({
+    description: "Position name (learning objective)",
+    example: "Lập trình Backend Nâng cao",
+  })
+  @IsString()
+  positionName: string;
+
+  @ApiProperty({
+    description: "Position description",
+    example:
+      "Nắm vững các khái niệm nâng cao của ngôn ngữ lập trình và các mẫu thiết kế...",
+  })
+  @IsString()
+  description: string;
 
   @ApiProperty({
     description: "Starting week",
@@ -174,48 +207,43 @@ export class SkillDto {
   weekEnd: number;
 
   @ApiProperty({
+    description: "Order index in the phase",
+    example: 0,
+  })
+  @IsInt()
+  @Min(0)
+  orderIndex: number;
+
+  @ApiProperty({
+    description: "Available skill options for this position",
+    type: [SkillOptionDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SkillOptionDto)
+  options: SkillOptionDto[];
+
+  @ApiProperty({
     description: "Prerequisite skill IDs",
     example: [],
   })
   @IsArray()
   @IsString({ each: true })
   prerequisites: string[];
-
-  @ApiProperty({
-    description: "Learning resources",
-  })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ResourceDto)
-  resources: ResourceDto[];
-
-  @ApiProperty({
-    description: "Key concepts to learn",
-    example: ["Types", "Interfaces", "Generics", "Decorators"],
-  })
-  @IsArray()
-  @IsString({ each: true })
-  keyConcepts: string[];
 }
 
 class PhaseDto {
   @ApiProperty({
-    description: "Phase identifier",
-    example: "phase-001",
-  })
-  @IsString()
-  phaseId: string;
-
-  @ApiProperty({
     description: "Phase name",
-    example: "Foundation Phase",
+    example: "Giai đoạn Nền tảng",
   })
   @IsString()
   name: string;
 
   @ApiProperty({
     description: "Phase description",
-    example: "Build a strong foundation in programming fundamentals",
+    example:
+      "Tập trung vào việc đào sâu kiến thức cốt lõi về ngôn ngữ, cơ sở dữ liệu...",
   })
   @IsString()
   description: string;
@@ -229,38 +257,64 @@ class PhaseDto {
   durationWeeks: number;
 
   @ApiProperty({
-    description: "Skills in this phase",
+    description: "Order index of the phase",
+    example: 0,
+  })
+  @IsInt()
+  @Min(0)
+  orderIndex: number;
+
+  @ApiProperty({
+    description: "Learning positions in this phase",
+    type: [RoadmapPositionDto],
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => SkillDto)
-  skills: SkillDto[];
+  @Type(() => RoadmapPositionDto)
+  skills: RoadmapPositionDto[];
+}
+
+class DependencyNodeDto {
+  @ApiProperty({
+    description: "Skill ID",
+    example: "21bbc963-d284-40ab-884d-da539e9c011b",
+  })
+  @IsString()
+  id: string;
+
+  @ApiProperty({
+    description: "Skill label/name",
+    example: "Go",
+  })
+  @IsString()
+  label: string;
 }
 
 class DependencyEdgeDto {
   @ApiProperty({
     description: "Source skill ID",
-    example: "skill-001",
+    example: "21bbc963-d284-40ab-884d-da539e9c011b",
   })
   @IsString()
-  fromSkill: string;
+  from: string;
 
   @ApiProperty({
     description: "Target skill ID",
-    example: "skill-002",
+    example: "18c2617a-8da1-4bc0-b574-d29e18290f91",
   })
   @IsString()
-  toSkill: string;
+  to: string;
 }
 
 class DependencyGraphDto {
   @ApiProperty({
-    description: "All skill IDs",
-    example: ["skill-001", "skill-002", "skill-003"],
+    description: "All skill nodes",
+    type: [DependencyNodeDto],
   })
   @IsArray()
-  @IsString({ each: true })
-  nodes: string[];
+  @ValidateNested({ each: true })
+  @Type(() => DependencyNodeDto)
+  nodes: DependencyNodeDto[];
 
   @ApiProperty({
     description: "Dependency edges",
@@ -299,14 +353,14 @@ class GapAnalysisDto {
 export class GenerateRoadmapResponseDto {
   @ApiProperty({
     description: "Unique roadmap identifier",
-    example: "roadmap-12345",
+    example: "8848c1da-beb1-4bba-b355-a4751100d4b2",
   })
   @IsString()
   roadmapId: string;
 
   @ApiProperty({
     description: "Generation timestamp (ISO format)",
-    example: "2025-11-16T10:30:00Z",
+    example: "2025-12-07T14:29:02.355338+00:00",
   })
   @IsString()
   generatedAt: string;
@@ -326,7 +380,7 @@ export class GenerateRoadmapResponseDto {
   totalWeeks: number;
 
   @ApiProperty({
-    description: "Learning phases",
+    description: "Learning phases with skill positions",
     type: [PhaseDto],
   })
   @IsArray()
@@ -335,7 +389,7 @@ export class GenerateRoadmapResponseDto {
   phases: PhaseDto[];
 
   @ApiProperty({
-    description: "Skill dependencies",
+    description: "Skill dependencies graph",
     type: DependencyGraphDto,
   })
   @ValidateNested()

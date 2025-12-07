@@ -160,7 +160,7 @@ export class LearningPathController {
   @ApiOperation({
     summary: "Get roadmap progress statistics",
     description:
-      "Get detailed progress statistics including completed skills, phases, and estimated completion date",
+      "Get detailed progress statistics including completed positions, phases, and estimated completion date",
   })
   @ApiParam({
     name: "roadmapId",
@@ -172,6 +172,27 @@ export class LearningPathController {
     @Param("roadmapId") roadmapId: string,
   ): Promise<ApiResponse<RoadmapProgressStatsDto>> {
     return await this.learningPathUseCase.getProgressStats(
+      roadmapId,
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/selected-skills")
+  @ApiOperation({
+    summary: "Get user's selected/completed skills",
+    description:
+      "Get only the skills that the user has completed (marked as done). This shows the actual learning path the user chose from the available options.",
+  })
+  @ApiParam({
+    name: "roadmapId",
+    description: "Roadmap ID",
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  async getSelectedSkills(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+  ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
+    return await this.learningPathUseCase.getSelectedSkills(
       roadmapId,
       user.userId,
     );

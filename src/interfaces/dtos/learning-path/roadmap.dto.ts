@@ -155,14 +155,16 @@ export class CompleteSkillDto {
 
 export class RoadmapProgressStatsDto {
   @ApiProperty({
-    description: "Total number of skills in roadmap",
-    example: 25,
+    description:
+      "Total number of learning positions in roadmap (each position can have multiple skill options)",
+    example: 8,
   })
   totalSkills: number;
 
   @ApiProperty({
-    description: "Number of completed skills",
-    example: 12,
+    description:
+      "Number of completed positions (a position is completed when user completes at least one skill option from it)",
+    example: 3,
   })
   completedSkills: number;
 
