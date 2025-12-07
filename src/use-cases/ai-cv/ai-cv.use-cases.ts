@@ -19,10 +19,8 @@ export class AiCvUseCases {
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
     this.logger.log(`[getAiCvs] [get] Getting AI CVs for user ${userId}`);
 
-    // Fetch from Repository
     const aiCvs = await this.aiCvRepository.getByField({ userId: userId });
 
-    // Map Entity -> DTO
     const aiCvsDto: AiCvDto[] = aiCvs.map((aiCv) => ({
       id: aiCv.id,
       userId: aiCv.userId,

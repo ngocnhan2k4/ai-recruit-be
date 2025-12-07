@@ -8,8 +8,8 @@ import { CvLanguageEnum, OptimizeAtsResponse } from "@/core";
 import { FileTextExtractor } from "@/common/utils/file-text-extractor";
 
 @Injectable()
-export class CvOptimizeUseCase {
-  private readonly logger = new Logger(CvOptimizeUseCase.name);
+export class AiCvOptimizeUseCases {
+  private readonly logger = new Logger(AiCvOptimizeUseCases.name);
 
   constructor(
     @Inject(IAIService)
