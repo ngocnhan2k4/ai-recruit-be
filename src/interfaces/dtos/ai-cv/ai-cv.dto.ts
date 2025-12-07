@@ -25,7 +25,8 @@ export class CvPersonalInfoDto {
 
   @ApiProperty({ example: "dev@example.com" })
   @IsEmail()
-  email: string;
+  @IsOptional()
+  email?: string;
 
   @ApiPropertyOptional({ example: "+84 909 000 000" })
   @IsString()
