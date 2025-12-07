@@ -1,0 +1,114 @@
+[
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "JavaScript",
+    "skillId": "",
+    "questionText": "What is JavaScript?",
+    "options": [
+      "A programming language",
+      "A framework",
+      "A database",
+      "An operating system"
+    ],
+    "correctAnswer": "A programming language",
+    "point": 10,
+    "difficulty": "easy"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "JavaScript",
+    "skillId": "",
+    "questionText": "What does 'const' keyword do?",
+    "options": [
+      "Declares a constant variable",
+      "Declares a function",
+      "Declares a class",
+      "Declares an object"
+    ],
+    "correctAnswer": "Declares a constant variable",
+    "point": 10,
+    "difficulty": "medium"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "Python",
+    "skillId": "",
+    "questionText": "What is Python?",
+    "options": [
+      "A programming language",
+      "A snake",
+      "A framework",
+      "A tool"
+    ],
+    "correctAnswer": "A programming language",
+    "point": 10,
+    "difficulty": "easy"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "TypeScript",
+    "skillId": "",
+    "questionText": "What is TypeScript?",
+    "options": [
+      "A superset of JavaScript",
+      "A database",
+      "A framework",
+      "An IDE"
+    ],
+    "correctAnswer": "A superset of JavaScript",
+    "point": 15,
+    "difficulty": "medium"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "React",
+    "skillId": "",
+    "questionText": "What is React?",
+    "options": [
+      "A JavaScript library for building UIs",
+      "A database",
+      "A programming language",
+      "An operating system"
+    ],
+    "correctAnswer": "A JavaScript library for building UIs",
+    "point": 15,
+    "difficulty": "medium"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "Node.js",
+    "skillId": "",
+    "questionText": "What is Node.js?",
+    "options": [
+      "A JavaScript runtime",
+      "A framework",
+      "A database",
+      "A programming language"
+    ],
+    "correctAnswer": "A JavaScript runtime",
+    "point": 15,
+    "difficulty": "medium"
+  },
+  {
+    "area": "Programming",
+    "areaId": "",
+    "skill": "JavaScript",
+    "skillId": "",
+    "questionText": "What is the difference between '==' and '===' in JavaScript?",
+    "options": [
+      "'===' checks both value and type, '==' only checks value",
+      "They are the same",
+      "'==' checks both value and type, '===' only checks value",
+      "Neither checks type"
+    ],
+    "correctAnswer": "'===' checks both value and type, '==' only checks value",
+    "point": 15,
+    "difficulty": "hard"
+  }
+]
