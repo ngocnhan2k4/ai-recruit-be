@@ -5,15 +5,24 @@ import type { TokenPayload } from "@/common/types/token";
 import { OptimizeAtsResponse } from "@/core";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
-import { AiCvListResponseDto } from "@/interfaces/dtos/ai-cv/ai-cv.dto";
+import {
+  AiCvDto,
+  AiCvListResponseDto,
+  AiCvRequestDto,
+  UpdateAiCvDto,
+} from "@/interfaces/dtos/ai-cv/ai-cv.dto";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
 import { AiCvOptimizeUseCases } from "@/use-cases/ai-cv/ai-cv-optimize.use-case";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
   BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -21,6 +30,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
@@ -93,5 +103,65 @@ export class AiCvController {
       });
     }
     return await this.aiCvOptimizeUseCase.optimizeCvForAts(request);
+  }
+
+  @ApiOperation({
+    summary: "Get AI CV by Id",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "AI CV ID",
+    example: "uuid-ai-cv-id",
+  })
+  @ApiResponseDto(AiCvDto)
+  @Get(":id")
+  async getAiCvById(
+    @Param("id") aiCvId: string,
+  ): Promise<ApiResponse<AiCvDto>> {
+    return this.aiCvUseCases.getAiCvById(aiCvId);
+  }
+
+  @ApiOperation({
+    summary: "Create new AI CV",
+    description: "Save a new AI-generated CV",
+  })
+  @ApiBody({ type: AiCvRequestDto })
+  @ApiResponseDto(AiCvDto)
+  @Post()
+  async createAiCv(
+    @GetUser() user: TokenPayload,
+    @Body() createAiCvDto: AiCvRequestDto,
+  ) {
+    return this.aiCvUseCases.createAiCv(user.userId, createAiCvDto);
+  }
+
+  @ApiOperation({
+    summary: "Update AI CV",
+    description: "Update an existing AI CV",
+  })
+  @ApiBody({ type: UpdateAiCvDto })
+  @ApiResponseDto(AiCvDto)
+  @Put(":id")
+  async updateAiCv(
+    @GetUser() user: TokenPayload,
+    @Param("id") aiCvId: string,
+    @Body() updateAiCvDto: UpdateAiCvDto,
+  ) {
+    return this.aiCvUseCases.updateAiCv(user.userId, aiCvId, updateAiCvDto);
+  }
+
+  @ApiOperation({
+    summary: "Delete AI CV",
+    description: "Permanently delete an AI CV",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "AI CV ID",
+  })
+  @Delete(":id")
+  async deleteAiCv(@GetUser() user: TokenPayload, @Param("id") aiCvId: string) {
+    return this.aiCvUseCases.deleteAiCv(user.userId, aiCvId);
   }
 }

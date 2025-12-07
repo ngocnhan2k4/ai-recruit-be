@@ -1,13 +1,21 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { CvLanguageEnum } from "@/core";
+import { CvLanguageEnum, NewAiCv } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   AiCvDto,
   AiCvListResponseDto,
+  AiCvRequestDto,
   OptimizedCvDataDto,
+  UpdateAiCvDto,
 } from "@/interfaces/dtos/ai-cv/ai-cv.dto";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 
 @Injectable()
 export class AiCvUseCases {
@@ -43,6 +51,141 @@ export class AiCvUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: { aiCvs: aiCvsDto },
+    };
+  }
+
+  async getAiCvById(aiCvId: string): Promise<ApiResponse<AiCvDto>> {
+    this.logger.log(`[getAiCvById] [get] Getting AI CV by id ${aiCvId}`);
+    const aiCv = await this.aiCvRepository.get(aiCvId);
+    if (!aiCv) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const aiCvDto = {
+      ...aiCv,
+      updatedAt: aiCv.updatedAt ? new Date(aiCv.updatedAt) : undefined,
+      createdAt: new Date(aiCv.createdAt),
+    } as AiCvDto;
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: aiCvDto,
+    };
+  }
+
+  async createAiCv(
+    userId: string,
+    createAiCvDto: AiCvRequestDto,
+  ): Promise<ApiResponse<AiCvDto>> {
+    const aiCvData: NewAiCv = {
+      ...createAiCvDto,
+      userId: userId,
+      isFavorite: createAiCvDto.isFavorite ?? false,
+      language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
+      cvData: createAiCvDto.cvData,
+    };
+
+    const newAiCv = await this.aiCvRepository.create(aiCvData);
+
+    const transformedAiCv: AiCvDto = {
+      ...newAiCv,
+      cvData: newAiCv.cvData as OptimizedCvDataDto,
+      language: newAiCv.language as CvLanguageEnum,
+      createdAt: new Date(newAiCv.createdAt),
+      updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
+    };
+
+    this.logger.log(`Created AI CV ${newAiCv.id}: ${newAiCv.title}`);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedAiCv,
+    };
+  }
+
+  async updateAiCv(
+    userId: string,
+    aiCvId: string,
+    updateAiCvDto: UpdateAiCvDto,
+  ): Promise<ApiResponse<AiCvDto>> {
+    const existingAiCv = await this.aiCvRepository.get(aiCvId);
+    if (!existingAiCv || existingAiCv.userId !== userId) {
+      throw new BadRequestException({
+        message: RESPONSE_CODE.UNAUTHORIZED,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const updateData: Partial<NewAiCv> = {
+      ...updateAiCvDto,
+      updatedAt: new Date(),
+    };
+
+    const updatedRows = await this.aiCvRepository.update(
+      { id: aiCvId },
+      updateData,
+    );
+
+    const updatedAiCv = updatedRows[0];
+    if (!updatedAiCv) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_UPDATED,
+        code: RESPONSE_CODE.AI_CV_NOT_UPDATED,
+      });
+    }
+
+    const transformedAiCv: AiCvDto = {
+      ...updatedAiCv,
+      cvData: updatedAiCv.cvData as OptimizedCvDataDto,
+      language: updatedAiCv.language as CvLanguageEnum,
+      createdAt: new Date(updatedAiCv.createdAt),
+      updatedAt: updatedAiCv.updatedAt ? new Date(updatedAiCv.updatedAt) : null,
+    };
+
+    this.logger.log(`Updated AI CV ${updatedAiCv.id}: ${updatedAiCv.title}`);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedAiCv,
+    };
+  }
+
+  async deleteAiCv(
+    userId: string,
+    aiCvId: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const aiCv = await this.aiCvRepository.get(aiCvId);
+
+    if (!aiCv || aiCv.userId !== userId) {
+      throw new BadRequestException({
+        message: RESPONSE_CODE.UNAUTHORIZED,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const result = await this.aiCvRepository.delete({ id: aiCvId });
+
+    if (result.length === 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_DELETED,
+        code: RESPONSE_CODE.AI_CV_NOT_DELETED,
+      });
+    }
+
+    this.logger.log(
+      `[deleteAiCv] [delete] Deleted AI CV ${aiCvId} for user ${userId}`,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { message: "AI CV deleted successfully" },
     };
   }
 }
