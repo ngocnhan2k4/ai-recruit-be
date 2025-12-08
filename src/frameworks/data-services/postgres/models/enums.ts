@@ -118,3 +118,8 @@ export const GapDifficultyEnum = pgEnum("gap_difficulty", [
 ]);
 
 export const LanguageEnum = pgEnum("language", ["vi", "en"]);
+
+export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
+  "save",
+  "hide",
+]);

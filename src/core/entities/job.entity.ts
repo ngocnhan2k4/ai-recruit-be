@@ -1,16 +1,25 @@
 import { TokenPayload } from "@/common/types/token";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
 import { GeneralQuery } from "@/common/types/api";
-import { Category, Job, OrganizationWithDetails, Province, Skill } from ".";
+import {
+  Category,
+  Company,
+  Job,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+} from ".";
 
 export interface JobFilters extends GeneralQuery {
-  organizationId?: string;
+  organizationId?: OrganizationWithDetails["id"];
   salaryMin?: number;
   salaryMax?: number;
   experienceMin?: number;
   experienceMax?: number;
-  provinceId?: string;
-  companyId?: string;
+  provinceId?: Province["id"];
+  provinceIds?: Province["id"][];
+  companyId?: Company["id"];
+  categoryId?: Category["id"];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   user?: TokenPayload;
@@ -23,7 +32,7 @@ export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
   categoryId?: string;
-  provinceId?: string;
+  provinceId: Province["id"];
   isOpen?: boolean;
 }
 

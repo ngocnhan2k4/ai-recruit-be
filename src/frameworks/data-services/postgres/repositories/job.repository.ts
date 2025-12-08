@@ -27,6 +27,7 @@ import {
   cvs,
   jobRaws,
   users,
+  jobProvinces,
 } from "../models";
 import {
   DBDrizzleTransaction,
@@ -109,7 +110,13 @@ export class JobRepository
     }
 
     if (filters?.provinceId) {
-      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = ${jobs.id} 
+          AND jp.province_id = ${filters.provinceId}
+        )`,
+      );
     }
 
     if (filters?.organizationId) {
@@ -145,9 +152,9 @@ export class JobRepository
           ...jobs,
           applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
         },
-        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         category: categories,
       })
       .from(jobs)
@@ -157,8 +164,9 @@ export class JobRepository
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
-          FROM ${provinces} p
-          WHERE p.id = ${jobs.provinceId}
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
         ) p_lateral`,
         sql`TRUE`,
       )
@@ -228,7 +236,13 @@ export class JobRepository
     }
 
     if (filters?.provinceId) {
-      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = ${jobs.id} 
+          AND jp.province_id = ${filters.provinceId}
+        )`,
+      );
     }
 
     if (filters?.organizationId) {
@@ -317,8 +331,9 @@ export class JobRepository
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
-          FROM ${provinces} p
-          WHERE p.id = ${jobs.provinceId}
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
         ) p_lateral`,
         sql`TRUE`,
       )
@@ -411,7 +426,13 @@ export class JobRepository
         : undefined,
       toDate ? lte(jobsTable.datePosted, convertDateToStr(toDate)) : undefined,
       categoryId ? eq(jobsTable.categoryId, categoryId) : undefined,
-      provinceId ? eq(jobsTable.provinceId, provinceId) : undefined,
+      provinceId
+        ? sql`EXISTS (
+            SELECT 1 FROM ${jobProvinces} jp 
+            WHERE jp.job_id = ${jobsTable.id} 
+            AND jp.province_id = ${provinceId}
+          )`
+        : undefined,
       isOpen
         ? or(
             isNull(jobsTable.endDate),
@@ -461,7 +482,13 @@ export class JobRepository
       where.push(sql`j.category_id = ${categoryId}`);
     }
     if (provinceId) {
-      where.push(sql`j.province_id = ${provinceId}`);
+      where.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = j.id 
+          AND jp.province_id = ${provinceId}
+        )`,
+      );
     }
 
     sqlChunks.push(sql`
@@ -940,7 +967,10 @@ export class JobRepository
   }
 
   async createJob(
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     sendNotifications = false,
     senderUserId?: string,
   ): Promise<
@@ -962,7 +992,6 @@ export class JobRepository
       endDate: job.endDate,
       workType: job.workType,
       jobRawId: job.jobRawId,
-      provinceId: job.provinceId,
       questions: job.questions,
       status: job.status || "active",
       createdAt: new Date(),
@@ -980,6 +1009,19 @@ export class JobRepository
         }));
 
         await tx.insert(jobSkills).values(skillAssociations);
+      }
+
+      // Handle province associations
+      const provinceIds = (
+        job.provinceIds ??
+        (job.provinceIds !== undefined ? job.provinceIds : [])
+      ).filter((id): id is string => Boolean(id));
+      if (provinceIds.length > 0) {
+        const provinceAssociations = provinceIds.map((provinceId) => ({
+          jobId: newJob.id,
+          provinceId,
+        }));
+        await tx.insert(jobProvinces).values(provinceAssociations);
       }
 
       // If notifications not requested or no senderUserId, just return job
@@ -1023,7 +1065,10 @@ export class JobRepository
 
   async updateJob(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null> {
     return this.db.transaction(async (tx) => {
       return this.preUpdateJob(tx, jobId, job);
@@ -1033,7 +1078,10 @@ export class JobRepository
   async preUpdateJob(
     tx: DBDrizzleTransaction,
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null> {
     const [updatedJob] = await tx
       .update(jobs)
@@ -1055,12 +1103,29 @@ export class JobRepository
         await tx.insert(jobSkills).values(skillAssociations);
       }
     }
+
+    if (job.provinceIds !== undefined) {
+      await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+      const filteredProvinceIds: string[] = job.provinceIds.filter(
+        (id): id is string => Boolean(id),
+      );
+      if (filteredProvinceIds.length > 0) {
+        const provinceAssociations = filteredProvinceIds.map((provinceId) => ({
+          jobId,
+          provinceId,
+        }));
+        await tx.insert(jobProvinces).values(provinceAssociations);
+      }
+    }
     return updatedJob as Job | null;
   }
 
   async updateJobWithNotifications(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
     const result = await this.db.transaction(async (tx) => {
@@ -1088,6 +1153,17 @@ export class JobRepository
           }));
 
           await tx.insert(jobSkills).values(skillAssociations);
+        }
+      }
+      if (job.provinceIds && job.provinceIds.length > 0) {
+        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+
+        if (job.provinceIds.length > 0) {
+          const provinceAssociations = job.provinceIds.map((provinceId) => ({
+            jobId,
+            provinceId,
+          }));
+          await tx.insert(jobProvinces).values(provinceAssociations);
         }
       }
 
@@ -1152,7 +1228,7 @@ export class JobRepository
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
     }>
   > {
@@ -1170,13 +1246,17 @@ export class JobRepository
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
-        provinceName: provinces.name,
+        provinceNames: sql`(
+          SELECT json_agg(p.name) 
+          FROM ${jobProvinces} jp 
+          INNER JOIN ${provinces} p ON jp.province_id = p.id 
+          WHERE jp.job_id = ${jobs.id}
+        )`.as("provinceNames"),
         applyJobId: applyJobs.id,
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(applyJobs, eq(applyJobs.jobId, jobs.id))
       .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
       .where(
@@ -1203,6 +1283,7 @@ export class JobRepository
         ...item,
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
+        provinceNames: (item.provinceNames as string[]) || [],
       })),
       pagination: {
         hasNextPage,
@@ -1218,10 +1299,7 @@ export class JobRepository
     const result = await this.db
       .select({
         job: jobs,
-        provinces:
-          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
-            "provinces",
-          ),
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
         skills:
           sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
@@ -1266,12 +1344,20 @@ export class JobRepository
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(p) AS provinces
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
+        ) p_lateral`,
+        sql`TRUE`,
+      )
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, provinces.id)
+      .groupBy(jobs.id, organizations.id)
       .limit(1);
 
     if (!result || result.length === 0) {
@@ -1334,7 +1420,7 @@ export class JobRepository
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
       applyStatus: ApplyStatusEnum;
     }>
@@ -1353,7 +1439,12 @@ export class JobRepository
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
-        provinceName: provinces.name,
+        provinceNames: sql`(
+          SELECT json_agg(p.name) 
+          FROM ${jobProvinces} jp 
+          INNER JOIN ${provinces} p ON jp.province_id = p.id 
+          WHERE jp.job_id = ${jobs.id} 
+        )`.as("provinceNames"),
         applyJobId: applyJobs.id,
         applyStatus: applyJobs.status,
       })
@@ -1361,7 +1452,6 @@ export class JobRepository
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)))
       .orderBy(
         query.sortDirection === "desc"
@@ -1381,6 +1471,7 @@ export class JobRepository
         isApplied: item.applyJobId ? true : false,
         workType: item.workType as WorkTypeEnum,
         applyStatus: item.applyStatus as ApplyStatusEnum,
+        provinceNames: (item.provinceNames as string[]) || [],
       })),
       pagination: {
         hasNextPage,
@@ -1534,5 +1625,18 @@ export class JobRepository
     });
 
     return recommendedJobs;
+  }
+
+  async getJobIdsActive(query: GeneralQuery): Promise<string[]> {
+    const activeJobs = await this.db
+      .select({
+        id: jobs.id,
+      })
+      .from(jobs)
+      .where(and(isNull(jobs.deletedAt), eq(jobs.status, JobStatusEnum.ACTIVE)))
+      .limit(query.limit)
+      .offset((query.page! - 1) * query.limit);
+
+    return activeJobs.map((job) => job.id);
   }
 }

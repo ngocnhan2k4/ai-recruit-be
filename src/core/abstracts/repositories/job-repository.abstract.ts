@@ -104,7 +104,10 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   // CRUD operations
   abstract createJob(
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     sendNotifications?: boolean,
     senderUserId?: string,
   ): Promise<
@@ -116,11 +119,17 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   >;
   abstract updateJob(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null>;
   abstract updateJobWithNotifications(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
   abstract deleteJob(jobId: string): Promise<boolean>;
@@ -157,7 +166,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
     }>
   >;
@@ -177,7 +186,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
       applyStatus: ApplyStatusEnum;
     }>
@@ -204,4 +213,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     isJobSystem: boolean,
     limit?: number,
   ): Promise<JobResponse[]>;
+
+  abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
 }
