@@ -60,4 +60,60 @@ export class RedisService implements IRedisService, OnModuleDestroy {
       await this.redis.set(`${key}:metadata`, value);
     }
   }
+
+  // Sorted Set operations for queue
+  async addToSortedSet(
+    key: string,
+    score: number,
+    member: string,
+  ): Promise<void> {
+    await this.redis.zadd(key, score, member);
+  }
+
+  async getRangeBySortedSetScore(
+    key: string,
+    min: number,
+    max: number,
+    limit?: number,
+  ): Promise<string[]> {
+    if (limit) {
+      return this.redis.zrangebyscore(key, min, max, "LIMIT", 0, limit);
+    }
+    return this.redis.zrangebyscore(key, min, max);
+  }
+
+  async removeFromSortedSet(key: string, member: string): Promise<void> {
+    await this.redis.zrem(key, member);
+  }
+
+  async getSortedSetRange(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<string[]> {
+    return this.redis.zrange(key, start, stop);
+  }
+
+  async getSortedSetSize(key: string): Promise<number> {
+    return this.redis.zcard(key);
+  }
+
+  async countSortedSetByScore(
+    key: string,
+    min: number,
+    max: number,
+  ): Promise<number> {
+    return this.redis.zcount(key, min, max);
+  }
+
+  // Bulk operations
+  async getKeysByPattern(pattern: string): Promise<string[]> {
+    return this.redis.keys(pattern);
+  }
+
+  async deleteMultipleKeys(keys: string[]): Promise<void> {
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
+  }
 }

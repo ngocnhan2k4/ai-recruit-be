@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  EmailJobType,
   ICompanyRepository,
   IOrganizationMemberInvitationRepository,
   IOrganizationMembersRepository,
@@ -31,6 +32,8 @@ import { slugify } from "@/common/utils/string";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { MultipartFile } from "@fastify/multipart";
+import { IOtpService, OtpPurpose, IEmailQueueStorageService } from "@/core";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -44,6 +47,8 @@ export class OrganizationUseCase {
     private readonly companyRepository: ICompanyRepository,
     private readonly schoolRepository: ISchoolRepository,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly otpService: IOtpService,
+    private readonly emailQueueStorage: IEmailQueueStorageService,
   ) {}
 
   async checkOrganizationName(
@@ -216,7 +221,7 @@ export class OrganizationUseCase {
       await this.organizationRepository.executeWithTransaction(async (tx) => {
         // Delete all existing locations for this organization
         await this.organizationLocationRepository.deletePermanently(
-          { organizationId: orgId } as any,
+          { organizationId: orgId },
           tx,
         );
 
@@ -242,7 +247,7 @@ export class OrganizationUseCase {
         id: orgId,
         locations: updatedLocations,
       },
-      message: "Cập nhật địa chỉ thành công",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -265,8 +270,7 @@ export class OrganizationUseCase {
     // Only allow update for COMPANY type organizations
     if (org.type !== OrganizationTypeEnum.COMPANY) {
       throw new BadRequestException({
-        message:
-          "Additional info (culture, benefits) is only available for companies",
+        message: RESPONSE_MESSAGE.ADDITIONAL_INFO_ONLY_FOR_COMPANIES,
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
@@ -275,7 +279,7 @@ export class OrganizationUseCase {
     if (Object.keys(data).length === 0) {
       return {
         data: org,
-        message: "Cập nhật thông tin bổ sung thành công",
+        message: RESPONSE_MESSAGE.SUCCESS,
         code: RESPONSE_CODE.SUCCESS,
       };
     }
@@ -307,7 +311,7 @@ export class OrganizationUseCase {
 
     return {
       data: updatedOrg,
-      message: "Cập nhật thông tin bổ sung thành công",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -315,7 +319,7 @@ export class OrganizationUseCase {
   async updateOrganizationEmail(
     orgId: string,
     newEmail: string,
-  ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
+  ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -323,6 +327,40 @@ export class OrganizationUseCase {
         message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
+    }
+
+    // If email is already verified, require OTP verification before changing
+    if (org.verifiedAt !== null) {
+      // Generate OTP with new email in data for verification
+      const otp = await this.otpService.generateOtp(
+        orgId,
+        OtpPurpose.CHANGE_ORGANIZATION_EMAIL,
+        { newEmail }, // Store new email in OTP data for later verification
+      );
+
+      // Send OTP to the NEW email address
+      this.emailQueueStorage.addToQueue({
+        id: randomUUID(),
+        type: EmailJobType.ORGANIZATION_CHANGE_EMAIL,
+        data: {
+          to: newEmail,
+          organizationName: org.name,
+          otpCode: otp,
+        },
+        attempts: 0,
+        maxAttempts: 3,
+        createdAt: new Date(),
+      });
+
+      this.logger.log(
+        `Email change OTP sent to ${newEmail} for organization ${orgId}`,
+      );
+
+      return {
+        data: "REQUIRE_OTP",
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+      };
     }
 
     // Update email and reset verifiedAt
@@ -342,12 +380,206 @@ export class OrganizationUseCase {
     }
 
     return {
+      data: "SUCCESS",
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async confirmUpdateOrganizationEmail(
+    orgId: string,
+    otpCode: string,
+    newEmail: string,
+  ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
+    // Get organization to verify it exists
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    // Verify OTP with the new email stored in data
+    const isValid = await this.otpService.verifyOtp(
+      orgId,
+      OtpPurpose.CHANGE_ORGANIZATION_EMAIL,
+      otpCode,
+      { newEmail }, // Must match the data stored during OTP generation
+    );
+
+    if (!isValid) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.OTP_NOT_VALID,
+        code: RESPONSE_CODE.OTP_NOT_VALID,
+      });
+    }
+
+    // Update organization email and reset verifiedAt to null
+    const updated = await this.organizationRepository.update(
+      { id: orgId },
+      {
+        email: newEmail,
+        verifiedAt: null, // Reset verification after email change
+      },
+    );
+
+    if (!updated || updated.length === 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      });
+    }
+
+    this.logger.log(
+      `Organization ${orgId} email updated to ${newEmail} and verification reset`,
+    );
+
+    return {
       data: {
         email: newEmail,
         verifiedAt: null,
       },
-      message:
-        "Organization email updated successfully. Please verify the new email.",
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async sendEmailVerificationOtp(
+    orgId: string,
+    email: string,
+  ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
+    // Get organization to verify it exists
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    // Check if email matches organization's email
+    if (org.email !== email) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EMAIL_NOT_MATCH,
+        code: RESPONSE_CODE.EMAIL_NOT_MATCH,
+      });
+    }
+
+    // Check if already verified
+    if (org.verifiedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+        code: RESPONSE_CODE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+      });
+    }
+
+    // Generate OTP (use orgId as identifier)
+    const otpCode = await this.otpService.generateOtp(
+      orgId,
+      OtpPurpose.VERIFY_ORGANIZATION_EMAIL,
+      {
+        email,
+      },
+    );
+
+    // Send email with OTP via queue
+    this.emailQueueStorage.addToQueue({
+      id: randomUUID(),
+      type: EmailJobType.ORGANIZATION_VERIFICATION,
+      data: {
+        to: email,
+        organizationName: org.name,
+        otpCode: otpCode,
+      },
+      attempts: 0,
+      maxAttempts: 3,
+      createdAt: new Date(),
+    });
+
+    this.logger.log(
+      `Email verification OTP sent to ${email} for organization ${orgId}`,
+    );
+
+    return {
+      data: {
+        message: `Verification code has been sent to ${email}`,
+        expiryMinutes: 10,
+      },
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async verifyOrganizationEmail(
+    orgId: string,
+    otpCode: string,
+    email: string,
+  ): Promise<ApiResponse<{ verifiedAt: Date }>> {
+    // Get organization to verify it exists
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    // Check if email matches
+    if (org.email !== email) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EMAIL_NOT_MATCH,
+        code: RESPONSE_CODE.EMAIL_NOT_MATCH,
+      });
+    }
+
+    // Check if already verified
+    if (org.verifiedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+        code: RESPONSE_CODE.ORGANIZATION_EMAIL_ALREADY_VERIFIED,
+      });
+    }
+
+    // Verify OTP
+    const isValid = await this.otpService.verifyOtp(
+      orgId,
+      OtpPurpose.VERIFY_ORGANIZATION_EMAIL,
+      otpCode,
+      {
+        email,
+      },
+    );
+
+    if (!isValid) {
+      throw new BadRequestException({
+        message:
+          "Invalid or expired OTP code. Please request a new verification code.",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    // Update organization with verified timestamp
+    const verifiedAt = new Date();
+    const updated = await this.organizationRepository.update(
+      { id: orgId },
+      { verifiedAt },
+    );
+
+    if (!updated || updated.length === 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
+        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      });
+    }
+
+    this.logger.log(
+      `Organization email verified successfully for ${orgId} at ${verifiedAt.toISOString()}`,
+    );
+
+    return {
+      data: { verifiedAt },
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -355,7 +587,7 @@ export class OrganizationUseCase {
   async deleteOrganization(
     orgId: string,
     confirmationName: string,
-  ): Promise<ApiResponse<boolean>> {
+  ): Promise<ApiResponse<void>> {
     // Get organization to verify name
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -368,20 +600,17 @@ export class OrganizationUseCase {
     // Verify confirmation name matches
     if (org.name !== confirmationName) {
       throw new BadRequestException({
-        message:
-          "Organization name confirmation does not match. Please enter the exact organization name to confirm deletion.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH,
+        code: RESPONSE_CODE.ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH,
       });
     }
 
     // Soft delete
-    const deleted = await this.organizationRepository.delete({
+    await this.organizationRepository.delete({
       id: orgId,
     });
-
     return {
-      data: !!deleted,
-      message: "Organization deleted successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -512,8 +741,8 @@ export class OrganizationUseCase {
 
     if (!uploadResult || !uploadResult.secure_url) {
       throw new BadRequestException({
-        message: "Failed to upload logo",
-        code: RESPONSE_CODE.SERVER_ERROR,
+        message: RESPONSE_MESSAGE.ERROR_UPLOADING_FILE,
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
       });
     }
 
@@ -532,7 +761,7 @@ export class OrganizationUseCase {
 
     return {
       data: { logoUrl: uploadResult.secure_url },
-      message: "Organization logo updated successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }

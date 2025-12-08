@@ -1,23 +1,29 @@
-import requests
 from datetime import datetime, timezone
-from bs4 import BeautifulSoup
 
+import requests
+from bs4 import BeautifulSoup
 from helpers.helper import (
-    get_headers, 
-    safe_text, 
-    process_province, 
-    parse_posted_date, 
+    extract_employee_range,
+    get_headers,
     human_delay,
-    extract_employee_range
+    parse_posted_date,
+    process_province,
+    safe_text,
 )
 
 
-def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords: str = "Web Development"):
+def linkedin_crawl(
+    pages: int = 1,
+    start_page: int = 0,
+    keywords: str = "Web Development",
+):
     companies = {}
 
     headers = get_headers()
 
-    job_ids = get_job_ids(headers, pages=pages, start_page=start_page, keywords=keywords)
+    job_ids = get_job_ids(
+        headers, pages=pages, start_page=start_page, keywords=keywords
+    )
 
     # Crawl job details for each job ID
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
@@ -27,24 +33,40 @@ def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords
         soup = BeautifulSoup(res.text, "html.parser")
 
         # company_name
-        company_name = soup.select_one("div.top-card-layout__card").find("a").find("img").get("alt")
+        company_name = (
+            soup.select_one("div.top-card-layout__card")
+            .find("a")
+            .find("img")
+            .get("alt")
+        )
 
         # job_title
-        job_title = soup.select_one("div.top-card-layout__entity-info").find("a").text.strip()
+        job_title = (
+            soup.select_one("div.top-card-layout__entity-info").find("a").text.strip()
+        )
 
         # logo
         logo = soup.select_one("img.artdeco-entity-image")["data-delayed-url"]
 
         # locations
-        locations = process_province(safe_text(soup.select_one("span.topcard__flavor--bullet")).split(", "))
+        locations = process_province(
+            safe_text(soup.select_one("span.topcard__flavor--bullet")).split(", ")
+        )
 
         # date_posted
-        date_posted = safe_text(soup.select_one("span.posted-time-ago__text")).replace("s", "")
+        date_posted = safe_text(soup.select_one("span.posted-time-ago__text")).replace(
+            "s", ""
+        )
         process = parse_posted_date(date_posted)
 
         # description
         desc_wrap = soup.select_one("div.show-more-less-html__markup")
-        description_parts = [{"title": "", "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip()}]
+        description_parts = [
+            {
+                "title": "",
+                "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip(),
+            }
+        ]
 
         human_delay(base=3, jitter=2)
 
@@ -85,8 +107,8 @@ def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords
                 "employees_max": employees_max,
                 "website_url": comp_web_url,
                 "crawled_at": datetime.now(),
-                "source": "linkedin",  
-                "jobs": {}
+                "source": "linkedin",
+                "jobs": {},
             }
 
         companies[company_name]["jobs"][job_title] = {
@@ -95,16 +117,18 @@ def linkedin_crawl(pages: int = 1, start_page: int = 0, scheduler=None, keywords
             "job_url": job_url,
             "date_posted": process,
             "crawled_at": datetime.now(timezone.utc),
-            "source": "linkedin"
+            "source": "linkedin",
         }
 
     return companies
 
 
-def get_job_ids(headers, pages: int = 1, start_page: int = 0, keywords: str = "Web Development") -> list:
+def get_job_ids(
+    headers, pages: int = 1, start_page: int = 0, keywords: str = "Web Development"
+) -> list:
     job_ids = []
     keywords_encoded = keywords.replace(" ", "+")
-    search_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords_encoded}&location=Vietnam&geoId=104195383&f_TPR=r604800&start={{}}" 
+    search_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords_encoded}&location=Vietnam&geoId=104195383&f_TPR=r604800&start={{}}"
 
     for i in range(start_page, start_page + pages):
         res = requests.get(search_url.format(i), headers=headers)
@@ -113,9 +137,11 @@ def get_job_ids(headers, pages: int = 1, start_page: int = 0, keywords: str = "W
         print(f"--- Found {len(jobs_on_page)} jobs on page {i} of Linkedin ---")
 
         for job in jobs_on_page:
-            job_id = job.select_one("div.base-card").get("data-entity-urn").split(":")[3]
+            job_id = (
+                job.select_one("div.base-card").get("data-entity-urn").split(":")[3]
+            )
             job_ids.append(job_id)
-        
+
         human_delay(base=1, jitter=0)
-    
+
     return job_ids

@@ -1357,7 +1357,7 @@ export class JobRepository
         sql`TRUE`,
       )
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id)
+      .groupBy(jobs.id, organizations.id, categories.id)
       .limit(1);
 
     if (!result || result.length === 0) {

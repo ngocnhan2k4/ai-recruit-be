@@ -150,6 +150,7 @@ export class JobUseCases {
     const topInMarketFilter = {
       fromDate: filter.fromDate,
       toDate: filter.toDate,
+      provinceId: filter.provinceId || undefined,
     };
 
     const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([

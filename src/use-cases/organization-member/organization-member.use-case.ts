@@ -86,8 +86,8 @@ export class OrganizationMemberUseCase {
 
     if (!kickedMember) {
       throw new BadRequestException({
-        message: "The member to be kicked does not exist in the organization.",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        message: RESPONSE_MESSAGE.MEMBER_NOT_FOUND,
+        code: RESPONSE_CODE.MEMBER_NOT_FOUND,
       });
     }
 
@@ -98,7 +98,7 @@ export class OrganizationMemberUseCase {
       ) <= 0
     ) {
       throw new ForbiddenException({
-        message: "You do not have permission to kick this member.",
+        message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }

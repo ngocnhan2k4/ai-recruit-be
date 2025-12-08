@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select LinkedIn keyword (round-robin from file)
+      - name: Select LinkedIn keyword
         id: keyword
         run: |
           FILE="crawl_jobs/classifier/data/categories.txt"

@@ -123,3 +123,9 @@ export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
   "save",
   "hide",
 ]);
+
+export const TemplateEnum = pgEnum("cv_template", [
+  "classic",
+  "modern-blue",
+  "modern-green",
+]);

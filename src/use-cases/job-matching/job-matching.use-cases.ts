@@ -1,10 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { IJobRepository } from "@/core";
-import { EmailQueueService } from "@/frameworks/email-services/email-queue.service";
-import { EmailJob, EmailJobType } from "@/core/entities/email-job.entity";
+import { IEmailQueueStorageService, IJobRepository } from "@/core";
+import { EmailJobType } from "@/core/entities";
 import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
+import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -12,7 +12,7 @@ export class JobMatchingUseCases {
 
   constructor(
     private readonly jobRepository: IJobRepository,
-    private readonly emailQueueService: EmailQueueService,
+    private readonly emailStorageService: IEmailQueueStorageService,
   ) {}
 
   async sendJobRecommendationsToUsers(): Promise<void> {
@@ -59,7 +59,7 @@ export class JobMatchingUseCases {
             createdAt: new Date(),
           };
 
-          this.emailQueueService.addToQueue(emailJob);
+          this.emailStorageService.addToQueue(emailJob);
           this.logger.log(
             `Queued job recommendations email for user ${user.userId} with ${recommendedJobs.length} jobs`,
           );
