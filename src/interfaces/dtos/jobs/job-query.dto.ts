@@ -168,10 +168,16 @@ export class CreateJobDto {
   @IsEnum(JobStatusEnum)
   status: JobStatusEnum;
 
-  @ApiProperty({ type: "string", format: "uuid", nullable: true })
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: "Danh sách province ids",
+    nullable: true,
+  })
   @IsOptional()
-  @IsUUID()
-  provinceId?: string | null;
+  @IsArray()
+  @IsUUID("4", { each: true })
+  provinceIds?: string[] | null;
 
   @ApiProperty({
     type: [String],
@@ -306,13 +312,15 @@ export class UpdateJobDto {
   priority?: number | null;
 
   @ApiProperty({
-    type: "string",
-    format: "uuid",
+    type: [String],
+    required: false,
+    description: "Danh sách province ids",
     nullable: true,
   })
   @IsOptional()
-  @IsUUID()
-  provinceId?: string | null;
+  @IsArray()
+  @IsUUID("4", { each: true })
+  provinceIds?: string[] | null;
 
   @ApiProperty({
     type: [String],

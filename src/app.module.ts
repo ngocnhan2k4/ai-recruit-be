@@ -19,6 +19,7 @@ import {
   OrganizationMemberController,
   OrganizationInvitationController,
   LearningPathController,
+  AdminJobSyncController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -65,6 +66,8 @@ import { EmailModule } from "./frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
 import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
 import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
+import { ElasticsearchModule } from "./frameworks/data-services/elasticsearch/elasticsearch.module";
+import { JobSyncUseCaseModule } from "./use-cases/job-sync/job-sync.use-case.module";
 import { OtpModule } from "./frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 
@@ -104,6 +107,8 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     LearningPathUseCasesModule,
     ExamUseCasesModule,
     JobMatchingUseCasesModule,
+    ElasticsearchModule,
+    JobSyncUseCaseModule,
     OtpModule,
     OtpStorageModule,
   ],
@@ -131,6 +136,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     FeedbackController,
     FeedbackAdminController,
     LearningPathController,
+    AdminJobSyncController,
     AdminExamController,
     ExamController,
   ],

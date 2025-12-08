@@ -105,6 +105,15 @@ export class EnvironmentVariables {
 
   @IsString()
   MAIL_HOST: string;
+
+  @IsString()
+  ELASTICSEARCH_NODE: string;
+
+  @IsString()
+  ELASTICSEARCH_USERNAME: string;
+
+  @IsString()
+  ELASTICSEARCH_PASSWORD: string;
 }
 
 export default (): Record<string, any> => ({
@@ -149,6 +158,11 @@ export default (): Record<string, any> => ({
   MAIL_PASSWORD: process.env.MAIL_PASSWORD,
   MAIL_FROM: process.env.MAIL_FROM,
   MAIL_HOST: process.env.MAIL_HOST,
+
+  // Elasticsearch
+  ELASTICSEARCH_NODE: process.env.ELASTICSEARCH_NODE,
+  ELASTICSEARCH_USERNAME: process.env.ELASTICSEARCH_USERNAME,
+  ELASTICSEARCH_PASSWORD: process.env.ELASTICSEARCH_PASSWORD,
 });
 
 export const validateConfig = (

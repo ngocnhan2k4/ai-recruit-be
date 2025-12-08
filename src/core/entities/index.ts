@@ -14,6 +14,7 @@ import {
   schools,
   userEducations,
   feedbacks,
+  jobProvinces,
   areas,
   questions,
   levels,
@@ -143,6 +144,8 @@ export type UserEducation = InferSelectModel<typeof userEducations>;
 
 export type NewFeedback = InferInsertModel<typeof feedbacks>;
 export type Feedback = InferSelectModel<typeof feedbacks>;
+
+export type JobProvince = InferSelectModel<typeof jobProvinces>;
 
 export * from "./learning-path.entity";
 export * from "./otp.entity";
