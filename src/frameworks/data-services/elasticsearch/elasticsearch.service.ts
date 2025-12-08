@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Client, ClientOptions } from "@elastic/elasticsearch";
+import { Environment } from "@/common/config/env.config";
 
 @Injectable()
 export class ElasticsearchService implements OnModuleInit, OnModuleDestroy {
@@ -27,7 +28,7 @@ export class ElasticsearchService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    if (this.configService.get("NODE_ENV") === "local") {
+    if (this.configService.get("NODE_ENV") === Environment.Local) {
       options.tls = {
         rejectUnauthorized: false,
       };

@@ -109,11 +109,16 @@ export class EnvironmentVariables {
   @IsString()
   ELASTICSEARCH_NODE: string;
 
+  @IsOptional()
   @IsString()
   ELASTICSEARCH_USERNAME: string;
 
+  @IsOptional()
   @IsString()
   ELASTICSEARCH_PASSWORD: string;
+
+  @IsString()
+  ELASTICSEARCH_INDEX_JOBS: string;
 }
 
 export default (): Record<string, any> => ({
@@ -163,6 +168,7 @@ export default (): Record<string, any> => ({
   ELASTICSEARCH_NODE: process.env.ELASTICSEARCH_NODE,
   ELASTICSEARCH_USERNAME: process.env.ELASTICSEARCH_USERNAME,
   ELASTICSEARCH_PASSWORD: process.env.ELASTICSEARCH_PASSWORD,
+  ELASTICSEARCH_INDEX_JOBS: process.env.ELASTICSEARCH_INDEX_JOBS,
 });
 
 export const validateConfig = (
