@@ -58,3 +58,17 @@ export class SubmitExamDto {
   @Type(() => AnswerDto)
   answers: AnswerDto[];
 }
+
+export class SavePartialAnswersDto {
+  @ApiProperty({ example: "123e4567-e89b-12d3-a456-426614174000" })
+  @IsUUID()
+  @IsNotEmpty()
+  userTestId: string;
+
+  @ApiProperty({ type: [AnswerDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => AnswerDto)
+  answers: AnswerDto[];
+}

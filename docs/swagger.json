@@ -7001,6 +7001,180 @@
           "Exam"
         ]
       }
+    },
+    "/exam/skills": {
+      "get": {
+        "description": "Get all skills that have at least 1 question. Supports search by skill name and pagination.",
+        "operationId": "ExamController_getSkillsWithQuestions",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Number of items to skip",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "required": false,
+            "in": "query",
+            "description": "Sort direction (asc or desc)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "Keyword to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get skills with questions",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/incomplete": {
+      "get": {
+        "description": "Get all incomplete exams (tests that haven't been submitted yet) for the authenticated user.",
+        "operationId": "ExamController_getIncompleteExams",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get incomplete exams",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/incomplete/{testId}": {
+      "get": {
+        "description": "Get questions for an incomplete exam with saved answers (if any). Use this to continue an exam.",
+        "operationId": "ExamController_getIncompleteExamQuestions",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get incomplete exam questions",
+        "tags": [
+          "Exam"
+        ]
+      }
+    },
+    "/exam/save-answers": {
+      "post": {
+        "description": "Save or update answers for an incomplete exam. You can call this multiple times to save progress.",
+        "operationId": "ExamController_savePartialAnswers",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartialAnswersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save partial answers",
+        "tags": [
+          "Exam"
+        ]
+      }
     }
   },
   "info": {
@@ -9998,6 +10172,25 @@
         ]
       },
       "SubmitExamDto": {
+        "type": "object",
+        "properties": {
+          "userTestId": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          }
+        },
+        "required": [
+          "userTestId",
+          "answers"
+        ]
+      },
+      "SavePartialAnswersDto": {
         "type": "object",
         "properties": {
           "userTestId": {
