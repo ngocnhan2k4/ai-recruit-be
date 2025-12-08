@@ -50,7 +50,28 @@ export interface RoadmapGenerateRequest {
   currentSkills?: SkillLevel[];
 }
 
+export interface SkillOption {
+  skillId: string;
+  skillName: string;
+  estimatedHours: number;
+  resources: Resource[];
+  keyConcepts: string[];
+  reason: string;
+}
+
+export interface RoadmapPosition {
+  positionName: string;
+  description: string;
+  weekStart: number;
+  weekEnd: number;
+  orderIndex: number;
+  options: SkillOption[];
+  prerequisites: string[];
+}
+
 export interface PreviewRoadmapResponse {
+  roadmapId: string;
+  generatedAt: string;
   gapAnalysis: GapAnalysis;
   totalWeeks: number;
   phases: Array<{
@@ -58,16 +79,7 @@ export interface PreviewRoadmapResponse {
     description: string;
     durationWeeks: number;
     orderIndex: number;
-    skills: Array<{
-      skillId: string;
-      estimatedHours: number;
-      weekStart: number;
-      weekEnd: number;
-      prerequisites: string[];
-      resources: Resource[];
-      keyConcepts: string[];
-      orderIndex: number;
-    }>;
+    skills: RoadmapPosition[];
   }>;
   dependencyGraph: DependencyGraph;
 }

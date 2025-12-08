@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { timestamps } from "./helpers";
-import { LanguageEnum } from "./enums";
+import { LanguageEnum, TemplateEnum } from "./enums";
 
 export const aiCvs = pgTable("ai_cvs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -21,13 +21,13 @@ export const aiCvs = pgTable("ai_cvs", {
   title: varchar("title", { length: 255 }).notNull(),
   targetJobTitle: varchar("target_job_title", { length: 255 }),
 
-  // CV Data (JSON)
+  // CV Data
   cvData: jsonb("cv_data").notNull(), // OptimizedCvDataDto structure
 
   // AI Analysis Results
   atsScore: integer("ats_score"), // 0-100
-  matchingSkills: text("matching_skills").array(), // ["Java", "Docker"]
-  missingSkills: text("missing_skills").array(), // ["AWS", "Kubernetes"]
+  matchingSkills: text("matching_skills").array(),
+  missingSkills: text("missing_skills").array(),
   recommendation: text("recommendation"),
 
   // Original Context
@@ -37,6 +37,7 @@ export const aiCvs = pgTable("ai_cvs", {
   // Settings
   language: LanguageEnum("language").default("vi").notNull(),
   isFavorite: boolean("is_favorite").default(false).notNull(),
+  template: TemplateEnum("template").default("classic").notNull(),
 
   // Timestamps
   ...timestamps,

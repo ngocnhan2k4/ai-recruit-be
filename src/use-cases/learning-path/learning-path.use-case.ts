@@ -71,7 +71,10 @@ export class LearningPathUseCase {
     const preview = dto.previewData;
 
     if (!preview) {
-      throw new BadRequestException("Preview data is required");
+      throw new BadRequestException({
+        message: "Preview data is required to save roadmap",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     const roadmap = await this.roadmapRepository.executeWithTransaction(
@@ -106,19 +109,28 @@ export class LearningPathUseCase {
             );
 
             if (phase.skills?.length) {
-              const skillCreates: Partial<RoadmapSkill>[] = phase.skills.map(
-                (skill) => ({
-                  phaseId: newPhase.id,
-                  skillId: skill.skillId,
-                  estimatedHours: skill.estimatedHours,
-                  weekStart: skill.weekStart,
-                  weekEnd: skill.weekEnd,
-                  prerequisites: skill.prerequisites,
-                  resources: skill.resources,
-                  keyConcepts: skill.keyConcepts,
-                  orderIndex: skill.orderIndex,
-                }),
-              );
+              // Flatten all skill options from all positions in this phase
+              const skillCreates: Partial<RoadmapSkill>[] = [];
+
+              for (const position of phase.skills) {
+                for (const option of position.options) {
+                  skillCreates.push({
+                    phaseId: newPhase.id,
+                    positionName: position.positionName,
+                    positionDescription: position.description,
+                    skillId: option.skillId,
+                    reason: option.reason,
+                    estimatedHours: option.estimatedHours,
+                    weekStart: position.weekStart,
+                    weekEnd: position.weekEnd,
+                    prerequisites: position.prerequisites,
+                    resources: option.resources,
+                    keyConcepts: option.keyConcepts,
+                    orderIndex: position.orderIndex,
+                  });
+                }
+              }
+
               await this.skillRepository.createManySkills(skillCreates, tx);
             }
           }),
@@ -155,6 +167,62 @@ export class LearningPathUseCase {
     };
   }
 
+  /**
+   * Transform flat skills array into grouped structure by position
+   */
+  private groupSkillsByPosition(skills: RoadmapSkill[]) {
+    const positionMap = new Map<
+      string,
+      {
+        positionName: string;
+        positionDescription: string;
+        weekStart: number;
+        weekEnd: number;
+        orderIndex: number;
+        prerequisites: string[];
+        options: Array<{
+          id: string;
+          skillId: string;
+          estimatedHours: number;
+          resources: any[];
+          keyConcepts: string[];
+          reason: string;
+          completedAt: Date | null;
+        }>;
+      }
+    >();
+
+    for (const skill of skills) {
+      const key = `${skill.phaseId}-${skill.positionName}`;
+
+      if (!positionMap.has(key)) {
+        positionMap.set(key, {
+          positionName: skill.positionName,
+          positionDescription: skill.positionDescription,
+          weekStart: skill.weekStart,
+          weekEnd: skill.weekEnd,
+          orderIndex: skill.orderIndex,
+          prerequisites: skill.prerequisites,
+          options: [],
+        });
+      }
+
+      positionMap.get(key)!.options.push({
+        id: skill.id,
+        skillId: skill.skillId,
+        estimatedHours: skill.estimatedHours,
+        resources: skill.resources,
+        keyConcepts: skill.keyConcepts,
+        reason: skill.reason,
+        completedAt: skill.completedAt,
+      });
+    }
+
+    return Array.from(positionMap.values()).sort(
+      (a, b) => a.orderIndex - b.orderIndex,
+    );
+  }
+
   async getRoadmapDetails(
     roadmapId: string,
     userId: string,
@@ -165,15 +233,31 @@ export class LearningPathUseCase {
       await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
 
     if (!roadmap) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     if (roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
+    // Transform phases to group skills by position
+    const transformedPhases = roadmap.phases.map((phase) => ({
+      ...phase,
+      positions: this.groupSkillsByPosition(phase.skills),
+      skills: phase.skills, // Keep original for backward compatibility
+    }));
+
     return {
-      data: roadmap,
+      data: {
+        ...roadmap,
+        phases: transformedPhases as any,
+      },
       message: "Roadmap details fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -188,7 +272,10 @@ export class LearningPathUseCase {
     const roadmap = await this.roadmapRepository.get(roadmapId);
 
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     await this.roadmapRepository.delete({ id: roadmapId });
@@ -208,7 +295,10 @@ export class LearningPathUseCase {
 
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     const allSkills =
@@ -216,20 +306,27 @@ export class LearningPathUseCase {
     const skill = allSkills.find((s) => s.id === skillId);
 
     if (!skill) {
-      throw new NotFoundException("Skill not found in this roadmap");
+      throw new NotFoundException({
+        message: "Skill not found in this roadmap",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
+      });
     }
 
     if (skill.completedAt) {
-      throw new BadRequestException("Skill already completed");
+      throw new BadRequestException({
+        message: "Skill is already completed",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     const prerequisitesCompleted =
       await this.skillRepository.checkPrerequisitesCompleted(skillId);
 
     if (!prerequisitesCompleted) {
-      throw new BadRequestException(
-        "Cannot complete skill: prerequisites not met",
-      );
+      throw new BadRequestException({
+        message: "Cannot complete skill: prerequisites not met",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     await this.skillRepository.executeWithTransaction(async (tx) => {
@@ -271,7 +368,10 @@ export class LearningPathUseCase {
 
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     const stats = await this.roadmapRepository.getProgressStats(roadmapId);
@@ -279,6 +379,48 @@ export class LearningPathUseCase {
     return {
       data: stats,
       message: "Progress stats fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getSelectedSkills(
+    roadmapId: string,
+    userId: string,
+  ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
+    this.logger.log(
+      `Fetching selected/completed skills for roadmap ${roadmapId}`,
+    );
+
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const fullRoadmap =
+      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
+
+    if (!fullRoadmap) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    // Filter to only include completed skills (user has selected these)
+    const filteredPhases = fullRoadmap.phases.map((phase) => ({
+      ...phase,
+      skills: phase.skills.filter((skill) => skill.completedAt !== null),
+    }));
+
+    return {
+      data: {
+        ...fullRoadmap,
+        phases: filteredPhases as any,
+      },
+      message: "Selected skills fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
