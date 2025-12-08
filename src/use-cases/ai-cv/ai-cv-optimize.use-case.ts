@@ -33,6 +33,8 @@ export class AiCvOptimizeUseCases {
         language: request.body.language || CvLanguageEnum.VIETNAMESE,
       });
 
+      result.language = request.body.language!;
+
       return {
         data: result,
         message: "CV optimized successfully",

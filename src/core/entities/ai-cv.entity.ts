@@ -84,4 +84,5 @@ export class OptimizeAtsResponse {
   recommendation: string;
   model: string;
   generatedAt: string;
+  language: CvLanguageEnum;
 }
