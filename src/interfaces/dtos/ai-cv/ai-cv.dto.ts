@@ -1,4 +1,4 @@
-import { CvLanguageEnum } from "@/core";
+import { CvLanguageEnum, CvTemplateEnum } from "@/core";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
@@ -307,6 +307,10 @@ export class AiCvDto {
   @IsBoolean()
   isFavorite: boolean;
 
+  @ApiProperty({ enum: CvTemplateEnum, example: CvTemplateEnum.CLASSIC })
+  @IsEnum(CvTemplateEnum)
+  template: CvTemplateEnum;
+
   @ApiProperty()
   @IsDate()
   @Type(() => Date)
@@ -426,6 +430,16 @@ export class AiCvRequestDto {
   @IsBoolean()
   @IsOptional()
   isFavorite?: boolean;
+
+  @ApiPropertyOptional({
+    enum: CvTemplateEnum,
+    example: CvTemplateEnum.CLASSIC,
+    default: CvTemplateEnum.CLASSIC,
+    description: "CV template to use for rendering",
+  })
+  @IsEnum(CvTemplateEnum)
+  @IsOptional()
+  template?: CvTemplateEnum;
 }
 
 export class UpdateAiCvDto extends PartialType(AiCvRequestDto) {}

@@ -1,5 +1,5 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { CvLanguageEnum, NewAiCv } from "@/core";
+import { CvLanguageEnum, CvTemplateEnum, NewAiCv } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
@@ -43,6 +43,7 @@ export class AiCvUseCases {
       originalCvFilename: aiCv.originalCvFilename,
       language: aiCv.language as CvLanguageEnum,
       isFavorite: aiCv.isFavorite,
+      template: aiCv.template as CvTemplateEnum,
       createdAt: aiCv.createdAt,
       updatedAt: aiCv.updatedAt,
     }));
@@ -86,6 +87,7 @@ export class AiCvUseCases {
       userId: userId,
       isFavorite: createAiCvDto.isFavorite ?? false,
       language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
+      template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
       cvData: createAiCvDto.cvData,
     };
 
@@ -95,6 +97,7 @@ export class AiCvUseCases {
       ...newAiCv,
       cvData: newAiCv.cvData as OptimizedCvDataDto,
       language: newAiCv.language as CvLanguageEnum,
+      template: newAiCv.template as CvTemplateEnum,
       createdAt: new Date(newAiCv.createdAt),
       updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
     };
@@ -143,6 +146,7 @@ export class AiCvUseCases {
       ...updatedAiCv,
       cvData: updatedAiCv.cvData as OptimizedCvDataDto,
       language: updatedAiCv.language as CvLanguageEnum,
+      template: updatedAiCv.template as CvTemplateEnum,
       createdAt: new Date(updatedAiCv.createdAt),
       updatedAt: updatedAiCv.updatedAt ? new Date(updatedAiCv.updatedAt) : null,
     };

@@ -139,6 +139,12 @@ export enum CvLanguageEnum {
   VIETNAMESE = "vi",
 }
 
+export enum CvTemplateEnum {
+  CLASSIC = "classic",
+  MODERN_BLUE = "modern-blue",
+  MODERN_GREEN = "modern-green",
+}
+
 export enum EmailJobType {
   ORGANIZATION_INVITATION = "organization_invitation",
   ORGANIZATION_VERIFICATION = "organization_verification",
