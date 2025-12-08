@@ -86,7 +86,6 @@ export const roadmapSkills = pgTable("roadmap_skills", {
   skillId: uuid("skill_id")
     .notNull()
     .references(() => skills.id),
-  skillName: varchar("skill_name", { length: 255 }).notNull(),
   reason: text("reason").notNull(),
 
   estimatedHours: integer("estimated_hours").notNull(),

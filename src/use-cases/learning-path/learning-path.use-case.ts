@@ -71,7 +71,10 @@ export class LearningPathUseCase {
     const preview = dto.previewData;
 
     if (!preview) {
-      throw new BadRequestException("Preview data is required");
+      throw new BadRequestException({
+        message: "Preview data is required to save roadmap",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     const roadmap = await this.roadmapRepository.executeWithTransaction(
@@ -116,7 +119,6 @@ export class LearningPathUseCase {
                     positionName: position.positionName,
                     positionDescription: position.description,
                     skillId: option.skillId,
-                    skillName: option.skillName,
                     reason: option.reason,
                     estimatedHours: option.estimatedHours,
                     weekStart: position.weekStart,
@@ -181,7 +183,6 @@ export class LearningPathUseCase {
         options: Array<{
           id: string;
           skillId: string;
-          skillName: string;
           estimatedHours: number;
           resources: any[];
           keyConcepts: string[];
@@ -209,7 +210,6 @@ export class LearningPathUseCase {
       positionMap.get(key)!.options.push({
         id: skill.id,
         skillId: skill.skillId,
-        skillName: skill.skillName,
         estimatedHours: skill.estimatedHours,
         resources: skill.resources,
         keyConcepts: skill.keyConcepts,
@@ -233,11 +233,17 @@ export class LearningPathUseCase {
       await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
 
     if (!roadmap) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     if (roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     // Transform phases to group skills by position
@@ -266,7 +272,10 @@ export class LearningPathUseCase {
     const roadmap = await this.roadmapRepository.get(roadmapId);
 
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     await this.roadmapRepository.delete({ id: roadmapId });
@@ -286,7 +295,10 @@ export class LearningPathUseCase {
 
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     const allSkills =
@@ -294,20 +306,27 @@ export class LearningPathUseCase {
     const skill = allSkills.find((s) => s.id === skillId);
 
     if (!skill) {
-      throw new NotFoundException("Skill not found in this roadmap");
+      throw new NotFoundException({
+        message: "Skill not found in this roadmap",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
+      });
     }
 
     if (skill.completedAt) {
-      throw new BadRequestException("Skill already completed");
+      throw new BadRequestException({
+        message: "Skill is already completed",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     const prerequisitesCompleted =
       await this.skillRepository.checkPrerequisitesCompleted(skillId);
 
     if (!prerequisitesCompleted) {
-      throw new BadRequestException(
-        "Cannot complete skill: prerequisites not met",
-      );
+      throw new BadRequestException({
+        message: "Cannot complete skill: prerequisites not met",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
     }
 
     await this.skillRepository.executeWithTransaction(async (tx) => {
@@ -349,7 +368,10 @@ export class LearningPathUseCase {
 
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     const stats = await this.roadmapRepository.getProgressStats(roadmapId);
@@ -371,14 +393,20 @@ export class LearningPathUseCase {
 
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     const fullRoadmap =
       await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
 
     if (!fullRoadmap) {
-      throw new NotFoundException("Roadmap not found");
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
     }
 
     // Filter to only include completed skills (user has selected these)

@@ -35,7 +35,6 @@ export class RoadmapSkillRepository
         positionName: roadmapSkills.positionName,
         positionDescription: roadmapSkills.positionDescription,
         skillId: roadmapSkills.skillId,
-        skillName: roadmapSkills.skillName,
         reason: roadmapSkills.reason,
         estimatedHours: roadmapSkills.estimatedHours,
         weekStart: roadmapSkills.weekStart,
