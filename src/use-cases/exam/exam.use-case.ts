@@ -11,6 +11,7 @@ import {
   IUserTestRepository,
   IUserAnswerRepository,
   IImportLogRepository,
+  ISkillRepository,
   Question,
 } from "@/core";
 import {
@@ -44,6 +45,7 @@ export class ExamUseCases {
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
     private readonly importLogRepo: IImportLogRepository,
+    private readonly skillRepo: ISkillRepository,
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
     private readonly scoringService: ExamScoringService,
@@ -354,11 +356,13 @@ export class ExamUseCases {
     const questionsWithRandomOptions =
       this.randomizerService.randomizeOptions(selectedQuestions);
 
-    // Create user test record
+    // Create user test record with question IDs
+    const questionIds = questionsWithRandomOptions.map((q) => q.id);
     const userTest = await this.userTestRepo.create({
       userId,
       selectedSkillIds: [dto.skillId],
       selectedDifficultyLevels: dto.difficultyLevels as any,
+      questionIds: questionIds,
     });
 
     // Return questions without correct answers
@@ -397,15 +401,42 @@ export class ExamUseCases {
       throw new BadRequestException("Test already submitted");
     }
 
+    // Validate that all questions from the exam are answered
+    if (!userTest.questionIds || userTest.questionIds.length === 0) {
+      throw new BadRequestException(
+        "Test questions not found. Please restart the exam.",
+      );
+    }
+
+    const submittedQuestionIds = new Set(dto.answers.map((a) => a.questionId));
+    const missingQuestionIds = userTest.questionIds.filter(
+      (id) => !submittedQuestionIds.has(id),
+    );
+
+    if (missingQuestionIds.length > 0) {
+      throw new BadRequestException(
+        `Please answer all questions before submitting. Missing answers for ${missingQuestionIds.length} question(s).`,
+      );
+    }
+
+    // Validate all submitted answers have non-empty chosenAnswer
+    const emptyAnswers = dto.answers.filter(
+      (a) => !a.chosenAnswer || a.chosenAnswer.trim() === "",
+    );
+    if (emptyAnswers.length > 0) {
+      throw new BadRequestException(
+        `Please provide answers for all questions. ${emptyAnswers.length} question(s) have empty answers.`,
+      );
+    }
+
     // Get all questions from the test
-    const questionIds = dto.answers.map((a) => a.questionId);
     const questions = await Promise.all(
-      questionIds.map((id) => this.questionRepo.get(id)),
+      userTest.questionIds.map((id) => this.questionRepo.get(id)),
     );
 
     const validQuestions = questions.filter((q) => q !== null) as Question[];
 
-    if (validQuestions.length !== dto.answers.length) {
+    if (validQuestions.length !== userTest.questionIds.length) {
       throw new BadRequestException("Some questions not found");
     }
 
@@ -488,6 +519,162 @@ export class ExamUseCases {
       data: {
         test,
         answers,
+      },
+    };
+  }
+
+  async getSkillsWithQuestions(query: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+  }) {
+    const result = await this.skillRepo.getSkillsWithQuestions({
+      page: query.page,
+      limit: query.limit ?? 20,
+      keyword: query.keyword,
+    });
+    return {
+      success: true,
+      message: "Skills with questions fetched successfully",
+      data: result,
+    };
+  }
+
+  async getIncompleteExams(userId: string) {
+    const allTests = await this.userTestRepo.getUserTests(userId);
+    const incompleteTests = allTests.filter((test) => test.totalScore === null);
+
+    return {
+      success: true,
+      message: "Incomplete exams fetched successfully",
+      data: incompleteTests.map((test) => ({
+        id: test.id,
+        selectedSkillIds: test.selectedSkillIds,
+        selectedDifficultyLevels: test.selectedDifficultyLevels,
+        questionCount: test.questionIds?.length ?? 0,
+        createdAt: test.createdAt,
+      })),
+    };
+  }
+
+  async getIncompleteExamQuestions(userId: string, testId: string) {
+    const userTest = await this.userTestRepo.get(testId);
+    if (!userTest) {
+      throw new NotFoundException("Test not found");
+    }
+
+    if (userTest.userId !== userId) {
+      throw new BadRequestException("Test does not belong to this user");
+    }
+
+    if (userTest.totalScore !== null) {
+      throw new BadRequestException("Test already submitted");
+    }
+
+    if (!userTest.questionIds || userTest.questionIds.length === 0) {
+      throw new BadRequestException("Test questions not found");
+    }
+
+    // Get all questions
+    const questions = await Promise.all(
+      userTest.questionIds.map((id) => this.questionRepo.get(id)),
+    );
+
+    const validQuestions = questions.filter((q) => q !== null) as Question[];
+
+    if (validQuestions.length !== userTest.questionIds.length) {
+      throw new BadRequestException("Some questions not found");
+    }
+
+    // Get saved answers
+    const savedAnswers = await this.userAnswerRepo.getTestAnswers(testId);
+    const answerMap = new Map(
+      savedAnswers.map((a) => [a.questionId, a.chosenAnswer]),
+    );
+
+    // Randomize answer options for each question
+    const questionsWithRandomOptions =
+      this.randomizerService.randomizeOptions(validQuestions);
+
+    // Return questions with saved answers (if any)
+    const questionsForUser = questionsWithRandomOptions.map((q) => ({
+      id: q.id,
+      questionText: q.questionText,
+      options: q.options,
+      point: q.point,
+      difficultyLevels: q.difficultyLevels,
+      savedAnswer: answerMap.get(q.id) || null,
+    }));
+
+    return {
+      success: true,
+      message: "Incomplete exam questions fetched successfully",
+      data: {
+        userTestId: testId,
+        questions: questionsForUser,
+        answeredCount: savedAnswers.length,
+        totalCount: questionsForUser.length,
+      },
+    };
+  }
+
+  async savePartialAnswers(
+    userId: string,
+    testId: string,
+    answers: Array<{ questionId: string; chosenAnswer: string }>,
+  ) {
+    const userTest = await this.userTestRepo.get(testId);
+    if (!userTest) {
+      throw new NotFoundException("Test not found");
+    }
+
+    if (userTest.userId !== userId) {
+      throw new BadRequestException("Test does not belong to this user");
+    }
+
+    if (userTest.totalScore !== null) {
+      throw new BadRequestException("Test already submitted");
+    }
+
+    if (!userTest.questionIds || userTest.questionIds.length === 0) {
+      throw new BadRequestException("Test questions not found");
+    }
+
+    // Validate that all provided answers belong to this test
+    const testQuestionIds = new Set(userTest.questionIds);
+    const invalidAnswers = answers.filter(
+      (a) => !testQuestionIds.has(a.questionId),
+    );
+
+    if (invalidAnswers.length > 0) {
+      throw new BadRequestException("Some answers do not belong to this test");
+    }
+
+    // Filter out empty answers (user might want to clear previous answer by not sending it)
+    const validAnswers = answers.filter(
+      (a) => a.chosenAnswer && a.chosenAnswer.trim() !== "",
+    );
+
+    if (validAnswers.length === 0) {
+      throw new BadRequestException("At least one valid answer is required");
+    }
+
+    // Upsert answers (save or update) - only save non-empty answers
+    await this.userAnswerRepo.upsertAnswers(testId, validAnswers);
+
+    // Get updated answer count
+    const savedAnswers = await this.userAnswerRepo.getTestAnswers(testId);
+
+    this.logger.log(
+      `Saved partial answers for user ${userId}, test ${testId}: ${savedAnswers.length}/${userTest.questionIds.length} answered`,
+    );
+
+    return {
+      success: true,
+      message: "Partial answers saved successfully",
+      data: {
+        savedCount: savedAnswers.length,
+        totalCount: userTest.questionIds.length,
       },
     };
   }
