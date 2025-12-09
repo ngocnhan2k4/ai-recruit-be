@@ -5,7 +5,6 @@ import { CompanyDto } from "../companies/company.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
-import { Province } from "@/core";
 import { IsBoolean, IsEnum } from "class-validator";
 export class JobDto {
   @ApiProperty({ type: "string", format: "uuid" })
@@ -48,9 +47,6 @@ export class JobDto {
 
   @ApiProperty({ type: "string", nullable: true })
   endDate: string | null;
-
-  @ApiProperty({ type: "string", format: "uuid", nullable: true })
-  provinceId: string | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
   createdAt: Date;
@@ -130,7 +126,7 @@ export class JobResponseDto {
   job: JobDto;
 
   @ApiProperty({ type: [ProvinceDto] })
-  provinces: Province[];
+  provinces: ProvinceDto[];
 
   @ApiProperty({ type: CompanyDto })
   company: CompanyDto;
@@ -227,11 +223,11 @@ export class SavedJobsResponseDto {
   })
   endedAt?: string;
   @ApiProperty({
-    example: "Hanoi",
+    example: ["Hanoi", "Ho Chi Minh City"],
     description: "Name of the province where the job is located",
     required: true,
   })
-  provinceName: string;
+  provinceNames: string[];
   @ApiProperty({
     example: true,
     description: "Indicates if the job is saved by the user",

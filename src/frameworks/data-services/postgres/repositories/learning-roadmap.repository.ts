@@ -139,13 +139,35 @@ export class LearningRoadmapRepository
         ),
       );
 
-    const totalSkills = allSkills.length;
-    const completedSkills = allSkills.filter(
-      (s) => s.roadmap_skills.completedAt !== null,
+    // Group skills by position (phaseId + positionName) to count unique positions
+    const positionMap = new Map<
+      string,
+      { hasCompleted: boolean; skills: any[] }
+    >();
+
+    for (const skillRow of allSkills) {
+      const skill = skillRow.roadmap_skills;
+      const key = `${skill.phaseId}-${skill.positionName}`;
+
+      if (!positionMap.has(key)) {
+        positionMap.set(key, { hasCompleted: false, skills: [] });
+      }
+
+      positionMap.get(key)!.skills.push(skill);
+
+      // If any option in this position is completed, mark position as completed
+      if (skill.completedAt !== null) {
+        positionMap.get(key)!.hasCompleted = true;
+      }
+    }
+
+    const totalPositions = positionMap.size;
+    const completedPositions = Array.from(positionMap.values()).filter(
+      (p) => p.hasCompleted,
     ).length;
 
     const overallProgress =
-      totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;
+      totalPositions > 0 ? (completedPositions / totalPositions) * 100 : 0;
 
     // Get roadmap to calculate estimated completion
     const roadmap = await this.db
@@ -165,8 +187,8 @@ export class LearningRoadmapRepository
     }
 
     return {
-      totalSkills,
-      completedSkills,
+      totalSkills: totalPositions,
+      completedSkills: completedPositions,
       totalPhases,
       completedPhases,
       overallProgress: Math.round(overallProgress * 100) / 100,

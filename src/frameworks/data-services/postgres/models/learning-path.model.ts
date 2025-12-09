@@ -80,9 +80,13 @@ export const roadmapSkills = pgTable("roadmap_skills", {
     .notNull()
     .references(() => roadmapPhases.id, { onDelete: "cascade" }),
 
+  positionName: varchar("position_name", { length: 500 }).notNull(),
+  positionDescription: text("position_description").notNull(),
+
   skillId: uuid("skill_id")
     .notNull()
     .references(() => skills.id),
+  reason: text("reason").notNull(),
 
   estimatedHours: integer("estimated_hours").notNull(),
   weekStart: integer("week_start").notNull(),

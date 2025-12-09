@@ -32,7 +32,10 @@ export class RoadmapSkillRepository
       .select({
         id: roadmapSkills.id,
         phaseId: roadmapSkills.phaseId,
+        positionName: roadmapSkills.positionName,
+        positionDescription: roadmapSkills.positionDescription,
         skillId: roadmapSkills.skillId,
+        reason: roadmapSkills.reason,
         estimatedHours: roadmapSkills.estimatedHours,
         weekStart: roadmapSkills.weekStart,
         weekEnd: roadmapSkills.weekEnd,

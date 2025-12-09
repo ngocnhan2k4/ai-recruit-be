@@ -21,7 +21,7 @@ export class StatisticsJobFilterRequestDto {
   @ApiProperty({ type: String, example: "province-uuid", required: false })
   @IsOptional()
   @IsString()
-  provinceId?: string;
+  provinceId: string;
 }
 
 class FrequentlyJobDto {

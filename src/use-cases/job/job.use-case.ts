@@ -147,15 +147,10 @@ export class JobUseCases {
   async getTopInMarket(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<TopInMarketDtoResponse>> {
-    const topInMarketFilter = {
-      fromDate: filter.fromDate,
-      toDate: filter.toDate,
-    };
-
     const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([
-      this.jobRepository.getTopAppliedJobs(topInMarketFilter),
-      this.jobRepository.getTopEmployers(topInMarketFilter),
-      this.jobRepository.getTopCategories(topInMarketFilter),
+      this.jobRepository.getTopAppliedJobs(filter),
+      this.jobRepository.getTopEmployers(filter),
+      this.jobRepository.getTopCategories(filter),
     ]);
 
     this.logger.log(`Fetched top in market data`);

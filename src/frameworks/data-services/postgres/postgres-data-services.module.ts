@@ -23,6 +23,12 @@ import {
   ILearningRoadmapRepository,
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
+  IAreaRepository,
+  IQuestionRepository,
+  ILevelRepository,
+  IUserTestRepository,
+  IUserAnswerRepository,
+  IImportLogRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -54,6 +60,12 @@ import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository"
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { AiCvRepository } from "./repositories/ai-cv.repository";
+import { AreaRepository } from "./repositories/area.repository";
+import { QuestionRepository } from "./repositories/question.repository";
+import { LevelRepository } from "./repositories/level.repository";
+import { UserTestRepository } from "./repositories/user-test.repository";
+import { UserAnswerRepository } from "./repositories/user-answer.repository";
+import { ImportLogRepository } from "./repositories/import-log.repository";
 
 @Global()
 @Module({
@@ -203,6 +215,30 @@ import { AiCvRepository } from "./repositories/ai-cv.repository";
       useClass: RoadmapSkillRepository,
     },
     {
+      provide: IAreaRepository,
+      useClass: AreaRepository,
+    },
+    {
+      provide: IQuestionRepository,
+      useClass: QuestionRepository,
+    },
+    {
+      provide: ILevelRepository,
+      useClass: LevelRepository,
+    },
+    {
+      provide: IUserTestRepository,
+      useClass: UserTestRepository,
+    },
+    {
+      provide: IUserAnswerRepository,
+      useClass: UserAnswerRepository,
+    },
+    {
+      provide: IImportLogRepository,
+      useClass: ImportLogRepository,
+    },
+    {
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
@@ -232,6 +268,12 @@ import { AiCvRepository } from "./repositories/ai-cv.repository";
     ILearningRoadmapRepository,
     IRoadmapPhaseRepository,
     IRoadmapSkillRepository,
+    IAreaRepository,
+    IQuestionRepository,
+    ILevelRepository,
+    IUserTestRepository,
+    IUserAnswerRepository,
+    IImportLogRepository,
     IAiCvRepository,
   ],
 })
