@@ -4,10 +4,11 @@ import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants/response";
 import { ElasticsearchService } from "@/frameworks/data-services/elasticsearch/elasticsearch.service";
 import { IJobRepository } from "@/core";
 import {
-  jobIndexMapping,
+  getJobIndexMapping,
   transformJobToDocument,
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { ConfigService } from "@nestjs/config";
+import { Environment } from "@/common/config/env.config";
 
 @Injectable()
 export class JobSyncUseCases {
@@ -21,17 +22,18 @@ export class JobSyncUseCases {
 
   private async ensureIndex(): Promise<void> {
     const client = this.elasticsearchService.getClient();
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_JOBS",
+    )!;
     const exists = await client.indices.exists({
-      index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
+      index: indexName,
     });
     if (!exists) {
-      await this.elasticsearchService.createIndex(
-        this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
-        jobIndexMapping,
-      );
-      this.logger.log(
-        `Created index: ${this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!}`,
-      );
+      const indexMapping = getJobIndexMapping({
+        env: this.configService.get<Environment>("NODE_ENV")!,
+      });
+      await this.elasticsearchService.createIndex(indexName, indexMapping);
+      this.logger.log(`Created index: ${indexName}`);
     }
   }
 
@@ -71,17 +73,19 @@ export class JobSyncUseCases {
       let totalSynced = 0;
 
       while (hasMore) {
-        const data = await this.jobRepository.getJobsByAdmin({
-          limit: batchSize,
-          page: offset / batchSize + 1,
-        });
+        const data = (
+          await this.jobRepository.getJobsByAdmin({
+            limit: batchSize,
+            page: offset / batchSize + 1,
+          })
+        ).data.filter((item) => item.category != null);
 
-        if (data.data.length === 0) {
+        if (data.length === 0) {
           hasMore = false;
           break;
         }
 
-        const documents = data.data.map((item) => ({
+        const documents = data.map((item) => ({
           id: item.job.id,
           document: transformJobToDocument(item),
         }));
