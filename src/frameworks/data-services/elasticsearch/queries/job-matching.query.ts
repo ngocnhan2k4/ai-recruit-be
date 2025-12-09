@@ -1,5 +1,4 @@
 import { JobFilters } from "@/core/entities/job.entity";
-import { JOB_INDEX_NAME } from "../indices/job.index";
 
 export interface UserProfile {
   userId: string;
@@ -13,8 +12,15 @@ export interface UserProfile {
 export class JobMatchingQuery {
   /**
    * Build Elasticsearch query for job matching với user profile
+   * @param indexName - Elasticsearch index name
+   * @param userProfile - User profile for matching
+   * @param filters - Additional filters
    */
-  static buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
+  static buildMatchQuery(
+    indexName: string,
+    userProfile: UserProfile,
+    filters: JobFilters,
+  ): any {
     const {
       skillIds = [],
       experienceYears = 0,
@@ -98,7 +104,7 @@ export class JobMatchingQuery {
 
     // Function Score Query với custom scoring
     return {
-      index: JOB_INDEX_NAME,
+      index: indexName,
       body: {
         query: {
           function_score: {
@@ -288,8 +294,15 @@ export class JobMatchingQuery {
 
   /**
    * Build simple search query (không có user profile)
+   * @param indexName - Elasticsearch index name
+   * @param searchTerm - Search term
+   * @param filters - Additional filters
    */
-  static buildSearchQuery(searchTerm: string, filters: JobFilters): any {
+  static buildSearchQuery(
+    indexName: string,
+    searchTerm: string,
+    filters: JobFilters,
+  ): any {
     const {
       page = 1,
       limit = 20,
@@ -354,7 +367,7 @@ export class JobMatchingQuery {
     }
 
     return {
-      index: JOB_INDEX_NAME,
+      index: indexName,
       body: {
         query: {
           bool: {

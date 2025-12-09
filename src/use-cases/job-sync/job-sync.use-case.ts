@@ -4,10 +4,11 @@ import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants/response";
 import { ElasticsearchService } from "@/frameworks/data-services/elasticsearch/elasticsearch.service";
 import { IJobRepository } from "@/core";
 import {
-  JOB_INDEX_NAME,
-  jobIndexMapping,
+  getJobIndexMapping,
   transformJobToDocument,
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
+import { ConfigService } from "@nestjs/config";
+import { Environment } from "@/common/config/env.config";
 
 @Injectable()
 export class JobSyncUseCases {
@@ -16,17 +17,23 @@ export class JobSyncUseCases {
   constructor(
     private readonly elasticsearchService: ElasticsearchService,
     private readonly jobRepository: IJobRepository,
+    private readonly configService: ConfigService,
   ) {}
 
   private async ensureIndex(): Promise<void> {
     const client = this.elasticsearchService.getClient();
-    const exists = await client.indices.exists({ index: JOB_INDEX_NAME });
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_JOBS",
+    )!;
+    const exists = await client.indices.exists({
+      index: indexName,
+    });
     if (!exists) {
-      await this.elasticsearchService.createIndex(
-        JOB_INDEX_NAME,
-        jobIndexMapping,
-      );
-      this.logger.log(`Created index: ${JOB_INDEX_NAME}`);
+      const indexMapping = getJobIndexMapping({
+        env: this.configService.get<Environment>("NODE_ENV")!,
+      });
+      await this.elasticsearchService.createIndex(indexName, indexMapping);
+      this.logger.log(`Created index: ${indexName}`);
     }
   }
 
@@ -66,24 +73,26 @@ export class JobSyncUseCases {
       let totalSynced = 0;
 
       while (hasMore) {
-        const data = await this.jobRepository.getJobsByAdmin({
-          limit: batchSize,
-          page: offset / batchSize + 1,
-        });
+        const data = (
+          await this.jobRepository.getJobsByAdmin({
+            limit: batchSize,
+            page: offset / batchSize + 1,
+          })
+        ).data.filter((item) => item.category != null);
 
-        if (data.data.length === 0) {
+        if (data.length === 0) {
           hasMore = false;
           break;
         }
 
-        const documents = data.data.map((item) => ({
+        const documents = data.map((item) => ({
           id: item.job.id,
           document: transformJobToDocument(item),
         }));
 
         if (documents.length > 0) {
           const result = await this.elasticsearchService.bulkIndex(
-            JOB_INDEX_NAME,
+            this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
             documents,
           );
           totalSynced += result.success;
@@ -115,7 +124,10 @@ export class JobSyncUseCases {
    */
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
     try {
-      await this.elasticsearchService.deleteDocument(JOB_INDEX_NAME, jobId);
+      await this.elasticsearchService.deleteDocument(
+        this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
+        jobId,
+      );
       this.logger.log(`Job ${jobId} deleted from Elasticsearch`);
       return {
         message: RESPONSE_MESSAGE.SUCCESS,
