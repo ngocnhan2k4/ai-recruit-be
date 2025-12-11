@@ -4,13 +4,12 @@ import {
   MinLength,
   MaxLength,
   IsOptional,
-  IsArray,
   IsNumber,
   ValidateNested,
 } from "class-validator";
 import { GeneralQueryDto } from "../common/query";
 import { ApiProperty } from "@nestjs/swagger";
-import { Transform, Type } from "class-transformer";
+import { Type } from "class-transformer";
 
 import {
   CreateOrganizationDto,
@@ -36,30 +35,28 @@ export class CompanyDto extends OrganizationDto {
 }
 
 export class GetCompaniesQueryDto extends GeneralQueryDto {
-  @ApiProperty({ type: "number", nullable: true })
-  @IsOptional()
-  @Type(() => Number)
-  employeeMin?: number;
-
-  @ApiProperty({ type: "number", nullable: true })
-  @IsOptional()
-  @Type(() => Number)
-  employeeMax?: number;
-
-  @ApiProperty({ type: "boolean", nullable: true })
-  @IsOptional()
-  @Transform(({ value }) =>
-    value === "true" ? true : value === "false" ? false : undefined,
-  )
-  verified?: boolean;
-
-  @ApiProperty({ type: [String], nullable: true })
-  @IsArray()
-  @IsOptional()
-  @Transform(({ value }) =>
-    Array.isArray(value) ? value : value ? [value] : undefined,
-  )
-  provinceIds?: string[];
+  // [TODO]: legacy code, remove it later
+  // @ApiProperty({ type: "number", nullable: true, required: false })
+  // @IsOptional()
+  // @Type(() => Number)
+  // employeeMin?: number;
+  // @ApiProperty({ type: "number", nullable: true, required: false })
+  // @IsOptional()
+  // @Type(() => Number)
+  // employeeMax?: number;
+  // @ApiProperty({ type: "boolean", nullable: true, required: false })
+  // @IsOptional()
+  // @Transform(({ value }) =>
+  //   value === "true" ? true : value === "false" ? false : undefined,
+  // )
+  // verified?: boolean;
+  // @ApiProperty({ type: [String], nullable: true, required: false })
+  // @IsOptional()
+  // @IsArray()
+  // @Transform(({ value }) =>
+  //   Array.isArray(value) ? value : value ? [value] : undefined,
+  // )
+  // provinceIds?: string[];
 }
 
 export class CompanyWithOrganizationDto {

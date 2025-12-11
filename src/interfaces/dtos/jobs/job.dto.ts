@@ -1,11 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "@/core";
 import { PaginationResponseDto } from "../common/query";
-import { CompanyDto } from "../companies/company.dto";
 import { Skill } from "@/core";
 import { SkillDto } from "../skills/skill.dto";
 import { ProvinceDto } from "../provinces/province.dto";
 import { IsBoolean, IsEnum } from "class-validator";
+import { OrganizationWithDetailsDto } from "../organization/organization.dto";
 export class JobDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;
@@ -128,8 +128,8 @@ export class JobResponseDto {
   @ApiProperty({ type: [ProvinceDto] })
   provinces: ProvinceDto[];
 
-  @ApiProperty({ type: CompanyDto })
-  company: CompanyDto;
+  @ApiProperty({ type: OrganizationWithDetailsDto })
+  organization: OrganizationWithDetailsDto;
 
   @ApiProperty({ type: [SkillDto] })
   skills: Skill[];

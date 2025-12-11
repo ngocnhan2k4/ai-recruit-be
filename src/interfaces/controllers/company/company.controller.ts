@@ -33,12 +33,6 @@ export class CompanyController {
       query.limit,
       {
         keyword: query.keyword,
-        provinceIds: query.provinceIds,
-        verified: query.verified,
-        employeeRange: {
-          min: query.employeeMin,
-          max: query.employeeMax,
-        },
       },
       query.cursor,
     );

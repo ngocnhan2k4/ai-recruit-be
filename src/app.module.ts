@@ -20,6 +20,7 @@ import {
   OrganizationInvitationController,
   LearningPathController,
   AdminJobSyncController,
+  JobMatchingController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -44,32 +45,33 @@ import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
 import { APP_FILTER } from "@nestjs/core";
 import { HttpExceptionFilter } from "./common/middlewares/http-exception.config";
-import { ILoggerServices } from "./core/abstracts/logger-services.abstract";
-import { AppConfigProps } from "./common/config/app.config";
-import { LoggerServiceModule } from "./frameworks/logger-services/logger.module";
-import { ProvinceUseCasesModule } from "./use-cases/province/province-use-cases.module";
-import { CompanyUseCasesModule } from "./use-cases/company/company-use-cases.module";
-import { CvUseCasesModule } from "./use-cases/cv/cv-use-cases.module";
-import { SkillController } from "./interfaces/controllers/skill/skill.controller";
-import { SkillUseCasesModule } from "./use-cases/skill/skill-use-cases.module";
-import { UniversityUseCasesModule } from "./use-cases/university/university-use-cases.module";
-import { NotificationUseCasesModule } from "./use-cases/notification/notification-use-cases.module";
-import { WebSocketModule } from "./frameworks/websocket/websocket.module";
-import { OrganizationUseCasesModule } from "./use-cases/organization/organization-use-cases.module";
-import { CasbinUseCasesModule } from "./use-cases/casbin/casbin-use-cases.module";
-import { JobAdminController } from "./interfaces/controllers/job/admin-job.controller";
-import { OrganizationMemberUseCasesModule } from "./use-cases/organization-member/organization-member-use-case.module";
-import { OrganizationInvitationUseCaseModule } from "./use-cases/organization-invitation/organization-intivation-use-case.module";
-import { FeedbackUseCasesModule } from "./use-cases/feedback/feedback.module";
-import { FeedbackAdminController } from "./interfaces/controllers/feedback/feedback-admin.controller";
-import { EmailModule } from "./frameworks/email-services/email.module";
+import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
+import { AppConfigProps } from "@/common/config/app.config";
+import { LoggerServiceModule } from "@/frameworks/logger-services/logger.module";
+import { ProvinceUseCasesModule } from "@/use-cases/province/province-use-cases.module";
+import { CompanyUseCasesModule } from "@/use-cases/company/company-use-cases.module";
+import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
+import { SkillController } from "@/interfaces/controllers/skill/skill.controller";
+import { SkillUseCasesModule } from "@/use-cases/skill/skill-use-cases.module";
+import { UniversityUseCasesModule } from "@/use-cases/university/university-use-cases.module";
+import { NotificationUseCasesModule } from "@/use-cases/notification/notification-use-cases.module";
+import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
+import { OrganizationUseCasesModule } from "@/use-cases/organization/organization-use-cases.module";
+import { CasbinUseCasesModule } from "@/use-cases/casbin/casbin-use-cases.module";
+import { JobAdminController } from "@/interfaces/controllers/job/admin-job.controller";
+import { OrganizationMemberUseCasesModule } from "@/use-cases/organization-member/organization-member-use-case.module";
+import { OrganizationInvitationUseCaseModule } from "@/use-cases/organization-invitation/organization-intivation-use-case.module";
+import { FeedbackUseCasesModule } from "@/use-cases/feedback/feedback.module";
+import { FeedbackAdminController } from "@/interfaces/controllers/feedback/feedback-admin.controller";
+import { EmailModule } from "@/frameworks/email-services/email.module";
 import { LearningPathUseCasesModule } from "./use-cases/learning-path/learning-path-use-cases.module";
-import { ExamUseCasesModule } from "./use-cases/exam/exam-use-cases.module";
-import { JobMatchingUseCasesModule } from "./use-cases/job-matching/job-matching.use-cases.module";
-import { ElasticsearchModule } from "./frameworks/data-services/elasticsearch/elasticsearch.module";
-import { JobSyncUseCaseModule } from "./use-cases/job-sync/job-sync.use-case.module";
-import { OtpModule } from "./frameworks/otp-services/otp.module";
-import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
+import { ExamUseCasesModule } from "@/use-cases/exam/exam-use-cases.module";
+import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching.use-cases.module";
+import { JobMatchingSchedulerModule } from "@/frameworks/schedulers/job-scheduler.module";
+import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
+import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.module";
+import { OtpModule } from "@/frameworks/otp-services/otp.module";
+import { OtpStorageModule } from "@/frameworks/otp-services/otp-storage-services/otp-storage.module";
 
 @Module({
   imports: [
@@ -107,6 +109,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     LearningPathUseCasesModule,
     ExamUseCasesModule,
     JobMatchingUseCasesModule,
+    JobMatchingSchedulerModule,
     ElasticsearchModule,
     JobSyncUseCaseModule,
     OtpModule,
@@ -117,6 +120,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     AuthController,
     JobController,
     JobAdminController,
+    JobMatchingController,
     CategoryController,
     UploadController,
     HealthController,
@@ -156,7 +160,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
         } as AppConfigProps;
         return new HttpExceptionFilter(appConfigs, loggerService);
       },
-      inject: [ConfigService, "ILoggerServices"],
+      inject: [ConfigService, ILoggerServices],
     },
   ],
 })
