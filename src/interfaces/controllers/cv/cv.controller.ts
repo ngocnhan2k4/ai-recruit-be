@@ -25,20 +25,14 @@ import { ApiResponse, ApiResponseDto } from "../../dtos";
 import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv/cv.dto";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { MultipartFile } from "@fastify/multipart";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
-import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
-import { CvOptimizeUseCase } from "@/use-cases/cv/cv-optimize.use-case";
-import { OptimizeAtsResponse } from "@/core";
 
 @ApiTags("CV")
 @Controller("cv")
 @UseGuards(JwtAuthGuard)
 export class CvController {
-  constructor(
-    private readonly cvUseCases: CvUseCases,
-    private readonly cvOptimizeUseCase: CvOptimizeUseCase,
-  ) {}
+  constructor(private readonly cvUseCases: CvUseCases) {}
 
   @ApiOperation({
     summary: "Get user CVs",
@@ -166,44 +160,5 @@ export class CvController {
     @Param("id") cvId: string,
   ): Promise<ApiResponse<{ message: string }>> {
     return this.cvUseCases.deleteCv(user.userId, cvId);
-  }
-
-  @Post("optimize-ats")
-  @ApiOperation({
-    summary: "Optimize CV for ATS",
-    description:
-      "Upload a CV file (PDF/DOCX) and get ATS-optimized version based on job description.",
-  })
-  @ApiConsumes("multipart/form-data")
-  @ApiResponseDto(OptimizeAtsResponse)
-  @ApiBody({
-    schema: {
-      type: "object",
-      required: ["file", "body"],
-      properties: {
-        file: {
-          type: "string",
-          format: "binary",
-          description: "CV file (PDF or DOCX, max 5MB)",
-        },
-        body: {
-          type: "string",
-          description: "JSON string containing jobDescription and language",
-          example: '{"jobDescription": "Senior Java Dev...", "language": "vi"}',
-        },
-      },
-    },
-  })
-  async optimizeAts(
-    @UploadFileAndBody()
-    request: OptimizeAtsUploadDto,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    if (!request.file) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.CV_NOT_UPLOADED,
-        code: RESPONSE_CODE.CV_NOT_UPLOADED,
-      });
-    }
-    return await this.cvOptimizeUseCase.optimizeCvForAts(request);
   }
 }

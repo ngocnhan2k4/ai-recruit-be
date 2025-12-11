@@ -60,6 +60,9 @@ export const RESPONSE_CODE = {
   UPDATE_INVITATION_FAILED: "UPDATE_INVITATION_FAILED",
   ADD_MEMBER_FAILED: "ADD_MEMBER_FAILED",
   MEMBER_NOT_FOUND: "MEMBER_NOT_FOUND",
+  AI_CV_NOT_FOUND: "AI_CV_NOT_FOUND",
+  AI_CV_NOT_UPDATED: "AI_CV_NOT_UPDATED",
+  AI_CV_NOT_DELETED: "AI_CV_NOT_DELETED",
   ROADMAP_NOT_FOUND: "ROADMAP_NOT_FOUND",
   SKILL_NOT_FOUND_IN_ROADMAP: "SKILL_NOT_FOUND_IN_ROADMAP",
 };
@@ -111,4 +114,7 @@ export const RESPONSE_MESSAGE = {
   ADD_MEMBER_FAILED: "Failed to add member to the organization.",
   MEMBER_NOT_FOUND:
     "The member to be kicked does not exist in the organization.",
+  AI_CV_NOT_FOUND: "CV generated from the CV is not found.",
+  AI_CV_NOT_UPDATED: "Failed to update AI CV",
+  AI_CV_NOT_DELETED: "Failed to delete AI CV from database",
 };

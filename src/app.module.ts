@@ -70,6 +70,8 @@ import { ElasticsearchModule } from "./frameworks/data-services/elasticsearch/el
 import { JobSyncUseCaseModule } from "./use-cases/job-sync/job-sync.use-case.module";
 import { OtpModule } from "./frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
+import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
+import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 
 @Module({
   imports: [
@@ -111,6 +113,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     JobSyncUseCaseModule,
     OtpModule,
     OtpStorageModule,
+    AiCvUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -139,6 +142,7 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
     AdminJobSyncController,
     AdminExamController,
     ExamController,
+    AiCvController,
   ],
   providers: [
     JwtStrategy,
