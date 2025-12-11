@@ -295,6 +295,7 @@ export class OrganizationWithDetailsDto extends OrganizationDto {
   taxCode?: string | null;
   benefits?: string | null;
   culture?: string | null;
+  companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   locations?: OrganizationLocation[] | null;
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;

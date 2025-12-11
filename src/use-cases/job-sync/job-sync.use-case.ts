@@ -1,8 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants/response";
-import { ElasticsearchService } from "@/frameworks/data-services/elasticsearch/elasticsearch.service";
-import { IJobRepository } from "@/core";
+import { IJobRepository, ISearchService } from "@/core";
 import {
   getJobIndexMapping,
   transformJobToDocument,
@@ -15,13 +14,13 @@ export class JobSyncUseCases {
   private readonly logger = new Logger(JobSyncUseCases.name);
 
   constructor(
-    private readonly elasticsearchService: ElasticsearchService,
+    private readonly searchService: ISearchService,
     private readonly jobRepository: IJobRepository,
     private readonly configService: ConfigService,
   ) {}
 
   private async ensureIndex(): Promise<void> {
-    const client = this.elasticsearchService.getClient();
+    const client = this.searchService.getClient();
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
@@ -32,7 +31,7 @@ export class JobSyncUseCases {
       const indexMapping = getJobIndexMapping({
         env: this.configService.get<Environment>("NODE_ENV")!,
       });
-      await this.elasticsearchService.createIndex(indexName, indexMapping);
+      await this.searchService.createIndex(indexName, indexMapping);
       this.logger.log(`Created index: ${indexName}`);
     }
   }
@@ -91,7 +90,7 @@ export class JobSyncUseCases {
         }));
 
         if (documents.length > 0) {
-          const result = await this.elasticsearchService.bulkIndex(
+          const result = await this.searchService.bulkIndex(
             this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
             documents,
           );
@@ -124,16 +123,16 @@ export class JobSyncUseCases {
    */
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
     try {
-      await this.elasticsearchService.deleteDocument(
+      await this.searchService.deleteDocument(
         this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
         jobId,
       );
-      this.logger.log(`Job ${jobId} deleted from Elasticsearch`);
+      this.logger.log(`Job ${jobId} deleted from search index`);
       return {
         message: RESPONSE_MESSAGE.SUCCESS,
         code: RESPONSE_CODE.SUCCESS,
         data: {
-          message: `Job ${jobId} deleted from Elasticsearch successfully`,
+          message: `Job ${jobId} deleted from search index successfully`,
         },
       };
     } catch (error) {

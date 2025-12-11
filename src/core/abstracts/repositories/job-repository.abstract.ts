@@ -1,9 +1,6 @@
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   Job,
-  Province,
-  Skill,
-  OrganizationWithDetails,
   WorkTypeEnum,
   Notification,
   ApplyStatusEnum,
@@ -137,16 +134,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getFullJobById(
     jobId: string,
     userId?: string,
-  ): Promise<{
-    job: Job;
-    provinces: Province[];
-    organization: OrganizationWithDetails;
-    skills: Skill[];
-    isSaved?: boolean;
-    isApplied?: boolean;
-    applyStatus?: string;
-    applyId?: string;
-  } | null>;
+  ): Promise<JobResponse | null>;
 
   abstract getApplyJobs(jobId: string): Promise<ApplyJobResponse[]>;
 

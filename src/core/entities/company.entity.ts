@@ -9,7 +9,4 @@ export interface EmployeeRange {
 
 export interface CompanyFilters {
   keyword?: string;
-  provinceIds?: string[];
-  employeeRange?: EmployeeRange;
-  verified?: boolean;
 }

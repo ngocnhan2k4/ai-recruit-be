@@ -1,14 +1,15 @@
 import { Module } from "@nestjs/common";
 import { LoggerService } from "./logger.service";
+import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 
 @Module({
   providers: [
     LoggerService,
     {
-      provide: "ILoggerServices",
+      provide: ILoggerServices,
       useClass: LoggerService,
     },
   ],
-  exports: [LoggerService, "ILoggerServices"],
+  exports: [ILoggerServices],
 })
 export class LoggerServiceModule {}

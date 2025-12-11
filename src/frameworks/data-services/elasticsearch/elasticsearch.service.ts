@@ -7,15 +7,26 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Client, ClientOptions } from "@elastic/elasticsearch";
 import { Environment } from "@/common/config/env.config";
+import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
+import { ISearchService } from "@/core/abstracts/search-service.abstract";
 
 @Injectable()
-export class ElasticsearchService implements OnModuleInit, OnModuleDestroy {
+export class ElasticsearchService
+  implements ISearchService, OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(ElasticsearchService.name);
   private client: Client;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private loggerService: ILoggerServices,
+  ) {
     const options: ClientOptions = {
       node: this.configService.get<string>("ELASTICSEARCH_NODE"),
+
+      requestTimeout: 10000,
+      pingTimeout: 3000,
+      maxRetries: 1,
     };
 
     const username = this.configService.get<string>("ELASTICSEARCH_USERNAME");
@@ -38,7 +49,21 @@ export class ElasticsearchService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    await this.healthCheck();
+    try {
+      const isHealthy = await this.healthCheck();
+      if (!isHealthy) {
+        throw new Error("Elasticsearch cluster is not healthy");
+      }
+    } catch (err) {
+      this.logger.error("Elasticsearch health check failed", err);
+      await this.loggerService.logError({
+        type: "Elasticsearch health check failed",
+        content: JSON.stringify(err),
+        note: "Elasticsearch health check failed",
+      });
+      // I don't want to throw error here because it will cause the application to crash
+      // throw err;
+    }
   }
 
   async onModuleDestroy() {

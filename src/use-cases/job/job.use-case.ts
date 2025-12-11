@@ -7,8 +7,8 @@ import {
 import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
 import {
   ApiResponse,
-  CompanyDto,
   JobCountsDto,
+  OrganizationWithDetailsDto,
   StatisticsJobResponse,
   TopInMarketDtoResponse,
 } from "@/interfaces/dtos";
@@ -53,6 +53,8 @@ import { PaginatedResult } from "@/common/types/api";
 import { RoleEnum } from "@/common/constants/roles";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { TokenPayload } from "@/common/types/token";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
 
 @Injectable()
 export class JobUseCases {
@@ -61,6 +63,7 @@ export class JobUseCases {
     private readonly jobRepository: IJobRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getJobs(
@@ -85,15 +88,9 @@ export class JobUseCases {
         questions: item.job.questions,
         organizationId: item.organization.id,
       } as JobDto,
-      company: {
+      organization: {
         ...item.organization,
-        organizationId: item.organization.id,
-        companySize: item.organization.companySize || 0,
-        taxCode: item.organization.taxCode || "",
-        benefits: item.organization.benefits || "",
-        companyRawId: item.organization.companyRawId || 0,
-        verifiedAt: item.organization.verifiedAt?.toISOString() || null,
-      } as CompanyDto,
+      } as OrganizationWithDetailsDto,
     }));
 
     return {
@@ -413,6 +410,13 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
+    const fullJob = await this.jobRepository.getFullJobById(newJob.id);
+    if (fullJob) {
+      await this.messageQueueService.add(
+        JSON.stringify({ type: "upsert", data: fullJob }),
+        JOB_INDEX_QUEUE,
+      );
+    }
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -476,6 +480,13 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
+    const fullJob = await this.jobRepository.getFullJobById(jobId);
+    if (fullJob) {
+      await this.messageQueueService.add(
+        JSON.stringify({ type: "upsert", data: fullJob }),
+        JOB_INDEX_QUEUE,
+      );
+    }
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -531,6 +542,10 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
+    await this.messageQueueService.add(
+      JSON.stringify({ type: "delete", data: { jobId } }),
+      JOB_INDEX_QUEUE,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -571,7 +586,7 @@ export class JobUseCases {
         status: job.job.status as JobStatusEnum,
         workType: job.job.workType as WorkTypeEnum,
       },
-      company: {
+      organization: {
         id: job.organization.id,
         name: job.organization.name,
         slug: job.organization.slug,
@@ -579,7 +594,7 @@ export class JobUseCases {
         description: job.organization.description,
         address: job.organization.address,
         logoUrl: job.organization.logoUrl,
-      } as CompanyDto,
+      } as OrganizationWithDetailsDto,
     };
 
     return {
