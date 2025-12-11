@@ -1,10 +1,23 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from "@nestjs/common";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
-import { StartExamDto, SubmitExamDto } from "@/interfaces/dtos/exam";
+import {
+  StartExamDto,
+  SubmitExamDto,
+  SavePartialAnswersDto,
+} from "@/interfaces/dtos/exam";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
+import { GetSkillsQueryDto } from "@/interfaces/dtos/skills/skill.dto";
 
 @ApiTags("Exam")
 @Controller("exam")
@@ -57,5 +70,59 @@ export class ExamController {
     @Param("testId") testId: string,
   ) {
     return this.examUseCases.getTestDetails(user.userId, testId);
+  }
+
+  @ApiOperation({
+    summary: "Get skills with questions",
+    description:
+      "Get all skills that have at least 1 question. Supports search by skill name and pagination.",
+  })
+  @Get("skills")
+  @ApiBearerAuth()
+  async getSkillsWithQuestions(@Query() query: GetSkillsQueryDto) {
+    return this.examUseCases.getSkillsWithQuestions(query);
+  }
+
+  @ApiOperation({
+    summary: "Get incomplete exams",
+    description:
+      "Get all incomplete exams (tests that haven't been submitted yet) for the authenticated user.",
+  })
+  @Get("incomplete")
+  @ApiBearerAuth()
+  async getIncompleteExams(@GetUser() user: TokenPayload) {
+    return this.examUseCases.getIncompleteExams(user.userId);
+  }
+
+  @ApiOperation({
+    summary: "Get incomplete exam questions",
+    description:
+      "Get questions for an incomplete exam with saved answers (if any). Use this to continue an exam.",
+  })
+  @Get("incomplete/:testId")
+  @ApiBearerAuth()
+  async getIncompleteExamQuestions(
+    @GetUser() user: TokenPayload,
+    @Param("testId") testId: string,
+  ) {
+    return this.examUseCases.getIncompleteExamQuestions(user.userId, testId);
+  }
+
+  @ApiOperation({
+    summary: "Save partial answers",
+    description:
+      "Save or update answers for an incomplete exam. You can call this multiple times to save progress.",
+  })
+  @Post("save-answers")
+  @ApiBearerAuth()
+  async savePartialAnswers(
+    @GetUser() user: TokenPayload,
+    @Body() dto: SavePartialAnswersDto,
+  ) {
+    return this.examUseCases.savePartialAnswers(
+      user.userId,
+      dto.userTestId,
+      dto.answers,
+    );
   }
 }

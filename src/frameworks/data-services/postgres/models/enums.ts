@@ -119,13 +119,13 @@ export const GapDifficultyEnum = pgEnum("gap_difficulty", [
 
 export const LanguageEnum = pgEnum("language", ["vi", "en"]);
 
-export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
-  "save",
-  "hide",
-]);
-
 export const TemplateEnum = pgEnum("cv_template", [
   "classic",
   "modern-blue",
   "modern-green",
+]);
+
+export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
+  "save",
+  "hide",
 ]);

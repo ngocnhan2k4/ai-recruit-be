@@ -7,4 +7,7 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
   abstract getPaginatedSkills(
     query: GeneralQuery,
   ): Promise<PaginatedResult<Skill>>;
+  abstract getSkillsWithQuestions(
+    query: GeneralQuery,
+  ): Promise<PaginatedResult<Skill>>;
 }

@@ -11,6 +11,7 @@ export const userTests = pgTable("user_tests", {
   selectedDifficultyLevels: jsonb("selected_difficulty_levels").$type<
     Difficulty[]
   >(),
+  questionIds: jsonb("question_ids").$type<string[]>(),
   totalScore: integer("total_score"),
   skillLevelsAssessed: jsonb("skill_levels_assessed").$type<
     Record<string, string>

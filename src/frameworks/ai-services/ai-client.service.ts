@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HttpService } from "@nestjs/axios";
 import { IAIService } from "@/core/abstracts";
@@ -13,6 +13,7 @@ import { OptimizeAtsRequest, OptimizeAtsResponse } from "@/core";
 
 @Injectable()
 export class AIClientService implements IAIService {
+  private readonly logger = new Logger(AIClientService.name);
   private readonly aiServiceUrl: string;
   private readonly aiServiceTimeout: number;
   private readonly maxRetries: number;
@@ -88,7 +89,33 @@ export class AIClientService implements IAIService {
           }),
           catchError((error: AxiosError) => {
             const errorData = error.response?.data as any;
-            const errorMsg = errorData?.detail || error.message;
+            let errorMsg: string;
+
+            // Handle different error response formats
+            if (typeof errorData?.detail === "string") {
+              errorMsg = errorData.detail;
+            } else if (Array.isArray(errorData?.detail)) {
+              // FastAPI validation errors return array of objects
+              errorMsg = errorData.detail
+                .map((err: any) => {
+                  if (typeof err === "string") return err;
+                  if (err.msg)
+                    return `${err.loc?.join(".") || "field"}: ${err.msg}`;
+                  return JSON.stringify(err);
+                })
+                .join("; ");
+            } else if (errorData?.message) {
+              errorMsg = errorData.message;
+            } else if (typeof errorData === "string") {
+              errorMsg = errorData;
+            } else {
+              errorMsg = error.message || "Unknown error";
+            }
+
+            this.logger.error(
+              `AI Service CV optimization failed: ${errorMsg}`,
+              error.stack,
+            );
 
             throw new Error(`AI Service CV optimization failed: ${errorMsg}`);
           }),
