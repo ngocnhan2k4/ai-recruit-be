@@ -9,7 +9,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { learningRoadmaps, roadmapPhases, roadmapSkills } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
-import { count, eq, and, SQL, isNull, desc } from "drizzle-orm";
+import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -23,38 +23,38 @@ export class LearningRoadmapRepository
   async getPaginatedRoadmaps(
     query: GeneralQuery & { userId?: string },
   ): Promise<PaginatedResult<LearningRoadmap>> {
-    const limit = Math.max(query.limit ?? 20, 1);
-    const page = Math.max(query.page ?? 1, 1);
-
     const whereConditions: SQL[] = [isNull(learningRoadmaps.deletedAt)];
 
     if (query.userId) {
       whereConditions.push(eq(learningRoadmaps.userId, query.userId));
     }
 
-    const offset = (page - 1) * limit;
+    if (query.cursor) {
+      whereConditions.push(
+        lt(learningRoadmaps.createdAt, new Date(query.cursor)),
+      );
+    }
 
     const items = await this.db
       .select()
       .from(learningRoadmaps)
       .where(and(...whereConditions))
       .orderBy(desc(learningRoadmaps.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .limit(query.limit + 1);
 
-    const totalRow = await this.db
-      .select({ count: count(learningRoadmaps.id) })
-      .from(learningRoadmaps)
-      .where(and(...whereConditions));
+    const hasNextPage = items.length > query.limit;
+    const data = hasNextPage ? items.slice(0, query.limit) : items;
 
-    const total = Number(totalRow[0]?.count ?? 0);
-    const hasNext = offset + items.length < total;
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
 
     return {
-      data: items,
+      data,
       pagination: {
-        hasNextPage: hasNext,
-        total,
+        nextCursor,
+        hasNextPage,
       },
     };
   }
