@@ -994,6 +994,7 @@ export class JobRepository
       jobRawId: job.jobRawId,
       questions: job.questions,
       status: job.status || "active",
+      categoryId: job.categoryId,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1301,10 +1302,7 @@ export class JobRepository
         job: jobs,
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
-        skills:
-          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
-            "skills",
-          ),
+        skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         // If user is authenticated, check if job is saved or applied
         isSaved: userId
           ? sql`EXISTS (
@@ -1349,6 +1347,15 @@ export class JobRepository
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .leftJoin(
         sql`LATERAL (
+        SELECT json_agg(s) AS skills
+        FROM ${jobSkills} js
+        JOIN ${skills} s ON js.skill_id = s.id
+        WHERE js.job_id = ${jobs.id}
+      ) s_lateral `,
+        sql`TRUE`,
+      )
+      .leftJoin(
+        sql`LATERAL (
           SELECT json_agg(p) AS provinces
           FROM ${jobProvinces} jp
           INNER JOIN ${provinces} p ON jp.province_id = p.id
@@ -1357,7 +1364,6 @@ export class JobRepository
         sql`TRUE`,
       )
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, categories.id)
       .limit(1);
 
     if (!result || result.length === 0) {

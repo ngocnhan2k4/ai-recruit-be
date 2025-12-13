@@ -410,13 +410,10 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    const fullJob = await this.jobRepository.getFullJobById(newJob.id);
-    if (fullJob) {
-      await this.messageQueueService.add(
-        JSON.stringify({ type: "upsert", data: fullJob }),
-        JOB_INDEX_QUEUE,
-      );
-    }
+    await this.messageQueueService.add(
+      JSON.stringify({ type: "upsert", data: { jobId: newJob.id } }),
+      JOB_INDEX_QUEUE,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -480,13 +477,10 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    const fullJob = await this.jobRepository.getFullJobById(jobId);
-    if (fullJob) {
-      await this.messageQueueService.add(
-        JSON.stringify({ type: "upsert", data: fullJob }),
-        JOB_INDEX_QUEUE,
-      );
-    }
+    await this.messageQueueService.add(
+      JSON.stringify({ type: "upsert", data: { jobId } }),
+      JOB_INDEX_QUEUE,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

@@ -2,13 +2,16 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ConfigService } from "@nestjs/config";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ILoggerServices, ISearchService } from "@/core/abstracts";
+import {
+  IJobRepository,
+  ILoggerServices,
+  ISearchService,
+} from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
-import { JobResponse } from "@/core/entities/job.entity";
 
 type JobIndexEvent =
-  | { type: "upsert"; data: JobResponse }
+  | { type: "upsert"; data: { jobId: string } }
   | { type: "delete"; data: { jobId: string } };
 
 @Injectable()
@@ -21,6 +24,7 @@ export class JobIndexWorker {
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
     private readonly loggerService: ILoggerServices,
+    private readonly jobRepository: IJobRepository,
   ) {}
 
   @Cron(CronExpression.EVERY_5_SECONDS)
@@ -71,24 +75,30 @@ export class JobIndexWorker {
           this.logger.log(`[processEvent] Deleted job ${jobId} from index`);
         } else {
           this.logger.warn("[processEvent] Delete event missing jobId");
+          throw new Error("[processEvent] Delete event missing jobId");
         }
         return;
       }
       case "upsert": {
+        const data = await this.jobRepository.getFullJobById(event.data.jobId);
+        if (!data) {
+          this.logger.warn(`[processEvent] Job ${event.data.jobId} not found`);
+          throw new Error(`[processEvent] Job ${event.data.jobId} not found`);
+        }
         const document = transformJobToDocument({
-          job: event.data.job,
-          skills: event.data.skills || [],
-          category: event.data.category,
-          provinces: event.data.provinces || [],
-          organization: event.data.organization,
+          job: data.job,
+          skills: data.skills || [],
+          category: data.category,
+          provinces: data.provinces || [],
+          organization: data.organization,
         });
 
         await this.searchService.indexDocument(
           indexName,
-          event.data.job.id,
+          data.job.id,
           document,
         );
-        this.logger.log(`[processEvent] Indexed job ${event.data.job.id}`);
+        this.logger.log(`[processEvent] Indexed job ${data.job.id}`);
         return;
       }
     }

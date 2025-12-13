@@ -10,7 +10,7 @@ import {
   Delete,
   Param,
 } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import {
   ApiResponse,
   ApiResponseDto,
@@ -50,6 +50,7 @@ import { PaginatedResultDto } from "../../dtos/common/query";
 import { RoleEnum } from "@/common/constants/roles";
 
 @ApiTags("Jobs")
+@ApiBearerAuth()
 @Controller("jobs")
 export class JobController {
   constructor(private readonly jobUseCases: JobUseCases) {}
