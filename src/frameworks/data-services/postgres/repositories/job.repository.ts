@@ -1300,7 +1300,10 @@ export class JobRepository
     const result = await this.db
       .select({
         job: jobs,
-        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
+        provinces:
+          sql`COALESCE(json_agg(${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
+            "provinces",
+          ),
         organization: organizations,
         skills:
           sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
@@ -1348,15 +1351,8 @@ export class JobRepository
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
-      .leftJoin(
-        sql`LATERAL (
-          SELECT json_agg(p) AS provinces
-          FROM ${jobProvinces} jp
-          INNER JOIN ${provinces} p ON jp.province_id = p.id
-          WHERE jp.job_id = ${jobs.id}
-        ) p_lateral`,
-        sql`TRUE`,
-      )
+      .leftJoin(jobProvinces, eq(jobs.id, jobProvinces.jobId))
+      .leftJoin(provinces, eq(jobProvinces.provinceId, provinces.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
       .groupBy(jobs.id, organizations.id, categories.id)
       .limit(1);
