@@ -983,6 +983,7 @@ export class JobRepository
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
+      categoryId: job.categoryId!,
       description: job.description,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
