@@ -993,7 +993,6 @@ export class JobRepository
       workType: job.workType,
       jobRawId: job.jobRawId,
       questions: job.questions,
-      status: job.status || "active",
       categoryId: job.categoryId,
       createdAt: new Date(),
       updatedAt: new Date(),

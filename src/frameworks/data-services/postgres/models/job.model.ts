@@ -59,7 +59,7 @@ export const jobs = pgTable("jobs", {
   experienceMax: integer("experience_max"),
   questions: jsonb("questions"),
   endDate: date("end_date"),
-  status: JobStatusEnum("status").notNull().default("draft"),
+  status: JobStatusEnum("status").notNull().default("pending_approval"),
   workType: WorkTypeEnum("work_type"),
   jobRawId: bigint("job_raw_id", { mode: "number" }).references(
     () => jobRaws.id,
