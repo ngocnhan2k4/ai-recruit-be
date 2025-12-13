@@ -1,5 +1,4 @@
 export enum JobStatusEnum {
-  DRAFT = "draft",
   PENDING_APPROVAL = "pending_approval",
   ACTIVE = "active",
   PAUSED = "paused",

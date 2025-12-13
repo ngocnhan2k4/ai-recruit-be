@@ -378,25 +378,14 @@ export class JobUseCases {
       newJob = repoResult.job;
       const notifications = repoResult.newNotifications;
 
-      // Send notifications to recipients
-      notifications.forEach((notification) => {
-        const sent = this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-          },
-          notification,
+      // Broadcast notification to admin room instead of looping through each user
+      if (notifications && notifications.length > 0) {
+        const notification = notifications[0]; // Use first notification for broadcast
+        this.webSocketGateway.sendToRoom("admin", notification);
+        this.logger.log(
+          `Broadcast job-created notification to admin room for job "${newJob.title}" (${notifications.length} notifications created in DB)`,
         );
-
-        if (sent) {
-          this.logger.log(
-            `Sent job-created notification to ${notification.receiverId} for job "${newJob.title}"`,
-          );
-        } else {
-          this.logger.warn(
-            `Failed to send websocket notification to ${notification.receiverId}`,
-          );
-        }
-      });
+      }
     } else {
       newJob = repoResult;
     }
@@ -410,13 +399,10 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    const fullJob = await this.jobRepository.getFullJobById(newJob.id);
-    if (fullJob) {
-      await this.messageQueueService.add(
-        JSON.stringify({ type: "upsert", data: fullJob }),
-        JOB_INDEX_QUEUE,
-      );
-    }
+    await this.messageQueueService.add(
+      JSON.stringify({ type: "upsert", data: { jobId: newJob.id } }),
+      JOB_INDEX_QUEUE,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -480,13 +466,10 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    const fullJob = await this.jobRepository.getFullJobById(jobId);
-    if (fullJob) {
-      await this.messageQueueService.add(
-        JSON.stringify({ type: "upsert", data: fullJob }),
-        JOB_INDEX_QUEUE,
-      );
-    }
+    await this.messageQueueService.add(
+      JSON.stringify({ type: "upsert", data: { jobId } }),
+      JOB_INDEX_QUEUE,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

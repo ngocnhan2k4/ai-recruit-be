@@ -29,7 +29,6 @@ export const organizationTypeEnum = pgEnum("organization_type", [
 ]);
 
 export const JobStatusEnum = pgEnum("job_status", [
-  "draft",
   "pending_approval",
   "active",
   "paused",

@@ -158,17 +158,6 @@ export class CreateJobDto {
   workType: WorkTypeEnum;
 
   @ApiProperty({
-    type: "string",
-    nullable: true,
-    description: "Status (active, inactive)",
-    example: "active",
-    enum: Object.values(JobStatusEnum),
-  })
-  @IsOptional()
-  @IsEnum(JobStatusEnum)
-  status: JobStatusEnum;
-
-  @ApiProperty({
     type: [String],
     required: false,
     description: "Danh sách province ids",

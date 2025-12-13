@@ -2,13 +2,16 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ConfigService } from "@nestjs/config";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ILoggerServices, ISearchService } from "@/core/abstracts";
+import {
+  IJobRepository,
+  ILoggerServices,
+  ISearchService,
+} from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
-import { JobResponse } from "@/core/entities/job.entity";
 
 type JobIndexEvent =
-  | { type: "upsert"; data: JobResponse }
+  | { type: "upsert"; data: { jobId: string } }
   | { type: "delete"; data: { jobId: string } };
 
 @Injectable()
@@ -21,6 +24,7 @@ export class JobIndexWorker {
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
     private readonly loggerService: ILoggerServices,
+    private readonly jobRepository: IJobRepository,
   ) {}
 
   @Cron(CronExpression.EVERY_5_SECONDS)
@@ -28,35 +32,36 @@ export class JobIndexWorker {
     if (this.isProcessing) {
       return;
     }
-
-    const rawEvent = await this.messageQueueService.getNext(JOB_INDEX_QUEUE);
-    if (!rawEvent) {
+    // [TODO]: Because I thought there would be few actions to be taken with the job, I used batch = 1.
+    const rawEvents = await this.messageQueueService.popBatch(
+      JOB_INDEX_QUEUE,
+      1,
+    );
+    if (!rawEvents.length) {
       return;
     }
 
     this.isProcessing = true;
     try {
-      const event = JSON.parse(rawEvent) as JobIndexEvent;
-      await this.processEvent(event);
-      await this.messageQueueService.remove(rawEvent, JOB_INDEX_QUEUE);
+      const events = rawEvents.map(
+        (rawEvent) => JSON.parse(rawEvent) as JobIndexEvent,
+      );
+      await Promise.all(events.map((event) => this.processEvent(event)));
     } catch (error) {
       this.logger.error(
-        `[processQueue] Failed to process event ${rawEvent}: ${error.message}`,
+        `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
         error.stack,
       );
       await this.loggerService.logError({
         type: "error",
-        content: `[processQueue] Failed to process event ${rawEvent}: ${error.message}`,
+        content: `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
         note: error.stack,
       });
-      // Drop the event to avoid blocking
-      await this.messageQueueService.remove(rawEvent, JOB_INDEX_QUEUE);
     } finally {
       this.isProcessing = false;
     }
   }
 
-  // [TODO]: handle batch processing to improve performance
   private async processEvent(event: JobIndexEvent): Promise<void> {
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
@@ -70,24 +75,30 @@ export class JobIndexWorker {
           this.logger.log(`[processEvent] Deleted job ${jobId} from index`);
         } else {
           this.logger.warn("[processEvent] Delete event missing jobId");
+          throw new Error("[processEvent] Delete event missing jobId");
         }
         return;
       }
       case "upsert": {
+        const data = await this.jobRepository.getFullJobById(event.data.jobId);
+        if (!data) {
+          this.logger.warn(`[processEvent] Job ${event.data.jobId} not found`);
+          throw new Error(`[processEvent] Job ${event.data.jobId} not found`);
+        }
         const document = transformJobToDocument({
-          job: event.data.job,
-          skills: event.data.skills || [],
-          category: event.data.category,
-          provinces: event.data.provinces || [],
-          organization: event.data.organization,
+          job: data.job,
+          skills: data.skills || [],
+          category: data.category,
+          provinces: data.provinces || [],
+          organization: data.organization,
         });
 
         await this.searchService.indexDocument(
           indexName,
-          event.data.job.id,
+          data.job.id,
           document,
         );
-        this.logger.log(`[processEvent] Indexed job ${event.data.job.id}`);
+        this.logger.log(`[processEvent] Indexed job ${data.job.id}`);
         return;
       }
     }

@@ -30,6 +30,7 @@ export abstract class IRedisService {
     limit?: number,
   ): Promise<string[]>;
   abstract removeFromSortedSet(key: string, member: string): Promise<void>;
+
   abstract getSortedSetRange(
     key: string,
     start: number,
@@ -45,4 +46,5 @@ export abstract class IRedisService {
   // Bulk operations
   abstract getKeysByPattern(pattern: string): Promise<string[]>;
   abstract deleteMultipleKeys(keys: string[]): Promise<void>;
+  abstract popMinFromSortedSet(key: string, count?: number): Promise<string[]>;
 }

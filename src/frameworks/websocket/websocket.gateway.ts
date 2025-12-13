@@ -13,8 +13,11 @@ import { ConfigService } from "@nestjs/config";
 import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
+import { RoleEnum } from "@/common/constants/roles";
 
-interface AuthenticatedSocket extends Socket, IdentityUser {}
+interface AuthenticatedSocket extends Socket, IdentityUser {
+  roles?: RoleEnum[];
+}
 
 @Injectable()
 @WSGateway({
@@ -56,6 +59,7 @@ export class WebSocketGateway
         secret: this.configService.get<string>("JWT_SECRET"),
       });
       client.userId = payload.userId;
+      client.roles = payload.roles || [];
 
       if (!client.userId) {
         this.logger.warn("Token invalid");
@@ -80,12 +84,24 @@ export class WebSocketGateway
         })} connected to WebSocket`,
       );
 
+      // Join user-specific room
       client.join(
         `user_${this.getKeyIdentity({
           userId: client.userId,
           organizationId: orgId,
         })}`,
       );
+
+      // Check if user is admin and join admin room
+      const isAdmin =
+        client.roles &&
+        (client.roles.includes(RoleEnum.ADMIN) ||
+          client.roles.includes(RoleEnum.SUPER_ADMIN));
+
+      if (isAdmin) {
+        client.join("admin");
+        this.logger.log(`Admin user ${client.userId} joined admin room`);
+      }
 
       client.emit("connected", {
         message: "Connected to notification service",
