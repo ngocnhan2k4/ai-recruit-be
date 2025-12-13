@@ -58,6 +58,8 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
 import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
 import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
+import { AiCvRepository } from "./repositories/ai-cv.repository";
 import { AreaRepository } from "./repositories/area.repository";
 import { QuestionRepository } from "./repositories/question.repository";
 import { LevelRepository } from "./repositories/level.repository";
@@ -236,6 +238,10 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
       provide: IImportLogRepository,
       useClass: ImportLogRepository,
     },
+    {
+      provide: IAiCvRepository,
+      useClass: AiCvRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -268,6 +274,7 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
     IUserTestRepository,
     IUserAnswerRepository,
     IImportLogRepository,
+    IAiCvRepository,
   ],
 })
 export class PostgresDataServicesModule {}

@@ -7,3 +7,6 @@ export * from "./otp-services.abstract";
 export * from "./otp-storage.abstract";
 export * from "./email-queue-storage.abstract";
 export * from "./repositories";
+export * from "./websocket.abstract";
+export * from "./search-service.abstract";
+export * from "./message-queue.abstract";

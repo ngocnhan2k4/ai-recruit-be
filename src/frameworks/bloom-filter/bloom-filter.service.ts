@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { BloomFilter } from "bloom-filters";
-import { IBloomFilterService } from "../../core/abstracts/bloom-filter.abstract";
+import { IBloomFilterService } from "@/core/abstracts/bloom-filter.abstract";
 
 interface BloomFilterConfig {
   ttlSeconds?: number;

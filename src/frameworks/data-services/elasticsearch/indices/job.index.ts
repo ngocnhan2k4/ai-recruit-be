@@ -5,109 +5,120 @@ import {
   Province,
   Skill,
 } from "@/core";
+import { Environment } from "@/common/config/env.config";
 
-export const JOB_INDEX_NAME = "jobs";
+export interface JobIndexConfig {
+  env: Environment;
+}
 
-export const jobIndexMapping = {
-  settings: {
-    number_of_shards: 3,
-    number_of_replicas: 1,
-    analysis: {
-      analyzer: {
-        vietnamese_analyzer: {
-          type: "standard",
-          // [TODO] Tích hợp Vietnamese tokenizer sau
-          // Ví dụ: https://github.com/duydo/elasticsearch-analysis-vietnamese
-        },
-      },
-    },
-  },
-  mappings: {
-    properties: {
-      id: {
-        type: "keyword",
-      },
-      title: {
-        type: "text",
-        fields: {
-          keyword: {
-            type: "keyword",
-          },
-          vietnamese: {
-            type: "text",
-            analyzer: "vietnamese_analyzer",
+/**
+ * Generate job index mapping with configurable settings
+ * @param config - Configuration for index settings (shards, replicas)
+ */
+export function getJobIndexMapping({ env }: JobIndexConfig) {
+  return {
+    settings: {
+      number_of_shards:
+        env === Environment.Local || env === Environment.Development ? 1 : 1, // [TODO] Increase shards and replicas for production
+      number_of_replicas:
+        env === Environment.Local || env === Environment.Development ? 0 : 0,
+      analysis: {
+        analyzer: {
+          vietnamese_analyzer: {
+            type: "standard",
+            // [TODO] Tích hợp Vietnamese tokenizer sau
+            // Ví dụ: https://github.com/duydo/elasticsearch-analysis-vietnamese
           },
         },
       },
-      description: {
-        type: "text",
-        analyzer: "vietnamese_analyzer",
-      },
-      organizationId: {
-        type: "keyword",
-      },
-      organizationName: {
-        type: "keyword",
-      },
-      skillIds: {
-        type: "keyword",
-      },
-      skillNames: {
-        type: "keyword",
-      },
-      categoryId: {
-        type: "keyword",
-      },
-      categoryName: {
-        type: "keyword",
-      },
-      provinceIds: {
-        type: "keyword",
-      },
-      provinceNames: {
-        type: "keyword",
-      },
-      salaryMin: {
-        type: "float",
-      },
-      salaryMax: {
-        type: "float",
-      },
-      experienceMin: {
-        type: "integer",
-      },
-      experienceMax: {
-        type: "integer",
-      },
-      workType: {
-        type: "keyword",
-      },
-      status: {
-        type: "keyword",
-      },
-      endDate: {
-        type: "date",
-      },
-      datePosted: {
-        type: "date",
-      },
-      createdAt: {
-        type: "date",
-      },
-      updatedAt: {
-        type: "date",
-      },
-      // Computed fields for scoring
-      salaryAvg: {
-        type: "float",
-      },
-      // Boost factor (can be updated based on job popularity, etc.)
-      boost: {
-        type: "float",
+    },
+    mappings: {
+      properties: {
+        id: {
+          type: "keyword",
+        },
+        title: {
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+            },
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
+        },
+        description: {
+          type: "text",
+          analyzer: "vietnamese_analyzer",
+        },
+        organizationId: {
+          type: "keyword",
+        },
+        organizationName: {
+          type: "keyword",
+        },
+        skillIds: {
+          type: "keyword",
+        },
+        skillNames: {
+          type: "keyword",
+        },
+        categoryId: {
+          type: "keyword",
+        },
+        categoryName: {
+          type: "keyword",
+        },
+        provinceIds: {
+          type: "keyword",
+        },
+        provinceNames: {
+          type: "keyword",
+        },
+        salaryMin: {
+          type: "float",
+        },
+        salaryMax: {
+          type: "float",
+        },
+        experienceMin: {
+          type: "integer",
+        },
+        experienceMax: {
+          type: "integer",
+        },
+        workType: {
+          type: "keyword",
+        },
+        status: {
+          type: "keyword",
+        },
+        endDate: {
+          type: "date",
+        },
+        datePosted: {
+          type: "date",
+        },
+        createdAt: {
+          type: "date",
+        },
+        updatedAt: {
+          type: "date",
+        },
+        // Computed fields for scoring
+        salaryAvg: {
+          type: "float",
+        },
+        // Boost factor (can be updated based on job popularity, etc.)
+        boost: {
+          type: "float",
+        },
       },
     },
-  },
-};
+  };
+}
 
 export function transformJobToDocument({
   job,

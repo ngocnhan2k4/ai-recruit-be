@@ -1,5 +1,6 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JobFilters } from "@/core/entities/job.entity";
-import { JOB_INDEX_NAME } from "../indices/job.index";
 
 export interface UserProfile {
   userId: string;
@@ -10,11 +11,21 @@ export interface UserProfile {
   expectedSalary?: number;
 }
 
+@Injectable()
 export class JobMatchingQuery {
+  private readonly logger = new Logger(JobMatchingQuery.name);
+
+  constructor(private readonly configService: ConfigService) {}
   /**
    * Build Elasticsearch query for job matching với user profile
+   * @param indexName - Elasticsearch index name
+   * @param userProfile - User profile for matching
+   * @param filters - Additional filters
    */
-  static buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
+  buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
+    this.logger.debug(
+      `Building match query for user ${userProfile.userId} with ${userProfile.skillIds.length} skills`,
+    );
     const {
       skillIds = [],
       experienceYears = 0,
@@ -23,7 +34,7 @@ export class JobMatchingQuery {
     } = userProfile;
 
     const {
-      page = 1,
+      cursor,
       limit = 20,
       status = "active",
       workType,
@@ -33,13 +44,40 @@ export class JobMatchingQuery {
       salaryMax,
     } = filters;
 
+    // Decode cursor if provided
+    let searchAfter: any[] | undefined;
+    if (cursor) {
+      try {
+        searchAfter = JSON.parse(Buffer.from(cursor, "base64").toString());
+      } catch (_e) {
+        this.logger.warn(`Invalid cursor: ${cursor}`);
+      }
+    }
+
     const mustQueries: any[] = [
       { term: { status } },
+      // endDate >= now OR endDate is null (jobs without end date are always valid)
       {
-        range: {
-          endDate: {
-            gte: "now/d",
-          },
+        bool: {
+          should: [
+            {
+              range: {
+                endDate: {
+                  gte: "now/d",
+                },
+              },
+            },
+            {
+              bool: {
+                must_not: {
+                  exists: {
+                    field: "endDate",
+                  },
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
         },
       },
     ];
@@ -98,7 +136,7 @@ export class JobMatchingQuery {
 
     // Function Score Query với custom scoring
     return {
-      index: JOB_INDEX_NAME,
+      index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
       body: {
         query: {
           function_score: {
@@ -106,7 +144,7 @@ export class JobMatchingQuery {
               bool: {
                 must: mustQueries,
                 should: shouldQueries,
-                minimum_should_match: shouldQueries.length > 0 ? 1 : 0,
+                minimum_should_match: shouldQueries.length > 0 ? 0 : 0,
               },
             },
             functions: [
@@ -163,18 +201,37 @@ export class JobMatchingQuery {
                 script_score: {
                   script: {
                     source: `
-                      int expMin = doc['experienceMin'].size() > 0 ? doc['experienceMin'].value : 0;
-                      int expMax = doc['experienceMax'].size() > 0 ? doc['experienceMax'].value : 999;
-                      int userExp = params.userExperienceYears;
-                      
-                      if (userExp >= expMax) {
-                        return 100; // Overqualified - still good match
-                      } else if (userExp >= expMin) {
-                        return 80; // Perfect match
-                      } else if (userExp >= expMin * 0.7) {
-                        return 50; // Close match
-                      } else {
-                        return 20; // Underqualified
+                      try {
+                        int expMin = 0;
+                        int expMax = 999;
+                        
+                        if (doc['experienceMin'].size() > 0) {
+                          def val = doc['experienceMin'].value;
+                          if (val != null) expMin = (int) val;
+                        }
+                        
+                        if (doc['experienceMax'].size() > 0) {
+                          def val = doc['experienceMax'].value;
+                          if (val != null) expMax = (int) val;
+                        }
+                        
+                        int userExp = params.userExperienceYears;
+                        
+                        if (expMin == 0 && expMax == 999) {
+                          return 50;
+                        }
+                        
+                        if (userExp >= expMax) {
+                          return 100;
+                        } else if (userExp >= expMin) {
+                          return 80;
+                        } else if (expMin > 0 && userExp >= expMin * 0.7) {
+                          return 50;
+                        } else {
+                          return 20;
+                        }
+                      } catch (Exception e) {
+                        return 0;
                       }
                     `,
                     params: {
@@ -188,7 +245,7 @@ export class JobMatchingQuery {
                 ? [
                     {
                       filter: {
-                        term: {
+                        terms: {
                           provinceIds: userProvinceIds,
                         },
                       },
@@ -219,19 +276,32 @@ export class JobMatchingQuery {
                       script_score: {
                         script: {
                           source: `
-                            if (doc['salaryAvg'].size() == 0) {
-                              return 50; // No salary info - neutral score
-                            }
-                            
-                            double jobSalary = doc['salaryAvg'].value;
-                            double userExpected = params.userExpectedSalary;
-                            
-                            if (userExpected <= jobSalary * 1.2) {
-                              return 100; // Within 20% - perfect
-                            } else if (userExpected <= jobSalary * 1.5) {
-                              return 70; // Within 50% - acceptable
-                            } else {
-                              return 30; // Too high
+                            try {
+                              if (doc['salaryAvg'].size() == 0) {
+                                return 50;
+                              }
+                              
+                              def val = doc['salaryAvg'].value;
+                              if (val == null) {
+                                return 50;
+                              }
+                              
+                              double jobSalary = (double) val;
+                              double userExpected = params.userExpectedSalary;
+                              
+                              if (jobSalary == 0) {
+                                return 50;
+                              }
+                              
+                              if (userExpected <= jobSalary * 1.2) {
+                                return 100;
+                              } else if (userExpected <= jobSalary * 1.5) {
+                                return 70;
+                              } else {
+                                return 30;
+                              }
+                            } catch (Exception e) {
+                              return 0;
                             }
                           `,
                           params: {
@@ -254,13 +324,13 @@ export class JobMatchingQuery {
             },
           },
           {
-            datePosted: {
+            createdAt: {
               order: "desc",
             },
           },
         ],
-        size: limit,
-        from: (page - 1) * limit,
+        size: limit + 1,
+        ...(searchAfter && { search_after: searchAfter }),
         _source: {
           includes: [
             "id",
@@ -288,8 +358,16 @@ export class JobMatchingQuery {
 
   /**
    * Build simple search query (không có user profile)
+   * @param indexName - Elasticsearch index name
+   * @param searchTerm - Search term
+   * @param filters - Additional filters
    */
-  static buildSearchQuery(searchTerm: string, filters: JobFilters): any {
+  buildSearchQuery(
+    indexName: string,
+    searchTerm: string,
+    filters: JobFilters,
+  ): any {
+    this.logger.debug(`Building search query with term: "${searchTerm}"`);
     const {
       page = 1,
       limit = 20,
@@ -354,7 +432,7 @@ export class JobMatchingQuery {
     }
 
     return {
-      index: JOB_INDEX_NAME,
+      index: indexName,
       body: {
         query: {
           bool: {

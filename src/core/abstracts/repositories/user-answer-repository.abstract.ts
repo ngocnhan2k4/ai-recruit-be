@@ -9,4 +9,10 @@ export abstract class IUserAnswerRepository extends IGenericRepository<UserAnswe
   ): Promise<UserAnswer[]>;
 
   abstract getTestAnswers(userTestId: string): Promise<UserAnswer[]>;
+
+  abstract upsertAnswers(
+    userTestId: string,
+    answers: Array<{ questionId: string; chosenAnswer: string }>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<UserAnswer[]>;
 }

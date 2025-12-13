@@ -5,6 +5,7 @@ export * from "./user/admin-user.controller";
 // job controllers
 export * from "./job/job.controller";
 export * from "./job-sync/admin-job-sync.controller";
+export * from "./job-matching/job-matching.controller";
 export * from "./auth/auth.controller";
 
 // upload controllers

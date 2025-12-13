@@ -7,7 +7,7 @@ export type SortDirection = "asc" | "desc";
 
 export class GeneralQueryDto {
   @ApiProperty({
-    example: 0,
+    example: 10,
     required: false,
     description: "Number of items to return",
     minimum: 1,
