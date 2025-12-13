@@ -28,35 +28,36 @@ export class JobIndexWorker {
     if (this.isProcessing) {
       return;
     }
-
-    const rawEvent = await this.messageQueueService.getNext(JOB_INDEX_QUEUE);
-    if (!rawEvent) {
+    // [TODO]: Because I thought there would be few actions to be taken with the job, I used batch = 1.
+    const rawEvents = await this.messageQueueService.popBatch(
+      JOB_INDEX_QUEUE,
+      1,
+    );
+    if (!rawEvents.length) {
       return;
     }
 
     this.isProcessing = true;
     try {
-      const event = JSON.parse(rawEvent) as JobIndexEvent;
-      await this.processEvent(event);
-      await this.messageQueueService.remove(rawEvent, JOB_INDEX_QUEUE);
+      const events = rawEvents.map(
+        (rawEvent) => JSON.parse(rawEvent) as JobIndexEvent,
+      );
+      await Promise.all(events.map((event) => this.processEvent(event)));
     } catch (error) {
       this.logger.error(
-        `[processQueue] Failed to process event ${rawEvent}: ${error.message}`,
+        `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
         error.stack,
       );
       await this.loggerService.logError({
         type: "error",
-        content: `[processQueue] Failed to process event ${rawEvent}: ${error.message}`,
+        content: `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
         note: error.stack,
       });
-      // Drop the event to avoid blocking
-      await this.messageQueueService.remove(rawEvent, JOB_INDEX_QUEUE);
     } finally {
       this.isProcessing = false;
     }
   }
 
-  // [TODO]: handle batch processing to improve performance
   private async processEvent(event: JobIndexEvent): Promise<void> {
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
