@@ -20,28 +20,17 @@ export class MessageQueueService implements IMessageQueueService {
     );
   }
 
-  async remove(item: string, queueKey?: string): Promise<void> {
-    await this.redisService.removeFromSortedSet(
-      this.getQueueKey(queueKey),
-      item,
-    );
-  }
-
-  async getNext(queueKey?: string): Promise<string | null> {
-    const key = this.getQueueKey(queueKey);
-    const [next] = await this.redisService.getRangeBySortedSetScore(
-      key,
-      Number.NEGATIVE_INFINITY,
-      Number.POSITIVE_INFINITY,
-      1,
-    );
-    return next ?? null;
-  }
-
   async size(queueKey?: string): Promise<number> {
     return this.redisService.getSortedSetSize(this.getQueueKey(queueKey));
   }
   async clear(queueKey?: string): Promise<void> {
     await this.redisService.deleteMultipleKeys([this.getQueueKey(queueKey)]);
+  }
+
+  async popBatch(queueKey?: string, batchSize = 10): Promise<string[]> {
+    return this.redisService.popMinFromSortedSet(
+      this.getQueueKey(queueKey),
+      batchSize,
+    );
   }
 }

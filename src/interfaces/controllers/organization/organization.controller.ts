@@ -255,7 +255,7 @@ export class OrganizationController {
     );
   }
 
-  @Get("/all")
+  @Get("")
   @ApiOperation({
     summary: "Get all organizations",
     description: "Get all organizations (only basic information)",

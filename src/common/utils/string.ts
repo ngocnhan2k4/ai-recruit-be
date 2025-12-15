@@ -36,8 +36,6 @@ export const slugify = (text: string): string => {
 
 export const getJobStatus = (status: JobStatusEnum) => {
   switch (status) {
-    case JobStatusEnum.DRAFT:
-      return "bản nháp";
     case JobStatusEnum.ACTIVE:
       return "được duyệt";
     case JobStatusEnum.PAUSED:

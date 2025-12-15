@@ -994,7 +994,6 @@ export class JobRepository
       workType: job.workType,
       jobRawId: job.jobRawId,
       questions: job.questions,
-      status: job.status || "active",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1305,10 +1304,7 @@ export class JobRepository
             "provinces",
           ),
         organization: organizations,
-        skills:
-          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
-            "skills",
-          ),
+        skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         // If user is authenticated, check if job is saved or applied
         isSaved: userId
           ? sql`EXISTS (
@@ -1354,7 +1350,6 @@ export class JobRepository
       .leftJoin(jobProvinces, eq(jobs.id, jobProvinces.jobId))
       .leftJoin(provinces, eq(jobProvinces.provinceId, provinces.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, categories.id)
       .limit(1);
 
     if (!result || result.length === 0) {

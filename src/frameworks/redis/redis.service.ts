@@ -116,4 +116,15 @@ export class RedisService implements IRedisService, OnModuleDestroy {
       await this.redis.del(...keys);
     }
   }
+
+  async popMinFromSortedSet(key: string, count?: number): Promise<string[]> {
+    const result = await this.redis.zpopmin(key, count ?? 1);
+    const members: string[] = [];
+
+    for (let i = 0; i < result.length; i += 2) {
+      members.push(result[i]);
+    }
+
+    return members;
+  }
 }

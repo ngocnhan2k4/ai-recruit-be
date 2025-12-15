@@ -42,11 +42,6 @@ export class OrganizationInvitationController {
     @Param("organizationId") organizationId: string,
     @Body() data: CreateOrganizationInvitationDto,
   ): Promise<ApiResponse<void>> {
-    console.log("Invite member called with data:", {
-      inviterId: user.userId,
-      organizationId,
-      data,
-    });
     return await this.organizationInvitationUseCase.inviteMemberToOrganization(
       user.userId, // actorID
       organizationId, // organizationId
