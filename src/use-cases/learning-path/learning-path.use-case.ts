@@ -3,11 +3,13 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  MessageEvent,
 } from "@nestjs/common";
 import {
   ILearningRoadmapRepository,
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
+  IRoadmapSkillOptionRepository,
   IAIService,
 } from "@/core/abstracts";
 import { Inject } from "@nestjs/common";
@@ -22,9 +24,10 @@ import { RESPONSE_CODE } from "@/common/constants/response";
 import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
-  PreviewRoadmapResponse,
-  RoadmapSkill,
+  RoadmapSkillOption,
 } from "@/core";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
+import { Observable } from "rxjs";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -36,11 +39,10 @@ export class LearningPathUseCase {
     private readonly roadmapRepository: ILearningRoadmapRepository,
     private readonly phaseRepository: IRoadmapPhaseRepository,
     private readonly skillRepository: IRoadmapSkillRepository,
+    private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
   ) {}
 
-  async previewRoadmap(
-    request: PreviewRoadmapDto,
-  ): Promise<ApiResponse<PreviewRoadmapResponse>> {
+  previewRoadmap(request: PreviewRoadmapDto): Observable<MessageEvent> {
     this.logger.log(
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
@@ -48,18 +50,11 @@ export class LearningPathUseCase {
     const roadmapRequest = {
       currentRole: request.currentRole,
       targetRole: request.targetRole,
-      timelineWeeks: request.timelineWeeks,
       timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
       currentSkills: request.currentSkills,
     };
 
-    const preview = await this.aiService.generateRoadmap(roadmapRequest);
-
-    return {
-      data: preview,
-      message: "Roadmap preview generated successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
+    return this.aiService.generateRoadmap(roadmapRequest);
   }
 
   async saveRoadmap(
@@ -69,14 +64,6 @@ export class LearningPathUseCase {
     this.logger.log(`Saving roadmap for user ${userId}`);
 
     const preview = dto.previewData;
-
-    if (!preview) {
-      throw new BadRequestException({
-        message: "Preview data is required to save roadmap",
-        code: RESPONSE_CODE.BAD_REQUEST,
-      });
-    }
-
     const roadmap = await this.roadmapRepository.executeWithTransaction(
       async (tx) => {
         const newRoadmap = await this.roadmapRepository.create(
@@ -85,56 +72,101 @@ export class LearningPathUseCase {
             title: dto.title,
             currentRole: dto.currentRole,
             targetRole: dto.targetRole,
-            timelineWeeks: dto.timelineWeeks,
             timeCommitmentHoursPerWeek: dto.timeCommitmentHoursPerWeek,
             currentSkills: dto.currentSkills,
             totalWeeks: preview.totalWeeks,
             gapAnalysis: preview.gapAnalysis,
-            dependencyGraph: preview.dependencyGraph,
           },
           tx,
         );
 
-        await Promise.all(
-          preview.phases.map(async (phase) => {
-            const newPhase = await this.phaseRepository.create(
-              {
-                roadmapId: newRoadmap.id,
-                name: phase.name,
-                description: phase.description,
-                durationWeeks: phase.durationWeeks,
-                orderIndex: phase.orderIndex,
-              },
-              tx,
-            );
+        const skillIdMap = new Map<string, string>();
 
-            if (phase.skills?.length) {
-              // Flatten all skill options from all positions in this phase
-              const skillCreates: Partial<RoadmapSkill>[] = [];
+        for (const phase of preview.phases) {
+          const newPhase = await this.phaseRepository.create(
+            {
+              roadmapId: newRoadmap.id,
+              name: phase.name,
+              description: phase.description,
+              durationWeeks: phase.durationWeeks,
+              orderIndex: preview.phases.indexOf(phase),
+            },
+            tx,
+          );
 
-              for (const position of phase.skills) {
-                for (const option of position.options) {
-                  skillCreates.push({
-                    phaseId: newPhase.id,
-                    positionName: position.positionName,
-                    positionDescription: position.description,
-                    skillId: option.skillId,
-                    reason: option.reason,
-                    estimatedHours: option.estimatedHours,
-                    weekStart: position.weekStart,
-                    weekEnd: position.weekEnd,
-                    prerequisites: position.prerequisites,
-                    resources: option.resources,
-                    keyConcepts: option.keyConcepts,
-                    orderIndex: position.orderIndex,
-                  });
-                }
+          if (phase.skills?.length) {
+            for (const skillData of phase.skills) {
+              const newSkill = await this.skillRepository.create(
+                {
+                  phaseId: newPhase.id,
+                  skill: skillData.skill,
+                  description: skillData.description,
+                  weekStart: skillData.weekStart,
+                  weekEnd: skillData.weekEnd,
+                  orderIndex: skillData.orderIndex,
+                  prerequisites: [],
+                },
+                tx,
+              );
+
+              const aiSkillId = skillData.skillId;
+              if (aiSkillId) {
+                skillIdMap.set(aiSkillId as string, newSkill.id);
               }
 
-              await this.skillRepository.createManySkills(skillCreates, tx);
+              if (skillData.options?.length) {
+                const optionCreates = skillData.options.map(
+                  (option: {
+                    optionId: string;
+                    optionName: string;
+                    resources: any[];
+                    keyConcepts: string[];
+                  }) => ({
+                    roadmapSkillId: newSkill.id,
+                    optionId: option.optionId,
+                    optionName: option.optionName,
+                    resources: option.resources,
+                    keyConcepts: option.keyConcepts,
+                  }),
+                );
+
+                await this.skillOptionRepository.createManyOptions(
+                  optionCreates as RoadmapSkillOption[],
+                  tx,
+                );
+              }
             }
-          }),
-        );
+          }
+        }
+
+        for (const phase of preview.phases) {
+          if (phase.skills?.length) {
+            for (const skillData of phase.skills) {
+              const aiSkillId = skillData.skillId;
+              if (skillData.prerequisites?.length && aiSkillId) {
+                const dbSkillId = skillIdMap.get(aiSkillId as string);
+                if (dbSkillId) {
+                  // Map AI skillIds to database skillIds
+                  const mappedPrerequisites = skillData.prerequisites
+                    .map((prereqSkillId: string) =>
+                      skillIdMap.get(prereqSkillId),
+                    )
+                    .filter(
+                      (id: string | undefined): id is string =>
+                        id !== undefined,
+                    );
+
+                  // Update skill with mapped prerequisites
+                  await this.skillRepository.update(
+                    { id: dbSkillId },
+                    { prerequisites: mappedPrerequisites },
+                    tx,
+                  );
+                }
+              }
+            }
+          }
+        }
 
         return newRoadmap;
       },
@@ -167,62 +199,6 @@ export class LearningPathUseCase {
     };
   }
 
-  /**
-   * Transform flat skills array into grouped structure by position
-   */
-  private groupSkillsByPosition(skills: RoadmapSkill[]) {
-    const positionMap = new Map<
-      string,
-      {
-        positionName: string;
-        positionDescription: string;
-        weekStart: number;
-        weekEnd: number;
-        orderIndex: number;
-        prerequisites: string[];
-        options: Array<{
-          id: string;
-          skillId: string;
-          estimatedHours: number;
-          resources: any[];
-          keyConcepts: string[];
-          reason: string;
-          completedAt: Date | null;
-        }>;
-      }
-    >();
-
-    for (const skill of skills) {
-      const key = `${skill.phaseId}-${skill.positionName}`;
-
-      if (!positionMap.has(key)) {
-        positionMap.set(key, {
-          positionName: skill.positionName,
-          positionDescription: skill.positionDescription,
-          weekStart: skill.weekStart,
-          weekEnd: skill.weekEnd,
-          orderIndex: skill.orderIndex,
-          prerequisites: skill.prerequisites,
-          options: [],
-        });
-      }
-
-      positionMap.get(key)!.options.push({
-        id: skill.id,
-        skillId: skill.skillId,
-        estimatedHours: skill.estimatedHours,
-        resources: skill.resources,
-        keyConcepts: skill.keyConcepts,
-        reason: skill.reason,
-        completedAt: skill.completedAt,
-      });
-    }
-
-    return Array.from(positionMap.values()).sort(
-      (a, b) => a.orderIndex - b.orderIndex,
-    );
-  }
-
   async getRoadmapDetails(
     roadmapId: string,
     userId: string,
@@ -246,18 +222,8 @@ export class LearningPathUseCase {
       });
     }
 
-    // Transform phases to group skills by position
-    const transformedPhases = roadmap.phases.map((phase) => ({
-      ...phase,
-      positions: this.groupSkillsByPosition(phase.skills),
-      skills: phase.skills, // Keep original for backward compatibility
-    }));
-
     return {
-      data: {
-        ...roadmap,
-        phases: transformedPhases as any,
-      },
+      data: roadmap,
       message: "Roadmap details fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -288,11 +254,9 @@ export class LearningPathUseCase {
 
   async completeSkill(
     roadmapId: string,
-    skillId: string,
+    optionId: string,
     userId: string,
   ): Promise<ApiResponse<{ unlockedSkills: string[] }>> {
-    this.logger.log(`Completing skill ${skillId} in roadmap ${roadmapId}`);
-
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
@@ -301,47 +265,89 @@ export class LearningPathUseCase {
       });
     }
 
-    const allSkills =
-      await this.skillRepository.getSkillsByRoadmapId(roadmapId);
-    const skill = allSkills.find((s) => s.id === skillId);
+    // Find the option to complete
+    const roadmapDetails =
+      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
 
-    if (!skill) {
+    if (!roadmapDetails) {
       throw new NotFoundException({
-        message: "Skill not found in this roadmap",
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    let targetOption: any = null;
+    let targetSkill: any = null;
+    let targetPhaseId: string | null = null;
+
+    for (const phase of roadmapDetails.phases) {
+      for (const skill of phase.skills) {
+        const option = skill.options.find((opt) => opt.id === optionId);
+        if (option) {
+          targetOption = option;
+          targetSkill = skill;
+          targetPhaseId = phase.id;
+          break;
+        }
+      }
+      if (targetOption) break;
+    }
+
+    if (!targetOption || !targetSkill) {
+      throw new NotFoundException({
+        message: "Option not found in this roadmap",
         code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
       });
     }
 
-    if (skill.completedAt) {
+    if (targetOption.completedAt) {
       throw new BadRequestException({
-        message: "Skill is already completed",
+        message: "Option is already completed",
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
 
+    // Check prerequisites (prerequisites are skillIds)
     const prerequisitesCompleted =
-      await this.skillRepository.checkPrerequisitesCompleted(skillId);
+      await this.skillRepository.checkPrerequisitesCompleted(
+        targetSkill.id as string,
+      );
 
     if (!prerequisitesCompleted) {
       throw new BadRequestException({
-        message: "Cannot complete skill: prerequisites not met",
+        message: "Cannot complete option: prerequisites not met",
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
 
-    await this.skillRepository.executeWithTransaction(async (tx) => {
-      await this.skillRepository.markSkillCompleted(skillId, tx);
+    await this.skillOptionRepository.executeWithTransaction(async (tx) => {
+      // Mark the option as completed
+      await this.skillOptionRepository.markOptionCompleted(optionId, tx);
       await this.roadmapRepository.updateProgress(roadmapId);
 
-      const phaseSkills = await this.skillRepository.getSkillsByPhaseId(
-        skill.phaseId,
-      );
-      const allPhaseSkillsCompleted = phaseSkills.every(
-        (s) => s.id === skillId || s.completedAt !== null,
-      );
+      // Check if all skills in the phase are completed
+      if (targetPhaseId) {
+        const phaseSkills =
+          await this.skillRepository.getSkillsByPhaseId(targetPhaseId);
 
-      if (allPhaseSkillsCompleted) {
-        await this.phaseRepository.markPhaseCompleted(skill.phaseId, tx);
+        const phaseCompletionChecks = await Promise.all(
+          phaseSkills.map(async (skill) => {
+            const options =
+              await this.skillOptionRepository.getOptionsBySkillId(skill.id);
+            return options.some((opt) => opt.completedAt !== null);
+          }),
+        );
+
+        const allPhaseSkillsCompleted = phaseCompletionChecks.every(
+          (completed) => completed,
+        );
+
+        if (allPhaseSkillsCompleted) {
+          await this.phaseRepository.markPhaseCompleted(
+            targetPhaseId,
+            tx as DBDrizzleTransaction | undefined,
+          );
+        }
       }
     });
 
@@ -350,12 +356,12 @@ export class LearningPathUseCase {
     const unlockedSkillIds = unlockedSkills.map((s) => s.id);
 
     this.logger.log(
-      `Skill completed. Unlocked ${unlockedSkillIds.length} new skills`,
+      `Option completed. Unlocked ${unlockedSkillIds.length} new skills`,
     );
 
     return {
       data: { unlockedSkills: unlockedSkillIds },
-      message: "Skill completed successfully",
+      message: "Option completed successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -379,48 +385,6 @@ export class LearningPathUseCase {
     return {
       data: stats,
       message: "Progress stats fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
-
-  async getSelectedSkills(
-    roadmapId: string,
-    userId: string,
-  ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
-    this.logger.log(
-      `Fetching selected/completed skills for roadmap ${roadmapId}`,
-    );
-
-    const roadmap = await this.roadmapRepository.get(roadmapId);
-    if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException({
-        message: "Roadmap not found",
-        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
-      });
-    }
-
-    const fullRoadmap =
-      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
-
-    if (!fullRoadmap) {
-      throw new NotFoundException({
-        message: "Roadmap not found",
-        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
-      });
-    }
-
-    // Filter to only include completed skills (user has selected these)
-    const filteredPhases = fullRoadmap.phases.map((phase) => ({
-      ...phase,
-      skills: phase.skills.filter((skill) => skill.completedAt !== null),
-    }));
-
-    return {
-      data: {
-        ...fullRoadmap,
-        phases: filteredPhases as any,
-      },
-      message: "Selected skills fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

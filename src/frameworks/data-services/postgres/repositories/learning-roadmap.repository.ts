@@ -3,11 +3,18 @@ import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
   RoadmapProgressStats,
+  SkillLevel,
 } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { learningRoadmaps, roadmapPhases, roadmapSkills } from "../models";
+import {
+  learningRoadmaps,
+  roadmapPhases,
+  roadmapSkills,
+  roadmapSkillOptions,
+  skills,
+} from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
 
@@ -21,7 +28,7 @@ export class LearningRoadmapRepository
   }
 
   async getPaginatedRoadmaps(
-    query: GeneralQuery & { userId?: string },
+    query: GeneralQuery & { userId: string },
   ): Promise<PaginatedResult<LearningRoadmap>> {
     const whereConditions: SQL[] = [isNull(learningRoadmaps.deletedAt)];
 
@@ -45,13 +52,26 @@ export class LearningRoadmapRepository
     const hasNextPage = items.length > query.limit;
     const data = hasNextPage ? items.slice(0, query.limit) : items;
 
+    // Enrich currentSkills with skillName
+    const enrichedData = await Promise.all(
+      data.map(async (roadmap) => {
+        const enrichedCurrentSkills = await this.enrichCurrentSkills(
+          roadmap.currentSkills as SkillLevel[] | null,
+        );
+        return {
+          ...roadmap,
+          currentSkills: enrichedCurrentSkills,
+        };
+      }),
+    );
+
     const nextCursor =
       hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
     return {
-      data,
+      data: enrichedData,
       pagination: {
         nextCursor,
         hasNextPage,
@@ -101,15 +121,61 @@ export class LearningRoadmapRepository
           )
           .orderBy(roadmapSkills.orderIndex);
 
+        // Fetch options for each skill
+        const skillsWithOptions = await Promise.all(
+          phaseSkills.map(async (skill) => {
+            const options = await this.db
+              .select()
+              .from(roadmapSkillOptions)
+              .where(
+                and(
+                  eq(roadmapSkillOptions.roadmapSkillId, skill.id),
+                  isNull(roadmapSkillOptions.deletedAt),
+                ),
+              );
+
+            // Enrich each option with optionName and proficiencyLevels from skills table
+            const enrichedOptions = await Promise.all(
+              options.map(async (option) => {
+                const skillResult = await this.db
+                  .select({
+                    name: skills.name,
+                    proficiencyLevels: skills.proficiencyLevels,
+                  })
+                  .from(skills)
+                  .where(eq(skills.id, option.optionId))
+                  .limit(1);
+
+                return {
+                  ...option,
+                  optionName: skillResult[0]?.name || "",
+                  proficiencyLevels: skillResult[0]?.proficiencyLevels || null,
+                };
+              }),
+            );
+
+            return {
+              ...skill,
+              options: enrichedOptions,
+            };
+          }),
+        );
+
         return {
           ...phase,
-          skills: phaseSkills,
+          skills: skillsWithOptions,
         };
       }),
     );
 
+    // Enrich currentSkills with skillName
+    const enrichedCurrentSkills = await this.enrichCurrentSkills(
+      roadmap[0].currentSkills as SkillLevel[] | null,
+    );
+
     return {
       ...roadmap[0],
+      currentSkills: enrichedCurrentSkills,
       phases: phasesWithSkills,
     };
   }
@@ -139,35 +205,31 @@ export class LearningRoadmapRepository
         ),
       );
 
-    // Group skills by position (phaseId + positionName) to count unique positions
-    const positionMap = new Map<
-      string,
-      { hasCompleted: boolean; skills: any[] }
-    >();
+    const totalSkills = allSkills.length;
 
-    for (const skillRow of allSkills) {
-      const skill = skillRow.roadmap_skills;
-      const key = `${skill.phaseId}-${skill.positionName}`;
+    // For each skill, check if any option has been completed
+    const completedSkillsCount = await Promise.all(
+      allSkills.map(async (skillRow) => {
+        const skill = skillRow.roadmap_skills;
+        const completedOptions = await this.db
+          .select()
+          .from(roadmapSkillOptions)
+          .where(
+            and(
+              eq(roadmapSkillOptions.roadmapSkillId, skill.id),
+              isNull(roadmapSkillOptions.deletedAt),
+            ),
+          );
 
-      if (!positionMap.has(key)) {
-        positionMap.set(key, { hasCompleted: false, skills: [] });
-      }
+        // Skill is completed if any option is completed
+        return completedOptions.some((opt) => opt.completedAt !== null) ? 1 : 0;
+      }),
+    );
 
-      positionMap.get(key)!.skills.push(skill);
-
-      // If any option in this position is completed, mark position as completed
-      if (skill.completedAt !== null) {
-        positionMap.get(key)!.hasCompleted = true;
-      }
-    }
-
-    const totalPositions = positionMap.size;
-    const completedPositions = Array.from(positionMap.values()).filter(
-      (p) => p.hasCompleted,
-    ).length;
+    const completedSkills = completedSkillsCount.reduce((a, b) => a + b, 0);
 
     const overallProgress =
-      totalPositions > 0 ? (completedPositions / totalPositions) * 100 : 0;
+      totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;
 
     // Get roadmap to calculate estimated completion
     const roadmap = await this.db
@@ -187,8 +249,8 @@ export class LearningRoadmapRepository
     }
 
     return {
-      totalSkills: totalPositions,
-      completedSkills: completedPositions,
+      totalSkills,
+      completedSkills,
       totalPhases,
       completedPhases,
       overallProgress: Math.round(overallProgress * 100) / 100,
@@ -207,5 +269,30 @@ export class LearningRoadmapRepository
         ...(stats.overallProgress === 100 && { completedAt: new Date() }),
       })
       .where(eq(learningRoadmaps.id, roadmapId));
+  }
+
+  private async enrichCurrentSkills(
+    currentSkills: SkillLevel[] | null,
+  ): Promise<SkillLevel[]> {
+    if (!currentSkills || currentSkills.length === 0) {
+      return [];
+    }
+
+    const enriched = await Promise.all(
+      currentSkills.map(async (cs) => {
+        const skillResult = await this.db
+          .select({ name: skills.name })
+          .from(skills)
+          .where(eq(skills.id, cs.skillId))
+          .limit(1);
+
+        return {
+          ...cs,
+          skillName: skillResult[0]?.name || "",
+        };
+      }),
+    );
+
+    return enriched;
   }
 }

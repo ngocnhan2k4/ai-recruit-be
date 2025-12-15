@@ -3,6 +3,7 @@ import {
   learningRoadmaps,
   roadmapPhases,
   roadmapSkills,
+  roadmapSkillOptions,
 } from "@/frameworks/data-services/postgres/models";
 import {
   SkillLevelEnum,
@@ -19,9 +20,33 @@ export type RoadmapPhase = InferSelectModel<typeof roadmapPhases>;
 export type NewRoadmapSkill = InferInsertModel<typeof roadmapSkills>;
 export type RoadmapSkill = InferSelectModel<typeof roadmapSkills>;
 
+export type NewRoadmapSkillOption = InferInsertModel<
+  typeof roadmapSkillOptions
+>;
+export type RoadmapSkillOption = InferSelectModel<typeof roadmapSkillOptions>;
+
+export interface RoadmapSkillOptionWithName extends RoadmapSkillOption {
+  optionName: string;
+  proficiencyLevels: {
+    beginner?: {
+      summary: string;
+      criteria: string[];
+    };
+    intermediate?: {
+      summary: string;
+      criteria: string[];
+    };
+    advanced?: {
+      summary: string;
+      criteria: string[];
+    };
+  } | null;
+}
+
 export interface SkillLevel {
   skillId: string;
   level: SkillLevelEnum;
+  skillName?: string;
 }
 
 export interface Resource {
@@ -29,11 +54,6 @@ export interface Resource {
   type: ResourceTypeEnum;
   url?: string;
   isFree: boolean;
-}
-
-export interface DependencyGraph {
-  nodes: Array<{ id: string; label: string }>;
-  edges: Array<{ from: string; to: string }>;
 }
 
 export interface GapAnalysis {
@@ -45,28 +65,26 @@ export interface GapAnalysis {
 export interface RoadmapGenerateRequest {
   currentRole?: string;
   targetRole: string;
-  timelineWeeks: number;
   timeCommitmentHoursPerWeek: number;
   currentSkills?: SkillLevel[];
 }
 
 export interface SkillOption {
-  skillId: string;
-  skillName: string;
-  estimatedHours: number;
+  optionId: string;
+  optionName: string;
   resources: Resource[];
   keyConcepts: string[];
-  reason: string;
 }
 
-export interface RoadmapPosition {
-  positionName: string;
+export interface RoadmapSkillData {
+  skillId?: string;
+  skill: string;
   description: string;
   weekStart: number;
   weekEnd: number;
   orderIndex: number;
-  options: SkillOption[];
   prerequisites: string[];
+  options: SkillOption[];
 }
 
 export interface PreviewRoadmapResponse {
@@ -78,14 +96,26 @@ export interface PreviewRoadmapResponse {
     name: string;
     description: string;
     durationWeeks: number;
-    orderIndex: number;
-    skills: RoadmapPosition[];
+    skills: RoadmapSkillData[];
   }>;
-  dependencyGraph: DependencyGraph;
+}
+
+export interface LearningRoadmapWithEnrichedSkills
+  extends Omit<LearningRoadmap, "currentSkills"> {
+  currentSkills: SkillLevel[];
 }
 
 export interface LearningRoadmapWithDetails extends LearningRoadmap {
-  phases: Array<RoadmapPhase & { skills: RoadmapSkill[] }>;
+  phases: Array<
+    RoadmapPhase & {
+      skills: Array<RoadmapSkill & { options: RoadmapSkillOptionWithName[] }>;
+    }
+  >;
+}
+
+export interface LearningRoadmapWithDetailsEnriched
+  extends Omit<LearningRoadmapWithDetails, "currentSkills"> {
+  currentSkills: SkillLevel[];
 }
 
 export interface RoadmapProgressStats {

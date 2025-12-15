@@ -8,7 +8,7 @@ import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 
 export abstract class ILearningRoadmapRepository extends IGenericRepository<LearningRoadmap> {
   abstract getPaginatedRoadmaps(
-    query: GeneralQuery & { userId?: string },
+    query: GeneralQuery & { userId: string },
   ): Promise<PaginatedResult<LearningRoadmap>>;
 
   abstract getRoadmapWithDetails(

@@ -1,9 +1,9 @@
 import { IRoadmapSkillRepository, RoadmapSkill } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
-import { type DBDrizzle, DBDrizzleTransaction } from "../types";
-import { roadmapSkills, roadmapPhases } from "../models";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { type DBDrizzle } from "../types";
+import { roadmapSkills, roadmapPhases, roadmapSkillOptions } from "../models";
+import { eq, and, isNull } from "drizzle-orm";
 
 @Injectable()
 export class RoadmapSkillRepository
@@ -29,25 +29,7 @@ export class RoadmapSkillRepository
 
   async getSkillsByRoadmapId(roadmapId: string): Promise<RoadmapSkill[]> {
     return await this.db
-      .select({
-        id: roadmapSkills.id,
-        phaseId: roadmapSkills.phaseId,
-        positionName: roadmapSkills.positionName,
-        positionDescription: roadmapSkills.positionDescription,
-        skillId: roadmapSkills.skillId,
-        reason: roadmapSkills.reason,
-        estimatedHours: roadmapSkills.estimatedHours,
-        weekStart: roadmapSkills.weekStart,
-        weekEnd: roadmapSkills.weekEnd,
-        prerequisites: roadmapSkills.prerequisites,
-        resources: roadmapSkills.resources,
-        keyConcepts: roadmapSkills.keyConcepts,
-        completedAt: roadmapSkills.completedAt,
-        orderIndex: roadmapSkills.orderIndex,
-        createdAt: roadmapSkills.createdAt,
-        updatedAt: roadmapSkills.updatedAt,
-        deletedAt: roadmapSkills.deletedAt,
-      })
+      .select()
       .from(roadmapSkills)
       .innerJoin(roadmapPhases, eq(roadmapSkills.phaseId, roadmapPhases.id))
       .where(
@@ -56,36 +38,8 @@ export class RoadmapSkillRepository
           isNull(roadmapSkills.deletedAt),
         ),
       )
-      .orderBy(roadmapPhases.orderIndex, roadmapSkills.orderIndex);
-  }
-
-  async createSkills(skills: Partial<RoadmapSkill>[]): Promise<RoadmapSkill[]> {
-    const dbInstance = this.db;
-
-    const result = await dbInstance
-      .insert(roadmapSkills)
-      .values(skills as any)
-      .returning();
-
-    return result;
-  }
-
-  async markSkillCompleted(
-    skillId: string,
-    tx?: DBDrizzleTransaction,
-  ): Promise<RoadmapSkill> {
-    const dbInstance = tx ?? this.db;
-
-    const result = await dbInstance
-      .update(roadmapSkills)
-      .set({
-        completedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(roadmapSkills.id, skillId))
-      .returning();
-
-    return result[0];
+      .orderBy(roadmapPhases.orderIndex, roadmapSkills.orderIndex)
+      .then((rows) => rows.map((row) => row.roadmap_skills));
   }
 
   async getUnlockedSkills(roadmapId: string): Promise<RoadmapSkill[]> {
@@ -94,7 +48,22 @@ export class RoadmapSkillRepository
     const unlockedSkills: RoadmapSkill[] = [];
 
     for (const skill of allSkills) {
-      if (skill.completedAt) continue; // Skip already completed
+      // Check if this skill has any completed option
+      const completedOptions = await this.db
+        .select()
+        .from(roadmapSkillOptions)
+        .where(
+          and(
+            eq(roadmapSkillOptions.roadmapSkillId, skill.id),
+            isNull(roadmapSkillOptions.deletedAt),
+          ),
+        );
+
+      const isSkillCompleted = completedOptions.some(
+        (opt) => opt.completedAt !== null,
+      );
+
+      if (isSkillCompleted) continue; // Skip already completed
 
       const prerequisites = skill.prerequisites;
       if (!prerequisites || prerequisites.length === 0) {
@@ -102,19 +71,24 @@ export class RoadmapSkillRepository
         continue;
       }
 
-      // Check if all prerequisites are completed
-      const prerequisiteSkills = allSkills.filter((s) =>
-        prerequisites.includes(s.id),
+      // Check if all prerequisite skills are completed (each prerequisite skill has at least one completed option)
+      const prerequisiteSkillsCompleted = await Promise.all(
+        prerequisites.map(async (prereqSkillId) => {
+          const options = await this.db
+            .select()
+            .from(roadmapSkillOptions)
+            .where(
+              and(
+                eq(roadmapSkillOptions.roadmapSkillId, prereqSkillId),
+                isNull(roadmapSkillOptions.deletedAt),
+              ),
+            );
+          return options.some((opt) => opt.completedAt !== null);
+        }),
       );
 
-      if (prerequisiteSkills.length === prerequisites.length) {
-        const allPrerequisitesCompleted = prerequisiteSkills.every(
-          (p) => p.completedAt !== null,
-        );
-
-        if (allPrerequisitesCompleted) {
-          unlockedSkills.push(skill);
-        }
+      if (prerequisiteSkillsCompleted.every((completed) => completed)) {
+        unlockedSkills.push(skill);
       }
     }
 
@@ -133,25 +107,21 @@ export class RoadmapSkillRepository
     const prerequisites = skill[0].prerequisites;
     if (!prerequisites || prerequisites.length === 0) return true;
 
-    const prerequisiteSkills = await this.db
-      .select()
-      .from(roadmapSkills)
-      .where(inArray(roadmapSkills.id, prerequisites));
+    const prerequisiteChecks = await Promise.all(
+      prerequisites.map(async (prereqSkillId) => {
+        const options = await this.db
+          .select()
+          .from(roadmapSkillOptions)
+          .where(
+            and(
+              eq(roadmapSkillOptions.roadmapSkillId, prereqSkillId),
+              isNull(roadmapSkillOptions.deletedAt),
+            ),
+          );
+        return options.some((opt) => opt.completedAt !== null);
+      }),
+    );
 
-    return prerequisiteSkills.every((p) => p.completedAt !== null);
-  }
-
-  async createManySkills(
-    skills: Partial<RoadmapSkill>[],
-    tx?: DBDrizzleTransaction,
-  ): Promise<RoadmapSkill[]> {
-    const dbInstance = tx ?? this.db;
-
-    const result = await dbInstance
-      .insert(roadmapSkills)
-      .values(skills as RoadmapSkill[])
-      .returning();
-
-    return result;
+    return prerequisiteChecks.every((completed) => completed);
   }
 }

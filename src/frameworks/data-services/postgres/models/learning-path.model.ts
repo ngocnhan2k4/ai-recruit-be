@@ -10,7 +10,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import { users } from "./user.model";
-import { skills } from "./skill.model";
 import { relations } from "drizzle-orm";
 import { GapDifficultyEnum, ResourceTypeEnum, SkillLevelEnum } from "@/core";
 
@@ -23,7 +22,6 @@ export const learningRoadmaps = pgTable("learning_roadmaps", {
   title: varchar("title", { length: 500 }).notNull(),
   currentRole: varchar("current_role", { length: 255 }),
   targetRole: varchar("target_role", { length: 255 }).notNull(),
-  timelineWeeks: integer("timeline_weeks").notNull(),
   timeCommitmentHoursPerWeek: integer(
     "time_commitment_hours_per_week",
   ).notNull(),
@@ -42,19 +40,13 @@ export const learningRoadmaps = pgTable("learning_roadmaps", {
       estimatedDifficulty: GapDifficultyEnum;
     }>()
     .notNull(),
-  dependencyGraph: jsonb("dependency_graph")
-    .$type<{
-      nodes: Array<{ id: string; label: string }>;
-      edges: Array<{ from: string; to: string }>;
-    }>()
-    .notNull(),
 
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 
   overallProgress: decimal("overall_progress", { precision: 5, scale: 2 })
     .notNull()
-    .default("0"), // Percentage 0 - 100
+    .default("0"),
   ...timestamps,
 });
 
@@ -80,19 +72,25 @@ export const roadmapSkills = pgTable("roadmap_skills", {
     .notNull()
     .references(() => roadmapPhases.id, { onDelete: "cascade" }),
 
-  positionName: varchar("position_name", { length: 500 }).notNull(),
-  positionDescription: text("position_description").notNull(),
+  skill: varchar("skill", { length: 500 }).notNull(),
+  description: text("description").notNull(),
 
-  skillId: uuid("skill_id")
-    .notNull()
-    .references(() => skills.id),
-  reason: text("reason").notNull(),
-
-  estimatedHours: integer("estimated_hours").notNull(),
   weekStart: integer("week_start").notNull(),
   weekEnd: integer("week_end").notNull(),
+  orderIndex: integer("order_index").notNull(),
 
-  prerequisites: jsonb("prerequisites").$type<string[]>().notNull().default([]), // Array of skills IDs
+  prerequisites: jsonb("prerequisites").$type<string[]>().notNull().default([]),
+
+  ...timestamps,
+});
+
+export const roadmapSkillOptions = pgTable("roadmap_skill_options", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  roadmapSkillId: uuid("roadmap_skill_id")
+    .notNull()
+    .references(() => roadmapSkills.id, { onDelete: "cascade" }),
+
+  optionId: varchar("option_id", { length: 255 }).notNull(),
   resources: jsonb("resources")
     .$type<
       Array<{
@@ -105,9 +103,7 @@ export const roadmapSkills = pgTable("roadmap_skills", {
     .notNull()
     .default([]),
   keyConcepts: jsonb("key_concepts").$type<string[]>().notNull().default([]),
-
   completedAt: timestamp("completed_at"),
-  orderIndex: integer("order_index").notNull(),
 
   ...timestamps,
 });
@@ -134,13 +130,23 @@ export const roadmapPhasesRelations = relations(
   }),
 );
 
-export const roadmapSkillsRelations = relations(roadmapSkills, ({ one }) => ({
-  phase: one(roadmapPhases, {
-    fields: [roadmapSkills.phaseId],
-    references: [roadmapPhases.id],
+export const roadmapSkillsRelations = relations(
+  roadmapSkills,
+  ({ one, many }) => ({
+    phase: one(roadmapPhases, {
+      fields: [roadmapSkills.phaseId],
+      references: [roadmapPhases.id],
+    }),
+    options: many(roadmapSkillOptions),
   }),
-  skill: one(skills, {
-    fields: [roadmapSkills.skillId],
-    references: [skills.id],
+);
+
+export const roadmapSkillOptionsRelations = relations(
+  roadmapSkillOptions,
+  ({ one }) => ({
+    roadmapSkill: one(roadmapSkills, {
+      fields: [roadmapSkillOptions.roadmapSkillId],
+      references: [roadmapSkills.id],
+    }),
   }),
-}));
+);
