@@ -4,6 +4,7 @@ from helpers.text import (
     slugify,
     clean_whitespace,
     remove_html_tags,
+    normalize_text,
 )
 
 # Date utilities
@@ -61,6 +62,7 @@ __all__ = [
     "slugify",
     "clean_whitespace",
     "remove_html_tags",
+    "normalize_text",
     
     # Date
     "parse_posted_date",

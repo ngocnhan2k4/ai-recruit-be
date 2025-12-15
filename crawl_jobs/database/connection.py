@@ -154,16 +154,122 @@ def _get_or_create_job_raw(cur, title, jdata, company_raw_id):
     return cur.fetchone()[0]
 
 
-def _insert_job(cur, title, jdata, organization_id, job_raw_id, category_id=None):
-    """Insert a job into the jobs table.
+def _find_existing_job(cur, title, organization_id, job_url=None):
+    """Find an existing job by title+organization or job URL.
     
-    Note: Province linking is done separately via job_provinces junction table.
+    Returns:
+        tuple: (job_id, match_type) or (None, None) if not found
     """
-    cur.execute("SELECT id FROM jobs WHERE title = %s AND organization_id = %s", (title, organization_id))
-    if cur.fetchone():
-        print(f"Job '{title}' already exists for organization '{organization_id}', skipping.")
-        return None
+    # First try to match by job URL (most accurate)
+    if job_url:
+        cur.execute("""
+            SELECT j.id FROM jobs j
+            JOIN job_raws jr ON j.job_raw_id = jr.id
+            WHERE jr.url = %s LIMIT 1
+        """, (job_url,))
+        row = cur.fetchone()
+        if row:
+            return row[0], "url"
+    
+    # Fallback: match by title + organization
+    cur.execute("SELECT id FROM jobs WHERE title = %s AND organization_id = %s LIMIT 1", 
+                (title, organization_id))
+    row = cur.fetchone()
+    if row:
+        return row[0], "title_org"
+    
+    return None, None
 
+
+def _update_job(cur, job_id, jdata, province_ids, category_id=None):
+    """Update an existing job with new crawled data.
+    
+    Updates description, salary, experience, and re-links provinces and skills.
+    """
+    # Update job fields
+    cur.execute(
+        """
+        UPDATE jobs SET
+            description = %s,
+            salary_min = COALESCE(%s, salary_min),
+            salary_max = COALESCE(%s, salary_max),
+            experience_min = COALESCE(%s, experience_min),
+            experience_max = COALESCE(%s, experience_max),
+            category_id = COALESCE(%s, category_id),
+            updated_at = NOW()
+        WHERE id = %s
+        """,
+        (
+            Json(jdata.get("description")),
+            jdata.get("salary_min"),
+            jdata.get("salary_max"),
+            jdata.get("experience_min"),
+            jdata.get("experience_max"),
+            category_id,
+            job_id
+        )
+    )
+    
+    # Re-link provinces (clear existing and add new)
+    if province_ids:
+        cur.execute("DELETE FROM job_provinces WHERE job_id = %s", (job_id,))
+        for province_id in province_ids:
+            if province_id:
+                cur.execute(
+                    "INSERT INTO job_provinces (job_id, province_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (job_id, province_id)
+                )
+    
+    # Re-link skills (clear existing and add new from jdata)
+    skills = jdata.get("skills", [])
+    if skills:
+        cur.execute("DELETE FROM job_skills WHERE job_id = %s", (job_id,))
+        for skill_name in skills:
+            skill_id = _get_or_create_skill(cur, skill_name)
+            cur.execute(
+                "INSERT INTO job_skills (job_id, skill_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (job_id, skill_id)
+            )
+    
+    return True
+
+
+def _insert_job(cur, title, jdata, organization_id, job_raw_id, category_id=None, update_mode=False):
+    """Insert a job into the jobs table or update if exists (based on mode).
+    
+    Args:
+        cur: Database cursor
+        title: Job title
+        jdata: Job data dictionary
+        organization_id: Organization UUID
+        job_raw_id: Job raw ID
+        category_id: Category UUID (optional)
+        update_mode: If True, update existing jobs instead of skipping
+        
+    Returns:
+        tuple: (job_id, action) where action is 'inserted', 'updated', or 'skipped'
+    """
+    job_url = jdata.get("job_url")
+    existing_id, match_type = _find_existing_job(cur, title, organization_id, job_url)
+    
+    if existing_id:
+        if update_mode:
+            # Get province IDs for update
+            province_ids = []
+            if jdata.get("locations"):
+                for province_name in jdata.get("locations", []):
+                    province_id = _get_or_create_province(cur, province_name)
+                    if province_id:
+                        province_ids.append(province_id)
+            
+            _update_job(cur, existing_id, jdata, province_ids, category_id)
+            print(f"  ↻ Updated '{title}' (matched by {match_type})")
+            return existing_id, "updated"
+        else:
+            print(f"  ⊘ Skipped '{title}' (already exists)")
+            return None, "skipped"
+
+    # Insert new job
     cur.execute(
         """
         INSERT INTO jobs
@@ -179,7 +285,9 @@ def _insert_job(cur, title, jdata, organization_id, job_raw_id, category_id=None
             jdata.get("end_date"), job_raw_id, JobStatus.ACTIVE, WorkType.ONSITE, category_id
         ),
     )
-    return cur.fetchone()[0]
+    job_id = cur.fetchone()[0]
+    print(f"  ✓ Inserted '{title}'")
+    return job_id, "inserted"
 
 
 def _get_or_create_province(cur, province_name):
@@ -269,9 +377,24 @@ def _get_category_id(cur, category_name, valid_categories):
     return row[0]
 
 
-def insert_to_db(db_url: str, companies: dict):
-    jobs_inserted = 0
+def insert_to_db(db_url: str, companies: dict, update_mode: bool = False):
+    """Insert or update crawled job data into the database.
+    
+    Args:
+        db_url: PostgreSQL connection URL
+        companies: Dictionary of company data with jobs
+        update_mode: If True, update existing jobs with new data.
+                     If False (default), skip existing jobs.
+                     
+    Returns:
+        dict: Statistics with 'inserted', 'updated', 'skipped' counts
+    """
+    stats = {"inserted": 0, "updated": 0, "skipped": 0}
     conn = None
+    
+    mode_str = "UPDATE" if update_mode else "SKIP"
+    print(f"\n📦 Database mode: {mode_str} existing jobs")
+    
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
@@ -284,7 +407,7 @@ def insert_to_db(db_url: str, companies: dict):
                 # Create a savepoint for this company
                 cur.execute("SAVEPOINT company_savepoint")
                 
-                print(f"Processing company: {name}")
+                print(f"\n📁 Processing company: {name}")
 
                 company_raw_id = _get_or_create_company_raw(cur, name, cdata)
                 organization_id = _get_or_create_organization(cur, name, cdata)
@@ -309,20 +432,26 @@ def insert_to_db(db_url: str, companies: dict):
                     if jdata.get("category"):
                         category_id = _get_category_id(cur, jdata["category"], valid_categories)
 
-                    # Insert job (without province_id, uses junction table now)
-                    job_id = _insert_job(cur, title, jdata, company_id, job_raw_id, category_id)
-                    if not job_id:
-                        continue
+                    # Insert or update job based on mode
+                    job_id, action = _insert_job(
+                        cur, title, jdata, company_id, job_raw_id, 
+                        category_id, update_mode=update_mode
+                    )
                     
-                    # Link job to provinces via junction table
-                    if province_ids:
-                        _link_job_to_provinces(cur, job_id, province_ids)
-                    
-                    jobs_inserted += 1
-
-                    for skill in jdata.get("skills", []):
-                        skill_id = _get_or_create_skill(cur, skill)
-                        _link_job_to_skill(cur, job_id, skill_id)
+                    # Track statistics
+                    if action == "inserted":
+                        stats["inserted"] += 1
+                        # Link job to provinces via junction table (only for new jobs)
+                        if province_ids:
+                            _link_job_to_provinces(cur, job_id, province_ids)
+                        # Link skills (only for new jobs, updates handle this internally)
+                        for skill in jdata.get("skills", []):
+                            skill_id = _get_or_create_skill(cur, skill)
+                            _link_job_to_skill(cur, job_id, skill_id)
+                    elif action == "updated":
+                        stats["updated"] += 1
+                    else:  # skipped
+                        stats["skipped"] += 1
                 
                 # Release savepoint if successful
                 cur.execute("RELEASE SAVEPOINT company_savepoint")
@@ -337,8 +466,14 @@ def insert_to_db(db_url: str, companies: dict):
         
         cur.close()
         conn.commit()
-        print("Import completed for raw and processed data.")
-        return jobs_inserted
+        
+        total = stats["inserted"] + stats["updated"]
+        print(f"\n✅ Import completed: {total} jobs processed")
+        print(f"   ✓ Inserted: {stats['inserted']}")
+        print(f"   ↻ Updated: {stats['updated']}")
+        print(f"   ⊘ Skipped: {stats['skipped']}")
+        
+        return stats
     except Exception as e:
         if conn:
             conn.rollback()
