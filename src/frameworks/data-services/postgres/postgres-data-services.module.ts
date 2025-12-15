@@ -23,6 +23,7 @@ import {
   ILearningRoadmapRepository,
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
+  IRoadmapSkillOptionRepository,
   IAreaRepository,
   IQuestionRepository,
   ILevelRepository,
@@ -58,6 +59,7 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
 import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
 import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { RoadmapSkillOptionRepository } from "./repositories/roadmap-skill-option.repository";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { AiCvRepository } from "./repositories/ai-cv.repository";
 import { AreaRepository } from "./repositories/area.repository";
@@ -215,6 +217,10 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
       useClass: RoadmapSkillRepository,
     },
     {
+      provide: IRoadmapSkillOptionRepository,
+      useClass: RoadmapSkillOptionRepository,
+    },
+    {
       provide: IAreaRepository,
       useClass: AreaRepository,
     },
@@ -268,6 +274,7 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
     ILearningRoadmapRepository,
     IRoadmapPhaseRepository,
     IRoadmapSkillRepository,
+    IRoadmapSkillOptionRepository,
     IAreaRepository,
     IQuestionRepository,
     ILevelRepository,
