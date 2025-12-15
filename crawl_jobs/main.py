@@ -6,10 +6,8 @@ from crawlers.jobsgo import jobsgo_crawl
 from crawlers.topcv import topcv_crawl
 
 from database.connection import insert_to_db
-from helpers.helper import (
-    is_safe_db_url,
-    vietnam_time_now,
-)
+from helpers.security import is_safe_db_url
+from helpers.date import vietnam_time_now
 
 
 def main():

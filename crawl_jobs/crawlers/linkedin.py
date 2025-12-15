@@ -2,14 +2,12 @@ from datetime import datetime, timezone
 
 import requests
 from bs4 import BeautifulSoup
-from helpers.helper import (
-    extract_employee_range,
-    get_headers,
-    human_delay,
-    parse_posted_date,
-    process_province,
-    safe_text,
-)
+
+from helpers.http import get_headers, human_delay
+from helpers.extraction import extract_employee_range
+from helpers.text import safe_text
+from helpers.date import parse_posted_date
+from helpers.province import is_likely_province, process_province
 
 
 def linkedin_crawl(
@@ -28,97 +26,128 @@ def linkedin_crawl(
     # Crawl job details for each job ID
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
     for job_id in job_ids:
-        job_url = detail_url.format(job_id)
-        res = requests.get(job_url, headers=headers)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        # company_name
-        company_name = (
-            soup.select_one("div.top-card-layout__card")
-            .find("a")
-            .find("img")
-            .get("alt")
-        )
-
-        # job_title
-        job_title = (
-            soup.select_one("div.top-card-layout__entity-info").find("a").text.strip()
-        )
-
-        # logo
-        logo = soup.select_one("img.artdeco-entity-image")["data-delayed-url"]
-
-        # locations
-        locations = process_province(
-            safe_text(soup.select_one("span.topcard__flavor--bullet")).split(", ")
-        )
-
-        # date_posted
-        date_posted = safe_text(soup.select_one("span.posted-time-ago__text")).replace(
-            "s", ""
-        )
-        process = parse_posted_date(date_posted)
-
-        # description
-        desc_wrap = soup.select_one("div.show-more-less-html__markup")
-        description_parts = [
-            {
-                "title": "",
-                "body": safe_text(desc_wrap, is_strip=False, sep="\n").strip(),
-            }
-        ]
-
-        human_delay(base=3, jitter=2)
-
-        # --- Company page ---
-        print(job_url)
-        company_url = soup.find("a")["href"]
-
-        comp_res = requests.get(company_url, headers=headers)
-        comp_soup = BeautifulSoup(comp_res.text, "html.parser")
-
-        # company_desc
-        company_desc = safe_text(comp_soup.select_one("span.line-clamp-2"))
-
-        # company_website_url
-        comp_wrap = comp_soup.select_one("dl.mt-6")
-        comp_web_url = safe_text(comp_wrap.find("a"))
-
-        dd = comp_wrap.find_all("dd")
-
-        # company_size
-        company_size = safe_text(dd[2]).strip()
-        employees_min, employees_max = None, None
-
         try:
-            employees_min, employees_max = extract_employee_range(company_size)
-        except Exception as e:
-            print(f"Could not parse employee range from '{company_size}'. Error: {e}")
+            job_url = detail_url.format(job_id)
+            res = requests.get(job_url, headers=headers)
+            soup = BeautifulSoup(res.text, "html.parser")
 
-        # comp_addr
-        comp_addr = [safe_text(dd[3])]
+            # company_name
+            top_card = soup.select_one("div.top-card-layout__card")
+            if not top_card:
+                print(f"Skipping job {job_id}: no top card found")
+                continue
+            
+            company_name = (
+                top_card
+                .find("a")
+                .find("img")
+                .get("alt")
+            )
 
-        if company_name not in companies:
-            companies[company_name] = {
-                "logo": logo,
-                "address": comp_addr,
-                "description": company_desc,
-                "employees_min": employees_min,
-                "employees_max": employees_max,
-                "website_url": comp_web_url,
-                "crawled_at": datetime.now(),
+            # job_title
+            job_title = (
+                soup.select_one("div.top-card-layout__entity-info").find("a").text.strip()
+            )
+
+            # logo
+            logo_elem = soup.select_one("img.artdeco-entity-image")
+            logo = logo_elem["data-delayed-url"] if logo_elem else None
+
+            # locations
+            locations = process_province(
+                safe_text(soup.select_one("span.topcard__flavor--bullet")).split(", ")
+            )
+
+            # date_posted
+            date_posted = safe_text(soup.select_one("span.posted-time-ago__text")).replace(
+                "s", ""
+            )
+            process = parse_posted_date(date_posted)
+
+            # description
+            desc_wrap = soup.select_one("div.show-more-less-html__markup")
+            description_text = safe_text(desc_wrap, is_strip=False, sep="\n").strip() if desc_wrap else ""
+            description_parts = [
+                {
+                    "title": "",
+                    "body": description_text,
+                }
+            ]
+            
+            # Extract skills from description (LinkedIn doesn't have dedicated skill tags)
+            skills = []
+            if description_text:
+                # Common tech skills to look for in description
+                common_skills = [
+                    "Python", "JavaScript", "Java", "C++", "C#", "TypeScript", "Go", "Rust",
+                    "React", "Angular", "Vue", "Node.js", "Django", "Flask", "Spring",
+                    "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Git", "CI/CD",
+                    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch",
+                    "HTML", "CSS", "REST", "GraphQL", "API", "Microservices",
+                    "Agile", "Scrum", "Linux", "DevOps", "Machine Learning", "AI",
+                    "TensorFlow", "PyTorch", "Kafka", "RabbitMQ", "Jenkins", "Terraform",
+                    "PHP", "Ruby", "Swift", "Kotlin", "Scala", "R", "MATLAB",
+                ]
+                description_lower = description_text.lower()
+                for skill in common_skills:
+                    if skill.lower() in description_lower and skill not in skills:
+                        skills.append(skill)
+
+            human_delay(base=3, jitter=2)
+
+            # --- Company page ---
+            print(job_url)
+            company_url = soup.find("a")["href"]
+
+            comp_res = requests.get(company_url, headers=headers)
+            comp_soup = BeautifulSoup(comp_res.text, "html.parser")
+
+            # company_desc
+            company_desc = safe_text(comp_soup.select_one("span.line-clamp-2"))
+
+            # company_website_url
+            comp_wrap = comp_soup.select_one("dl.mt-6")
+            comp_web_url = safe_text(comp_wrap.find("a")) if comp_wrap else None
+
+            dd = comp_wrap.find_all("dd") if comp_wrap else []
+
+            # company_size
+            employees_min, employees_max = None, None
+            if len(dd) > 2:
+                company_size = safe_text(dd[2]).strip()
+                try:
+                    employees_min, employees_max = extract_employee_range(company_size)
+                except Exception as e:
+                    print(f"Could not parse employee range from '{company_size}'. Error: {e}")
+
+            # comp_addr
+            comp_addr = [safe_text(dd[3])] if len(dd) > 3 else []
+
+            if company_name not in companies:
+                companies[company_name] = {
+                    "logo": logo,
+                    "address": comp_addr,
+                    "description": company_desc,
+                    "employees_min": employees_min,
+                    "employees_max": employees_max,
+                    "website_url": comp_web_url,
+                    "crawled_at": datetime.now(),
+                    "source": "linkedin",
+                    "jobs": {},
+                }
+
+            companies[company_name]["jobs"][job_title] = {
+                "description": description_parts,
+                "locations": locations,
+                "job_url": job_url,
+                "date_posted": process,
+                "skills": skills,  # Now includes extracted skills
+                "crawled_at": datetime.now(timezone.utc),
                 "source": "linkedin",
-                "jobs": {},
             }
-
-        companies[company_name]["jobs"][job_title] = {
-            "description": description_parts,
-            "locations": locations,
-            "job_url": job_url,
-            "date_posted": process,
-            "crawled_at": datetime.now(timezone.utc),
-            "source": "linkedin",
-        }
+        except Exception as e:
+            print(f"⚠️ Error processing LinkedIn job {job_id}: {e}")
+            continue
 
     return companies
 

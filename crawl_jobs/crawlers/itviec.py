@@ -3,13 +3,12 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
-from helpers.helper import (
-    crawl,
-    extract_employees,
-    get_date_posted,
-    parse_posted_date,
-    safe_text,
-)
+
+from helpers.http import crawl
+from helpers.extraction import extract_employees
+from helpers.text import safe_text
+from helpers.date import get_date_posted, parse_posted_date
+from helpers.province import is_likely_province
 
 
 def clean_job_url(url: str) -> str:
@@ -55,12 +54,33 @@ def scrape_job_detail(
     if imb_3_wrap:
         category = safe_text(imb_3_wrap.find_all("a", class_="itag")[-1])
 
-    # skills
+    # skills - improved extraction with province filtering
     skills = []
-    if imb_3_wrap:
+    
+    # First try to find a skills section by header
+    skills_section = soup.find("h2", string=lambda t: t and ("skills" in t.lower() or "kỹ năng" in t.lower()))
+    if skills_section:
+        skill_container = skills_section.find_next_sibling("div")
+        if skill_container:
+            for a in skill_container.find_all("a", class_="itag"):
+                skill_text = safe_text(a)
+                if (skill_text and 
+                    skill_text != "N/A" and
+                    skill_text not in locations and
+                    not is_likely_province(skill_text)):
+                    skills.append(skill_text)
+    
+    # Fallback to original igap-2 div if more specific fails
+    if not skills and imb_3_wrap:
         skill_wrap = imb_3_wrap.find("div", class_="igap-2")
         if skill_wrap:
-            skills = [safe_text(a) for a in skill_wrap.find_all("a")]
+            for a in skill_wrap.find_all("a", class_="itag"):
+                skill_text = safe_text(a)
+                if (skill_text and 
+                    skill_text != "N/A" and
+                    skill_text not in locations and
+                    not is_likely_province(skill_text)):
+                    skills.append(skill_text)
 
     # description
     description_parts = []

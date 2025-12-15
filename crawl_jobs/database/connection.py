@@ -3,7 +3,7 @@ from psycopg2.extras import Json
 import json
 
 from database.models.enums import OrganizationType, WorkType, JobStatus
-from helpers.helper import slugify
+from helpers.text import slugify
 
 
 def _get_or_create_company_raw(cur, name, cdata):
@@ -142,7 +142,11 @@ def _get_or_create_job_raw(cur, title, jdata, company_raw_id):
     return cur.fetchone()[0]
 
 
-def _insert_job(cur, title, jdata, organization_id, province_id, job_raw_id, category_id=None):
+def _insert_job(cur, title, jdata, organization_id, job_raw_id, category_id=None):
+    """Insert a job into the jobs table.
+    
+    Note: Province linking is done separately via job_provinces junction table.
+    """
     cur.execute("SELECT id FROM jobs WHERE title = %s AND organization_id = %s", (title, organization_id))
     if cur.fetchone():
         print(f"Job '{title}' already exists for organization '{organization_id}', skipping.")
@@ -151,13 +155,13 @@ def _insert_job(cur, title, jdata, organization_id, province_id, job_raw_id, cat
     cur.execute(
         """
         INSERT INTO jobs
-            (title, description, date_posted, organization_id, province_id, created_at, 
+            (title, description, date_posted, organization_id, created_at, 
              salary_min, salary_max, experience_min, experience_max, end_date, job_raw_id, status, work_type, category_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         """,
         (
             title, Json(jdata.get("description")), jdata.get("date_posted"),
-            organization_id, province_id, jdata.get("crawled_at"),
+            organization_id, jdata.get("crawled_at"),
             jdata.get("salary_min"), jdata.get("salary_max"),
             jdata.get("experience_min"), jdata.get("experience_max"),
             jdata.get("end_date"), job_raw_id, JobStatus.ACTIVE, WorkType.ONSITE, category_id
@@ -193,6 +197,24 @@ def _link_job_to_skill(cur, job_id, skill_id):
     cur.execute("SELECT 1 FROM job_skills WHERE job_id = %s AND skill_id = %s", (job_id, skill_id))
     if not cur.fetchone():
         cur.execute("INSERT INTO job_skills (job_id, skill_id) VALUES (%s, %s)", (job_id, skill_id))
+
+
+def _link_job_to_provinces(cur, job_id, province_ids):
+    """Link a job to multiple provinces via the job_provinces junction table.
+    
+    Args:
+        cur: Database cursor
+        job_id: UUID of the job
+        province_ids: List of province UUIDs
+    """
+    if not province_ids or not job_id:
+        return
+    
+    for province_id in province_ids:
+        if province_id:
+            cur.execute("SELECT 1 FROM job_provinces WHERE job_id = %s AND province_id = %s", (job_id, province_id))
+            if not cur.fetchone():
+                cur.execute("INSERT INTO job_provinces (job_id, province_id) VALUES (%s, %s)", (job_id, province_id))
 
 
 def _get_or_create_category(cur, category_name):
@@ -259,20 +281,30 @@ def insert_to_db(db_url: str, companies: dict):
                 for title, jdata in cdata.get("jobs", {}).items():
                     job_raw_id = _get_or_create_job_raw(cur, title, jdata, company_raw_id)
 
-                    province_id = None
+                    # Get all province IDs for this job (many-to-many)
+                    province_ids = []
                     if jdata.get("locations"):
-                        province_name = next(iter(jdata.get("locations", [])), None)
-                        province_id = _get_or_create_province(cur, province_name)
+                        for province_name in jdata.get("locations", []):
+                            province_id = _get_or_create_province(cur, province_name)
+                            if province_id:
+                                province_ids.append(province_id)
 
-                    _insert_organization_location(cur, organization_id, province_id, cdata.get("address"))
+                    # Link organization to each province
+                    for p_id in province_ids:
+                        _insert_organization_location(cur, organization_id, p_id, cdata.get("address"))
 
                     category_id = None
                     if jdata.get("category"):
                         category_id = _get_category_id(cur, jdata["category"], valid_categories)
 
-                    job_id = _insert_job(cur, title, jdata, company_id, province_id, job_raw_id, category_id)
+                    # Insert job (without province_id, uses junction table now)
+                    job_id = _insert_job(cur, title, jdata, company_id, job_raw_id, category_id)
                     if not job_id:
                         continue
+                    
+                    # Link job to provinces via junction table
+                    if province_ids:
+                        _link_job_to_provinces(cur, job_id, province_ids)
                     
                     jobs_inserted += 1
 

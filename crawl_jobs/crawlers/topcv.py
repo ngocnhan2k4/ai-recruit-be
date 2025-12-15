@@ -3,16 +3,12 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from helpers.helper import (
-    crawl,
-    extract_employees,
-    extract_experience_years,
-    extract_salary,
-    fetch_page,
-    human_delay,
-    safe_text,
-    vn_parse_posted_date,
-)
+
+from helpers.http import crawl, fetch_page, human_delay
+from helpers.extraction import extract_employees, extract_experience_years, extract_salary
+from helpers.text import safe_text
+from helpers.date import vn_parse_posted_date
+from helpers.province import is_likely_province
 
 
 def scrape_job_detail(scraper, card, base_url: str, link: str, companies: dict):
@@ -82,6 +78,30 @@ def scrape_job_detail(scraper, card, base_url: str, link: str, companies: dict):
     # experiences
     experiences = safe_text(soup.select_one("div#job-detail-info-experience"))
     experience_min = extract_experience_years(experiences)
+
+    # Re-extract skills from detail page for more accuracy and merge
+    detail_skills = []
+    skills_section = soup.find("h3", string=lambda t: t and ("kỹ năng" in t.lower() or "yêu cầu" in t.lower() or "skills" in t.lower()))
+    if skills_section:
+        skill_container = skills_section.find_next_sibling()
+        if skill_container:
+            skill_items = skill_container.find_all(['a', 'span', 'label'])
+            for item in skill_items:
+                skill_text = safe_text(item)
+                if (skill_text and 
+                    len(skill_text) > 1 and 
+                    skill_text != "N/A" and
+                    not re.match(r'^\d+\+$', skill_text) and
+                    skill_text not in location and
+                    not is_likely_province(skill_text)):
+                    detail_skills.append(skill_text)
+    
+    # Merge skills from card and detail page, remove duplicates
+    if detail_skills:
+        skills = list(set(skills + detail_skills))
+    
+    # Final filter on all skills
+    skills = [s for s in skills if not is_likely_province(s)]
 
     human_delay(3, 5)
 
