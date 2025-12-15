@@ -63,7 +63,7 @@ jobs:
           python main.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --gha-output "$GITHUB_OUTPUT" \
-            --pages 3 \
+            --pages 1 \
             --linkedin-keywords "${{ steps.keyword.outputs.keyword }}"
 
       - name: Notify Slack
@@ -81,5 +81,6 @@ jobs:
             🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
             🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
             🔹 Linkedin: ${{ steps.run_crawler.outputs.linkedin }} jobs
+            🔹 VietnameWorks: ${{ steps.run_crawler.outputs.vietnamworks }} jobs
 
             ✅ Status: ${{ job.status }}

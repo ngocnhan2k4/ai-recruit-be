@@ -7,7 +7,7 @@ from helpers.http import get_headers, human_delay
 from helpers.extraction import extract_employee_range
 from helpers.text import safe_text
 from helpers.date import parse_posted_date
-from helpers.province import is_likely_province, process_province
+from helpers.province import process_province
 
 
 def linkedin_crawl(

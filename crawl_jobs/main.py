@@ -4,6 +4,7 @@ from crawlers.itviec import itviec_crawl
 from crawlers.linkedin import linkedin_crawl
 from crawlers.jobsgo import jobsgo_crawl
 from crawlers.topcv import topcv_crawl
+from crawlers.vietnamworks import vietnamworks_crawl
 
 from database.connection import insert_to_db
 from helpers.security import is_safe_db_url
@@ -38,6 +39,7 @@ def main():
     total_linkedin_jobs = 0
     total_topcv_jobs = 0
     total_jobsgo_jobs = 0
+    total_vietnamworks_jobs = 0
 
     for page in range(1, args.pages + 1):
         print(f"\n{'=' * 60}")
@@ -76,16 +78,24 @@ def main():
         total_jobsgo_jobs += jobsgo_inserted
         print(f"✓ JobsGO page {page}: {jobsgo_inserted} jobs inserted\n")
 
-        print(f"Round {page} summary: {itviec_inserted + linkedin_inserted + topcv_inserted + jobsgo_inserted} jobs inserted")
+        # VietnamWorks - page by page
+        print(f"🔄 VietnamWorks (page {page})")
+        vietnamworks_companies = vietnamworks_crawl(pages=1, start_page=page)
+        vietnamworks_inserted = insert_to_db(args.db_url, vietnamworks_companies)
+        total_vietnamworks_jobs += vietnamworks_inserted
+        print(f"✓ VietnamWorks page {page}: {vietnamworks_inserted} jobs inserted\n")
+
+        print(f"Round {page} summary: {itviec_inserted + linkedin_inserted + topcv_inserted + jobsgo_inserted + vietnamworks_inserted} jobs inserted")
 
     total_jobs = (
-        total_itviec_jobs + total_linkedin_jobs + total_topcv_jobs + total_jobsgo_jobs
+        total_itviec_jobs + total_linkedin_jobs + total_topcv_jobs + total_jobsgo_jobs + total_vietnamworks_jobs
     )
     print(f"\n✅ Total jobs inserted: {total_jobs}")
     print(f"   - ITViec: {total_itviec_jobs}")
     print(f"   - LinkedIn: {total_linkedin_jobs}")
     print(f"   - TopCV: {total_topcv_jobs} (10 jobs/page limit)")
     print(f"   - JobsGO: {total_jobsgo_jobs}")
+    print(f"   - VietnamWorks: {total_vietnamworks_jobs}")
     print(f"\n🕐 Completed at: {vietnam_time_now()}")
 
     if args.gha_output:
@@ -94,9 +104,11 @@ def main():
             f.write(f"topcv={total_topcv_jobs}\n")
             f.write(f"jobsgo={total_jobsgo_jobs}\n")
             f.write(f"linkedin={total_linkedin_jobs}\n")
+            f.write(f"vietnamworks={total_vietnamworks_jobs}\n")
             f.write(f"total={total_jobs}\n")
             f.write(f"crawl_time={vietnam_time_now()}\n")
 
 
 if __name__ == "__main__":
     main()
+
