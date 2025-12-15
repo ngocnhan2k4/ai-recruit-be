@@ -572,7 +572,10 @@ export class JobRepository
     filter: StatisticsJobFilter,
     limit = 10,
   ): Promise<TopInMarketResponse[]> {
-    const conditions = this.buildJobFilterQuery(filter);
+    const conditions = this.buildJobFilterQuery({
+      ...filter,
+      categoryId: undefined,
+    });
 
     const result = await this.db
       .select({
