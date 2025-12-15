@@ -39,9 +39,21 @@ def _get_or_create_company_raw(cur, name, cdata):
 
 
 def _get_or_create_organization(cur, name, cdata):
+    """Get existing organization or create a new one.
+    
+    Checks by both name and slug to avoid duplicate key errors,
+    since slug has a unique constraint.
+    """
     slug = slugify(name)
 
+    # First check by name
     cur.execute("SELECT id FROM organizations WHERE name = %s LIMIT 1", (name,))
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    
+    # Also check by slug (unique constraint)
+    cur.execute("SELECT id FROM organizations WHERE slug = %s LIMIT 1", (slug,))
     row = cur.fetchone()
     if row:
         return row[0]
