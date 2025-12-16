@@ -6,6 +6,7 @@ import {
   IUserSkillRepository,
   IUserExperienceRepository,
   ISearchService,
+  IUserOnboardingRepository,
 } from "@/core";
 import {
   EmailJobType,
@@ -14,15 +15,13 @@ import {
   Skill,
   Category,
   OrganizationRoleEnum,
+  UserProfile,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
 import { EmailJob } from "@/core/entities/email.entity";
-import {
-  JobMatchingQuery,
-  UserProfile,
-} from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
+import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 import { ConfigService } from "@nestjs/config";
 import { differenceInYears } from "date-fns";
 import { RESPONSE_CODE } from "@/common/constants/response";
@@ -42,6 +41,7 @@ export class JobMatchingUseCases {
     private readonly emailStorageService: IEmailQueueStorageService,
     private readonly userRepository: IUserRepository,
     private readonly userSkillRepository: IUserSkillRepository,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly userExperienceRepository: IUserExperienceRepository,
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
@@ -135,9 +135,10 @@ export class JobMatchingUseCases {
     }
 
     // Get user skills
-    const [userSkills, userExperiences] = await Promise.all([
+    const [userSkills, userExperiences, userOnboarding] = await Promise.all([
       this.userSkillRepository.getUserSkills(user.username),
       this.userExperienceRepository.getUserExperiencesByUsername(user.username),
+      this.userOnboardingRepository.getByField({ userId }),
     ]);
     const skillIds = userSkills.map((skill) => skill.id);
 
@@ -159,9 +160,11 @@ export class JobMatchingUseCases {
       userId: user.id,
       skillIds,
       experienceYears,
-      provinceIds: filters.provinceIds || [],
-      categoryIds: filters.categoryId ? [filters.categoryId] : [],
-      expectedSalary: filters.salaryMax,
+      provinceIds: userOnboarding[0]?.provinceIds || [],
+      categoryIds: userOnboarding[0]?.categoryIds || [],
+      expectedSalary: userOnboarding[0]?.expectedSalary
+        ? Number(userOnboarding[0].expectedSalary)
+        : undefined,
     };
 
     const indexName = this.configService.get<string>(
@@ -251,8 +254,12 @@ export class JobMatchingUseCases {
         jobRawId: null,
         rejectReason: null,
         categoryId: source.categoryId || source.categoryIds?.[0] || null,
-        createdAt: source.createdAt ? new Date(source.createdAt) : new Date(),
-        updatedAt: source.updatedAt ? new Date(source.updatedAt) : new Date(),
+        createdAt: source.createdAt
+          ? new Date(source.createdAt as string)
+          : new Date(),
+        updatedAt: source.updatedAt
+          ? new Date(source.updatedAt as string)
+          : new Date(),
         deletedAt: null,
         questions: [],
       };
