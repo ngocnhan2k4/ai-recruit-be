@@ -461,15 +461,13 @@ export class JobUseCases {
           updateData,
           updateJobDto.userId,
         );
-      newNotifications.forEach((notification) => {
-        this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
-          },
-          notification,
+
+      if (newNotifications && newNotifications.length > 0) {
+        this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+        this.logger.log(
+          `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${newNotifications.length} notifications created in DB)`,
         );
-      });
+      }
     }
     // Transform questions field
     const transformedJob: JobDto = {

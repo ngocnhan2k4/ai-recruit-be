@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   integer,
   jsonb,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
@@ -100,6 +101,9 @@ export const userOnboardings = pgTable("user_onboardings", {
   experienceYears: integer("experience_years"),
   experienceDetails: varchar("experience_details", { length: 500 }),
   skills: jsonb("skills"),
+  provinceIds: uuid("province_ids").array(),
+  categoryIds: uuid("category_ids").array(),
+  expectedSalary: numeric("expected_salary", { precision: 12, scale: 2 }),
 });
 
 export const userEducations = pgTable("user_educations", {

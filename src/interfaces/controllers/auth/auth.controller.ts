@@ -45,7 +45,11 @@ export class AuthController {
   ): Promise<ApiResponse<LoginResponseDto>> {
     const result = await this.authUseCases.logIn(loginDto.idToken);
 
-    if (!result.data) throw new Error("Login failed");
+    if (!result.data)
+      throw new BadRequestException({
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        message: "Login failed",
+      });
 
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,

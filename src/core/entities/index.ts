@@ -34,6 +34,12 @@ import {
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
+export * from "./learning-path.entity";
+export * from "./otp.entity";
+export * from "./ai-cv.entity";
+export * from "./user.entity";
+export * from "./job.entity";
+export * from "./organization.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -146,10 +152,6 @@ export type NewFeedback = InferInsertModel<typeof feedbacks>;
 export type Feedback = InferSelectModel<typeof feedbacks>;
 
 export type JobProvince = InferSelectModel<typeof jobProvinces>;
-
-export * from "./learning-path.entity";
-export * from "./otp.entity";
-export * from "./ai-cv.entity";
 
 // Exam System entities
 export type NewArea = InferInsertModel<typeof areas>;
