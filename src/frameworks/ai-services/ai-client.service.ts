@@ -1,12 +1,16 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, MessageEvent } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HttpService } from "@nestjs/axios";
 import { IAIService } from "@/core/abstracts";
+import { RoadmapGenerateRequest } from "@/core/entities/learning-path.entity";
 import {
-  PreviewRoadmapResponse,
-  RoadmapGenerateRequest,
-} from "@/core/entities/learning-path.entity";
-import { firstValueFrom, retry, timeout, catchError, map } from "rxjs";
+  firstValueFrom,
+  retry,
+  timeout,
+  catchError,
+  map,
+  Observable,
+} from "rxjs";
 import { AxiosError, AxiosResponse } from "axios";
 
 import { OptimizeAtsRequest, OptimizeAtsResponse } from "@/core";
@@ -33,35 +37,64 @@ export class AIClientService implements IAIService {
       this.configService.get<number>("AI_SERVICE_MAX_RETRIES") || 3;
   }
 
-  async generateRoadmap(
-    request: RoadmapGenerateRequest,
-  ): Promise<PreviewRoadmapResponse> {
-    const url = `${this.aiServiceUrl}/api/v1/generate-roadmap`;
+  generateRoadmap(request: RoadmapGenerateRequest): Observable<MessageEvent> {
+    const url = `${this.aiServiceUrl}/api/v1/generate-roadmap-stream`;
 
-    const response$ = this.httpService
-      .post<PreviewRoadmapResponse>(url, request, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-      .pipe(
-        timeout(this.aiServiceTimeout),
-        retry({
-          count: this.maxRetries,
-          delay: (error, retryCount) => {
-            const delayMs = 1000 * Math.pow(2, retryCount);
-            return new Promise((resolve) => setTimeout(resolve, delayMs));
-          },
-          resetOnSuccess: true,
-        }),
-        catchError((error: AxiosError) => {
-          throw new Error(`AI Service request failed: ${error.message}`);
-        }),
-      );
+    return new Observable<MessageEvent>((observer) => {
+      const makeRequest = async () => {
+        try {
+          const response = await firstValueFrom(
+            this.httpService.post(url, request, {
+              headers: {
+                "Content-Type": "application/json",
+                "X-API-KEY": this.configService.get<string>("AI_API_KEY") || "",
+              },
+              responseType: "stream",
+              timeout: this.aiServiceTimeout,
+            }),
+          );
 
-    const response = await firstValueFrom(response$);
+          const stream = response.data;
+          let buffer = "";
 
-    return response.data;
+          stream.on("data", (chunk: Buffer) => {
+            const chunkStr = chunk.toString();
+
+            buffer += chunkStr;
+            const lines = buffer.split("\n");
+
+            // Keep the last incomplete line in the buffer
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6).trim();
+                if (data) {
+                  try {
+                    const parsed = JSON.parse(data);
+                    observer.next({ data: parsed } as MessageEvent);
+                  } catch {
+                    this.logger.warn(`Failed to parse SSE data: ${data}`);
+                  }
+                }
+              }
+            }
+          });
+
+          stream.on("end", () => {
+            observer.complete();
+          });
+
+          stream.on("error", (error: Error) => {
+            observer.error(error);
+          });
+        } catch (error) {
+          observer.error(error);
+        }
+      };
+
+      makeRequest();
+    });
   }
 
   // Optimize CV for ATS compatibility

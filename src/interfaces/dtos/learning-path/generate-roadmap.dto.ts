@@ -175,6 +175,14 @@ export class SkillOptionDto {
 }
 
 export class RoadmapPositionDto {
+  @ApiPropertyOptional({
+    description: "AI-generated skill UUID for mapping prerequisites",
+    example: "a1b2c3d4-e5f6-7890-abcd-ef1234567891",
+  })
+  @IsOptional()
+  @IsString()
+  skillId?: string;
+
   @ApiProperty({
     description: "Position name (learning objective)",
     example: "Lập trình Backend Nâng cao",
@@ -225,7 +233,7 @@ export class RoadmapPositionDto {
 
   @ApiProperty({
     description: "Prerequisite skill IDs",
-    example: [],
+    example: ["a1b2c3d4-e5f6-7890-abcd-ef1234567891"],
   })
   @IsArray()
   @IsString({ each: true })
