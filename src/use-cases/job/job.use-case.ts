@@ -413,12 +413,26 @@ export class JobUseCases {
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto & { userId: string },
+    user?: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    // Only admin can update job status
+    if (
+      updateJobDto.status !== undefined &&
+      user &&
+      !user.roles.includes(RoleEnum.ADMIN) &&
+      !user.roles.includes(RoleEnum.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException({
+        message: "Only admin can update job status",
+        code: RESPONSE_CODE.FORBIDDEN,
       });
     }
 
