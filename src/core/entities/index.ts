@@ -81,10 +81,17 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
-    senderName?: string | null;
-    senderAvatarUrl?: string | null;
-    organizationName?: string | null;
-    organizationLogoUrl?: string | null;
+    sender?: {
+      name?: string | null;
+      avatarUrl?: string | null;
+    } | null;
+    organization?: {
+      name?: string | null;
+      logoUrl?: string | null;
+    } | null;
+    orgInvitation?: {
+      status: string;
+    } | null;
   };
 
 type Organization = InferSelectModel<typeof organizations>;
