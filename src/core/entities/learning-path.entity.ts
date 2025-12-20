@@ -4,6 +4,7 @@ import {
   roadmapPhases,
   roadmapSkills,
   roadmapSkillOptions,
+  weeklyProgress,
 } from "@/frameworks/data-services/postgres/models";
 import {
   SkillLevelEnum,
@@ -24,6 +25,9 @@ export type NewRoadmapSkillOption = InferInsertModel<
   typeof roadmapSkillOptions
 >;
 export type RoadmapSkillOption = InferSelectModel<typeof roadmapSkillOptions>;
+
+export type NewWeeklyProgress = InferInsertModel<typeof weeklyProgress>;
+export type WeeklyProgress = InferSelectModel<typeof weeklyProgress>;
 
 export interface RoadmapSkillOptionWithName extends RoadmapSkillOption {
   optionName: string;

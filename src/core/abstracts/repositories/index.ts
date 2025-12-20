@@ -21,6 +21,7 @@ export * from "./learning-roadmap-repository.abstract";
 export * from "./roadmap-phase-repository.abstract";
 export * from "./roadmap-skill-repository.abstract";
 export * from "./roadmap-skill-option-repository.abstract";
+export * from "./weekly-progress-repository.abstract";
 export * from "./area-repository.abstract";
 export * from "./question-repository.abstract";
 export * from "./level-repository.abstract";

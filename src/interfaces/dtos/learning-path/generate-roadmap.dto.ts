@@ -18,6 +18,7 @@ import {
   SkillLevelEnum,
   ResourceTypeEnum,
   GapDifficultyEnum,
+  PhaseStatusEnum,
 } from "@/core/entities/enum.entity";
 
 class SkillLevelDto {
@@ -271,6 +272,36 @@ class PhaseDto {
   @IsInt()
   @Min(0)
   orderIndex: number;
+
+  @ApiPropertyOptional({
+    description: "Phase progress percentage (0-100)",
+    example: 75.5,
+  })
+  @IsOptional()
+  progress?: number;
+
+  @ApiPropertyOptional({
+    description: "Phase status",
+    example: PhaseStatusEnum.IN_PROGRESS,
+    enum: PhaseStatusEnum,
+  })
+  @IsOptional()
+  @IsEnum(PhaseStatusEnum)
+  status?: PhaseStatusEnum;
+
+  @ApiPropertyOptional({
+    description: "When the phase was started",
+    example: "2025-12-01T10:00:00.000Z",
+  })
+  @IsOptional()
+  startedAt?: Date;
+
+  @ApiPropertyOptional({
+    description: "When the phase was completed",
+    example: "2025-12-15T18:30:00.000Z",
+  })
+  @IsOptional()
+  completedAt?: Date;
 
   @ApiProperty({
     description: "Learning positions in this phase",
