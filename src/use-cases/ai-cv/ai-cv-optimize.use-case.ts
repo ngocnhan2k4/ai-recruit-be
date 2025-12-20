@@ -23,9 +23,15 @@ export class AiCvOptimizeUseCases {
 
     // Call AI service to optimize CV
     try {
-      const cvText = await FileTextExtractor.extractText(request.file);
+      let cvText = "";
 
-      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+      if (request?.file) {
+        cvText = await FileTextExtractor.extractText(request.file);
+
+        this.logger.log(`Extracted ${cvText.length} chars from CV`);
+      } else if (request?.cvText) {
+        cvText = request.cvText;
+      }
 
       const optimizeRequest = {
         cvText,

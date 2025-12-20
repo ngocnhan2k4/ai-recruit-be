@@ -26,6 +26,12 @@ export class OptimizeAtsDto {
 }
 
 export class OptimizeAtsUploadDto {
-  file: MultipartFile;
+  @IsOptional()
+  file?: MultipartFile;
+
+  @IsOptional()
+  @IsString()
+  cvText?: string;
+
   body: OptimizeAtsDto;
 }

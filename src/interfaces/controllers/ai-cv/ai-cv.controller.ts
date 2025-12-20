@@ -1,4 +1,4 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants/response";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import type { TokenPayload } from "@/common/types/token";
@@ -70,19 +70,27 @@ export class AiCvController {
   @ApiOperation({
     summary: "Optimize CV for ATS",
     description:
-      "Upload a CV file (PDF/DOCX) and get ATS-optimized version. Supports two modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
+      "Optimize CV for ATS compatibility. Accepts either a CV file (PDF/DOCX) OR raw CV text. Supports two optimization modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
   @ApiConsumes("multipart/form-data")
   @ApiResponseDto(OptimizeAtsResponse)
   @ApiBody({
     schema: {
       type: "object",
-      required: ["file", "body"],
+      required: ["body"],
       properties: {
         file: {
           type: "string",
           format: "binary",
-          description: "CV file (PDF or DOCX, max 5MB)",
+          description:
+            "CV file (PDF or DOCX, max 5MB). Provide either 'file' OR 'cvText', not both.",
+        },
+        cvText: {
+          type: "string",
+          description:
+            "Raw CV text content. Provide either 'file' OR 'cvText', not both.",
+          example:
+            "John Doe\nSenior Backend Developer\nExperience: 5 years with Java, Spring Boot...",
         },
         body: {
           type: "string",
@@ -105,12 +113,20 @@ export class AiCvController {
     @UploadFileAndBody()
     request: OptimizeAtsUploadDto,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    if (!request.file) {
+    if (!request.file && !request.cvText) {
       throw new BadRequestException({
-        message: RESPONSE_MESSAGE.CV_NOT_UPLOADED,
+        message: "Either CV file or CV text must be provided",
         code: RESPONSE_CODE.CV_NOT_UPLOADED,
       });
     }
+
+    if (request.file && request.cvText) {
+      throw new BadRequestException({
+        message: "Provide either CV file or CV text, not both",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
     return await this.aiCvOptimizeUseCase.optimizeCvForAts(request);
   }
 
