@@ -70,7 +70,7 @@ export class AiCvController {
   @ApiOperation({
     summary: "Optimize CV for ATS",
     description:
-      "Upload a CV file (PDF/DOCX) and get ATS-optimized version based on job description.",
+      "Upload a CV file (PDF/DOCX) and get ATS-optimized version. Supports two modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
   @ApiConsumes("multipart/form-data")
   @ApiResponseDto(OptimizeAtsResponse)
@@ -86,8 +86,17 @@ export class AiCvController {
         },
         body: {
           type: "string",
-          description: "JSON string containing jobDescription and language",
-          example: '{"jobDescription": "Senior Java Dev...", "language": "vi"}',
+          description:
+            "JSON string containing optional jobDescription and language. For targeted optimization, include jobDescription. For general optimization, omit it.",
+          examples: {
+            targeted: {
+              value:
+                '{"jobDescription": "Senior Java Dev...", "language": "vi"}',
+            },
+            general: {
+              value: '{"language": "vi"}',
+            },
+          },
         },
       },
     },

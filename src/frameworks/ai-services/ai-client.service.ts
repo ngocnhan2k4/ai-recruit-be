@@ -108,6 +108,7 @@ export class AIClientService implements IAIService {
         .post<OptimizeAtsResponse>(url, request, {
           headers: {
             "Content-Type": "application/json",
+            "X-API-KEY": this.configService.get<string>("AI_API_KEY") || "",
           },
         })
         .pipe(

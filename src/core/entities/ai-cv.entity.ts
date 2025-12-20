@@ -7,7 +7,7 @@ export type AiCv = InferSelectModel<typeof aiCvs>;
 
 export interface OptimizeAtsRequest {
   cvText: string;
-  jobDescription: string;
+  jobDescription?: string;
   language?: CvLanguageEnum;
 }
 

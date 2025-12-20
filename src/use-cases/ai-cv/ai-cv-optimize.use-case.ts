@@ -27,11 +27,21 @@ export class AiCvOptimizeUseCases {
 
       this.logger.log(`Extracted ${cvText.length} chars from CV`);
 
-      const result = await this.aiService.optimizeCvAts({
+      const optimizeRequest = {
         cvText,
-        jobDescription: request.body.jobDescription,
         language: request.body.language || CvLanguageEnum.VIETNAMESE,
-      });
+        ...(request.body.jobDescription && {
+          jobDescription: request.body.jobDescription,
+        }),
+      };
+
+      this.logger.log(
+        request.body.jobDescription
+          ? "Performing targeted ATS optimization with job description"
+          : "Performing general ATS optimization",
+      );
+
+      const result = await this.aiService.optimizeCvAts(optimizeRequest);
 
       result.language = request.body.language!;
 
