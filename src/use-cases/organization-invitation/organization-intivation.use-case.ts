@@ -306,8 +306,8 @@ export class OrganizationInvitationUseCase {
       });
     }
 
-    // Check if the user is the receiver of the invitation
-    if (invitation.receiverId !== userId || invitation.status !== "accepted") {
+    // Check if the user is the receiver of the invitation and invitation is still pending
+    if (invitation.receiverId !== userId || invitation.status !== "pending") {
       throw new ForbiddenException({
         message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
@@ -315,7 +315,6 @@ export class OrganizationInvitationUseCase {
     }
 
     // Update invitation status
-    // @typescript-eslint/no-unsafe-enum-comparison
     invitation.status =
       data.action === "ACCEPT"
         ? OrganizationInviteStatusEnum.ACCEPTED
