@@ -108,27 +108,14 @@ export class ExamScoringService {
       const percentage = Math.round((correctCount / totalCount) * 100);
 
       // Assign level based on percentage thresholds
-      // Require minimum questions for reliable assessment
-      // For development: allow assessment with fewer questions, but cap the level
+      // Only use 3 levels: Beginner, Intermediate, Advanced
       let level = "Beginner";
-      if (totalCount < 5) {
-        // With very few questions, cap at Intermediate to avoid over-assessment
-        if (percentage >= 60) level = "Intermediate";
-        else if (percentage >= 40) level = "Basic";
-        else level = "Beginner";
-      } else if (totalCount < 10) {
-        // With 5-9 questions, cap at Advanced
-        if (percentage >= 75) level = "Advanced";
-        else if (percentage >= 60) level = "Intermediate";
-        else if (percentage >= 40) level = "Basic";
-        else level = "Beginner";
+      if (percentage >= 75) {
+        level = "Advanced";
+      } else if (percentage >= 50) {
+        level = "Intermediate";
       } else {
-        // With 10+ questions, use full scale
-        if (percentage >= 90) level = "Expert";
-        else if (percentage >= 75) level = "Advanced";
-        else if (percentage >= 60) level = "Intermediate";
-        else if (percentage >= 40) level = "Basic";
-        else level = "Beginner";
+        level = "Beginner";
       }
 
       this.logger.debug(

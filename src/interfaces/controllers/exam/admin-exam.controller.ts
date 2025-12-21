@@ -32,7 +32,6 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 @ApiTags("Admin - Exam System")
 @ApiBearerAuth()
 @Controller("admin/exam")
-@UseGuards(JwtAuthGuard)
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class AdminExamController {
   constructor(private readonly examUseCases: ExamUseCases) {}

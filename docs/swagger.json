@@ -6535,7 +6535,7 @@
     },
     "/learning-roadmaps/{roadmapId}/progress": {
       "get": {
-        "description": "Get detailed progress statistics including completed skills, phases, and estimated completion date",
+        "description": "Get detailed progress statistics including completed positions, phases, and estimated completion date",
         "operationId": "LearningPathController_getProgressStats",
         "parameters": [
           {
@@ -6562,6 +6562,149 @@
         "summary": "Get roadmap progress statistics",
         "tags": [
           "Learning Path"
+        ]
+      }
+    },
+    "/learning-roadmaps/{roadmapId}/selected-skills": {
+      "get": {
+        "description": "Get only the skills that the user has completed (marked as done). This shows the actual learning path the user chose from the available options.",
+        "operationId": "LearningPathController_getSelectedSkills",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "required": true,
+            "in": "path",
+            "description": "Roadmap ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user's selected/completed skills",
+        "tags": [
+          "Learning Path"
+        ]
+      }
+    },
+    "/admin/job-sync/initialize": {
+      "post": {
+        "description": "Initialize the Elasticsearch index for jobs. This should be called once when setting up the system.",
+        "operationId": "AdminJobSyncController_initializeIndex",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Initialize Elasticsearch index",
+        "tags": [
+          "Job Sync Admin"
+        ]
+      }
+    },
+    "/admin/job-sync/sync-all": {
+      "post": {
+        "description": "Manually trigger a full sync of all active jobs to Elasticsearch. This will sync all jobs in batches.",
+        "operationId": "AdminJobSyncController_syncAllActiveJobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Sync all active jobs to Elasticsearch",
+        "tags": [
+          "Job Sync Admin"
+        ]
+      }
+    },
+    "/admin/job-sync/{jobId}": {
+      "delete": {
+        "description": "Remove a specific job from the Elasticsearch index by job ID.",
+        "operationId": "AdminJobSyncController_deleteJob",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete a job from Elasticsearch",
+        "tags": [
+          "Job Sync Admin"
         ]
       }
     },
@@ -7889,11 +8032,6 @@
             "type": "string",
             "nullable": true
           },
-          "provinceId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -7955,7 +8093,6 @@
           "experienceMax",
           "datePosted",
           "endDate",
-          "provinceId",
           "createdAt",
           "updatedAt",
           "deletedAt",
@@ -8443,10 +8580,13 @@
               "rejected"
             ]
           },
-          "provinceId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+          "provinceIds": {
+            "description": "Danh sách province ids",
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "questions": {
             "nullable": true,
@@ -8489,7 +8629,6 @@
           "endDate",
           "workType",
           "status",
-          "provinceId",
           "questions",
           "skillIds",
           "categoryId"
@@ -8573,10 +8712,13 @@
             "nullable": true,
             "description": "Priority level"
           },
-          "provinceId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+          "provinceIds": {
+            "description": "Danh sách province ids",
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "questions": {
             "nullable": true,
@@ -8619,7 +8761,6 @@
           "applyUrl",
           "status",
           "priority",
-          "provinceId",
           "questions",
           "skillIds",
           "rejectReason",
@@ -8674,10 +8815,16 @@
             "example": "2023-12-31",
             "description": "End date of the job"
           },
-          "provinceName": {
-            "type": "string",
-            "example": "Hanoi",
-            "description": "Name of the province where the job is located"
+          "provinceNames": {
+            "example": [
+              "Hanoi",
+              "Ho Chi Minh City"
+            ],
+            "description": "Name of the province where the job is located",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isSaved": {
             "type": "boolean",
@@ -8695,7 +8842,7 @@
           "title",
           "companyName",
           "createdAt",
-          "provinceName",
+          "provinceNames",
           "isSaved",
           "isApplied"
         ]
@@ -8752,10 +8899,16 @@
             "example": "2023-12-31",
             "description": "End date of the job"
           },
-          "provinceName": {
-            "type": "string",
-            "example": "Hanoi",
-            "description": "Name of the province where the job is located"
+          "provinceNames": {
+            "example": [
+              "Hanoi",
+              "Ho Chi Minh City"
+            ],
+            "description": "Name of the province where the job is located",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isSaved": {
             "type": "boolean",
@@ -8778,7 +8931,7 @@
           "title",
           "companyName",
           "createdAt",
-          "provinceName",
+          "provinceNames",
           "isSaved",
           "isApplied",
           "applyStatus"
