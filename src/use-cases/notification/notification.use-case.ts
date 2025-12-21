@@ -24,6 +24,7 @@ export class NotificationUseCase {
   ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
     const result =
       await this.notificationRepository.getNotificationsByUser(filter);
+    console.log("Result:", result);
     this.logger.log(
       `Get notification of user: ${filter.userId}, orgId: ${filter.organizationId} successfully`,
     );

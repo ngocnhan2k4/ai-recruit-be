@@ -11,7 +11,7 @@ import { INotificationRepository } from "@/core/abstracts/repositories/notificat
 import { eq, and, isNull, desc, count, lt, inArray, sql } from "drizzle-orm";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { PaginatedResult } from "@/common/types/api";
-import { organizations, users } from "../models";
+import { organizationInvitations, organizations, users } from "../models";
 
 @Injectable()
 export class NotificationRepository
@@ -21,6 +21,7 @@ export class NotificationRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, notifications);
   }
+
   async deleteInviationNotifications(
     organizationId: string,
     inviteeId: string,
@@ -45,6 +46,18 @@ export class NotificationRepository
         ),
       ),
     );
+  }
+
+  async updateNotificationPayload(
+    notificationId: string,
+    payload: Record<string, any>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void> {
+    const dbClient = tx || this.db;
+    await dbClient
+      .update(notifications)
+      .set({ payload })
+      .where(eq(notifications.id, notificationId));
   }
 
   async preCreateNotifications(
@@ -134,6 +147,7 @@ export class NotificationRepository
     }
 
     const orgIdFromPayload = sql<string>`(${notifications.payload} ->> 'orgId')::uuid`;
+    const orgInvitationId = sql<string>`(${notifications.payload} ->> 'orgInvitationId')::uuid`;
 
     const notificationsResult = await this.db
       .select({
@@ -147,6 +161,9 @@ export class NotificationRepository
           name: organizations.name,
           logoUrl: organizations.logoUrl,
         },
+        orgInvitation: {
+          status: organizationInvitations.status,
+        },
       })
       .from(userNotifications)
       .innerJoin(
@@ -155,6 +172,10 @@ export class NotificationRepository
       )
       .leftJoin(users, eq(notifications.senderId, users.id))
       .leftJoin(organizations, eq(orgIdFromPayload, organizations.id))
+      .leftJoin(
+        organizationInvitations,
+        eq(orgInvitationId, organizationInvitations.id),
+      )
       .where(and(...whereConditions))
       .orderBy(desc(notifications.createdAt))
       .limit(filter.limit + 1);
@@ -177,6 +198,7 @@ export class NotificationRepository
         ...row.userNotification,
         sender: row.sender,
         organization: row.organization,
+        orgInvitation: row.orgInvitation,
       })),
       pagination: {
         nextCursor,
