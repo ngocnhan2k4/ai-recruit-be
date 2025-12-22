@@ -20,7 +20,6 @@ import {
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
   WeeklyProgressResponseDto,
-  CurrentWeekSkillsResponseDto,
 } from "@/interfaces/dtos/learning-path";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
@@ -31,6 +30,7 @@ import {
   WeeklyProgress,
 } from "@/core";
 import { Observable } from "rxjs";
+import { getCurrentWeekNumber } from "@/common/utils/calculate-week-number";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -45,17 +45,6 @@ export class LearningPathUseCase {
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly weeklyProgressRepository: IWeeklyProgressRepository,
   ) {}
-
-  private getCurrentWeekNumber(startDate: Date | null): number {
-    if (!startDate) {
-      return 1;
-    }
-    const now = new Date();
-    const diffMs = now.getTime() - startDate.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.floor(diffDays / 7) + 1;
-    return weekNumber > 0 ? weekNumber : 1;
-  }
 
   previewRoadmap(request: PreviewRoadmapDto): Observable<MessageEvent> {
     this.logger.log(
@@ -336,12 +325,22 @@ export class LearningPathUseCase {
     }
 
     await this.skillOptionRepository.executeWithTransaction(async (tx) => {
+      // Set startDate on first skill completion
+      if (!roadmap.startDate) {
+        await this.roadmapRepository.update(
+          { id: roadmapId },
+          { startDate: new Date() },
+          tx,
+        );
+        roadmap.startDate = new Date();
+      }
+
       // Mark the option as completed
       await this.skillOptionRepository.markOptionCompleted(optionId, tx);
-      await this.roadmapRepository.updateProgress(roadmapId);
+      await this.roadmapRepository.updateProgress(roadmapId, tx);
 
       // Increment weekly skills count
-      const currentWeek = this.getCurrentWeekNumber(roadmap.startDate);
+      const currentWeek = getCurrentWeekNumber(roadmap.startDate);
       await this.weeklyProgressRepository.incrementSkillsCompleted(
         roadmapId,
         currentWeek,
@@ -470,36 +469,6 @@ export class LearningPathUseCase {
         scheduledSkills,
       },
       message: "Weekly progress retrieved successfully",
-      code: RESPONSE_CODE.SUCCESS,
-    };
-  }
-
-  async getCurrentWeekSkills(
-    roadmapId: string,
-    userId: string,
-  ): Promise<ApiResponse<CurrentWeekSkillsResponseDto>> {
-    const roadmap = await this.roadmapRepository.get(roadmapId);
-    if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException({
-        message: "Roadmap not found",
-        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
-      });
-    }
-
-    const currentWeek = this.getCurrentWeekNumber(roadmap.startDate);
-    const allSkills =
-      await this.skillRepository.getSkillsByRoadmapId(roadmapId);
-
-    const currentWeekSkills = allSkills.filter(
-      (skill) => skill.weekStart <= currentWeek && skill.weekEnd >= currentWeek,
-    );
-
-    return {
-      data: {
-        currentWeek,
-        skills: currentWeekSkills,
-      },
-      message: "Current week skills retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

@@ -115,6 +115,7 @@ export interface LearningRoadmapWithDetails extends LearningRoadmap {
       skills: Array<RoadmapSkill & { options: RoadmapSkillOptionWithName[] }>;
     }
   >;
+  currentWeek?: number;
 }
 
 export interface LearningRoadmapWithDetailsEnriched
