@@ -1,4 +1,4 @@
-import { pgTable } from "drizzle-orm/pg-core";
+import { pgTable, primaryKey } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import {
@@ -30,17 +30,21 @@ export const organizations = pgTable("organizations", {
   ...timestamps,
 });
 
-export const organizationMembers = pgTable("organization_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  role: OrganizationRoleEnum("role").notNull(),
-  ...timestamps,
-});
+export const organizationMembers = pgTable(
+  "organization_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    role: OrganizationRoleEnum("role").notNull(),
+    ...timestamps,
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.organizationId] })],
+);
 
 export const organizationLocations = pgTable("organization_locations", {
   id: uuid("id").primaryKey().defaultRandom(),
