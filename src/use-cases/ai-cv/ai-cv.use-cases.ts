@@ -173,7 +173,7 @@ export class AiCvUseCases {
       });
     }
 
-    const result = await this.aiCvRepository.delete({ id: aiCvId });
+    const result = await this.aiCvRepository.deletePermanently({ id: aiCvId });
 
     if (result.length === 0) {
       throw new BadRequestException({

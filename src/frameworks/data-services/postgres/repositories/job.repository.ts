@@ -1302,10 +1302,7 @@ export class JobRepository
     const result = await this.db
       .select({
         job: jobs,
-        provinces:
-          sql`COALESCE(json_agg(${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
-            "provinces",
-          ),
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         // If user is authenticated, check if job is saved or applied
@@ -1347,11 +1344,25 @@ export class JobRepository
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
-      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(p) AS provinces
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
+        ) p_lateral`,
+        sql`TRUE`,
+      )
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(s) AS skills
+          FROM ${jobSkills} js
+          INNER JOIN ${skills} s ON js.skill_id = s.id
+          WHERE js.job_id = ${jobs.id}
+        ) s_lateral`,
+        sql`TRUE`,
+      )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
-      .leftJoin(jobProvinces, eq(jobs.id, jobProvinces.jobId))
-      .leftJoin(provinces, eq(jobProvinces.provinceId, provinces.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
       .limit(1);
 

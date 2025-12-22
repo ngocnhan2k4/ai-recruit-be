@@ -12,7 +12,12 @@ import {
   UpdateAiCvDto,
 } from "@/interfaces/dtos/ai-cv/ai-cv.dto";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
+import {
+  CvFieldSuggestionRequestDto,
+  CvFieldSuggestionResponseDto,
+} from "@/interfaces/dtos/ai-cv/ai-cv-suggestion.dto";
 import { AiCvOptimizeUseCases } from "@/use-cases/ai-cv/ai-cv-optimize.use-case";
+import { AiCvSuggestFieldUseCases } from "@/use-cases/ai-cv/ai-cv-suggest.use-case";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
   BadRequestException,
@@ -42,6 +47,7 @@ export class AiCvController {
   constructor(
     private readonly aiCvUseCases: AiCvUseCases,
     private readonly aiCvOptimizeUseCase: AiCvOptimizeUseCases,
+    private readonly aiCvSuggestFieldUseCase: AiCvSuggestFieldUseCases,
   ) {}
 
   @ApiOperation({
@@ -128,6 +134,19 @@ export class AiCvController {
     }
 
     return await this.aiCvOptimizeUseCase.optimizeCvForAts(request);
+  }
+
+  @Post("suggest-field")
+  @ApiOperation({
+    summary: "Suggest CV field value",
+    description:
+      "Generate AI-powered suggestion for a specific CV field. Returns a single suggestion as a raw string. Valid target fields: targetJobTitle, summary, experience.position, experience.achievements, skills.technical, skills.soft, projects.description, projects.technologies",
+  })
+  @ApiResponseDto(CvFieldSuggestionResponseDto)
+  async suggestCvField(
+    @Body() request: CvFieldSuggestionRequestDto,
+  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+    return await this.aiCvSuggestFieldUseCase.suggestCvField(request);
   }
 
   @ApiOperation({
