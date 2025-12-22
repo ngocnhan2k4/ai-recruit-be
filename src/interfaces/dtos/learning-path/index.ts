@@ -1,2 +1,3 @@
 export * from "./generate-roadmap.dto";
 export * from "./roadmap.dto";
+export * from "./weekly-progress.dto";

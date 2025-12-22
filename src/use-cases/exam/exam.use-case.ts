@@ -363,6 +363,7 @@ export class ExamUseCases {
       selectedSkillIds: [dto.skillId],
       selectedDifficultyLevels: dto.difficultyLevels as any,
       questionIds: questionIds,
+      totalScore: null, // Explicitly set to null for unsubmitted tests
     });
 
     // Return questions without correct answers
@@ -397,7 +398,8 @@ export class ExamUseCases {
       throw new BadRequestException("Test does not belong to this user");
     }
 
-    if (userTest.totalScore !== null) {
+    // Check if test is already submitted (totalScore is not null/undefined and > 0)
+    if (userTest.totalScore != null && userTest.totalScore >= 0) {
       throw new BadRequestException("Test already submitted");
     }
 
@@ -542,7 +544,9 @@ export class ExamUseCases {
 
   async getIncompleteExams(userId: string) {
     const allTests = await this.userTestRepo.getUserTests(userId);
-    const incompleteTests = allTests.filter((test) => test.totalScore === null);
+    const incompleteTests = allTests.filter(
+      (test) => test.totalScore == null || test.totalScore < 0,
+    );
 
     return {
       success: true,
@@ -567,7 +571,7 @@ export class ExamUseCases {
       throw new BadRequestException("Test does not belong to this user");
     }
 
-    if (userTest.totalScore !== null) {
+    if (userTest.totalScore != null && userTest.totalScore >= 0) {
       throw new BadRequestException("Test already submitted");
     }
 
@@ -632,7 +636,7 @@ export class ExamUseCases {
       throw new BadRequestException("Test does not belong to this user");
     }
 
-    if (userTest.totalScore !== null) {
+    if (userTest.totalScore != null && userTest.totalScore >= 0) {
       throw new BadRequestException("Test already submitted");
     }
 

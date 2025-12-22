@@ -37,6 +37,7 @@ export class NotificationDto {
     orgId?: string;
     userId?: string;
     applyId?: string;
+    orgInvitationId?: string;
   } | null;
 
   @ApiProperty({ type: "string", nullable: true })
@@ -53,6 +54,10 @@ export class NotificationDto {
   sender?: {
     name?: string | null;
     avatarUrl?: string | null;
+  } | null;
+
+  orgInvitation?: {
+    status?: string | null;
   } | null;
 }
 

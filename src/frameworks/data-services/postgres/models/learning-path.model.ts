@@ -7,11 +7,23 @@ import {
   jsonb,
   timestamp,
   decimal,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import { users } from "./user.model";
 import { relations } from "drizzle-orm";
-import { GapDifficultyEnum, ResourceTypeEnum, SkillLevelEnum } from "@/core";
+import {
+  GapDifficultyEnum,
+  ResourceTypeEnum,
+  SkillLevelEnum,
+  PhaseStatusEnum,
+} from "@/core";
+
+export const phaseStatusEnum = pgEnum("phase_status", [
+  PhaseStatusEnum.NOT_STARTED,
+  PhaseStatusEnum.IN_PROGRESS,
+  PhaseStatusEnum.COMPLETED,
+]);
 
 export const learningRoadmaps = pgTable("learning_roadmaps", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -44,6 +56,8 @@ export const learningRoadmaps = pgTable("learning_roadmaps", {
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 
+  startDate: timestamp("start_date"),
+
   overallProgress: decimal("overall_progress", { precision: 5, scale: 2 })
     .notNull()
     .default("0"),
@@ -61,6 +75,13 @@ export const roadmapPhases = pgTable("roadmap_phases", {
   durationWeeks: integer("duration_weeks").notNull(),
   orderIndex: integer("order_index").notNull(),
 
+  progress: decimal("progress", { precision: 5, scale: 2 })
+    .notNull()
+    .default("0"),
+  status: phaseStatusEnum("status")
+    .notNull()
+    .default(PhaseStatusEnum.NOT_STARTED),
+  startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
 
   ...timestamps,
@@ -108,6 +129,25 @@ export const roadmapSkillOptions = pgTable("roadmap_skill_options", {
   ...timestamps,
 });
 
+export const weeklyProgress = pgTable("weekly_progress", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  roadmapId: uuid("roadmap_id")
+    .notNull()
+    .references(() => learningRoadmaps.id, { onDelete: "cascade" }),
+
+  weekNumber: integer("week_number").notNull(),
+
+  hoursSpent: decimal("hours_spent", { precision: 5, scale: 2 })
+    .notNull()
+    .default("0"),
+
+  skillsCompletedThisWeek: integer("skills_completed_this_week")
+    .notNull()
+    .default(0),
+
+  ...timestamps,
+});
+
 export const learningRoadmapsRelations = relations(
   learningRoadmaps,
   ({ one, many }) => ({
@@ -150,3 +190,10 @@ export const roadmapSkillOptionsRelations = relations(
     }),
   }),
 );
+
+export const weeklyProgressRelations = relations(weeklyProgress, ({ one }) => ({
+  roadmap: one(learningRoadmaps, {
+    fields: [weeklyProgress.roadmapId],
+    references: [learningRoadmaps.id],
+  }),
+}));
