@@ -116,9 +116,11 @@ export class AiCvController {
     },
   })
   async optimizeAts(
-    @UploadFileAndBody()
+    @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
+    console.log(request);
+
     if (!request.file && !request.cvText) {
       throw new BadRequestException({
         message: "Either CV file or CV text must be provided",
