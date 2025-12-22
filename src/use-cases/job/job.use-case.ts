@@ -413,12 +413,26 @@ export class JobUseCases {
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto & { userId: string },
+    user?: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    // Only admin can update job status
+    if (
+      updateJobDto.status !== undefined &&
+      user &&
+      !user.roles.includes(RoleEnum.ADMIN) &&
+      !user.roles.includes(RoleEnum.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException({
+        message: "Only admin can update job status",
+        code: RESPONSE_CODE.FORBIDDEN,
       });
     }
 
@@ -447,15 +461,13 @@ export class JobUseCases {
           updateData,
           updateJobDto.userId,
         );
-      newNotifications.forEach((notification) => {
-        this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
-          },
-          notification,
+
+      if (newNotifications && newNotifications.length > 0) {
+        this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+        this.logger.log(
+          `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${newNotifications.length} notifications created in DB)`,
         );
-      });
+      }
     }
     // Transform questions field
     const transformedJob: JobDto = {

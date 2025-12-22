@@ -13,4 +13,9 @@ export abstract class IRoadmapPhaseRepository extends IGenericRepository<Roadmap
     phaseId: string,
     tx?: DBDrizzleTransaction,
   ): Promise<RoadmapPhase>;
+
+  abstract updatePhaseProgress(
+    phaseId: string,
+    tx?: DBDrizzleTransaction,
+  ): Promise<RoadmapPhase | null>;
 }

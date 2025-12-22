@@ -1,14 +1,12 @@
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
-from helpers.helper import (
-    crawl,
-    extract_experience_years_jobsgo,
-    extract_salary,
-    fetch_page,
-    safe_text,
-    vn_parse_posted_date,
-)
+
+from helpers.http import crawl, fetch_page
+from helpers.extraction import extract_experience_years_jobsgo, extract_salary
+from helpers.text import safe_text
+from helpers.date import vn_parse_posted_date
+from helpers.province import is_likely_province
 
 
 def scrape_job_detail(scraper, card, job_url: str, companies: dict):
@@ -55,12 +53,37 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
 
     body = soup.select_one("div.tab-pane")
 
-    # skills
+    # skills - improved extraction with province filtering
     skills = []
-
-    skill_wrap = body.find_all("a")
-    for skill in skill_wrap[:-1]:
-        skills.append(safe_text(skill))
+    
+    # First, try to find skills in the requirements section
+    requirements_section = soup.find('h3', string=lambda t: t and ('yêu cầu công việc' in t.lower() or 'kỹ năng' in t.lower()))
+    if requirements_section:
+        skill_container = requirements_section.find_next_sibling('div')
+        if skill_container:
+            skill_links = skill_container.find_all('a')
+            for skill_link in skill_links:
+                skill_text = safe_text(skill_link)
+                # Filter out provinces and invalid skills
+                if (skill_text and 
+                    len(skill_text) > 1 and 
+                    skill_text != "N/A" and
+                    skill_text not in locations and
+                    not is_likely_province(skill_text)):
+                    skills.append(skill_text)
+    
+    # Fallback: look in the tab pane but with stricter filtering
+    if not skills and body:
+        skill_wrap = body.find_all("a")
+        for skill in skill_wrap[:-1]:  # Skip last link (usually "apply" or navigation)
+            skill_text = safe_text(skill)
+            # Filter out provinces and invalid skills
+            if (skill_text and 
+                len(skill_text) > 1 and 
+                skill_text != "N/A" and
+                skill_text not in locations and
+                not is_likely_province(skill_text)):
+                skills.append(skill_text)
 
     # description
     description_parts = []

@@ -157,3 +157,9 @@ export enum OtpPurpose {
   VERIFY_ORGANIZATION_EMAIL = "VERIFY_ORGANIZATION_EMAIL",
   CHANGE_ORGANIZATION_EMAIL = "CHANGE_ORGANIZATION_EMAIL",
 }
+
+export enum PhaseStatusEnum {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+}

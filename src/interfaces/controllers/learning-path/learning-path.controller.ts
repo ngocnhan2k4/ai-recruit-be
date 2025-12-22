@@ -15,23 +15,29 @@ import {
   Param,
   Query,
   UseGuards,
+  Res,
 } from "@nestjs/common";
+import type { FastifyReply } from "fastify";
 import { LearningPathUseCase } from "@/use-cases/learning-path/learning-path.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, PaginatedResultDto } from "../../dtos";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
+import { Logger } from "@nestjs/common";
 
 import {
   PreviewRoadmapDto,
   SaveRoadmapDto,
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
+  UpdateWeeklyHoursDto,
+  WeeklyProgressResponseDto,
+  CurrentWeekSkillsResponseDto,
 } from "@/interfaces/dtos/learning-path";
 import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
-  PreviewRoadmapResponse,
+  WeeklyProgress,
 } from "@/core";
 
 @ApiTags("Learning Path")
@@ -39,18 +45,56 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class LearningPathController {
+  private readonly logger = new Logger(LearningPathController.name);
+
   constructor(private readonly learningPathUseCase: LearningPathUseCase) {}
 
   @Post("preview")
   @ApiOperation({
-    summary: "Preview learning roadmap",
+    summary: "Preview learning roadmap with SSE streaming",
     description:
-      "Generate a roadmap preview without saving to database. Use this before creating a roadmap.",
+      "Generate a roadmap preview with real-time progress updates via Server-Sent Events.",
   })
-  async previewRoadmap(
+  previewRoadmap(
     @Body() dto: PreviewRoadmapDto,
-  ): Promise<ApiResponse<PreviewRoadmapResponse>> {
-    return await this.learningPathUseCase.previewRoadmap(dto);
+    @Res() reply: FastifyReply,
+  ): void {
+    reply.hijack();
+
+    // Set SSE headers
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+
+    // Send initial comment to establish connection
+    reply.raw.write(": connected\n\n");
+
+    const observable = this.learningPathUseCase.previewRoadmap(dto);
+
+    observable.subscribe({
+      next: (event) => {
+        const data = JSON.stringify(event.data);
+        reply.raw.write(`data: ${data}\n\n`);
+        if ((reply.raw as any).flush) {
+          (reply.raw as any).flush();
+        }
+      },
+      complete: () => {
+        this.logger.log("SSE stream completed");
+        reply.raw.end();
+      },
+      error: (error) => {
+        const errorData = JSON.stringify({
+          type: "error",
+          message: error.message || "Unknown error occurred",
+        });
+        reply.raw.write(`data: ${errorData}\n\n`);
+        reply.raw.end();
+      },
+    });
   }
 
   @Post()
@@ -128,11 +172,11 @@ export class LearningPathController {
     return await this.learningPathUseCase.deleteRoadmap(roadmapId, user.userId);
   }
 
-  @Put(":roadmapId/skills/:skillId/complete")
+  @Put(":roadmapId/options/:optionId/complete")
   @ApiOperation({
-    summary: "Mark skill as completed",
+    summary: "Mark skill option as completed",
     description:
-      "Mark a skill as completed. This will unlock dependent skills and update overall progress.",
+      "Mark a specific skill option as completed (e.g., completing 'Go' from programming language options). This will unlock dependent skills and update overall progress.",
   })
   @ApiParam({
     name: "roadmapId",
@@ -140,18 +184,19 @@ export class LearningPathController {
     example: "550e8400-e29b-41d4-a716-446655440000",
   })
   @ApiParam({
-    name: "skillId",
-    description: "Skill ID to mark as completed",
+    name: "optionId",
+    description:
+      "Skill option ID to mark as completed (the specific choice user made from available options)",
     example: "550e8400-e29b-41d4-a716-446655440001",
   })
   async completeSkill(
     @GetUser() user: TokenPayload,
     @Param("roadmapId") roadmapId: string,
-    @Param("skillId") skillId: string,
+    @Param("optionId") optionId: string,
   ): Promise<ApiResponse<{ unlockedSkills: string[] }>> {
     return await this.learningPathUseCase.completeSkill(
       roadmapId,
-      skillId,
+      optionId,
       user.userId,
     );
   }
@@ -177,22 +222,73 @@ export class LearningPathController {
     );
   }
 
-  @Get(":roadmapId/selected-skills")
+  @Put(":roadmapId/weekly-progress")
   @ApiOperation({
-    summary: "Get user's selected/completed skills",
-    description:
-      "Get only the skills that the user has completed (marked as done). This shows the actual learning path the user chose from the available options.",
+    summary: "Update weekly study hours",
+    description: "Update the number of hours studied for a specific week",
   })
   @ApiParam({
     name: "roadmapId",
     description: "Roadmap ID",
     example: "550e8400-e29b-41d4-a716-446655440000",
   })
-  async getSelectedSkills(
+  async updateWeeklyHours(
     @GetUser() user: TokenPayload,
     @Param("roadmapId") roadmapId: string,
-  ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
-    return await this.learningPathUseCase.getSelectedSkills(
+    @Body() dto: UpdateWeeklyHoursDto,
+  ): Promise<ApiResponse<WeeklyProgress>> {
+    return await this.learningPathUseCase.updateWeeklyHours(
+      roadmapId,
+      dto.weekNumber,
+      dto.hoursSpent,
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/weekly-progress/:weekNumber")
+  @ApiOperation({
+    summary: "Get weekly progress details",
+    description:
+      "Get progress details for a specific week including hours spent, skills completed, and scheduled skills",
+  })
+  @ApiParam({
+    name: "roadmapId",
+    description: "Roadmap ID",
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  @ApiParam({
+    name: "weekNumber",
+    description: "Week number",
+    example: 3,
+  })
+  async getWeeklyProgress(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("weekNumber") weekNumber: string,
+  ): Promise<ApiResponse<WeeklyProgressResponseDto>> {
+    return await this.learningPathUseCase.getWeeklyProgress(
+      roadmapId,
+      parseInt(weekNumber, 10),
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/current-week-skills")
+  @ApiOperation({
+    summary: "Get current week's skills",
+    description:
+      "Get all skills scheduled for the current week based on roadmap start date",
+  })
+  @ApiParam({
+    name: "roadmapId",
+    description: "Roadmap ID",
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  async getCurrentWeekSkills(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+  ): Promise<ApiResponse<CurrentWeekSkillsResponseDto>> {
+    return await this.learningPathUseCase.getCurrentWeekSkills(
       roadmapId,
       user.userId,
     );

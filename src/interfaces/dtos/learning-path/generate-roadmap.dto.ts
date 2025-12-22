@@ -18,6 +18,7 @@ import {
   SkillLevelEnum,
   ResourceTypeEnum,
   GapDifficultyEnum,
+  PhaseStatusEnum,
 } from "@/core/entities/enum.entity";
 
 class SkillLevelDto {
@@ -175,6 +176,14 @@ export class SkillOptionDto {
 }
 
 export class RoadmapPositionDto {
+  @ApiPropertyOptional({
+    description: "AI-generated skill UUID for mapping prerequisites",
+    example: "a1b2c3d4-e5f6-7890-abcd-ef1234567891",
+  })
+  @IsOptional()
+  @IsString()
+  skillId?: string;
+
   @ApiProperty({
     description: "Position name (learning objective)",
     example: "Lập trình Backend Nâng cao",
@@ -225,7 +234,7 @@ export class RoadmapPositionDto {
 
   @ApiProperty({
     description: "Prerequisite skill IDs",
-    example: [],
+    example: ["a1b2c3d4-e5f6-7890-abcd-ef1234567891"],
   })
   @IsArray()
   @IsString({ each: true })
@@ -263,6 +272,36 @@ class PhaseDto {
   @IsInt()
   @Min(0)
   orderIndex: number;
+
+  @ApiPropertyOptional({
+    description: "Phase progress percentage (0-100)",
+    example: 75.5,
+  })
+  @IsOptional()
+  progress?: number;
+
+  @ApiPropertyOptional({
+    description: "Phase status",
+    example: PhaseStatusEnum.IN_PROGRESS,
+    enum: PhaseStatusEnum,
+  })
+  @IsOptional()
+  @IsEnum(PhaseStatusEnum)
+  status?: PhaseStatusEnum;
+
+  @ApiPropertyOptional({
+    description: "When the phase was started",
+    example: "2025-12-01T10:00:00.000Z",
+  })
+  @IsOptional()
+  startedAt?: Date;
+
+  @ApiPropertyOptional({
+    description: "When the phase was completed",
+    example: "2025-12-15T18:30:00.000Z",
+  })
+  @IsOptional()
+  completedAt?: Date;
 
   @ApiProperty({
     description: "Learning positions in this phase",

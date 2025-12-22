@@ -50,15 +50,6 @@ export class PreviewRoadmapDto {
   targetRole: string;
 
   @ApiProperty({
-    description: "Learning timeline in weeks",
-    example: 24,
-  })
-  @IsInt()
-  @Min(1)
-  @Max(104)
-  timelineWeeks: number;
-
-  @ApiProperty({
     description: "Hours per week commitment",
     example: 15,
   })
@@ -104,13 +95,6 @@ export class SaveRoadmapDto {
   targetRole: string;
 
   @ApiProperty({
-    description: "Learning timeline in weeks",
-    example: 24,
-  })
-  @IsInt()
-  timelineWeeks: number;
-
-  @ApiProperty({
     description: "Hours per week commitment",
     example: 15,
   })
@@ -135,22 +119,15 @@ export class SaveRoadmapDto {
   previewData: any; // Will accept the full PreviewRoadmapResponse
 }
 
-export class GetRoadmapsQueryDto extends GeneralQueryDto {
-  @ApiPropertyOptional({
-    description: "Filter by user ID (admin only)",
-  })
-  @IsOptional()
-  @IsUUID()
-  userId?: string;
-}
+export class GetRoadmapsQueryDto extends GeneralQueryDto {}
 
 export class CompleteSkillDto {
   @ApiProperty({
-    description: "Roadmap skill ID to mark as completed",
+    description: "Skill option ID to mark as completed",
     example: "550e8400-e29b-41d4-a716-446655440000",
   })
   @IsUUID()
-  skillId: string;
+  optionId: string;
 }
 
 export class RoadmapProgressStatsDto {

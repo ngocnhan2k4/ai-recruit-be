@@ -157,6 +157,7 @@ export default (): Record<string, any> => ({
   AI_SERVICE_URL: process.env.AI_SERVICE_URL,
   AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,
   AI_SERVICE_MAX_RETRIES: Number(process.env.AI_SERVICE_MAX_RETRIES) || 3,
+  AI_API_KEY: process.env.AI_API_KEY,
   FRONTEND_URL: process.env.FRONTEND_URL,
 
   MAIL_USER: process.env.MAIL_USER,

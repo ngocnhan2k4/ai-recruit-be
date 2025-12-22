@@ -25,9 +25,8 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
       analysis: {
         analyzer: {
           vietnamese_analyzer: {
-            type: "standard",
-            // [TODO] Tích hợp Vietnamese tokenizer sau
-            // Ví dụ: https://github.com/duydo/elasticsearch-analysis-vietnamese
+            tokenizer: "vi_tokenizer",
+            filter: ["lowercase"],
           },
         },
       },
@@ -51,38 +50,75 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         },
         description: {
           type: "text",
-          analyzer: "vietnamese_analyzer",
+          fields: {
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
         },
         organizationId: {
           type: "keyword",
         },
         organizationName: {
-          type: "keyword",
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+            },
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
         },
         skillIds: {
           type: "keyword",
         },
         skillNames: {
-          type: "keyword",
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+            },
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
         },
         categoryId: {
           type: "keyword",
         },
         categoryName: {
-          type: "keyword",
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+            },
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
         },
         provinceIds: {
           type: "keyword",
         },
         provinceNames: {
-          type: "keyword",
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+            },
+            vietnamese: {
+              type: "text",
+              analyzer: "vietnamese_analyzer",
+            },
+          },
         },
-        salaryMin: {
-          type: "float",
-        },
-        salaryMax: {
-          type: "float",
-        },
+        salaryMin: { type: "scaled_float", scaling_factor: 100 },
+        salaryMax: { type: "scaled_float", scaling_factor: 100 },
         experienceMin: {
           type: "integer",
         },
@@ -107,13 +143,9 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         updatedAt: {
           type: "date",
         },
-        // Computed fields for scoring
-        salaryAvg: {
-          type: "float",
-        },
         // Boost factor (can be updated based on job popularity, etc.)
         boost: {
-          type: "float",
+          type: "rank_feature",
         },
       },
     },

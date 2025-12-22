@@ -23,12 +23,14 @@ import {
   ILearningRoadmapRepository,
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
+  IRoadmapSkillOptionRepository,
   IAreaRepository,
   IQuestionRepository,
   ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
   IImportLogRepository,
+  IWeeklyProgressRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -58,6 +60,7 @@ import { FeedbackRepository } from "./repositories/feedback.repository";
 import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
 import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
 import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { RoadmapSkillOptionRepository } from "./repositories/roadmap-skill-option.repository";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { AiCvRepository } from "./repositories/ai-cv.repository";
 import { AreaRepository } from "./repositories/area.repository";
@@ -66,6 +69,7 @@ import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
 import { ImportLogRepository } from "./repositories/import-log.repository";
+import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
 
 @Global()
 @Module({
@@ -215,6 +219,10 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
       useClass: RoadmapSkillRepository,
     },
     {
+      provide: IRoadmapSkillOptionRepository,
+      useClass: RoadmapSkillOptionRepository,
+    },
+    {
       provide: IAreaRepository,
       useClass: AreaRepository,
     },
@@ -242,6 +250,10 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
+    {
+      provide: IWeeklyProgressRepository,
+      useClass: WeeklyProgressRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -268,6 +280,7 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
     ILearningRoadmapRepository,
     IRoadmapPhaseRepository,
     IRoadmapSkillRepository,
+    IRoadmapSkillOptionRepository,
     IAreaRepository,
     IQuestionRepository,
     ILevelRepository,
@@ -275,6 +288,7 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
     IUserAnswerRepository,
     IImportLogRepository,
     IAiCvRepository,
+    IWeeklyProgressRepository,
   ],
 })
 export class PostgresDataServicesModule {}

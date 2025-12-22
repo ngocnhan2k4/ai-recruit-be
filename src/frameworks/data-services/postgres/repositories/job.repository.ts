@@ -572,7 +572,10 @@ export class JobRepository
     filter: StatisticsJobFilter,
     limit = 10,
   ): Promise<TopInMarketResponse[]> {
-    const conditions = this.buildJobFilterQuery(filter);
+    const conditions = this.buildJobFilterQuery({
+      ...filter,
+      categoryId: undefined,
+    });
 
     const result = await this.db
       .select({
@@ -983,6 +986,7 @@ export class JobRepository
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
+      categoryId: job.categoryId!,
       description: job.description,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
@@ -993,7 +997,6 @@ export class JobRepository
       workType: job.workType,
       jobRawId: job.jobRawId,
       questions: job.questions,
-      categoryId: job.categoryId,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1299,7 +1302,10 @@ export class JobRepository
     const result = await this.db
       .select({
         job: jobs,
-        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
+        provinces:
+          sql`COALESCE(json_agg(${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
+            "provinces",
+          ),
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         // If user is authenticated, check if job is saved or applied
@@ -1344,24 +1350,8 @@ export class JobRepository
       .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
-      .leftJoin(
-        sql`LATERAL (
-        SELECT json_agg(s) AS skills
-        FROM ${jobSkills} js
-        JOIN ${skills} s ON js.skill_id = s.id
-        WHERE js.job_id = ${jobs.id}
-      ) s_lateral `,
-        sql`TRUE`,
-      )
-      .leftJoin(
-        sql`LATERAL (
-          SELECT json_agg(p) AS provinces
-          FROM ${jobProvinces} jp
-          INNER JOIN ${provinces} p ON jp.province_id = p.id
-          WHERE jp.job_id = ${jobs.id}
-        ) p_lateral`,
-        sql`TRUE`,
-      )
+      .leftJoin(jobProvinces, eq(jobs.id, jobProvinces.jobId))
+      .leftJoin(provinces, eq(jobProvinces.provinceId, provinces.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
       .limit(1);
 
