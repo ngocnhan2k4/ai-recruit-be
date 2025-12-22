@@ -1,4 +1,4 @@
-import { pgTable, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import {
@@ -9,6 +9,7 @@ import {
 } from "./enums";
 import { users } from "./user.model";
 import { provinces } from "./province.model";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,7 +44,9 @@ export const organizationMembers = pgTable(
     role: OrganizationRoleEnum("role").notNull(),
     ...timestamps,
   },
-  (table) => [primaryKey({ columns: [table.userId, table.organizationId] })],
+  (table) => [
+    uniqueIndex("org_member_unique_idx").on(table.userId, table.organizationId),
+  ],
 );
 
 export const organizationLocations = pgTable("organization_locations", {
