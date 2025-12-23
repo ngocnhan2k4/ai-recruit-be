@@ -1,11 +1,12 @@
 import { Controller, Post, Delete, Param, UseGuards } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
 
 @ApiTags("Job Sync Admin")
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/job-sync")
 export class AdminJobSyncController {

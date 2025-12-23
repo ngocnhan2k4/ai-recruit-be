@@ -157,3 +157,8 @@ export enum OtpPurpose {
   VERIFY_ORGANIZATION_EMAIL = "VERIFY_ORGANIZATION_EMAIL",
   CHANGE_ORGANIZATION_EMAIL = "CHANGE_ORGANIZATION_EMAIL",
 }
+
+export enum UserInteractionEnum {
+  SAVE = "save",
+  HIDE = "hide",
+}

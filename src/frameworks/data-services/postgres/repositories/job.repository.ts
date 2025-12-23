@@ -13,6 +13,7 @@ import {
   ilike,
   asc,
   desc,
+  inArray,
 } from "drizzle-orm";
 import { Inject, Injectable } from "@nestjs/common";
 import {
@@ -45,6 +46,9 @@ import {
   NotificationType,
   IUserRepository,
   Category,
+  User,
+  UserInteractionEnum,
+  ApplyJob,
 } from "@/core";
 import {
   Job,
@@ -1643,5 +1647,91 @@ export class JobRepository
       .offset((query.page! - 1) * query.limit);
 
     return activeJobs.map((job) => job.id);
+  }
+
+  async getUserJobStatuses(
+    userId: User["id"],
+    jobIds: Job["id"][],
+  ): Promise<
+    Map<
+      Job["id"],
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: ApplyJob["id"] | null;
+      }
+    >
+  > {
+    const statusMap = new Map<
+      string,
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >();
+
+    if (jobIds.length === 0) {
+      return statusMap;
+    }
+
+    jobIds.forEach((jobId) => {
+      statusMap.set(jobId, {
+        isSaved: false,
+        isApplied: false,
+        applyStatus: null,
+        applyId: null,
+      });
+    });
+
+    // Parallel queries for saved and applied jobs
+    const [savedJobs, appliedJobs] = await Promise.all([
+      this.db
+        .select({
+          jobId: userInteractions.jobId,
+        })
+        .from(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+            inArray(userInteractions.jobId, jobIds),
+          ),
+        ),
+      this.db
+        .select({
+          jobId: applyJobs.jobId,
+          status: applyJobs.status,
+          applyId: applyJobs.id,
+        })
+        .from(applyJobs)
+        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(and(eq(cvs.userId, userId), inArray(applyJobs.jobId, jobIds))),
+    ]);
+
+    // Update saved status
+    savedJobs.forEach((saved) => {
+      const status = statusMap.get(saved.jobId);
+      if (status) {
+        status.isSaved = true;
+      }
+    });
+
+    // Update applied status (take first application if multiple exist)
+    appliedJobs.forEach((applied) => {
+      const status = statusMap.get(applied.jobId);
+      if (status) {
+        status.isApplied = true;
+        // Only update if not already set (prefer first result)
+        if (!status.applyStatus) {
+          status.applyStatus = applied.status;
+          status.applyId = applied.applyId;
+        }
+      }
+    });
+
+    return statusMap;
   }
 }

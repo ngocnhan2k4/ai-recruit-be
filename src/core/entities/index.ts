@@ -21,6 +21,7 @@ import {
   userTests,
   userAnswers,
   importLogs,
+  applyJobs,
 } from "@/frameworks/data-services/postgres/models";
 import {
   notifications,
@@ -171,3 +172,6 @@ export type UserAnswer = InferSelectModel<typeof userAnswers>;
 
 export type NewImportLog = InferInsertModel<typeof importLogs>;
 export type ImportLog = InferSelectModel<typeof importLogs>;
+
+export type NewApplyJob = InferInsertModel<typeof applyJobs>;
+export type ApplyJob = InferSelectModel<typeof applyJobs>;

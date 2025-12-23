@@ -42,6 +42,8 @@ import {
   UserSkill,
   UserOnboarding,
   ISkillRepository,
+  IJobRepository,
+  ICvRepository,
 } from "@/core";
 import {
   CreateUserExperienceRequestDto,
@@ -73,8 +75,9 @@ export class UserUseCases implements OnModuleInit {
     private readonly skillRepository: ISkillRepository,
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
-
     private readonly userEducationRepository: IUserEducationRepository,
+    private readonly jobRepository: IJobRepository,
+    private readonly cvRepository: ICvRepository,
   ) {}
 
   async onModuleInit() {
@@ -154,6 +157,7 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByUsername(
     username: string,
+    currentUserId?: string,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
     const user = (await this.userRepository.getByField({ username }))[0];
     if (!user) {
@@ -174,20 +178,44 @@ export class UserUseCases implements OnModuleInit {
       );
     }
 
+    const isOwner = currentUserId && currentUserId === user.id;
+
+    const response: UserPublicResponseDto = {
+      username: user.username,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      gender: user.gender as GenderEnum,
+      dob: user.dob,
+      bio: user.bio,
+      bannerUrl: user.bannerUrl,
+      address: user.address,
+      school: school?.name || null,
+    };
+
+    // Add private information if user is viewing their own profile
+    if (isOwner) {
+      const [userOnboarding] = await Promise.all([
+        this.userOnboardingRepository.getByField({ userId: user.id }),
+      ]);
+
+      const onboarding = userOnboarding[0];
+      if (onboarding) {
+        response.provinceIds = onboarding.provinceIds || [];
+        response.categoryIds = onboarding.categoryIds || [];
+        response.expectedSalary = onboarding.expectedSalary
+          ? Number(onboarding.expectedSalary)
+          : null;
+      } else {
+        response.provinceIds = [];
+        response.categoryIds = [];
+        response.expectedSalary = null;
+      }
+    }
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        username: user.username,
-        name: user.name,
-        avatarUrl: user.avatarUrl,
-        gender: user.gender as GenderEnum,
-        dob: user.dob,
-        bio: user.bio,
-        bannerUrl: user.bannerUrl,
-        address: user.address,
-        school: school?.name || null,
-      },
+      data: response,
     };
   }
 
@@ -203,27 +231,62 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    // Extract preferences from updateUserDto
+    const { provinceIds, categoryIds, expectedSalary, ...userUpdateData } =
+      updateUserDto;
+
     const updatedUser = {
       ...user,
-      ...updateUserDto,
+      ...userUpdateData,
     };
 
     try {
-      const result = (
-        await this.userRepository.update(
+      // Update user profile
+      const [result] = await Promise.all([
+        this.userRepository.update(
           {
             id: userId,
           },
           updatedUser,
-        )
-      )[0];
+        ),
+        updatedUser.onboardingCompleted
+          ? this.userOnboardingRepository.create({
+              userId,
+            })
+          : Promise.resolve(),
+      ]);
 
-      if (!result) {
+      if (result.length === 0) {
         throw new NotFoundException({
           message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
           code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
         });
       }
+
+      // Update preferences if provided
+      if (
+        provinceIds !== undefined ||
+        categoryIds !== undefined ||
+        expectedSalary !== undefined
+      ) {
+        const preferencesUpdate: Partial<UserOnboarding> = {};
+        if (provinceIds !== undefined) {
+          preferencesUpdate.provinceIds = provinceIds;
+        }
+        if (categoryIds !== undefined) {
+          preferencesUpdate.categoryIds = categoryIds;
+        }
+        if (expectedSalary !== undefined) {
+          preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
+        }
+
+        // Update existing onboarding
+        await this.userOnboardingRepository.update(
+          { userId },
+          preferencesUpdate,
+        );
+      }
+
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
