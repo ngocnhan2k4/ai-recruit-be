@@ -54,11 +54,3 @@ export class WeeklyProgressResponseDto {
   })
   scheduledSkills: ScheduledSkillDto[];
 }
-
-export class CurrentWeekSkillsResponseDto {
-  @ApiProperty({ description: "Current week number" })
-  currentWeek: number;
-
-  @ApiProperty({ description: "Skills for current week" })
-  skills: any[];
-}
