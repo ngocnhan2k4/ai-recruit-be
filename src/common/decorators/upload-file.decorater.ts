@@ -36,6 +36,7 @@ export const UploadFileAndBody = createParamDecorator(
 
     const body: Record<string, any> = {};
     let file: MultipartFile | undefined;
+    let cvText: string | undefined;
 
     for await (const part of request.parts()) {
       if (part.type === "file") {
@@ -51,7 +52,12 @@ export const UploadFileAndBody = createParamDecorator(
           toBuffer: () => Promise.resolve(buffer),
         } as unknown as MultipartFile;
       } else if (part.type === "field") {
-        body[part.fieldname] = part.value;
+        // Extract cvText to top level
+        if (part.fieldname === "cvText") {
+          cvText = part.value as string;
+        } else {
+          body[part.fieldname] = part.value;
+        }
       }
     }
 
@@ -66,6 +72,6 @@ export const UploadFileAndBody = createParamDecorator(
     if (file) request.fileData = file;
     request.bodyData = body;
 
-    return { file, body };
+    return { file, cvText, body };
   },
 );
