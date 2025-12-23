@@ -69,6 +69,27 @@ export class OrganizationInvitationController {
     );
   }
 
+  @Get("history")
+  @ApiOperation({
+    summary: "Get invitation history for an organization",
+    description:
+      "Retrieve a list of accepted or declined invitations for a specific organization",
+  })
+  @ApiResponseDto(Boolean)
+  async getInvitationHistory(
+    @GetUser() user: TokenPayload,
+    @Param("organizationId") organizationId: string,
+    @Query() query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
+  > {
+    return this.organizationInvitationUseCase.getInvitationHistory(
+      user.userId,
+      organizationId,
+      query,
+    );
+  }
+
   @Get("me")
   @ApiOperation({
     summary: "Get my invitations for an organization",

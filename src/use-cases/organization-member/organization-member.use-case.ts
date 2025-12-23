@@ -114,16 +114,91 @@ export class OrganizationMemberUseCase {
     };
   }
 
-  async updateMemberRole(organizationId: string, data: UpdateMemberRoleDto) {
-    return await this.organizationMemberRepository.update(
+  async updateMemberRole(
+    actorUserId: string,
+    organizationId: string,
+    data: UpdateMemberRoleDto,
+  ): Promise<ApiResponse<any>> {
+    // Check if actor has permission to change roles
+    const actorMember = await this.organizationMemberRepository.getByField({
+      organizationId,
+      userId: actorUserId,
+      deletedAt: null,
+    });
+
+    if (!actorMember || actorMember.length === 0) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const actorRole = actorMember[0].role as OrganizationRoleEnum;
+
+    // Check if target user is a member
+    const targetMember = await this.organizationMemberRepository.getByField({
+      organizationId,
+      userId: data.userId,
+      deletedAt: null,
+    });
+
+    if (!targetMember || targetMember.length === 0) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.MEMBER_NOT_FOUND,
+        code: RESPONSE_CODE.MEMBER_NOT_FOUND,
+      });
+    }
+
+    const targetCurrentRole = targetMember[0].role as OrganizationRoleEnum;
+
+    // Permission check: Only Owner and Admin can change roles
+    if (
+      actorRole !== OrganizationRoleEnum.ORGANIZATION_OWNER &&
+      actorRole !== OrganizationRoleEnum.ORGANIZATION_ADMIN
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Admin cannot change Owner's role or promote to Owner
+    if (actorRole === OrganizationRoleEnum.ORGANIZATION_ADMIN) {
+      if (
+        targetCurrentRole === OrganizationRoleEnum.ORGANIZATION_OWNER ||
+        data.role === OrganizationRoleEnum.ORGANIZATION_OWNER
+      ) {
+        throw new ForbiddenException({
+          message: RESPONSE_MESSAGE.FORBIDDEN,
+          code: RESPONSE_CODE.FORBIDDEN,
+        });
+      }
+    }
+
+    // Cannot change your own role
+    if (actorUserId === data.userId) {
+      throw new BadRequestException({
+        message: "Cannot change your own role",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const updated = await this.organizationMemberRepository.update(
       {
         organizationId,
         userId: data.userId,
       },
       {
         role: data.role,
+        updatedAt: new Date(),
       },
     );
+
+    return {
+      data: updated,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 
   compareRoles(
