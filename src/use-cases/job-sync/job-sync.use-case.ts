@@ -64,7 +64,6 @@ export class JobSyncUseCases {
   > {
     try {
       this.logger.log("Starting manual sync of all active jobs...");
-      await this.ensureIndex();
 
       const batchSize = 100;
       let offset = 0;

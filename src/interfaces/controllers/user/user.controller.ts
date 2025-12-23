@@ -98,14 +98,22 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
-  @ApiOperation({ summary: "Get user by username" })
+  @ApiOperation({
+    summary: "Get user by username",
+    description:
+      "Get user public profile. If authenticated user views their own profile, additional private information (statistics, preferences) will be included.",
+  })
   @CasbinPermission("/", "GET")
   @Get(":username")
   @ApiResponseDto(UserPublicResponseDto)
   async getUserProfilePublic(
     @Param("username") username: string,
+    @GetUser() currentUser?: TokenPayload,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
-    return await this.userUseCases.getUserByUsername(username);
+    return await this.userUseCases.getUserByUsername(
+      username,
+      currentUser?.userId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -147,9 +155,7 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  // @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user profile" })
-  // @CasbinPermission("/", "PUT")
   @ApiBody({ type: UpdateUserRequestDto })
   @Put("profile")
   @ApiResponseDto(UserDto)

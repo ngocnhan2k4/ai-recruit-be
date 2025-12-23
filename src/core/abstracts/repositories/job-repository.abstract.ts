@@ -4,6 +4,7 @@ import {
   WorkTypeEnum,
   Notification,
   ApplyStatusEnum,
+  User,
 } from "@/core/entities";
 import {
   JobResponse,
@@ -203,4 +204,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   ): Promise<JobResponse[]>;
 
   abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
+
+  abstract getUserJobStatuses(
+    userId: User["id"],
+    jobIds: Job["id"][],
+  ): Promise<
+    Map<
+      Job["id"],
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >
+  >;
 }
