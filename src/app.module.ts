@@ -12,8 +12,8 @@ import {
   AdminUserController,
   // MyOrganizationController,
   NotificationController,
-  CompanyController,
-  CompanyAdminController,
+  // CompanyController,
+  // CompanyAdminController,
   OrganizationAdminController,
   OrganizationController,
   OrganizationMemberController,
@@ -49,7 +49,6 @@ import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { AppConfigProps } from "@/common/config/app.config";
 import { LoggerServiceModule } from "@/frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "@/use-cases/province/province-use-cases.module";
-import { CompanyUseCasesModule } from "@/use-cases/company/company-use-cases.module";
 import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
 import { SkillController } from "@/interfaces/controllers/skill/skill.controller";
 import { SkillUseCasesModule } from "@/use-cases/skill/skill-use-cases.module";
@@ -96,7 +95,6 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
     HttpModule,
     LoggerServiceModule,
     ProvinceUseCasesModule,
-    CompanyUseCasesModule,
     CvUseCasesModule,
     SkillUseCasesModule,
     UniversityUseCasesModule,
@@ -133,8 +131,6 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
     UniversityController,
     CasbinController,
     NotificationController,
-    CompanyController,
-    CompanyAdminController,
     OrganizationAdminController,
     OrganizationController,
     OrganizationMemberController,
