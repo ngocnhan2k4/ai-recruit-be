@@ -59,18 +59,28 @@ export const organizationLocations = pgTable("organization_locations", {
   ...timestamps,
 });
 
-export const organizationInvitations = pgTable("organization_invitations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  actorId: uuid("actor_id")
-    .notNull()
-    .references(() => users.id),
-  receiverId: uuid("receiver_id").references(() => users.id),
-  role: OrganizationRoleEnum("role").notNull(),
-  type: OrganizationInviteTypeEnum("type").notNull(),
-  status: OrganizationInviteStatusEnum("status").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  ...timestamps,
-});
+export const organizationInvitations = pgTable(
+  "organization_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    receiverId: uuid("receiver_id").references(() => users.id),
+    role: OrganizationRoleEnum("role").notNull(),
+    type: OrganizationInviteTypeEnum("type").notNull(),
+    status: OrganizationInviteStatusEnum("status").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("org_invitation_unique_idx").on(
+      table.organizationId,
+      table.receiverId,
+      table.type,
+    ),
+  ],
+);

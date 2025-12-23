@@ -55,6 +55,11 @@ export const users = pgTable(
     uniqueIndex("idx_users_email").on(table.email),
     uniqueIndex("idx_users_firebase_uid").on(table.firebaseUid),
     uniqueIndex("idx_users_phone").on(table.phone),
+    uniqueIndex("idx_users_deleted_at_status").on(
+      table.deletedAt,
+      table.status,
+    ),
+    uniqueIndex("idx_users_username").on(table.username),
   ],
 );
 
