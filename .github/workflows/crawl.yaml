@@ -4,6 +4,40 @@ on:
   schedule:
     - cron: "30 10 * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode for existing jobs"
+        required: false
+        default: "skip"
+        type: choice
+        options:
+          - skip
+          - update
+      itviec_pages:
+        description: "ITViec pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      linkedin_pages:
+        description: "LinkedIn pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      topcv_pages:
+        description: "TopCV pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      jobsgo_pages:
+        description: "JobsGO pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      vietnamworks_pages:
+        description: "VietnamWorks pages to crawl"
+        required: false
+        default: "1"
+        type: string
 
 jobs:
   run-crawler:
@@ -63,7 +97,12 @@ jobs:
           python main.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --gha-output "$GITHUB_OUTPUT" \
-            --pages 1 \
+            --mode ${{ inputs.mode || 'update' }} \
+            --itviec-pages ${{ inputs.itviec_pages || '1' }} \
+            --linkedin-pages ${{ inputs.linkedin_pages || '1' }} \
+            --topcv-pages ${{ inputs.topcv_pages || '1' }} \
+            --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
+            --vietnamworks-pages ${{ inputs.vietnamworks_pages || '1' }} \
             --linkedin-keywords "${{ steps.keyword.outputs.keyword }}"
 
       - name: Notify Slack
@@ -73,13 +112,18 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
           SLACK_CHANNEL: crawl
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "📊 Kết quả crawl việc làm (${{ matrix.env }})"
+          SLACK_TITLE: "📊 Kết quả crawl việc làm (${{ matrix.env }}) - Mode: ${{ inputs.mode || 'update' }}"
           SLACK_MESSAGE: |
             🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
 
-            🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs
-            🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs
-            🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs
-            🔹 Linkedin: ${{ steps.run_crawler.outputs.linkedin }} jobs
+            📈 Tổng hợp:
+            ✓ Inserted: ${{ steps.run_crawler.outputs.total_inserted }} jobs
+            ↻ Updated: ${{ steps.run_crawler.outputs.total_updated }} jobs
+
+            🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs (${{ inputs.itviec_pages || '1' }} pages)
+            🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs (${{ inputs.topcv_pages || '1' }} pages)
+            🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs (${{ inputs.jobsgo_pages || '1' }} pages)
+            🔹 LinkedIn: ${{ steps.run_crawler.outputs.linkedin }} jobs (${{ inputs.linkedin_pages || '1' }} pages)
+            🔹 VietnamWorks: ${{ steps.run_crawler.outputs.vietnamworks }} jobs (${{ inputs.vietnamworks_pages || '1' }} pages)
 
             ✅ Status: ${{ job.status }}

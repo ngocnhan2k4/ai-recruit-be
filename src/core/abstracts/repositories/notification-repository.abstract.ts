@@ -36,6 +36,12 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
     tx?: DBDrizzleTransaction,
   ): Promise<void>;
 
+  abstract updateNotificationPayload(
+    notificationId: string,
+    payload: Record<string, any>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void>;
+
   abstract getUnreadCount(
     userId: string,
     organizationId?: string,

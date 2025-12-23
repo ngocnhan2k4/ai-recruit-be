@@ -162,3 +162,8 @@ export enum UserInteractionEnum {
   SAVE = "save",
   HIDE = "hide",
 }
+export enum PhaseStatusEnum {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+}

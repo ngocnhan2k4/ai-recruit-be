@@ -10,6 +10,7 @@ import {
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
+  IWeeklyProgressRepository,
   IAIService,
 } from "@/core/abstracts";
 import { Inject } from "@nestjs/common";
@@ -18,6 +19,7 @@ import {
   SaveRoadmapDto,
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
+  WeeklyProgressResponseDto,
 } from "@/interfaces/dtos/learning-path";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
@@ -25,9 +27,10 @@ import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
   RoadmapSkillOption,
+  WeeklyProgress,
 } from "@/core";
-import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 import { Observable } from "rxjs";
+import { getCurrentWeekNumber } from "@/common/utils/calculate-week-number";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -40,6 +43,7 @@ export class LearningPathUseCase {
     private readonly phaseRepository: IRoadmapPhaseRepository,
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
+    private readonly weeklyProgressRepository: IWeeklyProgressRepository,
   ) {}
 
   previewRoadmap(request: PreviewRoadmapDto): Observable<MessageEvent> {
@@ -321,33 +325,31 @@ export class LearningPathUseCase {
     }
 
     await this.skillOptionRepository.executeWithTransaction(async (tx) => {
+      // Set startDate on first skill completion
+      if (!roadmap.startDate) {
+        await this.roadmapRepository.update(
+          { id: roadmapId },
+          { startDate: new Date() },
+          tx,
+        );
+        roadmap.startDate = new Date();
+      }
+
       // Mark the option as completed
       await this.skillOptionRepository.markOptionCompleted(optionId, tx);
-      await this.roadmapRepository.updateProgress(roadmapId);
+      await this.roadmapRepository.updateProgress(roadmapId, tx);
 
-      // Check if all skills in the phase are completed
+      // Increment weekly skills count
+      const currentWeek = getCurrentWeekNumber(roadmap.startDate);
+      await this.weeklyProgressRepository.incrementSkillsCompleted(
+        roadmapId,
+        currentWeek,
+        tx,
+      );
+
+      // Update phase progress and status
       if (targetPhaseId) {
-        const phaseSkills =
-          await this.skillRepository.getSkillsByPhaseId(targetPhaseId);
-
-        const phaseCompletionChecks = await Promise.all(
-          phaseSkills.map(async (skill) => {
-            const options =
-              await this.skillOptionRepository.getOptionsBySkillId(skill.id);
-            return options.some((opt) => opt.completedAt !== null);
-          }),
-        );
-
-        const allPhaseSkillsCompleted = phaseCompletionChecks.every(
-          (completed) => completed,
-        );
-
-        if (allPhaseSkillsCompleted) {
-          await this.phaseRepository.markPhaseCompleted(
-            targetPhaseId,
-            tx as DBDrizzleTransaction | undefined,
-          );
-        }
+        await this.phaseRepository.updatePhaseProgress(targetPhaseId, tx);
       }
     });
 
@@ -385,6 +387,88 @@ export class LearningPathUseCase {
     return {
       data: stats,
       message: "Progress stats fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateWeeklyHours(
+    roadmapId: string,
+    weekNumber: number,
+    hoursSpent: number,
+    userId: string,
+  ): Promise<ApiResponse<WeeklyProgress>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const updated = await this.weeklyProgressRepository.updateHoursSpent(
+      roadmapId,
+      weekNumber,
+      hoursSpent,
+    );
+
+    return {
+      data: updated,
+      message: "Weekly hours updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getWeeklyProgress(
+    roadmapId: string,
+    weekNumber: number,
+    userId: string,
+  ): Promise<ApiResponse<WeeklyProgressResponseDto>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const weeklyData =
+      await this.weeklyProgressRepository.getOrCreateWeeklyProgress(
+        roadmapId,
+        weekNumber,
+      );
+
+    const allSkills =
+      await this.skillRepository.getSkillsByRoadmapId(roadmapId);
+
+    const scheduledSkills = await Promise.all(
+      allSkills
+        .filter(
+          (skill) =>
+            skill.weekStart <= weekNumber && skill.weekEnd >= weekNumber,
+        )
+        .map(async (skill) => {
+          const options = await this.skillOptionRepository.getOptionsBySkillId(
+            skill.id,
+          );
+          const isCompleted = options.some((opt) => opt.completedAt !== null);
+
+          return {
+            skillId: skill.id,
+            skillName: skill.skill,
+            isCompleted,
+          };
+        }),
+    );
+
+    return {
+      data: {
+        weekNumber: weeklyData.weekNumber,
+        hoursSpent: parseFloat(weeklyData.hoursSpent),
+        skillsCompletedThisWeek: weeklyData.skillsCompletedThisWeek,
+        targetHours: roadmap.timeCommitmentHoursPerWeek,
+        scheduledSkills,
+      },
+      message: "Weekly progress retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

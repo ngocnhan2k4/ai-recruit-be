@@ -30,6 +30,7 @@ import {
   IUserTestRepository,
   IUserAnswerRepository,
   IImportLogRepository,
+  IWeeklyProgressRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -68,6 +69,7 @@ import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
 import { ImportLogRepository } from "./repositories/import-log.repository";
+import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
 
 @Global()
 @Module({
@@ -248,6 +250,10 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
+    {
+      provide: IWeeklyProgressRepository,
+      useClass: WeeklyProgressRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -282,6 +288,7 @@ import { ImportLogRepository } from "./repositories/import-log.repository";
     IUserAnswerRepository,
     IImportLogRepository,
     IAiCvRepository,
+    IWeeklyProgressRepository,
   ],
 })
 export class PostgresDataServicesModule {}

@@ -30,8 +30,14 @@ import {
   SaveRoadmapDto,
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
+  UpdateWeeklyHoursDto,
+  WeeklyProgressResponseDto,
 } from "@/interfaces/dtos/learning-path";
-import { LearningRoadmap, LearningRoadmapWithDetails } from "@/core";
+import {
+  LearningRoadmap,
+  LearningRoadmapWithDetails,
+  WeeklyProgress,
+} from "@/core";
 
 @ApiTags("Learning Path")
 @Controller("learning-roadmaps")
@@ -60,6 +66,11 @@ export class LearningPathController {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": reply.request.headers.origin || "*",
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods":
+        "GET, HEAD, OPTIONS, PUT, POST, DELETE, PATCH",
+      "Access-Control-Allow-Headers": "Cookie, Content-Type,Authorization",
     });
 
     // Send initial comment to establish connection
@@ -211,6 +222,57 @@ export class LearningPathController {
   ): Promise<ApiResponse<RoadmapProgressStatsDto>> {
     return await this.learningPathUseCase.getProgressStats(
       roadmapId,
+      user.userId,
+    );
+  }
+
+  @Put(":roadmapId/weekly-progress")
+  @ApiOperation({
+    summary: "Update weekly study hours",
+    description: "Update the number of hours studied for a specific week",
+  })
+  @ApiParam({
+    name: "roadmapId",
+    description: "Roadmap ID",
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  async updateWeeklyHours(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Body() dto: UpdateWeeklyHoursDto,
+  ): Promise<ApiResponse<WeeklyProgress>> {
+    return await this.learningPathUseCase.updateWeeklyHours(
+      roadmapId,
+      dto.weekNumber,
+      dto.hoursSpent,
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/weekly-progress/:weekNumber")
+  @ApiOperation({
+    summary: "Get weekly progress details",
+    description:
+      "Get progress details for a specific week including hours spent, skills completed, and scheduled skills",
+  })
+  @ApiParam({
+    name: "roadmapId",
+    description: "Roadmap ID",
+    example: "550e8400-e29b-41d4-a716-446655440000",
+  })
+  @ApiParam({
+    name: "weekNumber",
+    description: "Week number",
+    example: 3,
+  })
+  async getWeeklyProgress(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("weekNumber") weekNumber: string,
+  ): Promise<ApiResponse<WeeklyProgressResponseDto>> {
+    return await this.learningPathUseCase.getWeeklyProgress(
+      roadmapId,
+      parseInt(weekNumber, 10),
       user.userId,
     );
   }

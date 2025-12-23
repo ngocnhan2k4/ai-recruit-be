@@ -306,8 +306,8 @@ export class OrganizationInvitationUseCase {
       });
     }
 
-    // Check if the user is the receiver of the invitation
-    if (invitation.receiverId !== userId) {
+    // Check if the user is the receiver of the invitation and invitation is still pending
+    if (invitation.receiverId !== userId || invitation.status !== "pending") {
       throw new ForbiddenException({
         message: RESPONSE_MESSAGE.FORBIDDEN,
         code: RESPONSE_CODE.FORBIDDEN,
@@ -355,12 +355,6 @@ export class OrganizationInvitationUseCase {
             });
           }
         }
-
-        await this.notificationRepository.deleteInviationNotifications(
-          invitation.organizationId,
-          invitation.receiverId!,
-          tx,
-        );
       },
     );
 

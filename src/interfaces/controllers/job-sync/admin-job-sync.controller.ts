@@ -9,6 +9,7 @@ import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/job-sync")
+@ApiBearerAuth()
 export class AdminJobSyncController {
   constructor(private readonly jobSyncUseCases: JobSyncUseCases) {}
 

@@ -17,5 +17,5 @@ export abstract class ILearningRoadmapRepository extends IGenericRepository<Lear
 
   abstract getProgressStats(roadmapId: string): Promise<RoadmapProgressStats>;
 
-  abstract updateProgress(roadmapId: string): Promise<void>;
+  abstract updateProgress(roadmapId: string, tx?: any): Promise<void>;
 }

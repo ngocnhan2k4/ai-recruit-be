@@ -84,10 +84,14 @@ export class JobAdminController {
     @Body() updateJobDto: UpdateJobDto,
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, {
-      ...updateJobDto,
-      userId: user.userId,
-    });
+    return await this.jobUseCases.updateJob(
+      jobId,
+      {
+        ...updateJobDto,
+        userId: user.userId,
+      },
+      user,
+    );
   }
 
   @ApiOperation({

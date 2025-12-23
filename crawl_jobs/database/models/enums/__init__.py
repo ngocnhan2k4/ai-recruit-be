@@ -12,7 +12,6 @@ class WorkType(str, Enum):
     HYBRID = "hybrid"
 
 class JobStatus(str, Enum):
-    DRAFT = "draft"
     PENDING_APPROVAL = "pending_approval"
     ACTIVE = "active"
     PAUSED = "paused"

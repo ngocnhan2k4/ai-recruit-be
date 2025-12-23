@@ -33,10 +33,6 @@ export * from "./organization/organization-member.controller";
 export * from "./organization/organization-invitation.controller";
 export * from "./organization/admin-organization.controller";
 
-// company controllers
-export * from "./company/company.controller";
-export * from "./company/admin-company.controller";
-
 // notification controllers
 export * from "./notification/notification.controller";
 

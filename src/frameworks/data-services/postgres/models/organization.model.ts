@@ -9,6 +9,7 @@ import {
 } from "./enums";
 import { users } from "./user.model";
 import { provinces } from "./province.model";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -30,17 +31,23 @@ export const organizations = pgTable("organizations", {
   ...timestamps,
 });
 
-export const organizationMembers = pgTable("organization_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  role: OrganizationRoleEnum("role").notNull(),
-  ...timestamps,
-});
+export const organizationMembers = pgTable(
+  "organization_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    role: OrganizationRoleEnum("role").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("org_member_unique_idx").on(table.userId, table.organizationId),
+  ],
+);
 
 export const organizationLocations = pgTable("organization_locations", {
   id: uuid("id").primaryKey().defaultRandom(),
