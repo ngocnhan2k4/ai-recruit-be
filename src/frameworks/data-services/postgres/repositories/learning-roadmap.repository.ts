@@ -17,6 +17,7 @@ import {
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types/api";
 import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
+import { getCurrentWeekNumber } from "@/common/utils/calculate-week-number";
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -177,6 +178,7 @@ export class LearningRoadmapRepository
       ...roadmap[0],
       currentSkills: enrichedCurrentSkills,
       phases: phasesWithSkills,
+      currentWeek: getCurrentWeekNumber(roadmap[0].startDate),
     };
   }
 
@@ -258,10 +260,11 @@ export class LearningRoadmapRepository
     };
   }
 
-  async updateProgress(roadmapId: string): Promise<void> {
+  async updateProgress(roadmapId: string, tx?: any): Promise<void> {
     const stats = await this.getProgressStats(roadmapId);
+    const dbContext = tx || this.db;
 
-    await this.db
+    await dbContext
       .update(learningRoadmaps)
       .set({
         overallProgress: stats.overallProgress.toFixed(2),

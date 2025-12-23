@@ -7,7 +7,7 @@ export type AiCv = InferSelectModel<typeof aiCvs>;
 
 export interface OptimizeAtsRequest {
   cvText: string;
-  jobDescription: string;
+  jobDescription?: string;
   language?: CvLanguageEnum;
 }
 
@@ -85,4 +85,27 @@ export class OptimizeAtsResponse {
   model: string;
   generatedAt: string;
   language: CvLanguageEnum;
+}
+
+export interface CvFieldContext {
+  index?: number;
+  position?: string;
+  company?: string;
+  name?: string;
+  description?: string;
+  technologies?: string[];
+  [key: string]: any;
+}
+
+export interface CvFieldSuggestionRequest {
+  cvData: OptimizedCvData;
+  targetField: string;
+  fieldContext?: CvFieldContext | null;
+  jobDescription?: string | null;
+}
+
+export interface CvFieldSuggestionResponse {
+  targetField: string;
+  suggestion: string;
+  generatedAt: string;
 }

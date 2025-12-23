@@ -1,4 +1,9 @@
-import { OptimizeAtsRequest, OptimizeAtsResponse } from "../entities";
+import {
+  OptimizeAtsRequest,
+  OptimizeAtsResponse,
+  CvFieldSuggestionRequest,
+  CvFieldSuggestionResponse,
+} from "../entities";
 import { RoadmapGenerateRequest } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
@@ -11,4 +16,8 @@ export abstract class IAIService {
   abstract optimizeCvAts(
     request: OptimizeAtsRequest,
   ): Promise<OptimizeAtsResponse>;
+
+  abstract suggestCvField(
+    request: CvFieldSuggestionRequest,
+  ): Promise<CvFieldSuggestionResponse>;
 }

@@ -32,7 +32,6 @@ import {
   RoadmapProgressStatsDto,
   UpdateWeeklyHoursDto,
   WeeklyProgressResponseDto,
-  CurrentWeekSkillsResponseDto,
 } from "@/interfaces/dtos/learning-path";
 import {
   LearningRoadmap,
@@ -67,6 +66,11 @@ export class LearningPathController {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": reply.request.headers.origin || "*",
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods":
+        "GET, HEAD, OPTIONS, PUT, POST, DELETE, PATCH",
+      "Access-Control-Allow-Headers": "Cookie, Content-Type,Authorization",
     });
 
     // Send initial comment to establish connection
@@ -269,27 +273,6 @@ export class LearningPathController {
     return await this.learningPathUseCase.getWeeklyProgress(
       roadmapId,
       parseInt(weekNumber, 10),
-      user.userId,
-    );
-  }
-
-  @Get(":roadmapId/current-week-skills")
-  @ApiOperation({
-    summary: "Get current week's skills",
-    description:
-      "Get all skills scheduled for the current week based on roadmap start date",
-  })
-  @ApiParam({
-    name: "roadmapId",
-    description: "Roadmap ID",
-    example: "550e8400-e29b-41d4-a716-446655440000",
-  })
-  async getCurrentWeekSkills(
-    @GetUser() user: TokenPayload,
-    @Param("roadmapId") roadmapId: string,
-  ): Promise<ApiResponse<CurrentWeekSkillsResponseDto>> {
-    return await this.learningPathUseCase.getCurrentWeekSkills(
-      roadmapId,
       user.userId,
     );
   }

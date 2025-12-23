@@ -23,15 +23,31 @@ export class AiCvOptimizeUseCases {
 
     // Call AI service to optimize CV
     try {
-      const cvText = await FileTextExtractor.extractText(request.file);
+      let cvText = "";
 
-      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+      if (request?.file) {
+        cvText = await FileTextExtractor.extractText(request.file);
 
-      const result = await this.aiService.optimizeCvAts({
+        this.logger.log(`Extracted ${cvText.length} chars from CV`);
+      } else if (request?.cvText) {
+        cvText = request.cvText;
+      }
+
+      const optimizeRequest = {
         cvText,
-        jobDescription: request.body.jobDescription,
         language: request.body.language || CvLanguageEnum.VIETNAMESE,
-      });
+        ...(request.body.jobDescription && {
+          jobDescription: request.body.jobDescription,
+        }),
+      };
+
+      this.logger.log(
+        request.body.jobDescription
+          ? "Performing targeted ATS optimization with job description"
+          : "Performing general ATS optimization",
+      );
+
+      const result = await this.aiService.optimizeCvAts(optimizeRequest);
 
       result.language = request.body.language!;
 
