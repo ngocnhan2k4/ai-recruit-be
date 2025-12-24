@@ -7,19 +7,16 @@ export class JobMatchingQuery {
   private readonly logger = new Logger(JobMatchingQuery.name);
 
   constructor(private readonly configService: ConfigService) {}
+
   /**
    * Build Elasticsearch query for job matching với user profile
-   * @param indexName - Elasticsearch index name
-   * @param userProfile - User profile for matching
-   * @param filters - Additional filters
    */
   buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
     const {
       skillIds = [],
       experienceYears = 0,
-      provinceIds: userProvinceIds = [],
+      provinceIds: userProvinceIds,
       categoryIds: userCategoryIds = [],
-      expectedSalary,
     } = userProfile;
 
     const {
@@ -28,12 +25,11 @@ export class JobMatchingQuery {
       status = "active",
       workType,
       provinceIds: filterProvinceIds,
-      categoryId,
+      categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
     } = filters;
 
-    // search_after
     let searchAfter: any[] | undefined;
     if (cursor) {
       try {
@@ -43,159 +39,252 @@ export class JobMatchingQuery {
       }
     }
 
-    const must: any[] = [
+    const mustQueries: any[] = [
       { term: { status } },
       {
-        bool: {
-          should: [
-            { range: { endDate: { gte: "now/d" } } },
-            { bool: { must_not: { exists: { field: "endDate" } } } },
-          ],
-          minimum_should_match: 1,
+        range: {
+          endDate: {
+            gte: "now/d",
+          },
         },
       },
     ];
 
-    if (workType) must.push({ term: { workType } });
-    if (filterProvinceIds?.length)
-      must.push({ terms: { provinceIds: filterProvinceIds } });
-    if (categoryId) must.push({ term: { categoryId } });
-
-    if (salaryMin !== undefined)
-      must.push({ range: { salaryMax: { gte: salaryMin } } });
-
-    if (salaryMax !== undefined)
-      must.push({ range: { salaryMin: { lte: salaryMax } } });
-
-    const should: any[] = [];
-
-    if (skillIds.length) {
-      should.push({
-        terms: { skillIds, boost: 2 },
-      });
+    if (workType) {
+      mustQueries.push({ term: { workType } });
     }
 
-    if (userCategoryIds.length) {
-      should.push({
-        terms: { categoryIds: userCategoryIds },
-      });
+    if (filterProvinceIds && filterProvinceIds.length > 0) {
+      mustQueries.push({ terms: { provinceIds: filterProvinceIds } });
     }
 
-    const functions: any[] = [];
+    if (filterCategoryId) {
+      mustQueries.push({ terms: { categoryId: filterCategoryId } });
+    }
 
-    if (skillIds.length) {
-      functions.push({
-        filter: { terms: { skillIds } },
-        script_score: {
-          script: {
-            params: { userSkillIds: skillIds },
-            source: `
-              double matched = 0;
-              double total = doc['skillIds'].size();
-              if (total == 0) return 0;
-
-              for (def s : params.userSkillIds) {
-                if (doc['skillIds'].contains(s)) matched++;
-              }
-
-              double ratio = matched / total;
-              double score = ratio * 100;
-              if (matched == total) score += 20;
-
-              return Math.min(score, 100) * 0.4;
-            `,
+    if (salaryMin !== undefined) {
+      mustQueries.push({
+        range: {
+          salaryMax: {
+            gte: salaryMin,
           },
         },
       });
     }
 
-    functions.push({
-      script_score: {
-        script: {
-          params: { exp: experienceYears },
-          source: `
-            int min = doc['experienceMin'].size() > 0 ? doc['experienceMin'].value : 0;
-            int max = doc['experienceMax'].size() > 0 ? doc['experienceMax'].value : 999;
-            int u = params.exp;
-
-            double score;
-            if (min == 0 && max == 999) score = 50;
-            else if (u >= max) score = 100;
-            else if (u >= min) score = 80;
-            else if (u >= min * 0.7) score = 50;
-            else score = 20;
-
-            return score * 0.25;
-          `,
-        },
-      },
-    });
-
-    if (userProvinceIds.length) {
-      functions.push({
-        filter: { terms: { provinceIds: userProvinceIds } },
-        weight: 15,
-      });
-    }
-
-    if (userCategoryIds.length) {
-      functions.push({
-        filter: { terms: { categoryIds: userCategoryIds } },
-        weight: 5,
-      });
-    }
-
-    if (expectedSalary) {
-      functions.push({
-        script_score: {
-          script: {
-            params: { expectedSalary },
-            source: `
-              if (doc['salaryAvg'].size() == 0) return 50 * 0.1;
-
-              double job = doc['salaryAvg'].value;
-              double u = params.expectedSalary;
-
-              double score;
-              if (u <= job * 1.2) score = 100;
-              else if (u <= job * 1.5) score = 70;
-              else score = 30;
-
-              return score * 0.1;
-            `,
+    if (salaryMax !== undefined) {
+      mustQueries.push({
+        range: {
+          salaryMin: {
+            lte: salaryMax,
           },
         },
       });
     }
 
+    // Should queries cho matching (boost score)
+    const shouldQueries: any[] = [];
+
+    if (skillIds.length > 0) {
+      shouldQueries.push({
+        terms: {
+          skillIds: skillIds,
+          boost: 2.0, // Boost cho skill matching
+        },
+      });
+    }
+
+    if (userCategoryIds.length > 0) {
+      shouldQueries.push({
+        terms: {
+          categoryIds: userCategoryIds,
+        },
+      });
+    }
+
+    // Function Score Query với custom scoring
     return {
       index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS"),
       body: {
         query: {
           function_score: {
             query: {
-              bool: { must, should },
+              bool: {
+                must: mustQueries,
+                should: shouldQueries,
+                minimum_should_match: shouldQueries.length > 0 ? 1 : 0,
+              },
             },
-            functions,
-            score_mode: "sum",
-            boost_mode: "multiply",
+            functions: [
+              // 1. Skill Match Score (40%)
+              ...(skillIds.length > 0
+                ? [
+                    {
+                      filter: {
+                        terms: {
+                          skillIds: skillIds,
+                        },
+                      },
+                      weight: 0.4,
+                      script_score: {
+                        script: {
+                          source: `
+                            if (params.userSkillIds.length == 0) {
+                              return 0;
+                            }
+                            
+                            double matchedSkills = 0;
+                            double totalSkills = doc['skillIds'].size();
+                            
+                            if (totalSkills == 0) {
+                              return 0;
+                            }
+                            
+                            for (def skillId : params.userSkillIds) {
+                              if (doc['skillIds'].contains(skillId)) {
+                                matchedSkills++;
+                              }
+                            }
+                            
+                            double score = (matchedSkills / totalSkills) * 100;
+                            
+                            // Bonus cho nhiều skills match
+                            if (matchedSkills == totalSkills) {
+                              score += 20; // Perfect match bonus
+                            }
+                            
+                            return Math.min(score, 100);
+                          `,
+                          params: {
+                            userSkillIds: skillIds,
+                          },
+                        },
+                      },
+                    },
+                  ]
+                : []),
+              // 2. Experience Match Score (25%)
+              {
+                weight: 0.25,
+                script_score: {
+                  script: {
+                    source: `
+                      int expMin = doc['experienceMin'].size() > 0 ? doc['experienceMin'].value : 0;
+                      int expMax = doc['experienceMax'].size() > 0 ? doc['experienceMax'].value : 999;
+                      int userExp = params.userExperienceYears;
+                      
+                      if (userExp >= expMax) {
+                        return 100; // Overqualified - still good match
+                      } else if (userExp >= expMin) {
+                        return 80; // Perfect match
+                      } else if (userExp >= expMin * 0.7) {
+                        return 50; // Close match
+                      } else {
+                        return 20; // Underqualified
+                      }
+                    `,
+                    params: {
+                      userExperienceYears: experienceYears,
+                    },
+                  },
+                },
+              },
+              // 3. Location Match Score (15%)
+              ...(userProvinceIds.length > 0
+                ? [
+                    {
+                      filter: {
+                        term: {
+                          provinceIds: userProvinceIds,
+                        },
+                      },
+                      weight: 0.15,
+                      boost_factor: 100,
+                    },
+                  ]
+                : []),
+              // 4. Category Match Score (5%)
+              ...(userCategoryIds.length > 0
+                ? [
+                    {
+                      filter: {
+                        terms: {
+                          categoryIds: userCategoryIds,
+                        },
+                      },
+                      weight: 0.05,
+                      boost_factor: 100,
+                    },
+                  ]
+                : []),
+              // 5. Salary Match Score (10%) - nếu có expected salary
+              ...(userProfile.expectedSalary
+                ? [
+                    {
+                      weight: 0.1,
+                      script_score: {
+                        script: {
+                          source: `
+                            if (doc['salaryAvg'].size() == 0) {
+                              return 50; // No salary info - neutral score
+                            }
+                            
+                            double jobSalary = doc['salaryAvg'].value;
+                            double userExpected = params.userExpectedSalary;
+                            
+                            if (userExpected <= jobSalary * 1.2) {
+                              return 100; // Within 20% - perfect
+                            } else if (userExpected <= jobSalary * 1.5) {
+                              return 70; // Within 50% - acceptable
+                            } else {
+                              return 30; // Too high
+                            }
+                          `,
+                          params: {
+                            userExpectedSalary: userProfile.expectedSalary,
+                          },
+                        },
+                      },
+                    },
+                  ]
+                : []),
+            ],
+            score_mode: "sum", // Sum all function scores
+            boost_mode: "multiply", // Multiply với query score
           },
         },
-        sort: [{ _score: "desc" }, { createdAt: "desc" }],
+        sort: [
+          {
+            _score: {
+              order: "desc",
+            },
+          },
+          {
+            datePosted: {
+              order: "desc",
+            },
+          },
+        ],
         size: limit + 1,
         ...(searchAfter && { search_after: searchAfter }),
         _source: {
           includes: [
             "id",
             "title",
+            "description",
+            "organizationId",
             "organizationName",
+            "skillIds",
             "skillNames",
+            "categoryIds",
+            "provinceIds",
             "provinceNames",
             "salaryMin",
             "salaryMax",
             "experienceMin",
             "experienceMax",
             "workType",
+            "datePosted",
             "createdAt",
           ],
         },
@@ -205,16 +294,8 @@ export class JobMatchingQuery {
 
   /**
    * Build simple search query (không có user profile)
-   * @param indexName - Elasticsearch index name
-   * @param searchTerm - Search term
-   * @param filters - Additional filters
    */
-  buildSearchQuery(
-    indexName: string,
-    searchTerm: string,
-    filters: JobFilters,
-  ): any {
-    this.logger.debug(`Building search query with term: "${searchTerm}"`);
+  buildSearchQuery(searchTerm: string, filters: JobFilters): any {
     const {
       page = 1,
       limit = 20,
@@ -279,7 +360,7 @@ export class JobMatchingQuery {
     }
 
     return {
-      index: indexName,
+      index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS"),
       body: {
         query: {
           bool: {

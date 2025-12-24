@@ -25,7 +25,8 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
       analysis: {
         analyzer: {
           vietnamese_analyzer: {
-            tokenizer: "vi_tokenizer",
+            type: "custom",
+            tokenizer: "icu_tokenizer",
             filter: ["lowercase"],
           },
         },
@@ -140,10 +141,6 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         createdAt: {
           type: "date",
         },
-        updatedAt: {
-          type: "date",
-        },
-        // Boost factor (can be updated based on job popularity, etc.)
         boost: {
           type: "rank_feature",
         },
@@ -167,7 +164,6 @@ export function transformJobToDocument({
 }): Record<string, unknown> {
   const salaryMin = job.salaryMin ? parseFloat(job.salaryMin) : null;
   const salaryMax = job.salaryMax ? parseFloat(job.salaryMax) : null;
-  const salaryAvg = salaryMin && salaryMax ? (salaryMin + salaryMax) / 2 : null;
 
   return {
     id: job.id,
@@ -186,7 +182,6 @@ export function transformJobToDocument({
     provinceNames: provinces.map((p: Province) => p.name).filter(Boolean),
     salaryMin,
     salaryMax,
-    salaryAvg,
     experienceMin: job.experienceMin,
     experienceMax: job.experienceMax,
     workType: job.workType,

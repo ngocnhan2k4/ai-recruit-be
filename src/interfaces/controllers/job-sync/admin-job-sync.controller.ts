@@ -6,6 +6,7 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
 
 @ApiTags("Job Sync Admin")
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/job-sync")
 @ApiBearerAuth()

@@ -4,6 +4,8 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsArray,
+  IsNumber,
 } from "class-validator";
 import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
@@ -41,6 +43,35 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
   @IsOptional()
   @IsBoolean()
   onboardingCompleted?: boolean;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description: "Array of province IDs where user wants to work",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  provinceIds?: string[];
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description: "Array of category IDs user is interested in",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
+
+  @ApiProperty({
+    required: false,
+    description: "Expected salary in VND",
+    example: 15000000,
+  })
+  @IsOptional()
+  @IsNumber()
+  expectedSalary?: number | null;
 }
 
 export class UserPublicResponseDto {
@@ -70,6 +101,16 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   school: string | null;
+
+  // Private fields - only returned when user views their own profile
+  @ApiProperty({ required: false, type: [String], nullable: true })
+  provinceIds?: string[];
+
+  @ApiProperty({ required: false, type: [String], nullable: true })
+  categoryIds?: string[];
+
+  @ApiProperty({ required: false, type: Number, nullable: true })
+  expectedSalary?: number | null;
 }
 
 export class UserSeoPublicResponseDto {

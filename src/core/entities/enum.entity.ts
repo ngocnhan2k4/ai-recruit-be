@@ -158,6 +158,10 @@ export enum OtpPurpose {
   CHANGE_ORGANIZATION_EMAIL = "CHANGE_ORGANIZATION_EMAIL",
 }
 
+export enum UserInteractionEnum {
+  SAVE = "save",
+  HIDE = "hide",
+}
 export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",

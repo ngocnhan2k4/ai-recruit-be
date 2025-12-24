@@ -16,13 +16,13 @@ import {
   Category,
   OrganizationRoleEnum,
   UserProfile,
+  OrganizationTypeEnum,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
 import { EmailJob } from "@/core/entities/email.entity";
 import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
-import { ConfigService } from "@nestjs/config";
 import { differenceInYears } from "date-fns";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { PaginatedResult } from "@/common/types/api";
@@ -44,7 +44,6 @@ export class JobMatchingUseCases {
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly userExperienceRepository: IUserExperienceRepository,
     private readonly searchService: ISearchService,
-    private readonly configService: ConfigService,
     private readonly jobMatchingQuery: JobMatchingQuery,
   ) {}
 
@@ -167,19 +166,39 @@ export class JobMatchingUseCases {
         : undefined,
     };
 
-    const indexName = this.configService.get<string>(
-      "ELASTICSEARCH_INDEX_JOBS",
-    )!;
     const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
 
     // Execute query
-    const response = await this.searchService.search(indexName, esQuery.body);
+    const response = await this.searchService.search(
+      esQuery.index as string,
+      esQuery.body,
+    );
 
     // Check if we got more results than requested (to determine hasMore)
-    const limit = filters.limit || 20;
     const hits = response.hits.hits;
-    const hasMore = hits.length > limit;
-    const actualHits = hasMore ? hits.slice(0, limit) : hits;
+    const hasMore = hits.length > filters.limit;
+    const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
+
+    // Extract job IDs for batch query
+    const jobIds: string[] = actualHits
+      .map((hit: any) => hit._source?.id as string | undefined)
+      .filter(
+        (id: string | undefined): id is string =>
+          typeof id === "string" && id.length > 0,
+      );
+
+    const userJobStatusMap =
+      jobIds.length > 0
+        ? await this.jobRepository.getUserJobStatuses(userId, jobIds)
+        : new Map<
+            string,
+            {
+              isSaved: boolean;
+              isApplied: boolean;
+              applyStatus: string | null;
+              applyId: string | null;
+            }
+          >();
 
     // Transform ES results to JobMatchResult (extends JobResponse)
     const jobs: JobMatchResultDto[] = actualHits.map((hit: any) => {
@@ -206,7 +225,7 @@ export class JobMatchingUseCases {
         id: source.organizationId,
         name: source.organizationName || "",
         slug: "",
-        type: "company" as any,
+        type: OrganizationTypeEnum.COMPANY,
         description: null,
         address: null,
         logoUrl: null,
@@ -231,9 +250,8 @@ export class JobMatchingUseCases {
         role: OrganizationRoleEnum.ANONYMOUSLY,
       };
 
-      // Transform category (take first categoryId)
       const category: Category = {
-        id: source.categoryId || source.categoryIds?.[0] || "",
+        id: source.categoryId,
         name: source.categoryName || null,
       };
 
@@ -264,13 +282,12 @@ export class JobMatchingUseCases {
         questions: [],
       };
 
-      // Check if user saved/applied this job
-      const isSaved = false;
-      const isApplied = false;
-      const applyStatus: string | undefined = undefined;
-      const applyId: string | undefined = undefined;
-
-      // TODO: Add logic to check saved/applied status if filters.user?.userId exists
+      const jobStatus = userJobStatusMap.get(job.id) || {
+        isSaved: false,
+        isApplied: false,
+        applyStatus: null,
+        applyId: null,
+      };
 
       return {
         job,
@@ -278,10 +295,10 @@ export class JobMatchingUseCases {
         organization,
         skills,
         category,
-        isSaved,
-        isApplied,
-        applyStatus,
-        applyId,
+        isSaved: jobStatus.isSaved,
+        isApplied: jobStatus.isApplied,
+        applyStatus: jobStatus.applyStatus || undefined,
+        applyId: jobStatus.applyId || undefined,
         score: hit._score,
       } as JobMatchResultDto;
     });
