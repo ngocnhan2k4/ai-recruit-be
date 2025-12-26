@@ -1,7 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import {
   IJobRepository,
   ILoggerServices,
@@ -9,67 +7,55 @@ import {
 } from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Job } from "bullmq";
+import { JobEventType } from "@/core";
 
-type JobIndexEvent =
-  | { type: "upsert"; data: { jobId: string } }
-  | { type: "delete"; data: { jobId: string } };
+type JobIndexData = { jobId: string };
 
-@Injectable()
-export class JobIndexWorker {
+@Processor(JOB_INDEX_QUEUE)
+export class JobIndexWorker extends WorkerHost {
   private readonly logger = new Logger(JobIndexWorker.name);
-  private isProcessing = false;
 
   constructor(
-    private readonly messageQueueService: IMessageQueueService,
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
     private readonly loggerService: ILoggerServices,
     private readonly jobRepository: IJobRepository,
-  ) {}
+  ) {
+    super();
+  }
 
-  @Cron(CronExpression.EVERY_5_SECONDS)
-  async processQueue(): Promise<void> {
-    if (this.isProcessing) {
-      return;
-    }
-    // [TODO]: Because I thought there would be few actions to be taken with the job, I used batch = 1.
-    const rawEvents = await this.messageQueueService.popBatch(
-      JOB_INDEX_QUEUE,
-      1,
-    );
-    if (!rawEvents.length) {
-      return;
-    }
-
-    this.isProcessing = true;
+  async process(job: Job) {
     try {
-      const events = rawEvents.map(
-        (rawEvent) => JSON.parse(rawEvent) as JobIndexEvent,
+      await this.processEvent(
+        job.name as JobEventType,
+        job.data as JobIndexData,
       );
-      await Promise.all(events.map((event) => this.processEvent(event)));
     } catch (error) {
       this.logger.error(
-        `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
+        `[process] Failed to process job ${job.id}: ${error}`,
         error.stack,
       );
       await this.loggerService.logError({
         type: "error",
-        content: `[processQueue] Failed to process events ${rawEvents.join(", ")}: ${error.message}`,
+        content: `[process] Failed to process job ${job.id}: ${error}`,
         note: error.stack,
       });
-    } finally {
-      this.isProcessing = false;
     }
   }
 
-  private async processEvent(event: JobIndexEvent): Promise<void> {
+  private async processEvent(
+    type: JobEventType,
+    data: JobIndexData,
+  ): Promise<void> {
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
 
-    switch (event.type) {
-      case "delete": {
-        const jobId = event.data.jobId;
+    switch (type) {
+      case JobEventType.DELETE: {
+        const jobId = data.jobId;
         if (jobId) {
           await this.searchService.deleteDocument(indexName, jobId);
           this.logger.log(`[processEvent] Deleted job ${jobId} from index`);
@@ -79,26 +65,16 @@ export class JobIndexWorker {
         }
         return;
       }
-      case "upsert": {
-        const data = await this.jobRepository.getFullJobById(event.data.jobId);
-        if (!data) {
-          this.logger.warn(`[processEvent] Job ${event.data.jobId} not found`);
-          throw new Error(`[processEvent] Job ${event.data.jobId} not found`);
+      case JobEventType.UPSERT: {
+        const job = await this.jobRepository.getFullJobById(data.jobId);
+        if (!job) {
+          this.logger.warn(`[processEvent] Job ${data.jobId} not found`);
+          throw new Error(`[processEvent] Job ${data.jobId} not found`);
         }
-        const document = transformJobToDocument({
-          job: data.job,
-          skills: data.skills || [],
-          category: data.category,
-          provinces: data.provinces || [],
-          organization: data.organization,
-        });
+        const document = transformJobToDocument(job);
 
-        await this.searchService.indexDocument(
-          indexName,
-          data.job.id,
-          document,
-        );
-        this.logger.log(`[processEvent] Indexed job ${data.job.id}`);
+        await this.searchService.indexDocument(indexName, job.job.id, document);
+        this.logger.log(`[processEvent] Indexed job ${job.job.id}`);
         return;
       }
     }

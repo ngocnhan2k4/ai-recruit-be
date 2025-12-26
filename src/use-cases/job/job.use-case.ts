@@ -42,10 +42,11 @@ import {
 } from "@/interfaces/dtos";
 import {
   ApplyJobResponse,
+  JobEventType,
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
-} from "@/core/entities/job.entity";
+} from "@/core";
 import { convertDateToStr } from "@/common/utils/date";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
@@ -54,7 +55,6 @@ import { RoleEnum } from "@/common/constants/roles";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { TokenPayload } from "@/common/types/token";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
 
 @Injectable()
 export class JobUseCases {
@@ -399,10 +399,9 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.add(
-      JSON.stringify({ type: "upsert", data: { jobId: newJob.id } }),
-      JOB_INDEX_QUEUE,
-    );
+    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+      jobId: newJob.id,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -478,10 +477,9 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    await this.messageQueueService.add(
-      JSON.stringify({ type: "upsert", data: { jobId } }),
-      JOB_INDEX_QUEUE,
-    );
+    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+      jobId: jobId,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -537,10 +535,9 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.add(
-      JSON.stringify({ type: "delete", data: { jobId } }),
-      JOB_INDEX_QUEUE,
-    );
+    await this.messageQueueService.addJob(JobEventType.DELETE, {
+      jobId: jobId,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
