@@ -83,3 +83,8 @@ export interface TopInMarketResponse {
   count?: number;
   percentage: number;
 }
+
+export enum JobEventType {
+  UPSERT = "upsert",
+  DELETE = "delete",
+}
