@@ -133,12 +133,12 @@ export class JobMatchingQuery {
                               return 0;
                             }
                             
-                            double matchedSkills = 0;
-                            double totalSkills = doc['skillIds'].size();
-                            
-                            if (totalSkills == 0) {
+                            if (!doc.containsKey('skillIds') || doc['skillIds'].size() == 0) {
                               return 0;
                             }
+                            
+                            double matchedSkills = 0;
+                            double totalSkills = doc['skillIds'].size();
                             
                             for (def skillId : params.userSkillIds) {
                               if (doc['skillIds'].contains(skillId)) {
@@ -169,15 +169,22 @@ export class JobMatchingQuery {
                 script_score: {
                   script: {
                     source: `
-                      int expMin = doc['experienceMin'].size() > 0 ? doc['experienceMin'].value : 0;
-                      int expMax = doc['experienceMax'].size() > 0 ? doc['experienceMax'].value : 999;
-                      int userExp = params.userExperienceYears;
+                      long expMin = 0;
+                      long expMax = 999;
+                      long userExp = params.userExperienceYears;
+                      
+                      if (doc.containsKey('experienceMin') && doc['experienceMin'].size() > 0) {
+                        expMin = doc['experienceMin'].value;
+                      }
+                      if (doc.containsKey('experienceMax') && doc['experienceMax'].size() > 0) {
+                        expMax = doc['experienceMax'].value;
+                      }
                       
                       if (userExp >= expMax) {
                         return 100; // Overqualified - still good match
                       } else if (userExp >= expMin) {
                         return 80; // Perfect match
-                      } else if (userExp >= expMin * 0.7) {
+                      } else if (userExp >= (long)(expMin * 0.7)) {
                         return 50; // Close match
                       } else {
                         return 20; // Underqualified
@@ -225,11 +232,25 @@ export class JobMatchingQuery {
                       script_score: {
                         script: {
                           source: `
-                            if (doc['salaryAvg'].size() == 0) {
+                            double salaryMin = 0;
+                            double salaryMax = 0;
+                            
+                            if (doc.containsKey('salaryMin') && doc['salaryMin'].size() > 0) {
+                              salaryMin = doc['salaryMin'].value;
+                            }
+                            if (doc.containsKey('salaryMax') && doc['salaryMax'].size() > 0) {
+                              salaryMax = doc['salaryMax'].value;
+                            }
+                            
+                            if (salaryMin == 0 && salaryMax == 0) {
                               return 50; // No salary info - neutral score
                             }
                             
-                            double jobSalary = doc['salaryAvg'].value;
+                            double jobSalary = (salaryMin + salaryMax) / 2;
+                            if (jobSalary == 0) {
+                              jobSalary = salaryMax > 0 ? salaryMax : salaryMin;
+                            }
+                            
                             double userExpected = params.userExpectedSalary;
                             
                             if (userExpected <= jobSalary * 1.2) {
