@@ -5,6 +5,14 @@ on:
     # Run twice a week: Monday and Thursday at 2:00 AM UTC
     - cron: "0 2 * * 1,4"
   workflow_dispatch:
+  # TODO: Remove this trigger after testing
+  push:
+    paths:
+      - ".github/workflows/classify-jobs.yaml"
+      - "crawl_jobs/scripts/export_uncategorized_jobs.py"
+      - "crawl_jobs/scripts/delete_other_category_jobs.py"
+      - "crawl_jobs/scripts/cleanup_unused_categories.py"
+      - "crawl_jobs/classifier/predict.py"
 
 jobs:
   classify-jobs:
