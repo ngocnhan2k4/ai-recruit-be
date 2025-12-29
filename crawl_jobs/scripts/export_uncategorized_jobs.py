@@ -11,7 +11,7 @@ def export_uncategorized_jobs(db_url: str, output_file: str) -> int:
     Returns the number of jobs exported.
     """
     query = """
-    SELECT j.id, j.title, c.name AS category, j.description, STRING_AGG(s.name, ', ') AS associated_skills 
+    SELECT j.id, j.title, c.name AS category, j.description::text, STRING_AGG(s.name, ', ') AS associated_skills 
     FROM jobs j
     JOIN organizations AS o ON o.id = j.organization_id
     JOIN job_raws AS jr ON jr.id = j.job_raw_id
@@ -19,7 +19,7 @@ def export_uncategorized_jobs(db_url: str, output_file: str) -> int:
     LEFT JOIN job_skills js ON j.id = js.job_id
     LEFT JOIN skills s ON js.skill_id = s.id
     WHERE c.id IS NULL
-    GROUP BY j.id, j.title, c.name, j.description;
+    GROUP BY j.id, j.title, c.name, j.description::text;
     """
 
     print("🔍 Querying uncategorized jobs...")
