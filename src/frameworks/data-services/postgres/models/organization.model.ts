@@ -1,4 +1,4 @@
-import { pgTable } from "drizzle-orm/pg-core";
+import { index, pgTable } from "drizzle-orm/pg-core";
 import { uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 import {
@@ -45,32 +45,48 @@ export const organizationMembers = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("org_member_unique_idx").on(table.userId, table.organizationId),
+    uniqueIndex("idx_org_member_unique").on(table.userId, table.organizationId),
+    index("idx_org_member_org").on(table.organizationId),
+    index("idx_org_member_user").on(table.userId),
+    index("idx_org_member_org_role").on(table.organizationId, table.role),
   ],
 );
 
-export const organizationLocations = pgTable("organization_locations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  address: text("address").notNull(),
-  provinceId: uuid("province_id").references(() => provinces.id),
-  ...timestamps,
-});
+export const organizationLocations = pgTable(
+  "organization_locations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    address: text("address").notNull(),
+    provinceId: uuid("province_id").references(() => provinces.id),
+    ...timestamps,
+  },
+  (table) => [
+    index("idx_org_location_org").on(table.organizationId),
+    index("idx_org_location_province").on(table.provinceId),
+  ],
+);
 
-export const organizationInvitations = pgTable("organization_invitations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  actorId: uuid("actor_id")
-    .notNull()
-    .references(() => users.id),
-  receiverId: uuid("receiver_id").references(() => users.id),
-  role: OrganizationRoleEnum("role").notNull(),
-  type: OrganizationInviteTypeEnum("type").notNull(),
-  status: OrganizationInviteStatusEnum("status").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  ...timestamps,
-});
+export const organizationInvitations = pgTable(
+  "organization_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    receiverId: uuid("receiver_id").references(() => users.id),
+    role: OrganizationRoleEnum("role").notNull(),
+    type: OrganizationInviteTypeEnum("type").notNull(),
+    status: OrganizationInviteStatusEnum("status").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("idx_org_invitation_org").on(table.organizationId, table.createdAt),
+  ],
+);

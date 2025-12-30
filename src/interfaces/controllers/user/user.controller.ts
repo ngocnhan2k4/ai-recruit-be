@@ -103,7 +103,6 @@ export class UserController {
     description:
       "Get user public profile. If authenticated user views their own profile, additional private information (statistics, preferences) will be included.",
   })
-  @CasbinPermission("/", "GET")
   @Get(":username")
   @ApiResponseDto(UserPublicResponseDto)
   async getUserProfilePublic(
@@ -180,7 +179,6 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user experience" })
-  @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
   @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")
