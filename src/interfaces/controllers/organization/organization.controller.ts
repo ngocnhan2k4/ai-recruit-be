@@ -1,4 +1,7 @@
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
 import {
   Body,
   Controller,
@@ -41,6 +44,7 @@ import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
+@UseGuards(OrganizationAuthorizeGuard)
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
@@ -162,7 +166,6 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @UseGuards(JwtAuthGuard)
   @Patch("/:orgId/email")
   @ApiOperation({

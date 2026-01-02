@@ -1,6 +1,9 @@
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
   GetMemberQueryDto,
@@ -19,7 +22,7 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 @ApiTags("Organization Members")
 @Controller("organizations/:organizationId/members")
 export class OrganizationMemberController {
