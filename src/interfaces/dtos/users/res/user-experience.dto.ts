@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { SkillDto } from "@/interfaces/dtos";
-import { OrganizationDto } from "@/interfaces/dtos";
+import { SkillDto } from "@/interfaces/dtos/skills/res/skill.dto";
+import { OrganizationDto } from "@/interfaces/dtos/organization/res/organization-base.dto";
 
 export class UserExperienceDto {
   @ApiProperty()

@@ -9,10 +9,8 @@ import {
 } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import {
-  CreateOrganizationDto,
-  UpdateOrganizationDto,
-} from "@/interfaces/dtos";
+import { CreateOrganizationDto } from "@/interfaces/dtos/organization/req/organization.dto";
+import { UpdateOrganizationDto } from "@/interfaces/dtos/organization/req/organization.dto";
 
 export class CreateCompanyDto {
   @ApiProperty({

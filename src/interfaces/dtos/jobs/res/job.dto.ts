@@ -2,10 +2,10 @@ import { ApiProperty } from "@nestjs/swagger";
 import { ApplyStatusEnum, WorkTypeEnum } from "@/core";
 import { PaginationResponseDto } from "../../common/query";
 import { Skill } from "@/core";
-import { SkillDto } from "@/interfaces/dtos";
-import { ProvinceDto } from "@/interfaces/dtos";
+import { SkillDto } from "@/interfaces/dtos/skills/res/skill.dto";
+import { ProvinceDto } from "@/interfaces/dtos/provinces/res/province.dto";
 import { IsBoolean } from "class-validator";
-import { OrganizationWithDetailsDto } from "@/interfaces/dtos";
+import { OrganizationWithDetailsDto } from "@/interfaces/dtos/organization/res/organization.dto";
 import { JobDto as JobBaseDto } from "./job-base.dto";
 
 export class JobStatusCountDto {
