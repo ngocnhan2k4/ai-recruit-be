@@ -6,7 +6,7 @@ import {
   GetMemberQueryDto,
   OrganizationMemberDto,
   UpdateMemberRoleDto,
-} from "@/interfaces/dtos/organization/organization-member.dto";
+} from "@/interfaces/dtos";
 import {
   BadRequestException,
   ForbiddenException,

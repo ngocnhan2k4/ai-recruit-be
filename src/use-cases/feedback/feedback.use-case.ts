@@ -13,7 +13,7 @@ import {
   CreateFeedbackResponseDto,
   GetFeedbacksResponseDto,
   UpdateFeedbackRequestDto,
-} from "@/interfaces/dtos/feedback/feedback.dto";
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class FeedbackUseCase {

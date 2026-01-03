@@ -22,7 +22,7 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
-import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv/cv.dto";
+import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { MultipartFile } from "@fastify/multipart";
 import { RESPONSE_CODE } from "@/common/constants/response";

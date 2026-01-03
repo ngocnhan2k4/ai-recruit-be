@@ -36,7 +36,7 @@ import {
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
-import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
+import { OrganizationQueryDto } from "@/interfaces/dtos";
 import { OrganizationWithDetails } from "@/core";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
