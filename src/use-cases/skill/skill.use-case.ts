@@ -7,7 +7,7 @@ import {
   SkillDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants/response";
-import { CreateSkillDto } from "@/interfaces/dtos/skills/skill.dto";
+import { CreateSkillDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class SkillUseCases {

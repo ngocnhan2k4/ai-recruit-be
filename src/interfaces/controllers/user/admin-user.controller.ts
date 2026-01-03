@@ -22,9 +22,9 @@ import {
   GetAllUserResponseDto,
   GetUserQueryDto,
   GetUserResponseDto,
-} from "@/interfaces/dtos/users/user.dto";
+} from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
-import { AdminUpdateUserRequestDto } from "@/interfaces/dtos/users/user.dto";
+import { AdminUpdateUserRequestDto } from "@/interfaces/dtos";
 
 @ApiTags("Admin Users")
 @ApiBearerAuth()

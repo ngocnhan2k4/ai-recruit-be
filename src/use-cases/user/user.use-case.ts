@@ -48,7 +48,7 @@ import {
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "@/interfaces/dtos/users/user-experience.dto";
+} from "@/interfaces/dtos";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
@@ -57,7 +57,7 @@ import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
-} from "@/interfaces/dtos/users/user-education.dto";
+} from "@/interfaces/dtos";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Injectable()

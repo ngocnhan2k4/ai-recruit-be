@@ -15,10 +15,7 @@ import {
   ApiConsumes,
 } from "@nestjs/swagger";
 
-import {
-  DeleteFileResponseDto,
-  UploadResponseDto,
-} from "@/interfaces/dtos/upload.dto";
+import { DeleteFileResponseDto, UploadResponseDto } from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";

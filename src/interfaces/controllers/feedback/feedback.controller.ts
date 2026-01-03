@@ -7,7 +7,7 @@ import { type TokenPayload } from "@/common/types/token";
 import {
   CreateFeedbackRequestDto,
   CreateFeedbackResponseDto,
-} from "@/interfaces/dtos/feedback/feedback.dto";
+} from "@/interfaces/dtos";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Feedback")

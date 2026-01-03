@@ -24,7 +24,7 @@ import {
   NotificationActionResponseDto,
   UpdateNotificationStatusRequestDto,
   UpdateNotificationStatusResponseDto,
-} from "@/interfaces/dtos/notifications/notification.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Notification")

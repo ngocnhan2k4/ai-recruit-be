@@ -6,7 +6,7 @@ import { RESPONSE_CODE } from "@/common/constants/response";
 import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,
-} from "@/interfaces/dtos/ai-cv/ai-cv-suggestion.dto";
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class AiCvSuggestFieldUseCases {

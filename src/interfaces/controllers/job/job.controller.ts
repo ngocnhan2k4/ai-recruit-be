@@ -16,22 +16,18 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import {
-  QueryJobDto,
-  CreateJobDto,
-  UpdateJobDto,
-} from "../../dtos/jobs/job-query.dto";
+import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
   JobResponseDto,
-} from "../../dtos/jobs/job.dto";
+} from "@/interfaces/dtos";
 import {
   StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
-} from "../../dtos";
+} from "@/interfaces/dtos";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
@@ -40,13 +36,13 @@ import {
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
-} from "../../dtos/jobs/job-interaction.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { GeneralQueryDto } from "../../dtos/common/query";
-import { PaginatedResultDto } from "../../dtos/common/query";
+import { GeneralQueryDto } from "@/interfaces/dtos";
+import { PaginatedResultDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/common/constants/roles";
 
 @ApiTags("Jobs")

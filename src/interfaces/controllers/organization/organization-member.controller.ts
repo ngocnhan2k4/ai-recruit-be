@@ -5,10 +5,7 @@ import {
   OrganizationAuthorizeGuard,
 } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
-import {
-  GetMemberQueryDto,
-  UpdateMemberRoleDto,
-} from "@/interfaces/dtos/organization/organization-member.dto";
+import { GetMemberQueryDto, UpdateMemberRoleDto } from "@/interfaces/dtos";
 import { OrganizationMemberUseCase } from "@/use-cases/organization-member/organization-member.use-case";
 import {
   Body,

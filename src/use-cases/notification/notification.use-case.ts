@@ -10,7 +10,7 @@ import {
   NotificationActionRequestDto,
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
-} from "@/interfaces/dtos/notifications/notification.dto";
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class NotificationUseCase {

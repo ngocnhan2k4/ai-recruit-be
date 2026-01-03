@@ -40,12 +40,12 @@ import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "../../dtos/users/user-experience.dto";
+} from "@/interfaces/dtos";
 import {
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
   UserSkillDto,
-} from "../../dtos/users/user-skill.dto";
+} from "@/interfaces/dtos";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
@@ -54,7 +54,7 @@ import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
-} from "@/interfaces/dtos/users/user-education.dto";
+} from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 
 @ApiTags("Users")
