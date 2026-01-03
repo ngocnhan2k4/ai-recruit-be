@@ -37,14 +37,7 @@ import {
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types/token";
 import { MultipartFile } from "@fastify/multipart";
-import {
-  IOrganizationRepository,
-  UserSkill,
-  UserOnboarding,
-  ISkillRepository,
-  IJobRepository,
-  ICvRepository,
-} from "@/core";
+import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
@@ -72,16 +65,20 @@ export class UserUseCases implements OnModuleInit {
     private readonly cloudinaryService: CloudinaryService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
-    private readonly skillRepository: ISkillRepository,
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
     private readonly userEducationRepository: IUserEducationRepository,
-    private readonly jobRepository: IJobRepository,
-    private readonly cvRepository: ICvRepository,
   ) {}
 
   async onModuleInit() {
-    await this.initializeBloomFilter();
+    try {
+      await this.initializeBloomFilter();
+    } catch (error) {
+      this.logger.warn(
+        "[UserUseCases] [onModuleInit] Failed to initialize bloom filter:",
+        error,
+      );
+    }
   }
 
   @Cron(CronExpression.EVERY_HOUR)

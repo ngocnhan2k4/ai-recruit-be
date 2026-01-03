@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { OrganizationDto } from "@/interfaces/dtos";
+import { OrganizationDto } from "@/interfaces/dtos/organization/res/organization-base.dto";
 
 export class CompanyDto extends OrganizationDto {
   @ApiProperty({ type: "string", format: "uuid" })

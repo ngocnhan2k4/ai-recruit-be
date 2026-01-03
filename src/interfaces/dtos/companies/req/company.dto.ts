@@ -7,17 +7,10 @@ import {
   IsNumber,
   ValidateNested,
 } from "class-validator";
-import { GeneralQueryDto } from "../../common/query";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import {
-  CreateOrganizationDto,
-  UpdateOrganizationDto,
-} from "@/interfaces/dtos";
-
-export class GetCompaniesQueryDto extends GeneralQueryDto {
-  // [TODO]: legacy code, remove it later
-}
+import { CreateOrganizationDto } from "@/interfaces/dtos/organization/req/organization.dto";
+import { UpdateOrganizationDto } from "@/interfaces/dtos/organization/req/organization.dto";
 
 export class CreateCompanyDto {
   @ApiProperty({
