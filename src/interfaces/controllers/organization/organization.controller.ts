@@ -44,7 +44,6 @@ import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
-@UseGuards(OrganizationAuthorizeGuard)
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
@@ -112,7 +111,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/basic-info")
   @ApiOperation({
     summary: "Update organization basic information",
@@ -130,7 +129,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/locations")
   @ApiOperation({
     summary: "Update organization locations",
@@ -148,7 +147,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/additional-info")
   @ApiOperation({
     summary: "Update organization additional information (Culture & Benefits)",
@@ -166,7 +165,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/email")
   @ApiOperation({
     summary: "Update organization email (Request)",
@@ -184,7 +183,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/confirm")
   @ApiOperation({
     summary: "Confirm email change with OTP",
@@ -203,7 +202,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/send-verification")
   @ApiOperation({
     summary: "Send email verification OTP",
@@ -221,7 +220,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/verify")
   @ApiOperation({
     summary: "Verify organization email with OTP",
@@ -240,7 +239,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Delete("/:orgId")
   @ApiOperation({
     summary: "Delete an organization",
@@ -292,7 +291,7 @@ export class OrganizationController {
     return this.organizationUseCase.getUsersToInvite(organizationId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/logo")
   @ApiOperation({
     summary: "Update organization logo",
