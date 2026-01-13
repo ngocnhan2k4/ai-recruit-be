@@ -28,7 +28,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 @ApiTags("Organization Invitation")
-@Controller("organizations/:organizationId/invitations")
+@Controller("organizations/:orgId/invitations")
 export class OrganizationInvitationController {
   constructor(
     private readonly organizationInvitationUseCase: OrganizationInvitationUseCase,
@@ -42,7 +42,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async inviteMember(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Body() data: CreateOrganizationInvitationDto,
   ): Promise<ApiResponse<void>> {
     return await this.organizationInvitationUseCase.inviteMemberToOrganization(
@@ -60,7 +60,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async getOrganizationInvitations(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Query() query: GeneralQueryDto,
   ): Promise<
     ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
@@ -81,7 +81,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async getInvitationHistory(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Query() query: GeneralQueryDto,
   ): Promise<
     ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
@@ -101,7 +101,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async getJoinInvitation(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
   ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
     return await this.organizationInvitationUseCase.getJoinInvitation(
       organizationId,
