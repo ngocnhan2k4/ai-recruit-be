@@ -5,7 +5,7 @@ import path from "path";
 import { DrizzleCasbinAdapter } from "./casbin.adapter";
 import { ConfigService } from "@nestjs/config";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin/casbin.dto";
+import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin";
 import { PaginatedResult } from "@/common/types/api";
 import { eq, and, count, SQL, asc, desc, gt } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";

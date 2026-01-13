@@ -8,7 +8,7 @@ import {
   AiCvRequestDto,
   OptimizedCvDataDto,
   UpdateAiCvDto,
-} from "@/interfaces/dtos/ai-cv/ai-cv.dto";
+} from "@/interfaces/dtos";
 import {
   BadRequestException,
   Inject,

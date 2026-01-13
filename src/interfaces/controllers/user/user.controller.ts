@@ -40,12 +40,12 @@ import { type TokenPayload } from "@/common/types/token";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "../../dtos/users/user-experience.dto";
+} from "@/interfaces/dtos";
 import {
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
   UserSkillDto,
-} from "../../dtos/users/user-skill.dto";
+} from "@/interfaces/dtos";
 import { Skill } from "@/core/entities";
 import { RESPONSE_CODE } from "@/common/constants/response";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
@@ -54,7 +54,7 @@ import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
-} from "@/interfaces/dtos/users/user-education.dto";
+} from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 
 @ApiTags("Users")
@@ -103,7 +103,6 @@ export class UserController {
     description:
       "Get user public profile. If authenticated user views their own profile, additional private information (statistics, preferences) will be included.",
   })
-  @CasbinPermission("/", "GET")
   @Get(":username")
   @ApiResponseDto(UserPublicResponseDto)
   async getUserProfilePublic(
@@ -180,7 +179,6 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user experience" })
-  @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
   @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")

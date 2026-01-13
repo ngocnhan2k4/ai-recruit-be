@@ -12,17 +12,13 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
-import {
-  QueryJobDto,
-  CreateJobDto,
-  UpdateJobDto,
-} from "../../dtos/jobs/job-query.dto";
+import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobCountsDto,
   JobPaginationResponseDto,
   JobResponseDto,
-} from "../../dtos/jobs/job.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";

@@ -1,36 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { IRedisService } from "@/core";
-
+import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
+import { JobsOptions, Queue } from "bullmq";
+import { InjectQueue } from "@nestjs/bullmq";
 @Injectable()
 export class MessageQueueService implements IMessageQueueService {
-  private readonly defaultQueueKey = "message:queue";
+  constructor(@InjectQueue(JOB_INDEX_QUEUE) private readonly queue: Queue) {}
 
-  constructor(private readonly redisService: IRedisService) {}
-
-  private getQueueKey(queueKey?: string): string {
-    return queueKey ?? this.defaultQueueKey;
-  }
-
-  async add(item: string, queueKey?: string): Promise<void> {
-    await this.redisService.addToSortedSet(
-      this.getQueueKey(queueKey),
-      Date.now(),
-      item,
-    );
-  }
-
-  async size(queueKey?: string): Promise<number> {
-    return this.redisService.getSortedSetSize(this.getQueueKey(queueKey));
-  }
-  async clear(queueKey?: string): Promise<void> {
-    await this.redisService.deleteMultipleKeys([this.getQueueKey(queueKey)]);
-  }
-
-  async popBatch(queueKey?: string, batchSize = 10): Promise<string[]> {
-    return this.redisService.popMinFromSortedSet(
-      this.getQueueKey(queueKey),
-      batchSize,
-    );
+  async addJob(name: string, data: any, opts?: any): Promise<void> {
+    await this.queue.add(name, data, {
+      removeOnComplete: true,
+      removeOnFail: true,
+      ...opts,
+    } as JobsOptions);
   }
 }

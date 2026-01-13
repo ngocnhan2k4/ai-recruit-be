@@ -1,4 +1,7 @@
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
 import {
   Body,
   Controller,
@@ -33,7 +36,7 @@ import {
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import { type TokenPayload } from "@/common/types/token";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
-import { OrganizationQueryDto } from "@/interfaces/dtos/organization/organization-query.dto";
+import { OrganizationQueryDto } from "@/interfaces/dtos";
 import { OrganizationWithDetails } from "@/core";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
@@ -41,6 +44,7 @@ import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
+@UseGuards(OrganizationAuthorizeGuard)
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
@@ -162,7 +166,6 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @UseGuards(JwtAuthGuard)
   @Patch("/:orgId/email")
   @ApiOperation({

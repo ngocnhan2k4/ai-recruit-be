@@ -15,7 +15,7 @@ import {
   GetFeedbacksRequestDto,
   GetFeedbacksResponseDto,
   UpdateFeedbackRequestDto,
-} from "@/interfaces/dtos/feedback/feedback.dto";
+} from "@/interfaces/dtos/feedback";
 import {
   JwtAuthGuard,
   SystemAuthorizeGuard,

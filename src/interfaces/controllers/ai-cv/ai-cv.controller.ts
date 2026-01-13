@@ -10,12 +10,12 @@ import {
   AiCvListResponseDto,
   AiCvRequestDto,
   UpdateAiCvDto,
-} from "@/interfaces/dtos/ai-cv/ai-cv.dto";
-import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv/optimize-ats.dto";
+} from "@/interfaces/dtos/ai-cv";
+import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
 import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,
-} from "@/interfaces/dtos/ai-cv/ai-cv-suggestion.dto";
+} from "@/interfaces/dtos/ai-cv";
 import { AiCvOptimizeUseCases } from "@/use-cases/ai-cv/ai-cv-optimize.use-case";
 import { AiCvSuggestFieldUseCases } from "@/use-cases/ai-cv/ai-cv-suggest.use-case";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";

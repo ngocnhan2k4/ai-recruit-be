@@ -13,7 +13,7 @@ import {
   CheckPermissionDto,
   CheckPermissionWithDomainDto,
   GetPoliciesCasbinFilter,
-} from "@/interfaces/dtos/casbin/casbin.dto";
+} from "@/interfaces/dtos";
 import { ApiResponse } from "@/interfaces/dtos";
 import { PaginatedResult } from "@/common/types/api";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";

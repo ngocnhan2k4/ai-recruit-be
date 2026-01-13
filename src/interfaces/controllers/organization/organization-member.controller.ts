@@ -1,11 +1,11 @@
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
-  GetMemberQueryDto,
-  UpdateMemberRoleDto,
-} from "@/interfaces/dtos/organization/organization-member.dto";
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
+import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
+import { GetMemberQueryDto, UpdateMemberRoleDto } from "@/interfaces/dtos";
 import { OrganizationMemberUseCase } from "@/use-cases/organization-member/organization-member.use-case";
 import {
   Body,
@@ -19,7 +19,7 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 @ApiTags("Organization Members")
 @Controller("organizations/:organizationId/members")
 export class OrganizationMemberController {

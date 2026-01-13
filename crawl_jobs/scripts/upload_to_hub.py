@@ -8,13 +8,22 @@ def main():
         description="Upload a local model to Hugging Face Hub"
     )
     parser.add_argument(
-        "--local_path", type=str, required=True, help="Path to your local model folder"
+        "--local_path",
+        type=str,
+        default="./classifier/artifacts/multi_class_model",
+        help="Path to your local model folder",
     )
     parser.add_argument(
-        "--username", type=str, required=True, help="Your Hugging Face username"
+        "--username",
+        type=str,
+        default="tienminhktvn",
+        help="Your Hugging Face username",
     )
     parser.add_argument(
-        "--model_name", type=str, required=True, help="Name for the new repository"
+        "--model_name",
+        type=str,
+        default="job-category-classifier",
+        help="Name for the new repository",
     )
     parser.add_argument(
         "--token", type=str, required=True, help="Your Hugging Face WRITE token"

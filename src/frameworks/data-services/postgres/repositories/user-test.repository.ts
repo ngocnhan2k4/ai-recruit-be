@@ -1,4 +1,5 @@
 import { IUserTestRepository, UserTest } from "@/core";
+import { NotFoundException } from "@nestjs/common";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle, DBDrizzleTransaction } from "../types";
@@ -15,11 +16,13 @@ export class UserTestRepository
   }
 
   async getUserTests(userId: string): Promise<UserTest[]> {
-    return await this.db
+    const result = await this.db
       .select()
       .from(userTests)
       .where(eq(userTests.userId, userId))
       .orderBy(desc(userTests.createdAt));
+
+    return result as unknown as UserTest[];
   }
 
   async updateTestResult(
@@ -36,6 +39,11 @@ export class UserTestRepository
       .where(eq(userTests.id, testId))
       .returning();
 
-    return result[0];
+    const updated = result[0] as unknown as UserTest | undefined;
+    if (!updated) {
+      throw new NotFoundException(`UserTest not found: ${testId}`);
+    }
+
+    return updated;
   }
 }

@@ -1,7 +1,7 @@
 import { Type } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
 
@@ -17,6 +17,7 @@ export class GeneralQueryDto {
     Math.min(parseInt(value, 10), 100),
   )
   @Min(1, { message: "Limit must be greater than or equal to 1" })
+  @Max(100, { message: "Limit must be less than or equal to 100" })
   @IsNumber()
   limit: number = 10;
 

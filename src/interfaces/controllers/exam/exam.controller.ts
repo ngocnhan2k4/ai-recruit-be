@@ -17,7 +17,7 @@ import {
 } from "@/interfaces/dtos/exam";
 import { GetUser } from "@/common/decorators/get-user.decorator";
 import type { TokenPayload } from "@/common/types/token";
-import { GetSkillsQueryDto } from "@/interfaces/dtos/skills/skill.dto";
+import { GetSkillsQueryDto } from "@/interfaces/dtos/skills";
 
 @ApiTags("Exam")
 @Controller("exam")
