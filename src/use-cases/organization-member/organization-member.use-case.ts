@@ -25,7 +25,25 @@ export class OrganizationMemberUseCase {
   async getMembersByOrganizationId(
     organizationId: string,
     query: GetMemberQueryDto,
+    actorId?: string,
   ): Promise<ApiResponse<PaginatedResultDto<OrganizationMemberDto>>> {
+    // If actorId provided, ensure the actor is a member of the organization
+    if (actorId) {
+      const actor = (
+        await this.organizationMemberRepository.getByField({
+          organizationId,
+          userId: actorId,
+        })
+      )[0];
+
+      if (!actor) {
+        throw new ForbiddenException({
+          message: RESPONSE_MESSAGE.FORBIDDEN,
+          code: RESPONSE_CODE.FORBIDDEN,
+        });
+      }
+    }
+
     const result = await this.organizationMemberRepository.getAllMembers(
       organizationId,
       query,
@@ -51,7 +69,71 @@ export class OrganizationMemberUseCase {
     });
   }
 
-  async deleteMember(orgId: string, userId: string) {
+  async deleteMember(orgId: string, userId: string, actorId: string) {
+    // Get actor's role
+    const actor = (
+      await this.organizationMemberRepository.getByField({
+        organizationId: orgId,
+        userId: actorId,
+      })
+    )[0];
+
+    if (!actor) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Only owner or admin can delete members
+    if (
+      (actor.role as OrganizationRoleEnum) !==
+        OrganizationRoleEnum.ORGANIZATION_OWNER &&
+      (actor.role as OrganizationRoleEnum) !==
+        OrganizationRoleEnum.ORGANIZATION_ADMIN
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Check target member exists
+    const targetMember = (
+      await this.organizationMemberRepository.getByField({
+        organizationId: orgId,
+        userId: userId,
+      })
+    )[0];
+
+    if (!targetMember) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.MEMBER_NOT_FOUND,
+        code: RESPONSE_CODE.MEMBER_NOT_FOUND,
+      });
+    }
+
+    // Cannot delete member with higher or equal role
+    if (
+      this.compareRoles(
+        actor.role as OrganizationRoleEnum,
+        targetMember.role as OrganizationRoleEnum,
+      ) <= 0
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Cannot delete yourself
+    if (actorId === userId) {
+      throw new BadRequestException({
+        message: "You cannot delete yourself from the organization",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
     return await this.organizationMemberRepository.delete({
       organizationId: orgId,
       userId,
@@ -114,7 +196,87 @@ export class OrganizationMemberUseCase {
     };
   }
 
-  async updateMemberRole(organizationId: string, data: UpdateMemberRoleDto) {
+  async updateMemberRole(
+    organizationId: string,
+    data: UpdateMemberRoleDto,
+    actorId: string,
+  ) {
+    // Get actor's role
+    const actor = (
+      await this.organizationMemberRepository.getByField({
+        organizationId,
+        userId: actorId,
+      })
+    )[0];
+
+    if (!actor) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Only owner or admin can update roles
+    if (
+      (actor.role as OrganizationRoleEnum) !==
+        OrganizationRoleEnum.ORGANIZATION_OWNER &&
+      (actor.role as OrganizationRoleEnum) !==
+        OrganizationRoleEnum.ORGANIZATION_ADMIN
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Get target member
+    const targetMember = (
+      await this.organizationMemberRepository.getByField({
+        organizationId,
+        userId: data.userId,
+      })
+    )[0];
+
+    if (!targetMember) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.MEMBER_NOT_FOUND,
+        code: RESPONSE_CODE.MEMBER_NOT_FOUND,
+      });
+    }
+
+    // Cannot update yourself
+    if (actorId === data.userId) {
+      throw new BadRequestException({
+        message: "You cannot change your own role",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    // Cannot update member with higher or equal role
+    if (
+      this.compareRoles(
+        actor.role as OrganizationRoleEnum,
+        targetMember.role as OrganizationRoleEnum,
+      ) <= 0
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Admin cannot promote to owner
+    if (
+      (actor.role as OrganizationRoleEnum) ===
+        OrganizationRoleEnum.ORGANIZATION_ADMIN &&
+      data.role === OrganizationRoleEnum.ORGANIZATION_OWNER
+    ) {
+      throw new ForbiddenException({
+        message: "Admin cannot promote members to Owner role",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
     return await this.organizationMemberRepository.update(
       {
         organizationId,

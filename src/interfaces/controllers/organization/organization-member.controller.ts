@@ -19,7 +19,7 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
-@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+@UseGuards(JwtAuthGuard)
 @ApiTags("Organization Members")
 @Controller("organizations/:organizationId/members")
 export class OrganizationMemberController {
@@ -34,30 +34,36 @@ export class OrganizationMemberController {
       "Retrieve a list of members belonging to a specific organization",
   })
   async getOrganizationMembers(
+    @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
     @Query() query: GetMemberQueryDto,
   ) {
     return this.organizationMemberUseCase.getMembersByOrganizationId(
       organizationId,
       query,
+      user?.userId,
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Post("delete")
   @ApiOperation({
     summary: "Delete a member from an organization",
     description: "Remove a member from a specific organization",
   })
   async deleteMember(
+    @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
     @Body() body: { userId: string },
   ) {
     return this.organizationMemberUseCase.deleteMember(
       organizationId,
       body.userId,
+      user.userId,
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Post("kick-member")
   @ApiOperation({
     summary: "Kick a member from an organization",
@@ -75,6 +81,7 @@ export class OrganizationMemberController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Put("update-role")
   @ApiOperation({
     summary: "Update a member's role in an organization",
@@ -82,12 +89,14 @@ export class OrganizationMemberController {
   })
   @ApiResponseDto(UpdateMemberRoleDto)
   async updateMemberRole(
+    @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
     @Body() data: UpdateMemberRoleDto,
   ) {
     return await this.organizationMemberUseCase.updateMemberRole(
       organizationId,
       data,
+      user.userId,
     );
   }
 }

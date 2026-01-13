@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -50,6 +51,68 @@ export class OrganizationUseCase {
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
   ) {}
+
+  /**
+   * Check if user is a member of organization
+   */
+  private async checkMembership(
+    organizationId: string,
+    userId: string,
+  ): Promise<{ role: OrganizationRoleEnum } | null> {
+    const [member] = await this.organizationMembersRepository.getByField({
+      organizationId,
+      userId,
+      deletedAt: null,
+    });
+    return member ? { role: member.role as OrganizationRoleEnum } : null;
+  }
+
+  /**
+   * Check if user is owner or admin of organization
+   */
+  private async checkIsOwnerOrAdmin(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.checkMembership(organizationId, userId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+    if (
+      member.role !== OrganizationRoleEnum.ORGANIZATION_OWNER &&
+      member.role !== OrganizationRoleEnum.ORGANIZATION_ADMIN
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+  }
+
+  /**
+   * Check if user is owner of organization
+   */
+  private async checkIsOwner(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.checkMembership(organizationId, userId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+    if (member.role !== OrganizationRoleEnum.ORGANIZATION_OWNER) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+  }
 
   async checkOrganizationName(
     orgName: string,
@@ -151,6 +214,7 @@ export class OrganizationUseCase {
       websiteUrl?: string;
       phone?: string;
     },
+    actorId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -159,6 +223,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner or admin can update basic info
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // If request body is empty, return success without doing anything
     if (Object.keys(data).length === 0) {
@@ -203,6 +270,7 @@ export class OrganizationUseCase {
       address: string;
       provinceId: string;
     }[],
+    actorId: string,
   ): Promise<
     ApiResponse<{
       id: string;
@@ -216,6 +284,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner or admin can update locations
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     const updatedLocations =
       await this.organizationRepository.executeWithTransaction(async (tx) => {
@@ -258,6 +329,7 @@ export class OrganizationUseCase {
       culture?: string;
       benefits?: string;
     },
+    actorId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -266,6 +338,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner or admin can update additional info
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Only allow update for COMPANY type organizations
     if (org.type !== OrganizationTypeEnum.COMPANY) {
@@ -319,6 +394,7 @@ export class OrganizationUseCase {
   async updateOrganizationEmail(
     orgId: string,
     newEmail: string,
+    actorId: string,
   ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -328,6 +404,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can update email
+    await this.checkIsOwner(orgId, actorId);
 
     // If email is already verified, require OTP verification before changing
     if (org.verifiedAt !== null) {
@@ -390,6 +469,7 @@ export class OrganizationUseCase {
     orgId: string,
     otpCode: string,
     newEmail: string,
+    actorId: string,
   ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -399,6 +479,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can confirm email change
+    await this.checkIsOwner(orgId, actorId);
 
     // Verify OTP with the new email stored in data
     const isValid = await this.otpService.verifyOtp(
@@ -448,6 +531,7 @@ export class OrganizationUseCase {
   async sendEmailVerificationOtp(
     orgId: string,
     email: string,
+    actorId: string,
   ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -457,6 +541,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner or admin can send verification OTP
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Check if email matches organization's email
     if (org.email !== email) {
@@ -515,6 +602,7 @@ export class OrganizationUseCase {
     orgId: string,
     otpCode: string,
     email: string,
+    actorId: string,
   ): Promise<ApiResponse<{ verifiedAt: Date }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -524,6 +612,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner or admin can verify email
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Check if email matches
     if (org.email !== email) {
@@ -587,6 +678,7 @@ export class OrganizationUseCase {
   async deleteOrganization(
     orgId: string,
     confirmationName: string,
+    actorId: string,
   ): Promise<ApiResponse<void>> {
     // Get organization to verify name
     const org = await this.organizationRepository.get(orgId);
@@ -596,6 +688,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can delete organization
+    await this.checkIsOwner(orgId, actorId);
 
     // Verify confirmation name matches
     if (org.name !== confirmationName) {
@@ -703,8 +798,9 @@ export class OrganizationUseCase {
   }
 
   async getUsersToInvite(
-    _organizationId: string,
+    organizationId: string,
     query: GeneralQueryDto,
+    actorId: string,
   ): Promise<
     ApiResponse<
       PaginatedResultDto<Pick<
@@ -713,6 +809,15 @@ export class OrganizationUseCase {
       > | null>
     >
   > {
+    // Check permission: only members can get users to invite
+    const member = await this.checkMembership(organizationId, actorId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
     const usersToInvite =
       await this.organizationMemberInvitationRepository.getUsersToInvite(query);
 
@@ -729,7 +834,11 @@ export class OrganizationUseCase {
   async updateOrganizationLogo(
     orgId: string,
     file: MultipartFile,
+    actorId: string,
   ): Promise<ApiResponse<{ logoUrl: string }>> {
+    // Check permission: only owner or admin can update logo
+    await this.checkIsOwnerOrAdmin(orgId, actorId);
+
     // Validate file (images only, max 5MB)
     await this.cloudinaryService.validateFile(file, {
       maxSize: 5 * 1024 * 1024, // 5MB
