@@ -21,7 +21,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @UseGuards(JwtAuthGuard)
 @ApiTags("Organization Members")
-@Controller("organizations/:organizationId/members")
+@Controller("organizations/:orgId/members")
 export class OrganizationMemberController {
   constructor(
     private readonly organizationMemberUseCase: OrganizationMemberUseCase,
@@ -35,7 +35,7 @@ export class OrganizationMemberController {
   })
   async getOrganizationMembers(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Query() query: GetMemberQueryDto,
   ) {
     return this.organizationMemberUseCase.getMembersByOrganizationId(
@@ -53,7 +53,7 @@ export class OrganizationMemberController {
   })
   async deleteMember(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Body() body: { userId: string },
   ) {
     return this.organizationMemberUseCase.deleteMember(
@@ -71,7 +71,7 @@ export class OrganizationMemberController {
   })
   async kickMember(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") orgId: string,
+    @Param("orgId") orgId: string,
     @Body() data: { kickedMemberId: string },
   ): Promise<ApiResponse<void>> {
     return this.organizationMemberUseCase.kickMember(
@@ -90,7 +90,7 @@ export class OrganizationMemberController {
   @ApiResponseDto(UpdateMemberRoleDto)
   async updateMemberRole(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Param("userId") userId: string,
     @Body() data: { role: string },
   ) {
