@@ -102,6 +102,94 @@ export class OrganizationMemberInvitationsRepository
     };
   }
 
+  // Get invitation history (accepted or declined)
+  async getInvitationHistory(
+    organizationId: string,
+    query: GeneralQuery,
+  ): Promise<
+    PaginatedResult<
+      | (OrganizationMemberInvitation & {
+          inviterName?: string | null;
+          inviteeName?: string | null;
+          inviteeAvatarUrl?: string | null;
+        })
+      | null
+    >
+  > {
+    const whereConditions: SQL<unknown>[] = [
+      isNull(organizationInvitations.deletedAt),
+      eq(organizationInvitations.organizationId, organizationId),
+    ];
+
+    // Add status filter for accepted or declined
+    const statusCondition = or(
+      eq(organizationInvitations.status, "accepted"),
+      eq(organizationInvitations.status, "declined"),
+    );
+
+    if (statusCondition) {
+      whereConditions.push(statusCondition);
+    }
+
+    if (query.cursor) {
+      whereConditions.push(
+        lt(organizationInvitations.createdAt, new Date(query.cursor)),
+      );
+    }
+
+    // Create aliases for users table to join twice (inviter and invitee)
+    const inviterTable = alias(users, "inviter");
+    const inviteeTable = alias(users, "invitee");
+
+    const result = await this.db
+      .select({
+        // Invitation fields
+        id: organizationInvitations.id,
+        organizationId: organizationInvitations.organizationId,
+        actorId: organizationInvitations.actorId,
+        receiverId: organizationInvitations.receiverId,
+        type: organizationInvitations.type,
+        status: organizationInvitations.status,
+        role: organizationInvitations.role,
+        expiresAt: organizationInvitations.expiresAt,
+        createdAt: organizationInvitations.createdAt,
+        updatedAt: organizationInvitations.updatedAt,
+        deletedAt: organizationInvitations.deletedAt,
+        // User enrichment fields
+        inviterName: inviterTable.name,
+        inviteeName: inviteeTable.name,
+        inviteeAvatarUrl: inviteeTable.avatarUrl,
+      })
+      .from(organizationInvitations)
+      .leftJoin(
+        inviterTable,
+        eq(organizationInvitations.actorId, inviterTable.id),
+      )
+      .leftJoin(
+        inviteeTable,
+        eq(organizationInvitations.receiverId, inviteeTable.id),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizationInvitations.createdAt))
+      .limit((query.limit || 10) + 1);
+
+    const hasNextPage = result.length > (query.limit || 10);
+    const data = hasNextPage ? result.slice(0, query.limit || 10) : result;
+
+    const nextCursor =
+      hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data: data,
+      pagination: {
+        nextCursor: nextCursor,
+        hasNextPage,
+      },
+    };
+  }
+
   // Get available users to invite
   async getUsersToInvite(
     query: GeneralQuery,

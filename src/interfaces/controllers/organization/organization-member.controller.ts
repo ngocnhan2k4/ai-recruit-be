@@ -12,8 +12,8 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -82,7 +82,7 @@ export class OrganizationMemberController {
   }
 
   @UseGuards(OrganizationAuthorizeGuard)
-  @Put("update-role")
+  @Patch(":userId/role")
   @ApiOperation({
     summary: "Update a member's role in an organization",
     description: "Update the role of a member within a specific organization",
@@ -91,12 +91,16 @@ export class OrganizationMemberController {
   async updateMemberRole(
     @GetUser() user: TokenPayload,
     @Param("organizationId") organizationId: string,
-    @Body() data: UpdateMemberRoleDto,
+    @Param("userId") userId: string,
+    @Body() data: { role: string },
   ) {
     return await this.organizationMemberUseCase.updateMemberRole(
-      organizationId,
-      data,
       user.userId,
+      organizationId,
+      {
+        userId: userId,
+        role: data.role as any,
+      },
     );
   }
 }
