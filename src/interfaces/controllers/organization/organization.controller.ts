@@ -301,6 +301,7 @@ export class OrganizationController {
     description:
       "Retrieve a list of users who can be invited to join a specific organization",
   })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   async getUsersToInvite(
     @GetUser() user: TokenPayload,
     @Param("orgId") organizationId: string,
