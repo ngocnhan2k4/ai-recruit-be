@@ -28,7 +28,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
 @ApiTags("Organization Invitation")
-@Controller("organizations/:organizationId/invitations")
+@Controller("organizations/:orgId/invitations")
 export class OrganizationInvitationController {
   constructor(
     private readonly organizationInvitationUseCase: OrganizationInvitationUseCase,
@@ -42,7 +42,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async inviteMember(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Body() data: CreateOrganizationInvitationDto,
   ): Promise<ApiResponse<void>> {
     return await this.organizationInvitationUseCase.inviteMemberToOrganization(
@@ -60,12 +60,33 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async getOrganizationInvitations(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
     @Query() query: GeneralQueryDto,
   ): Promise<
     ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
   > {
     return this.organizationInvitationUseCase.getByOrganizationId(
+      user.userId,
+      organizationId,
+      query,
+    );
+  }
+
+  @Get("history")
+  @ApiOperation({
+    summary: "Get invitation history for an organization",
+    description:
+      "Retrieve a list of accepted or declined invitations for a specific organization",
+  })
+  @ApiResponseDto(Boolean)
+  async getInvitationHistory(
+    @GetUser() user: TokenPayload,
+    @Param("orgId") organizationId: string,
+    @Query() query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<PaginatedResultDto<OrganizationMemberInvitation | null>>
+  > {
+    return this.organizationInvitationUseCase.getInvitationHistory(
       user.userId,
       organizationId,
       query,
@@ -80,7 +101,7 @@ export class OrganizationInvitationController {
   @ApiResponseDto(Boolean)
   async getJoinInvitation(
     @GetUser() user: TokenPayload,
-    @Param("organizationId") organizationId: string,
+    @Param("orgId") organizationId: string,
   ): Promise<ApiResponse<OrganizationMemberInvitation | null>> {
     return await this.organizationInvitationUseCase.getJoinInvitation(
       organizationId,

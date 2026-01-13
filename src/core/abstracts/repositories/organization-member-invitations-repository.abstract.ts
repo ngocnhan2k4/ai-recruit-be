@@ -16,4 +16,9 @@ export abstract class IOrganizationMemberInvitationRepository extends IGenericRe
     organizationId: string,
     query: GeneralQuery,
   ): Promise<PaginatedResult<OrganizationMemberInvitation | null>>;
+
+  abstract getInvitationHistory(
+    organizationId: string,
+    query: GeneralQuery,
+  ): Promise<PaginatedResult<OrganizationMemberInvitation | null>>;
 }

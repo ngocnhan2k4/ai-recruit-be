@@ -120,12 +120,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationBasicInfo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationBasicInfoDto,
   ) {
     return await this.organizationUseCase.updateOrganizationBasicInfo(
       orgId,
       data,
+      user.userId,
     );
   }
 
@@ -138,12 +140,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(String, { isArray: true })
   async updateOrganizationLocations(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationLocationDto,
   ) {
     return await this.organizationUseCase.updateOrganizationLocations(
       orgId,
       data.locations,
+      user.userId,
     );
   }
 
@@ -156,12 +160,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationAdditionalInfo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationAdditionalInfoDto,
   ) {
     return await this.organizationUseCase.updateOrganizationAdditionalInfo(
       orgId,
       data,
+      user.userId,
     );
   }
 
@@ -174,12 +180,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationEmailDto,
   ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     return await this.organizationUseCase.updateOrganizationEmail(
       orgId,
       data.email,
+      user.userId,
     );
   }
 
@@ -192,6 +200,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async confirmUpdateOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: ConfirmUpdateOrganizationEmailDto,
   ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
@@ -199,6 +208,7 @@ export class OrganizationController {
       orgId,
       data.otpCode,
       data.email,
+      user.userId,
     );
   }
 
@@ -211,12 +221,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async sendEmailVerificationOtp(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: SendEmailVerificationDto,
   ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
     return await this.organizationUseCase.sendEmailVerificationOtp(
       orgId,
       data.email,
+      user.userId,
     );
   }
 
@@ -229,6 +241,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async verifyOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: VerifyOrganizationEmailDto,
   ): Promise<ApiResponse<{ verifiedAt: Date }>> {
@@ -236,6 +249,7 @@ export class OrganizationController {
       orgId,
       data.otpCode,
       data.email,
+      user.userId,
     );
   }
 
@@ -248,12 +262,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async deleteOrganization(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: DeleteOrganizationDto,
   ): Promise<ApiResponse<void>> {
     return await this.organizationUseCase.deleteOrganization(
       orgId,
       data.confirmationName,
+      user.userId,
     );
   }
 
@@ -278,6 +294,7 @@ export class OrganizationController {
     return await this.organizationUseCase.getAllOrganizations(query);
   }
 
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Get(":orgId/users-to-invite")
   @ApiOperation({
     summary: "Get available users to invite to an organization",
@@ -286,10 +303,15 @@ export class OrganizationController {
   })
   @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   async getUsersToInvite(
+    @GetUser() user: TokenPayload,
     @Param("orgId") organizationId: string,
     @Query() query: GeneralQueryDto,
   ) {
-    return this.organizationUseCase.getUsersToInvite(organizationId, query);
+    return this.organizationUseCase.getUsersToInvite(
+      organizationId,
+      query,
+      user.userId,
+    );
   }
 
   @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
@@ -301,6 +323,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationLogo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @UploadFileAndBody()
     uploadFile: { file: MultipartFile },
@@ -312,6 +335,7 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationLogo(
       orgId,
       uploadFile.file,
+      user.userId,
     );
   }
 }
