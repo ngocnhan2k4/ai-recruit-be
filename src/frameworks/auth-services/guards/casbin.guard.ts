@@ -112,19 +112,18 @@ export class CasbinGuard {
       .getRequest();
 
     const user = req.user;
+    console.log("user", user);
     if (!user) {
       throw new UnauthorizedException("User not authenticated");
     }
 
-    const organizationId = this.extractKeyFromRequest(req, "organization_id");
-    const projectId = this.extractKeyFromRequest(req, "project_id");
+    const organizationId = this.extractKeyFromRequest(req, "organizationId");
     const fullPath = req.url;
     const method = req.method;
 
     const ok = await this.checkAuthorizeOrganization(
       user.userId,
       organizationId,
-      projectId,
       fullPath,
       method,
     );
@@ -163,25 +162,14 @@ export class CasbinGuard {
   private async checkAuthorizeOrganization(
     userId: string,
     organizationId: string | undefined,
-    projectId: string | undefined,
     fullPath: string,
     method: string,
   ): Promise<boolean> {
     const enforcer = await this.casbinService.getCachedEnforcer(userId);
 
     try {
-      // Check with organization and project context (g2 matching)
-      if (organizationId && projectId) {
-        return await enforcer.enforce(
-          userId,
-          organizationId,
-          projectId,
-          fullPath,
-          method,
-        );
-      }
-      // Check with just organization context
-      else if (organizationId) {
+      // Check with organization context (g2 matching)
+      if (organizationId) {
         return await enforcer.enforce(userId, organizationId, fullPath, method);
       }
       // Fallback to system-level check
