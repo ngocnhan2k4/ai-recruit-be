@@ -146,11 +146,13 @@ export class JobUseCases {
   ): Promise<ApiResponse<TopInMarketDtoResponse>> {
     const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([
       this.jobRepository.getTopAppliedJobs(filter),
-      this.jobRepository.getTopEmployers(filter),
-      this.jobRepository.getTopCategories(filter),
+      this.jobRepository.getTopEmployers(filter, 5),
+      this.jobRepository.getTopCategories(filter, 10),
     ]);
 
-    this.logger.log(`Fetched top in market data`);
+    this.logger.log(
+      `[JobUseCases] [getTopInMarket] Fetched top in market data`,
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

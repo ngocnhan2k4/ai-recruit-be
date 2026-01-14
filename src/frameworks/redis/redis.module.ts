@@ -16,6 +16,13 @@ import { IRedisService } from "@/core/abstracts/redis.abstract";
           port: configService.get<number>("REDIS_PORT"),
           password: configService.get<string>("REDIS_PASSWORD"),
           db: configService.get<number>("REDIS_DB"),
+          retryStrategy(times) {
+            logger.log(`Redis connection attempt ${times}`);
+            if (times >= 3) {
+              return null;
+            }
+            return Math.min(times * 1000, 5000);
+          },
           maxRetriesPerRequest: 3,
         });
 

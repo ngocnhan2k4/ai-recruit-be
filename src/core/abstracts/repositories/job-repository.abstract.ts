@@ -49,10 +49,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getTopEmployers(
     filter: StatisticsJobFilter,
+    limit?: number,
   ): Promise<TopInMarketResponse[]>;
 
   abstract getTopCategories(
     filter: StatisticsJobFilter,
+    limit?: number,
   ): Promise<TopInMarketResponse[]>;
 
   abstract applyJob(

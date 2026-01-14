@@ -545,7 +545,7 @@ export class JobRepository
 
   async getTopEmployers(
     filter: StatisticsJobFilter,
-    limit = 10,
+    limit?: number,
   ): Promise<TopInMarketResponse[]> {
     const conditions = this.buildJobFilterQuery(filter);
 
@@ -560,7 +560,7 @@ export class JobRepository
       .where(and(...conditions, isNotNull(organizations.name)))
       .groupBy(organizations.name, organizations.logoUrl)
       .orderBy(desc(sql`count(*)`))
-      .limit(limit);
+      .limit(limit ?? 10);
 
     const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
 
@@ -574,7 +574,7 @@ export class JobRepository
 
   async getTopCategories(
     filter: StatisticsJobFilter,
-    limit = 10,
+    limit?: number,
   ): Promise<TopInMarketResponse[]> {
     const conditions = this.buildJobFilterQuery({
       ...filter,
@@ -591,7 +591,7 @@ export class JobRepository
       .where(and(...conditions, isNotNull(categories.name)))
       .groupBy(categories.name)
       .orderBy(desc(sql`count(*)`))
-      .limit(limit);
+      .limit(limit ?? 10);
 
     const totalJobsWithCategories = result.reduce(
       (sum, item) => sum + Number(item.count),
