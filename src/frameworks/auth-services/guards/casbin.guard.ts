@@ -117,7 +117,7 @@ export class CasbinGuard {
       throw new UnauthorizedException("User not authenticated");
     }
 
-    const organizationId = this.extractKeyFromRequest(req, "organizationId");
+    const organizationId = this.extractKeyFromRequest(req, "orgId");
     const fullPath = req.url;
     const method = req.method;
 
