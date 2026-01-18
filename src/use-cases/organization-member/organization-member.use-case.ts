@@ -13,6 +13,7 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationMemberUseCase {
@@ -20,6 +21,7 @@ export class OrganizationMemberUseCase {
 
   constructor(
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async getMembersByOrganizationId(
@@ -134,6 +136,17 @@ export class OrganizationMemberUseCase {
       });
     }
 
+    // Remove Casbin g2 role
+    await this.casbinService.deleteRoleForUserInDomain(
+      userId,
+      targetMember.role,
+      orgId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Removed Casbin g2 role: ${userId} -> ${targetMember.role} -> ${orgId}`,
+    );
+
     return await this.organizationMemberRepository.delete({
       organizationId: orgId,
       userId,
@@ -184,6 +197,17 @@ export class OrganizationMemberUseCase {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
+
+    // Remove Casbin g2 role
+    await this.casbinService.deleteRoleForUserInDomain(
+      kickedMemberId,
+      kickedMember.role,
+      orgId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Removed Casbin g2 role: ${kickedMemberId} -> ${kickedMember.role} -> ${orgId}`,
+    );
 
     await this.organizationMemberRepository.delete({
       organizationId: orgId,
@@ -274,6 +298,22 @@ export class OrganizationMemberUseCase {
         role: data.role,
         updatedAt: new Date(),
       },
+    );
+
+    // Update Casbin g2 role
+    await this.casbinService.deleteRoleForUserInDomain(
+      data.userId,
+      targetCurrentRole,
+      organizationId,
+    );
+    await this.casbinService.addRoleForUserInDomain(
+      data.userId,
+      data.role,
+      organizationId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Updated Casbin g2 role: ${data.userId} -> ${data.role} -> ${organizationId}`,
     );
 
     return {

@@ -8,6 +8,7 @@ import { Reflector } from "@nestjs/core";
 import { CasbinService } from "../casbin/casbin.service";
 import { FastifyRequest } from "fastify";
 import { TokenPayload } from "@/common/types/token";
+import { newEnforceContext } from "casbin";
 
 @Injectable()
 export class CasbinGuard {
@@ -112,13 +113,16 @@ export class CasbinGuard {
       .getRequest();
 
     const user = req.user;
-    console.log("user", user);
     if (!user) {
       throw new UnauthorizedException("User not authenticated");
     }
 
     const organizationId = this.extractKeyFromRequest(req, "orgId");
-    const fullPath = req.url;
+    // Use routeOptions.url to get the route pattern (e.g., /api/v1/organizations/:orgId)
+    // instead of req.url which contains the actual URL with resolved params
+    const fullPath: string =
+      (req as unknown as { routeOptions?: { url?: string } }).routeOptions
+        ?.url || req.url;
     const method = req.method;
 
     const ok = await this.checkAuthorizeOrganization(
@@ -156,8 +160,11 @@ export class CasbinGuard {
   }
 
   /**
-   * Checks organization-level authorization
+   * Checks organization-level authorization using m2 matcher
    * Similar to Go's CheckAuthorizeOrganization
+   *
+   * Uses r2 = sub, org_id, obj, act
+   * Matcher m2 checks: g2(r2.sub, p2.sub, r2.org_id) && p2.dom_type == "org" && keyMatch2(r2.obj, p2.obj) && regexMatch(r2.act, p2.act)
    */
   private async checkAuthorizeOrganization(
     userId: string,
@@ -168,11 +175,24 @@ export class CasbinGuard {
     const enforcer = await this.casbinService.getCachedEnforcer(userId);
 
     try {
-      // Check with organization context (g2 matching)
       if (organizationId) {
-        return await enforcer.enforce(userId, organizationId, fullPath, method);
+        // Use EnforceContext to specify we want to use r2, p2, e2, m2
+        // This matches Go's: enforcer.Enforce(casbin.NewEnforceContext("2"), userId, organizationId, fullPath, method)
+        const enforceContext = newEnforceContext("2");
+
+        // r2 = sub, org_id, obj, act
+        const ok = await enforcer.enforce(
+          enforceContext,
+          userId,
+          organizationId,
+          fullPath,
+          method,
+        );
+
+        return ok;
       }
-      // Fallback to system-level check
+
+      // Fallback to system-level check if no organizationId
       return await enforcer.enforce(userId, fullPath, method);
     } catch (error) {
       console.error("[CheckAuthorizeOrganization] error:", error);
