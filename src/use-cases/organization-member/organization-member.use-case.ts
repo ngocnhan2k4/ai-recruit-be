@@ -1,6 +1,7 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { OrganizationRoleEnum } from "@/core";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import {
   GetMemberQueryDto,
@@ -20,6 +21,7 @@ export class OrganizationMemberUseCase {
 
   constructor(
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
+    private readonly casbinService: CasbinService,
   ) {}
 
   async getMembersByOrganizationId(
@@ -274,6 +276,30 @@ export class OrganizationMemberUseCase {
         role: data.role,
         updatedAt: new Date(),
       },
+    );
+
+    // Update Casbin g2 role
+    // Try to delete both lowercase and uppercase versions of old role (for backward compatibility)
+    await this.casbinService.deleteRoleForUserInDomain(
+      data.userId,
+      targetCurrentRole.toLowerCase(), // try lowercase first
+      organizationId,
+    );
+    await this.casbinService.deleteRoleForUserInDomain(
+      data.userId,
+      targetCurrentRole, // then try as-is (might be uppercase already)
+      organizationId,
+    );
+
+    // Add new role (will be uppercased in CasbinService)
+    await this.casbinService.addRoleForUserInDomain(
+      data.userId,
+      data.role,
+      organizationId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Updated Casbin g2 role: ${data.userId} -> ${data.role.toUpperCase()} -> ${organizationId}`,
     );
 
     return {

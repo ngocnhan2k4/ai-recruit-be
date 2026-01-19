@@ -26,7 +26,7 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
-@UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+@UseGuards(JwtAuthGuard)
 @ApiTags("Organization Invitation")
 @Controller("organizations/:orgId/invitations")
 export class OrganizationInvitationController {
@@ -34,6 +34,7 @@ export class OrganizationInvitationController {
     private readonly organizationInvitationUseCase: OrganizationInvitationUseCase,
   ) {}
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Post()
   @ApiOperation({
     summary: "Add a member to an organization",
@@ -52,6 +53,7 @@ export class OrganizationInvitationController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Get()
   @ApiOperation({
     summary: "Get invitations for an organization",
@@ -72,6 +74,7 @@ export class OrganizationInvitationController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Get("history")
   @ApiOperation({
     summary: "Get invitation history for an organization",
@@ -109,6 +112,7 @@ export class OrganizationInvitationController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Patch(":invitationId/role")
   @ApiOperation({
     summary: "Update invitation role",
@@ -127,6 +131,7 @@ export class OrganizationInvitationController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Delete(":invitationId")
   @ApiOperation({
     summary: "Revoke invitation",

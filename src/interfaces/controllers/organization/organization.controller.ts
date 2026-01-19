@@ -273,7 +273,7 @@ export class OrganizationController {
     );
   }
 
-  @Get("")
+  @Get()
   @ApiOperation({
     summary: "Get all organizations",
     description: "Get all organizations (only basic information)",

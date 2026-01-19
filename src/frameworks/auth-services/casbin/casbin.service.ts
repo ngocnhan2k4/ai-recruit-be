@@ -185,7 +185,22 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    return await this.enforcer.addNamedGroupingPolicy(user, role, domainId);
+    // Always uppercase role for consistency
+    const normalizedRole = role.toUpperCase();
+
+    const result = await this.enforcer.addNamedGroupingPolicy(
+      PtypeEnum.DOMAIN_ASSIGNMENT,
+      user,
+      normalizedRole,
+      domainId,
+    );
+
+    // Clear user's cached enforcer so it reloads with new g2 policy
+    if (result) {
+      this.cache.delete(user);
+    }
+
+    return result;
   }
 
   async deleteRoleForUserInDomain(
@@ -193,7 +208,22 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    return await this.enforcer.removeNamedGroupingPolicy(user, role, domainId);
+    // Always uppercase role for consistency
+    const normalizedRole = role.toUpperCase();
+
+    const result = await this.enforcer.removeNamedGroupingPolicy(
+      PtypeEnum.DOMAIN_ASSIGNMENT,
+      user,
+      normalizedRole,
+      domainId,
+    );
+
+    // Clear user's cached enforcer so it reloads without old g2 policy
+    if (result) {
+      this.cache.delete(user);
+    }
+
+    return result;
   }
 
   async getRolesForUser(user: string): Promise<string[]> {
