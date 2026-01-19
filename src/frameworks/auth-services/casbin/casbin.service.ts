@@ -51,10 +51,12 @@ export class CasbinService {
       this.sharedAdapter,
     );
 
-    // Load filtered policies: all "p" policies + user's "g" policies
+    // Load filtered policies: all "p" policies + user's "g" and "g2" policies
     await newEnforcer.loadFilteredPolicy([
-      { ptype: "p" }, // All policies
-      { ptype: "g", v0: userId }, // Only this user's role assignments
+      { ptype: "p" }, // All system-level policies
+      { ptype: "p2" }, // All domain-level policies
+      { ptype: "g", v0: userId }, // Only this user's system-level role assignments
+      { ptype: "g2", v0: userId }, // Only this user's organization-level role assignments
     ]);
 
     // Cache the enforcer

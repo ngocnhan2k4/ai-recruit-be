@@ -294,7 +294,6 @@ export class OrganizationController {
     return await this.organizationUseCase.getAllOrganizations(query);
   }
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Get(":orgId/users-to-invite")
   @ApiOperation({
     summary: "Get available users to invite to an organization",

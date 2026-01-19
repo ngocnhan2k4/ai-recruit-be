@@ -20,6 +20,7 @@ import {
   OrganizationTypeEnum,
   SchoolTypeEnum,
 } from "@/core";
+import { CreateLocationDto } from "./organization-location.dto";
 export class CreateOrganizationDto {
   @ApiProperty({ type: "string" })
   @IsNotEmpty({ message: "Name is required" })
@@ -84,12 +85,12 @@ export class CreateOrganizationDto {
   @IsNumber()
   employeesMax: number;
 
-  @ApiProperty({ type: () => Object, isArray: true })
+  @ApiProperty({ type: () => CreateLocationDto, isArray: true })
   @IsNotEmpty({ message: "Locations is required" })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => Object)
-  locations: Array<{ address: string; provinceId: string }>;
+  @Type(() => CreateLocationDto)
+  locations: CreateLocationDto[];
 
   @ApiProperty({ type: "string" })
   @IsOptional()

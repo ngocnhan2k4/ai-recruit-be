@@ -28,6 +28,7 @@ import {
 import { IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
 import { ConfigService } from "@nestjs/config";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationInvitationUseCase {
@@ -44,6 +45,7 @@ export class OrganizationInvitationUseCase {
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly configService: ConfigService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   /**
@@ -316,7 +318,11 @@ export class OrganizationInvitationUseCase {
       });
     }
 
-    // Update invitation status
+    // Track what happened for Casbin updates after transaction
+    let casbinAction: "new" | "restored" | null = null;
+    let oldRole: string | null = null;
+
+    // Update invitation status and add/restore member
     await this.organizationMemberRepository.executeWithTransaction(
       async (tx) => {
         const updatedInvitation =
@@ -368,6 +374,9 @@ export class OrganizationInvitationUseCase {
                 code: RESPONSE_CODE.ADD_MEMBER_FAILED,
               });
             }
+
+            casbinAction = "restored";
+            oldRole = existingMember.role;
           } else {
             // Create new member if not exists
             const result = await this.organizationMemberRepository.create(
@@ -385,10 +394,46 @@ export class OrganizationInvitationUseCase {
                 code: RESPONSE_CODE.ADD_MEMBER_FAILED,
               });
             }
+
+            casbinAction = "new";
           }
         }
       },
     );
+
+    // Apply Casbin changes AFTER transaction succeeds
+    // Note: receiverId is guaranteed to be non-null here because we checked
+    // invitation.receiverId !== userId at line 314 and userId is always a string
+    if (data.action === "ACCEPT" && casbinAction) {
+      if (casbinAction === "restored" && oldRole) {
+        // Delete old role, add new role
+        await this.casbinService.deleteRoleForUserInDomain(
+          userId,
+          oldRole,
+          invitation.organizationId,
+        );
+        await this.casbinService.addRoleForUserInDomain(
+          userId,
+          invitation.role,
+          invitation.organizationId,
+        );
+        await this.casbinService.savePolicy();
+        this.logger.log(
+          `Updated Casbin g2 role: ${userId} -> ${invitation.role} -> ${invitation.organizationId}`,
+        );
+      } else if (casbinAction === "new") {
+        // Add new role
+        await this.casbinService.addRoleForUserInDomain(
+          userId,
+          invitation.role,
+          invitation.organizationId,
+        );
+        await this.casbinService.savePolicy();
+        this.logger.log(
+          `Added Casbin g2 role: ${userId} -> ${invitation.role} -> ${invitation.organizationId}`,
+        );
+      }
+    }
 
     return {
       data: true,

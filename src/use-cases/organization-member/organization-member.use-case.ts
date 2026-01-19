@@ -14,6 +14,7 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationMemberUseCase {
@@ -21,6 +22,7 @@ export class OrganizationMemberUseCase {
 
   constructor(
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
+    private readonly casbinService: CasbinService,
     private readonly casbinService: CasbinService,
   ) {}
 
@@ -136,6 +138,17 @@ export class OrganizationMemberUseCase {
       });
     }
 
+    // Remove Casbin g2 role
+    await this.casbinService.deleteRoleForUserInDomain(
+      userId,
+      targetMember.role,
+      orgId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Removed Casbin g2 role: ${userId} -> ${targetMember.role} -> ${orgId}`,
+    );
+
     return await this.organizationMemberRepository.delete({
       organizationId: orgId,
       userId,
@@ -186,6 +199,17 @@ export class OrganizationMemberUseCase {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
+
+    // Remove Casbin g2 role
+    await this.casbinService.deleteRoleForUserInDomain(
+      kickedMemberId,
+      kickedMember.role,
+      orgId,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Removed Casbin g2 role: ${kickedMemberId} -> ${kickedMember.role} -> ${orgId}`,
+    );
 
     await this.organizationMemberRepository.delete({
       organizationId: orgId,
@@ -279,19 +303,11 @@ export class OrganizationMemberUseCase {
     );
 
     // Update Casbin g2 role
-    // Try to delete both lowercase and uppercase versions of old role (for backward compatibility)
     await this.casbinService.deleteRoleForUserInDomain(
       data.userId,
-      targetCurrentRole.toLowerCase(), // try lowercase first
+      targetCurrentRole,
       organizationId,
     );
-    await this.casbinService.deleteRoleForUserInDomain(
-      data.userId,
-      targetCurrentRole, // then try as-is (might be uppercase already)
-      organizationId,
-    );
-
-    // Add new role (will be uppercased in CasbinService)
     await this.casbinService.addRoleForUserInDomain(
       data.userId,
       data.role,
@@ -299,7 +315,7 @@ export class OrganizationMemberUseCase {
     );
     await this.casbinService.savePolicy();
     this.logger.log(
-      `Updated Casbin g2 role: ${data.userId} -> ${data.role.toUpperCase()} -> ${organizationId}`,
+      `Updated Casbin g2 role: ${data.userId} -> ${data.role} -> ${organizationId}`,
     );
 
     return {
