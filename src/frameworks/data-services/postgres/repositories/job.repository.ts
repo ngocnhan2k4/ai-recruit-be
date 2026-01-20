@@ -185,7 +185,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id))
       .offset(offset)
       .limit(limit)) as {
       job: Job;
@@ -352,7 +352,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id))
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];

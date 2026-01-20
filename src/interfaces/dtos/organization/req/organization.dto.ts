@@ -335,18 +335,14 @@ export class UpdateOrganizationBasicInfoDto {
 
 export class UpdateOrganizationLocationDto {
   @ApiProperty({
-    type: () => Object,
+    type: () => CreateLocationDto,
     isArray: true,
     description: "List of organization locations",
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => Object)
-  locations: {
-    id?: string;
-    address: string;
-    provinceId: string;
-  }[];
+  @Type(() => CreateLocationDto)
+  locations: CreateLocationDto[];
 }
 
 export class UpdateOrganizationAdditionalInfoDto {

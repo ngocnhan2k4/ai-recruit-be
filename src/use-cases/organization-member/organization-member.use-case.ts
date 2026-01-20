@@ -14,7 +14,6 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationMemberUseCase {
@@ -22,7 +21,6 @@ export class OrganizationMemberUseCase {
 
   constructor(
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
-    private readonly casbinService: CasbinService,
     private readonly casbinService: CasbinService,
   ) {}
 
