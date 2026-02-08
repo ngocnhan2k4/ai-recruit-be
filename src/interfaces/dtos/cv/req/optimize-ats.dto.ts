@@ -1,7 +1,14 @@
 import { CvLanguageEnum } from "@/core";
 import type { MultipartFile } from "@fastify/multipart";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsEnum, IsOptional } from "class-validator";
+import { Type } from "class-transformer";
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  ValidateNested,
+  IsNotEmpty,
+} from "class-validator";
 
 export class OptimizeAtsDto {
   @ApiProperty({
@@ -26,12 +33,35 @@ export class OptimizeAtsDto {
 }
 
 export class OptimizeAtsUploadDto {
+  @ApiProperty({
+    description: "CV file",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
   @IsOptional()
+  @IsString()
   file?: MultipartFile;
 
+  @ApiProperty({
+    description:
+      "Raw CV text content. Provide either 'file' OR 'cvText', not both.",
+    example:
+      "John Doe\nSenior Backend Developer\nExperience: 5 years with Java, Spring Boot...",
+    required: false,
+  })
   @IsOptional()
   @IsString()
   cvText?: string;
 
+  @ApiProperty({
+    description:
+      "JSON string containing optional jobDescription and language. For targeted optimization, include jobDescription. For general optimization, omit it.",
+    type: OptimizeAtsDto,
+    required: true,
+  })
+  @ValidateNested()
+  @Type(() => OptimizeAtsDto)
+  @IsNotEmpty()
   body: OptimizeAtsDto;
 }

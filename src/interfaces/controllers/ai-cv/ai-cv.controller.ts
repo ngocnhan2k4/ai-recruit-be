@@ -80,41 +80,6 @@ export class AiCvController {
   })
   @ApiConsumes("multipart/form-data")
   @ApiResponseDto(OptimizeAtsResponse)
-  @ApiBody({
-    schema: {
-      type: "object",
-      required: ["body"],
-      properties: {
-        file: {
-          type: "string",
-          format: "binary",
-          description:
-            "CV file (PDF or DOCX, max 5MB). Provide either 'file' OR 'cvText', not both.",
-        },
-        cvText: {
-          type: "string",
-          description:
-            "Raw CV text content. Provide either 'file' OR 'cvText', not both.",
-          example:
-            "John Doe\nSenior Backend Developer\nExperience: 5 years with Java, Spring Boot...",
-        },
-        body: {
-          type: "string",
-          description:
-            "JSON string containing optional jobDescription and language. For targeted optimization, include jobDescription. For general optimization, omit it.",
-          examples: {
-            targeted: {
-              value:
-                '{"jobDescription": "Senior Java Dev...", "language": "vi"}',
-            },
-            general: {
-              value: '{"language": "vi"}',
-            },
-          },
-        },
-      },
-    },
-  })
   async optimizeAts(
     @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
