@@ -44,11 +44,10 @@ import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
-@UseGuards(OrganizationAuthorizeGuard)
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Get("/me")
   @ApiOperation({
     summary: "Get organizations by user ID with cursor pagination",
@@ -68,6 +67,7 @@ export class OrganizationController {
     );
   }
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Get("/check-name/:name")
   @ApiOperation({
     summary: "Check if a company name exists",
@@ -78,7 +78,7 @@ export class OrganizationController {
     return await this.organizationUseCase.checkOrganizationName(name);
   }
 
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard, OrganizationAuthorizeGuard)
   @Get("/:orgId")
   @ApiOperation({
     summary: "Get organization by ID",
@@ -95,7 +95,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post()
   @ApiOperation({
     summary: "Create a new organization",
@@ -112,7 +112,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/basic-info")
   @ApiOperation({
     summary: "Update organization basic information",
@@ -121,6 +121,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationBasicInfo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationBasicInfoDto,
   ) {
@@ -130,7 +131,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/locations")
   @ApiOperation({
     summary: "Update organization locations",
@@ -139,6 +140,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String, { isArray: true })
   async updateOrganizationLocations(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationLocationDto,
   ) {
@@ -148,7 +150,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/additional-info")
   @ApiOperation({
     summary: "Update organization additional information (Culture & Benefits)",
@@ -157,6 +159,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationAdditionalInfo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationAdditionalInfoDto,
   ) {
@@ -166,7 +169,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/email")
   @ApiOperation({
     summary: "Update organization email (Request)",
@@ -175,16 +178,18 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationEmailDto,
   ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     return await this.organizationUseCase.updateOrganizationEmail(
       orgId,
       data.email,
+      user.userId,
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/confirm")
   @ApiOperation({
     summary: "Confirm email change with OTP",
@@ -193,6 +198,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async confirmUpdateOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: ConfirmUpdateOrganizationEmailDto,
   ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
@@ -200,10 +206,11 @@ export class OrganizationController {
       orgId,
       data.otpCode,
       data.email,
+      user.userId,
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/send-verification")
   @ApiOperation({
     summary: "Send email verification OTP",
@@ -212,6 +219,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async sendEmailVerificationOtp(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: SendEmailVerificationDto,
   ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
@@ -221,7 +229,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Post("/:orgId/email/verify")
   @ApiOperation({
     summary: "Verify organization email with OTP",
@@ -230,6 +238,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async verifyOrganizationEmail(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: VerifyOrganizationEmailDto,
   ): Promise<ApiResponse<{ verifiedAt: Date }>> {
@@ -240,7 +249,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Delete("/:orgId")
   @ApiOperation({
     summary: "Delete an organization",
@@ -249,16 +258,18 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async deleteOrganization(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: DeleteOrganizationDto,
   ): Promise<ApiResponse<void>> {
     return await this.organizationUseCase.deleteOrganization(
       orgId,
       data.confirmationName,
+      user.userId,
     );
   }
 
-  @Get("")
+  @Get()
   @ApiOperation({
     summary: "Get all organizations",
     description: "Get all organizations (only basic information)",
@@ -285,14 +296,20 @@ export class OrganizationController {
     description:
       "Retrieve a list of users who can be invited to join a specific organization",
   })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   async getUsersToInvite(
+    @GetUser() user: TokenPayload,
     @Param("orgId") organizationId: string,
     @Query() query: GeneralQueryDto,
   ) {
-    return this.organizationUseCase.getUsersToInvite(organizationId, query);
+    return this.organizationUseCase.getUsersToInvite(
+      organizationId,
+      query,
+      user.userId,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @Patch("/:orgId/logo")
   @ApiOperation({
     summary: "Update organization logo",
@@ -301,6 +318,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationLogo(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @UploadFileAndBody()
     uploadFile: { file: MultipartFile },

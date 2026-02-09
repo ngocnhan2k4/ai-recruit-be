@@ -28,6 +28,7 @@ import {
 import { IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
 import { ConfigService } from "@nestjs/config";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationInvitationUseCase {
@@ -44,6 +45,7 @@ export class OrganizationInvitationUseCase {
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly configService: ConfigService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   /**
@@ -133,10 +135,12 @@ export class OrganizationInvitationUseCase {
       // Update role if different
       const pendingInvite = existingInvitation[0];
       if ((pendingInvite.role as OrganizationRoleEnum) !== data.role) {
-        pendingInvite.role = data.role;
         await this.organizationMemberInvitationRepository.update(
           { id: pendingInvite.id },
-          pendingInvite,
+          {
+            role: data.role,
+            updatedAt: new Date(),
+          },
         );
       }
 
@@ -314,12 +318,11 @@ export class OrganizationInvitationUseCase {
       });
     }
 
-    // Update invitation status
-    invitation.status =
-      data.action === "ACCEPT"
-        ? OrganizationInviteStatusEnum.ACCEPTED
-        : OrganizationInviteStatusEnum.DECLINED;
+    // Track what happened for Casbin updates after transaction
+    let casbinAction: "new" | "restored" | null = null;
+    let oldRole: string | null = null;
 
+    // Update invitation status and add/restore member
     await this.organizationMemberRepository.executeWithTransaction(
       async (tx) => {
         const updatedInvitation =
@@ -327,7 +330,13 @@ export class OrganizationInvitationUseCase {
             {
               id: invitationId,
             },
-            invitation,
+            {
+              status:
+                data.action === "ACCEPT"
+                  ? OrganizationInviteStatusEnum.ACCEPTED
+                  : OrganizationInviteStatusEnum.DECLINED,
+              updatedAt: new Date(),
+            },
             tx,
           );
 
@@ -339,24 +348,92 @@ export class OrganizationInvitationUseCase {
         }
 
         if (data.action === "ACCEPT") {
-          // Add member to organization
-          const result = await this.organizationMemberRepository.create(
-            {
+          // Check if user was previously a member (including soft-deleted)
+          const existingMembers =
+            await this.organizationMemberRepository.getByField({
               organizationId: invitation.organizationId,
               userId: invitation.receiverId!,
-              role: invitation.role,
-            },
-            tx,
-          );
-          if (!result) {
-            throw new BadRequestException({
-              message: RESPONSE_MESSAGE.ADD_MEMBER_FAILED,
-              code: RESPONSE_CODE.ADD_MEMBER_FAILED,
             });
+
+          if (existingMembers && existingMembers.length > 0) {
+            // Restore the soft-deleted member and update role
+            const existingMember = existingMembers[0];
+            const result = await this.organizationMemberRepository.update(
+              { id: existingMember.id },
+              {
+                role: invitation.role,
+                deletedAt: null,
+                updatedAt: new Date(),
+              },
+              tx,
+            );
+
+            if (!result) {
+              throw new BadRequestException({
+                message: RESPONSE_MESSAGE.ADD_MEMBER_FAILED,
+                code: RESPONSE_CODE.ADD_MEMBER_FAILED,
+              });
+            }
+
+            casbinAction = "restored";
+            oldRole = existingMember.role;
+          } else {
+            // Create new member if not exists
+            const result = await this.organizationMemberRepository.create(
+              {
+                organizationId: invitation.organizationId,
+                userId: invitation.receiverId!,
+                role: invitation.role,
+              },
+              tx,
+            );
+
+            if (!result) {
+              throw new BadRequestException({
+                message: RESPONSE_MESSAGE.ADD_MEMBER_FAILED,
+                code: RESPONSE_CODE.ADD_MEMBER_FAILED,
+              });
+            }
+
+            casbinAction = "new";
           }
         }
       },
     );
+
+    // Apply Casbin changes AFTER transaction succeeds
+    // Note: receiverId is guaranteed to be non-null here because we checked
+    // invitation.receiverId !== userId at line 314 and userId is always a string
+    if (data.action === "ACCEPT" && casbinAction) {
+      if (casbinAction === "restored" && oldRole) {
+        // Delete old role, add new role
+        await this.casbinService.deleteRoleForUserInDomain(
+          userId,
+          oldRole,
+          invitation.organizationId,
+        );
+        await this.casbinService.addRoleForUserInDomain(
+          userId,
+          invitation.role,
+          invitation.organizationId,
+        );
+        await this.casbinService.savePolicy();
+        this.logger.log(
+          `Updated Casbin g2 role: ${userId} -> ${invitation.role} -> ${invitation.organizationId}`,
+        );
+      } else if (casbinAction === "new") {
+        // Add new role
+        await this.casbinService.addRoleForUserInDomain(
+          userId,
+          invitation.role,
+          invitation.organizationId,
+        );
+        await this.casbinService.savePolicy();
+        this.logger.log(
+          `Added Casbin g2 role: ${userId} -> ${invitation.role} -> ${invitation.organizationId}`,
+        );
+      }
+    }
 
     return {
       data: true,
@@ -438,10 +515,12 @@ export class OrganizationInvitationUseCase {
       });
     }
 
-    invitation.role = newRole as OrganizationRoleEnum;
     await this.organizationMemberInvitationRepository.update(
       { id: invitation.id },
-      invitation,
+      {
+        role: newRole as OrganizationRoleEnum,
+        updatedAt: new Date(),
+      },
     );
 
     return {
@@ -525,6 +604,49 @@ export class OrganizationInvitationUseCase {
     );
 
     return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getInvitationHistory(
+    userId: string,
+    organizationId: string,
+    query: GeneralQueryDto,
+  ): Promise<
+    ApiResponse<
+      PaginatedResultDto<
+        | (OrganizationMemberInvitation & {
+            inviterName?: string | null;
+            inviteeName?: string | null;
+            inviteeAvatarUrl?: string | null;
+          })
+        | null
+      >
+    >
+  > {
+    // Check if user is a member of the organization
+    const [member] = await this.organizationMemberRepository.getByField({
+      organizationId: organizationId,
+      userId: userId,
+    });
+
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    // Get invitation history (accepted or declined)
+    const invitations =
+      await this.organizationMemberInvitationRepository.getInvitationHistory(
+        organizationId,
+        query,
+      );
+
+    return {
+      data: invitations,
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };

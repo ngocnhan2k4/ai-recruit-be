@@ -14,6 +14,7 @@ import {
   asc,
   desc,
   inArray,
+  lt,
 } from "drizzle-orm";
 import { Inject, Injectable } from "@nestjs/common";
 import {
@@ -185,7 +186,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id))
       .offset(offset)
       .limit(limit)) as {
       job: Job;
@@ -279,7 +280,7 @@ export class JobRepository
           data: [],
           pagination: { nextCursor: undefined, hasNextPage: false },
         };
-      whereConditions.push(gt(jobs.id, cursor));
+      whereConditions.push(lt(jobs.createdAt, new Date(Number(cursor))));
     }
 
     // Add one extra item to check if there's a next page
@@ -352,7 +353,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt))
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -366,11 +367,12 @@ export class JobRepository
     const data = hasNextPage ? result.slice(0, limit) : result;
 
     // Next cursor is only applicable for cursor pagination
+    // Use the last item from the sliced data, convert Date to timestamp
     const nextCursor =
-      hasNextPage && result[limit - 1]?.job
-        ? `${result[limit - 1].job.id}`
+      hasNextPage && data[data.length - 1]?.job?.createdAt
+        ? data[data.length - 1].job.createdAt.getTime()
         : undefined;
-
+    console.log("nextCursor", nextCursor);
     return {
       data,
       pagination: {

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -34,6 +35,7 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { MultipartFile } from "@fastify/multipart";
 import { IOtpService, OtpPurpose, IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -49,7 +51,70 @@ export class OrganizationUseCase {
     private readonly cloudinaryService: CloudinaryService,
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
+    private readonly casbinService: CasbinService,
   ) {}
+
+  /**
+   * Check if user is a member of organization
+   */
+  private async checkMembership(
+    organizationId: string,
+    userId: string,
+  ): Promise<{ role: OrganizationRoleEnum } | null> {
+    const [member] = await this.organizationMembersRepository.getByField({
+      organizationId,
+      userId,
+      deletedAt: null,
+    });
+    return member ? { role: member.role as OrganizationRoleEnum } : null;
+  }
+
+  /**
+   * Check if user is owner or admin of organization
+   */
+  private async checkIsOwnerOrAdmin(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.checkMembership(organizationId, userId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+    if (
+      member.role !== OrganizationRoleEnum.ORGANIZATION_OWNER &&
+      member.role !== OrganizationRoleEnum.ORGANIZATION_ADMIN
+    ) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+  }
+
+  /**
+   * Check if user is owner of organization
+   */
+  private async checkIsOwner(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.checkMembership(organizationId, userId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+    if (member.role !== OrganizationRoleEnum.ORGANIZATION_OWNER) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+  }
 
   async checkOrganizationName(
     orgName: string,
@@ -91,6 +156,7 @@ export class OrganizationUseCase {
           },
           tx,
         );
+
         const { locations, ...rest } = data;
         let createdCom = {};
         let createdSch = {};
@@ -113,14 +179,28 @@ export class OrganizationUseCase {
           );
         }
 
-        const createdLocations =
-          await this.organizationLocationRepository.createOrganizationLocations(
-            locations?.map((loc) => ({
-              ...loc,
-              organizationId: org.id,
-            })),
-            tx,
+        // Only create locations if array exists and has items
+        let createdLocations: OrganizationLocation[] = [];
+        if (locations && locations.length > 0) {
+          this.logger.log(
+            `Creating ${locations.length} locations for org ${org.id}`,
           );
+          this.logger.log(`Locations data: ${JSON.stringify(locations)}`);
+
+          const locationData = locations.map((loc) => ({
+            address: loc.address,
+            provinceId: loc.provinceId,
+            organizationId: org.id,
+          }));
+
+          this.logger.log(`Mapped locations: ${JSON.stringify(locationData)}`);
+
+          createdLocations =
+            await this.organizationLocationRepository.createOrganizationLocations(
+              locationData,
+              tx,
+            );
+        }
 
         return {
           ...org,
@@ -130,12 +210,25 @@ export class OrganizationUseCase {
         };
       },
     );
+
     if (!result) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.CREATE_ORGANIZATION_FAILED,
         code: RESPONSE_CODE.CREATE_ORGANIZATION_FAILED,
       });
     }
+
+    // Add Casbin g2 role for organization owner AFTER transaction succeeds
+    await this.casbinService.addRoleForUserInDomain(
+      userId,
+      OrganizationRoleEnum.ORGANIZATION_OWNER,
+      result.id,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Added Casbin g2 role: ${userId} -> ${OrganizationRoleEnum.ORGANIZATION_OWNER} -> ${result.id}`,
+    );
+
     return {
       data: result,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -319,6 +412,7 @@ export class OrganizationUseCase {
   async updateOrganizationEmail(
     orgId: string,
     newEmail: string,
+    actorId: string,
   ): Promise<ApiResponse<"SUCCESS" | "REQUIRE_OTP">> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -328,6 +422,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can update email
+    await this.checkIsOwner(orgId, actorId);
 
     // If email is already verified, require OTP verification before changing
     if (org.verifiedAt !== null) {
@@ -390,6 +487,7 @@ export class OrganizationUseCase {
     orgId: string,
     otpCode: string,
     newEmail: string,
+    actorId: string,
   ): Promise<ApiResponse<{ email: string; verifiedAt: null }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -399,6 +497,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can confirm email change
+    await this.checkIsOwner(orgId, actorId);
 
     // Verify OTP with the new email stored in data
     const isValid = await this.otpService.verifyOtp(
@@ -587,6 +688,7 @@ export class OrganizationUseCase {
   async deleteOrganization(
     orgId: string,
     confirmationName: string,
+    actorId: string,
   ): Promise<ApiResponse<void>> {
     // Get organization to verify name
     const org = await this.organizationRepository.get(orgId);
@@ -596,6 +698,9 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    // Check permission: only owner can delete organization
+    await this.checkIsOwner(orgId, actorId);
 
     // Verify confirmation name matches
     if (org.name !== confirmationName) {
@@ -703,8 +808,9 @@ export class OrganizationUseCase {
   }
 
   async getUsersToInvite(
-    _organizationId: string,
+    organizationId: string,
     query: GeneralQueryDto,
+    actorId: string,
   ): Promise<
     ApiResponse<
       PaginatedResultDto<Pick<
@@ -713,6 +819,15 @@ export class OrganizationUseCase {
       > | null>
     >
   > {
+    // Check permission: only members can get users to invite
+    const member = await this.checkMembership(organizationId, actorId);
+    if (!member) {
+      throw new ForbiddenException({
+        message: RESPONSE_MESSAGE.FORBIDDEN,
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
     const usersToInvite =
       await this.organizationMemberInvitationRepository.getUsersToInvite(query);
 
