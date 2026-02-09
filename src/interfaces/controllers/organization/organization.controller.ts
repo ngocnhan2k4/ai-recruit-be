@@ -128,7 +128,6 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationBasicInfo(
       orgId,
       data,
-      user.userId,
     );
   }
 
@@ -148,7 +147,6 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationLocations(
       orgId,
       data.locations,
-      user.userId,
     );
   }
 
@@ -168,7 +166,6 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationAdditionalInfo(
       orgId,
       data,
-      user.userId,
     );
   }
 
@@ -229,7 +226,6 @@ export class OrganizationController {
     return await this.organizationUseCase.sendEmailVerificationOtp(
       orgId,
       data.email,
-      user.userId,
     );
   }
 
@@ -250,7 +246,6 @@ export class OrganizationController {
       orgId,
       data.otpCode,
       data.email,
-      user.userId,
     );
   }
 
@@ -335,7 +330,6 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationLogo(
       orgId,
       uploadFile.file,
-      user.userId,
     );
   }
 }
