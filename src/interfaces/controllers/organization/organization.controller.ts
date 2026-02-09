@@ -120,7 +120,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationBasicInfo(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationBasicInfoDto,
   ) {
@@ -139,7 +138,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String, { isArray: true })
   async updateOrganizationLocations(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationLocationDto,
   ) {
@@ -315,7 +313,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationLogo(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @UploadFileAndBody()
     uploadFile: { file: MultipartFile },
