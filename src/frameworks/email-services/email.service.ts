@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { MailerService } from "@nestjs-modules/mailer";
 import { ConfigService } from "@nestjs/config";
 import { JobResponse } from "@/core/entities/job.entity";
-import { compileTemplate } from "@/common/utils/handlebar";
+import { compileTemplate } from "@/common/utils";
 
 export interface SendEmailOptions {
   to: string | string[];

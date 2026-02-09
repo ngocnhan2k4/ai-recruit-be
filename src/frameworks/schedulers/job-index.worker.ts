@@ -6,7 +6,7 @@ import {
   ISearchService,
 } from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
-import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
+import { JOB_INDEX_QUEUE } from "@/common/constants";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { JobEventType } from "@/core";

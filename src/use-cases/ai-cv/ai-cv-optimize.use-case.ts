@@ -2,10 +2,10 @@ import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Inject } from "@nestjs/common";
 import { IAIService } from "@/core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos";
 import { CvLanguageEnum, OptimizeAtsResponse } from "@/core";
-import { FileTextExtractor } from "@/common/utils/file-text-extractor";
+import { FileTextExtractor } from "@/common/utils";
 
 @Injectable()
 export class AiCvOptimizeUseCases {

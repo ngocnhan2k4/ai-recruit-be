@@ -7,7 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import { CasbinService } from "../casbin/casbin.service";
 import { FastifyRequest } from "fastify";
-import { TokenPayload } from "@/common/types/token";
+import { TokenPayload } from "@/common/types";
 import { newEnforceContext } from "casbin";
 
 @Injectable()

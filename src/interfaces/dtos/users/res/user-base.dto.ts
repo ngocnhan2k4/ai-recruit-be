@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import { GenderEnum, ProviderEnum, UserStatusEnum } from "@/core";
 
 export class UserDto {

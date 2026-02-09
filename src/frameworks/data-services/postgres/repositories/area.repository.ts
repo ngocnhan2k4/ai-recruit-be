@@ -3,7 +3,7 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { areas } from "../models";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { count, ilike, and, SQL } from "drizzle-orm";
 
 @Injectable()

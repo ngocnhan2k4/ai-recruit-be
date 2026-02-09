@@ -7,7 +7,7 @@ import { GenericRepository } from "./generic-repository";
 import { organizationInvitations, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { ilike, or, and, lt, isNull, desc, SQL, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 

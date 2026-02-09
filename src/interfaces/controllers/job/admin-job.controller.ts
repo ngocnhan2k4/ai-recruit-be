@@ -20,8 +20,8 @@ import {
   JobResponseDto,
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Jobs Admin")

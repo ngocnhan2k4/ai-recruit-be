@@ -12,7 +12,7 @@ import {
   StatisticsJobResponse,
   TopInMarketDtoResponse,
 } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
@@ -47,13 +47,12 @@ import {
   JobResponse,
   StatisticsJobFilter,
 } from "@/core";
-import { convertDateToStr } from "@/common/utils/date";
+import { convertDateToStr } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult } from "@/common/types/api";
-import { RoleEnum } from "@/common/constants/roles";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
-import { TokenPayload } from "@/common/types/token";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()

@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Client, ClientOptions } from "@elastic/elasticsearch";
-import { Environment } from "@/common/config/env.config";
+import { Environment } from "@/common/config";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { ISearchService } from "@/core/abstracts/search-service.abstract";
 

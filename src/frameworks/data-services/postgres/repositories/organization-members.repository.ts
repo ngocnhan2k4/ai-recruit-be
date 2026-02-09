@@ -7,7 +7,7 @@ import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { eq, and, or, ilike, SQL, isNull, desc, lt } from "drizzle-orm";
 import { MemberQuery } from "@/core/entities/organization-members.entity";
 

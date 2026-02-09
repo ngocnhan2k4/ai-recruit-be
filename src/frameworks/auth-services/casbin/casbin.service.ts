@@ -1,12 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { PtypeEnum, RoleEnum } from "@/common/constants/roles";
+import { PtypeEnum, RoleEnum } from "@/common/constants";
 import { newSyncedEnforcer, SyncedEnforcer } from "casbin";
 import path from "path";
 import { DrizzleCasbinAdapter } from "./casbin.adapter";
 import { ConfigService } from "@nestjs/config";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { eq, and, count, SQL, asc, desc, gt } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
 import { ICasbinRepository } from "@/core";

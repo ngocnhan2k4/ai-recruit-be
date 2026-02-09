@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { MultipartFile } from "@fastify/multipart";
-import { RESPONSE_CODE } from "../constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 
 export interface UploadFileRequest extends FastifyRequest {
   fileData?: MultipartFile;

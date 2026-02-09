@@ -6,12 +6,12 @@ import {
   IUserOnboardingRepository,
 } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import { randomBytes } from "crypto";
 import { ConfigService } from "@nestjs/config";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { TokenPayload } from "@/common/types/token";
-import { generateUsername } from "@/common/utils/string";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { TokenPayload } from "@/common/types";
+import { generateUsername } from "@/common/utils";
 import { normalizeProvider } from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 

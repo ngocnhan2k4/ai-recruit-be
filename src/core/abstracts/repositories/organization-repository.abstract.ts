@@ -1,4 +1,4 @@
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   NewOrganizationWithDetails,

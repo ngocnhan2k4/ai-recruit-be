@@ -1,5 +1,5 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { NewSchool, School } from "@/core";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";

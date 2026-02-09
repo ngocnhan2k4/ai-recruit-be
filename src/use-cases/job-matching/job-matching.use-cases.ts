@@ -24,8 +24,8 @@ import { subDays } from "date-fns/subDays";
 import { EmailJob } from "@/core/entities/email.entity";
 import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 import { differenceInYears } from "date-fns";
-import { RESPONSE_CODE } from "@/common/constants/response";
-import { PaginatedResult } from "@/common/types/api";
+import { RESPONSE_CODE } from "@/common/constants";
+import { PaginatedResult } from "@/common/types";
 import {
   ApiResponse,
   JobMatchResultDto,

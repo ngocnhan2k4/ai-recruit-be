@@ -17,11 +17,11 @@ import {
   arrayOverlaps,
 } from "drizzle-orm";
 import { isNull } from "lodash";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 
 @Injectable()
 export class UserRepository
@@ -94,7 +94,6 @@ export class UserRepository
       .from(users) as any; // Type casting to any to bypass the type issue with complex where conditions
 
     if (conditions.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       queryBuilder = queryBuilder.where(and(...conditions));
     }
     const result = await queryBuilder
@@ -113,7 +112,6 @@ export class UserRepository
         count: count(),
       })
       .from(users)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
     return {

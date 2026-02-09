@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ICategoryRepository } from "@/core";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import { CategoryDto } from "@/interfaces/dtos";
 
 @Injectable()

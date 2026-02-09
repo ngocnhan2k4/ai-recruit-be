@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { MultipartFile } from "@fastify/multipart";

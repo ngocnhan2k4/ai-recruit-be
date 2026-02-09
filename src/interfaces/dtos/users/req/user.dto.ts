@@ -10,7 +10,7 @@ import {
 import { ApiProperty, PartialType } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
 import { GenderEnum } from "@/core";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 
 export class CreateUserRequestDto {
   @ApiProperty()

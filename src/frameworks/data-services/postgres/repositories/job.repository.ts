@@ -35,7 +35,7 @@ import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
-import { convertDateToStr } from "@/common/utils/date";
+import { convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import {
   IJobRepository,
@@ -65,15 +65,14 @@ import {
   JobCounts,
   TopInMarketResponse,
 } from "@/core/entities/job.entity";
-import { PaginatedResult } from "@/common/types/api";
-import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult, GeneralQuery } from "@/common/types";
 import { organizations } from "../models/organization.model";
 import {
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
 } from "@/core/entities/job.entity";
-import { getJobStatus } from "@/common/utils/string";
+import { getJobStatus } from "@/common/utils";
 
 @Injectable()
 export class JobRepository
@@ -353,7 +352,9 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt))
+      .orderBy(
+        filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt),
+      )
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
@@ -372,7 +373,6 @@ export class JobRepository
       hasNextPage && data[data.length - 1]?.job?.createdAt
         ? data[data.length - 1].job.createdAt.getTime()
         : undefined;
-    console.log("nextCursor", nextCursor);
     return {
       data,
       pagination: {

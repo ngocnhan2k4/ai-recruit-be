@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { JOB_INDEX_QUEUE } from "@/common/constants/queue";
+import { JOB_INDEX_QUEUE } from "@/common/constants";
 import { JobsOptions, Queue } from "bullmq";
 import { InjectQueue } from "@nestjs/bullmq";
 @Injectable()

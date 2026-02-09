@@ -15,9 +15,9 @@ import {
   roadmapSkillOptions,
   skills,
 } from "../models";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
-import { getCurrentWeekNumber } from "@/common/utils/calculate-week-number";
+import { getCurrentWeekNumber } from "@/common/utils";
 
 @Injectable()
 export class LearningRoadmapRepository
