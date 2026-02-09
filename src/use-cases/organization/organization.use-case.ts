@@ -35,6 +35,7 @@ import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.se
 import { MultipartFile } from "@fastify/multipart";
 import { IOtpService, OtpPurpose, IEmailQueueStorageService } from "@/core";
 import { randomUUID } from "crypto";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -50,6 +51,7 @@ export class OrganizationUseCase {
     private readonly cloudinaryService: CloudinaryService,
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
+    private readonly casbinService: CasbinService,
   ) {}
 
   /**
@@ -154,6 +156,7 @@ export class OrganizationUseCase {
           },
           tx,
         );
+
         const { locations, ...rest } = data;
         let createdCom = {};
         let createdSch = {};
@@ -176,14 +179,28 @@ export class OrganizationUseCase {
           );
         }
 
-        const createdLocations =
-          await this.organizationLocationRepository.createOrganizationLocations(
-            locations?.map((loc) => ({
-              ...loc,
-              organizationId: org.id,
-            })),
-            tx,
+        // Only create locations if array exists and has items
+        let createdLocations: OrganizationLocation[] = [];
+        if (locations && locations.length > 0) {
+          this.logger.log(
+            `Creating ${locations.length} locations for org ${org.id}`,
           );
+          this.logger.log(`Locations data: ${JSON.stringify(locations)}`);
+
+          const locationData = locations.map((loc) => ({
+            address: loc.address,
+            provinceId: loc.provinceId,
+            organizationId: org.id,
+          }));
+
+          this.logger.log(`Mapped locations: ${JSON.stringify(locationData)}`);
+
+          createdLocations =
+            await this.organizationLocationRepository.createOrganizationLocations(
+              locationData,
+              tx,
+            );
+        }
 
         return {
           ...org,
@@ -193,12 +210,25 @@ export class OrganizationUseCase {
         };
       },
     );
+
     if (!result) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.CREATE_ORGANIZATION_FAILED,
         code: RESPONSE_CODE.CREATE_ORGANIZATION_FAILED,
       });
     }
+
+    // Add Casbin g2 role for organization owner AFTER transaction succeeds
+    await this.casbinService.addRoleForUserInDomain(
+      userId,
+      OrganizationRoleEnum.ORGANIZATION_OWNER,
+      result.id,
+    );
+    await this.casbinService.savePolicy();
+    this.logger.log(
+      `Added Casbin g2 role: ${userId} -> ${OrganizationRoleEnum.ORGANIZATION_OWNER} -> ${result.id}`,
+    );
+
     return {
       data: result,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -214,7 +244,6 @@ export class OrganizationUseCase {
       websiteUrl?: string;
       phone?: string;
     },
-    actorId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -223,9 +252,6 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
-
-    // Check permission: only owner or admin can update basic info
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // If request body is empty, return success without doing anything
     if (Object.keys(data).length === 0) {
@@ -270,7 +296,6 @@ export class OrganizationUseCase {
       address: string;
       provinceId: string;
     }[],
-    actorId: string,
   ): Promise<
     ApiResponse<{
       id: string;
@@ -284,9 +309,6 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
-
-    // Check permission: only owner or admin can update locations
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     const updatedLocations =
       await this.organizationRepository.executeWithTransaction(async (tx) => {
@@ -329,7 +351,6 @@ export class OrganizationUseCase {
       culture?: string;
       benefits?: string;
     },
-    actorId: string,
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const org = await this.organizationRepository.get(orgId);
     if (!org) {
@@ -338,9 +359,6 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
-
-    // Check permission: only owner or admin can update additional info
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Only allow update for COMPANY type organizations
     if (org.type !== OrganizationTypeEnum.COMPANY) {
@@ -531,7 +549,6 @@ export class OrganizationUseCase {
   async sendEmailVerificationOtp(
     orgId: string,
     email: string,
-    actorId: string,
   ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -541,9 +558,6 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
-
-    // Check permission: only owner or admin can send verification OTP
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Check if email matches organization's email
     if (org.email !== email) {
@@ -602,7 +616,6 @@ export class OrganizationUseCase {
     orgId: string,
     otpCode: string,
     email: string,
-    actorId: string,
   ): Promise<ApiResponse<{ verifiedAt: Date }>> {
     // Get organization to verify it exists
     const org = await this.organizationRepository.get(orgId);
@@ -612,9 +625,6 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
-
-    // Check permission: only owner or admin can verify email
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
 
     // Check if email matches
     if (org.email !== email) {
@@ -834,11 +844,7 @@ export class OrganizationUseCase {
   async updateOrganizationLogo(
     orgId: string,
     file: MultipartFile,
-    actorId: string,
   ): Promise<ApiResponse<{ logoUrl: string }>> {
-    // Check permission: only owner or admin can update logo
-    await this.checkIsOwnerOrAdmin(orgId, actorId);
-
     // Validate file (images only, max 5MB)
     await this.cloudinaryService.validateFile(file, {
       maxSize: 5 * 1024 * 1024, // 5MB

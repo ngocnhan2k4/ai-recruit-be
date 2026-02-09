@@ -27,6 +27,7 @@ export class OrganizationMemberController {
     private readonly organizationMemberUseCase: OrganizationMemberUseCase,
   ) {}
 
+  @UseGuards(OrganizationAuthorizeGuard)
   @Get()
   @ApiOperation({
     summary: "Get members of an organization",
