@@ -26,11 +26,15 @@ export function createPoolLogger(pool: Pool): Pool {
         // Debug: log nếu có SQL với $ nhưng params rỗng
         if (sql && sql.includes("$") && (!params || params.length === 0)) {
           console.log("[DEBUG] SQL có $ nhưng params rỗng");
-          console.log("[DEBUG] Config keys:", Object.keys(config));
+          console.log("[DEBUG] Args length:", args.length);
           console.log(
-            "[DEBUG] Config:",
-            JSON.stringify(config, null, 2).substring(0, 500),
+            "[DEBUG] Args:",
+            JSON.stringify(args, null, 2).substring(0, 1000),
           );
+          console.log("[DEBUG] Config keys:", Object.keys(config));
+          console.log("[DEBUG] Config.text:", config.text?.substring(0, 200));
+          console.log("[DEBUG] Config.values:", config.values);
+          console.log("[DEBUG] Config.types:", config.types);
         }
       }
     }
@@ -51,10 +55,9 @@ export function createPoolLogger(pool: Pool): Pool {
       return originalQuery(...args);
     } else {
       // Promise style
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = originalQuery(...args);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return result.then(
         (res: QueryResult) => {
           const duration = performance.now() - start;

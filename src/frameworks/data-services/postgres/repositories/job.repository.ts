@@ -373,7 +373,6 @@ export class JobRepository
       hasNextPage && data[data.length - 1]?.job?.createdAt
         ? data[data.length - 1].job.createdAt.getTime()
         : undefined;
-    console.log("nextCursor", nextCursor);
     return {
       data,
       pagination: {
