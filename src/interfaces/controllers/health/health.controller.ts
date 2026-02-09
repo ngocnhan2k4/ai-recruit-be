@@ -6,8 +6,10 @@ import {
   HealthCheckResult,
   //HealthIndicatorResult,
 } from "@nestjs/terminus";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @ApiTags("Health")
+@SkipThrottle()
 @Controller("health")
 export class HealthController {
   constructor(

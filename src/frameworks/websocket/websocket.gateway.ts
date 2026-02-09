@@ -14,6 +14,7 @@ import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
 import { RoleEnum } from "@/common/constants";
+import { CORS_ORIGINS } from "@/common/middlewares/app.middleware";
 
 interface AuthenticatedSocket extends Socket, IdentityUser {
   roles?: RoleEnum[];
@@ -22,8 +23,9 @@ interface AuthenticatedSocket extends Socket, IdentityUser {
 @Injectable()
 @WSGateway({
   cors: {
-    origin: "*",
+    origin: CORS_ORIGINS,
     methods: ["GET", "POST"],
+    credentials: true,
   },
   namespace: "/notifications",
 })

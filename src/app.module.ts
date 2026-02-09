@@ -43,7 +43,7 @@ import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.mod
 import { StorageModule } from "./use-cases/storage/storage.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
-import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { HttpExceptionFilter } from "./common/middlewares/http-exception.config";
 import { LoggingInterceptor } from "@/common/interceptors";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
@@ -74,6 +74,8 @@ import { OtpModule } from "@/frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
 import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { FastifyThrottlerGuard } from "@/common/guards";
 
 @Module({
   imports: [
@@ -83,6 +85,23 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
       load: [envConfig],
       validate: validateConfig,
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: "short",
+        ttl: 1000, // 1 second
+        limit: 3, // 3 req/sec
+      },
+      {
+        name: "medium",
+        ttl: 10000, // 10 seconds
+        limit: 20, // 20 req/10sec
+      },
+      {
+        name: "long",
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 req/min
+      },
+    ]),
     ScheduleModule.forRoot(),
     //RedisModule,
     UserUseCasesModule,
@@ -147,6 +166,10 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
   ],
   providers: [
     JwtStrategy,
+    {
+      provide: APP_GUARD,
+      useClass: FastifyThrottlerGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
