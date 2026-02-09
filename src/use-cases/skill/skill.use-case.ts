@@ -6,7 +6,7 @@ import {
   PaginatedResultDto,
   SkillDto,
 } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import { CreateSkillDto } from "@/interfaces/dtos";
 
 @Injectable()

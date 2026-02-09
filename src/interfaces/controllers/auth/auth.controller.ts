@@ -16,8 +16,7 @@ import {
 } from "../../dtos";
 import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
-import { REFRESH_TOKEN } from "@/common/constants/token";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
 
 @ApiTags("Authentication")

@@ -6,7 +6,7 @@ import { GenericRepository } from "./generic-repository";
 import { count, desc, lt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import {
   organizationLocations,

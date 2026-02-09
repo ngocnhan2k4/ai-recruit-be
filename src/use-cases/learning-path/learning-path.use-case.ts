@@ -22,7 +22,7 @@ import {
   WeeklyProgressResponseDto,
 } from "@/interfaces/dtos/learning-path";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
@@ -30,7 +30,7 @@ import {
   WeeklyProgress,
 } from "@/core";
 import { Observable } from "rxjs";
-import { getCurrentWeekNumber } from "@/common/utils/calculate-week-number";
+import { getCurrentWeekNumber } from "@/common/utils";
 
 @Injectable()
 export class LearningPathUseCase {

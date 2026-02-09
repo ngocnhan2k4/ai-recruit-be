@@ -30,7 +30,7 @@ import {
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
-import { GeneralQuery } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types";
 
 @Injectable()
 export class OrganizationRepository

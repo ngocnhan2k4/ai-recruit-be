@@ -15,8 +15,8 @@ import {
   SubmitExamDto,
   SavePartialAnswersDto,
 } from "@/interfaces/dtos/exam";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { GetSkillsQueryDto } from "@/interfaces/dtos/skills";
 
 @ApiTags("Exam")

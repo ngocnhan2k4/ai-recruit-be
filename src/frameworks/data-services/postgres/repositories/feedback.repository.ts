@@ -6,7 +6,7 @@ import { Feedback } from "@/core/entities";
 import { IFeedbackRepository } from "@/core/abstracts/repositories/feedback-repository.abstract";
 import { eq, and, desc, SQL, count, gte, lte, isNotNull } from "drizzle-orm";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 
 @Injectable()
 export class FeedbackRepository

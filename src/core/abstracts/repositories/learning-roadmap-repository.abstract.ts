@@ -4,7 +4,7 @@ import {
   RoadmapProgressStats,
 } from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 
 export abstract class ILearningRoadmapRepository extends IGenericRepository<LearningRoadmap> {
   abstract getPaginatedRoadmaps(

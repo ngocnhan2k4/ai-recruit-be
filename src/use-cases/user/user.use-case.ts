@@ -23,7 +23,7 @@ import {
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   ApiResponse,
   GetUserResponseDto,
@@ -35,7 +35,7 @@ import {
   AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { TokenPayload } from "@/common/types/token";
+import { TokenPayload } from "@/common/types";
 import { MultipartFile } from "@fastify/multipart";
 import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
 import {
@@ -45,7 +45,7 @@ import {
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import {
   CreateUserEducationDto,
   UpdateUserEducationDto,

@@ -35,8 +35,8 @@ import {
   UserSeoPublicResponseDto,
   RespondToInvitationDto,
 } from "../../dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
@@ -47,8 +47,8 @@ import {
   UserSkillDto,
 } from "@/interfaces/dtos";
 import { Skill } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants/response";
-import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { RESPONSE_CODE } from "@/common/constants";
+import { UploadFileAndBody } from "@/common/decorators";
 import { type MultipartFile } from "@fastify/multipart";
 import {
   CreateUserEducationDto,

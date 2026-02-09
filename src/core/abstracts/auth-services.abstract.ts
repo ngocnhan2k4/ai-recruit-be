@@ -1,4 +1,4 @@
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 
 export abstract class IAuthService {
   abstract verifyIdToken(idToken: string): Promise<{

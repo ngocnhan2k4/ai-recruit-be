@@ -1,13 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants";
 import { IJobRepository, ISearchService } from "@/core";
 import {
   getJobIndexMapping,
   transformJobToDocument,
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { ConfigService } from "@nestjs/config";
-import { Environment } from "@/common/config/env.config";
+import { Environment } from "@/common/config";
 
 @Injectable()
 export class JobSyncUseCases {

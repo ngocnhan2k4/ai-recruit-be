@@ -16,8 +16,7 @@ import {
   JobCounts,
   TopInMarketResponse,
 } from "@/core/entities/job.entity";
-import { GeneralQuery } from "@/common/types/api";
-import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getJobs(filters?: JobFilters): Promise<PaginatedResult<JobResponse>>;

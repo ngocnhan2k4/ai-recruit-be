@@ -1,4 +1,4 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvLanguageEnum, CvTemplateEnum, NewAiCv } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";

@@ -1,4 +1,4 @@
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import {
   Injectable,
   ExecutionContext,

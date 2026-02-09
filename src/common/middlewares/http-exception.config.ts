@@ -1,4 +1,4 @@
-import { type AppConfigProps } from "@/common/config/app.config";
+import { type AppConfigProps } from "@/common/config";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   ArgumentsHost,
@@ -9,9 +9,9 @@ import {
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
-import { RESPONSE_CODE } from "../constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
-import { Environment } from "../config/env.config";
+import { Environment } from "@/common/config";
 import { DrizzleQueryError } from "drizzle-orm";
 
 @Catch()

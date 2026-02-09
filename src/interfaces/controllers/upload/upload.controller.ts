@@ -19,7 +19,7 @@ import { DeleteFileResponseDto, UploadResponseDto } from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @ApiTags("File Upload")
 @Controller("upload")

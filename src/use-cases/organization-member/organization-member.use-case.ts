@@ -1,4 +1,4 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { OrganizationRoleEnum } from "@/core";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";

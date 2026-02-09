@@ -1,4 +1,4 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   INotificationRepository,
   OrganizationInvitationTypeEnum,

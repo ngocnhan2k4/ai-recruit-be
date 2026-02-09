@@ -39,11 +39,11 @@ import {
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { GeneralQueryDto } from "@/interfaces/dtos";
 import { PaginatedResultDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 
 @ApiTags("Jobs")
 @ApiBearerAuth()

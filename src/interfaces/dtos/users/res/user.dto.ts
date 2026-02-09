@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import { GenderEnum, ProviderEnum } from "@/core";
 import { UserDto } from "./user-base.dto";
 

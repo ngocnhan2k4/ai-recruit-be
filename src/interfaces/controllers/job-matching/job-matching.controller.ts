@@ -4,8 +4,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto, PaginatedResultDto } from "../../dtos";
 import { QueryMatchedJobsDto, JobMatchResultDto } from "../../dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { JobStatusEnum } from "@/core";
 
 @ApiTags("Job Matching")

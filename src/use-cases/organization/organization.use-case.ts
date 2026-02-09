@@ -26,10 +26,10 @@ import {
   PaginatedResultDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { PaginatedResult } from "@/common/types/api";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { PaginatedResult } from "@/common/types";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
-import { slugify } from "@/common/utils/string";
+import { slugify } from "@/common/utils";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { MultipartFile } from "@fastify/multipart";

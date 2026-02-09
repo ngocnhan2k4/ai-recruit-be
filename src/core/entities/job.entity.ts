@@ -1,6 +1,5 @@
-import { TokenPayload } from "@/common/types/token";
+import { TokenPayload, GeneralQuery } from "@/common/types";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
-import { GeneralQuery } from "@/common/types/api";
 import {
   Category,
   Company,

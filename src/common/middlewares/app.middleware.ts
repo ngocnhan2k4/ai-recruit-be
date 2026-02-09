@@ -1,5 +1,5 @@
 import { ValidationPipe } from "@nestjs/common";
-import { getAppConfigs } from "@/common/config/app.config";
+import { getAppConfigs } from "@/common/config";
 import fastifyCompress from "@fastify/compress";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";

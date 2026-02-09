@@ -16,7 +16,7 @@ import {
 import { sql } from "drizzle-orm";
 import { skills } from "./skill.model";
 import { timestamps } from "./helpers";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import { organizations } from "./organization.model";
 import {
   GenderEnum,

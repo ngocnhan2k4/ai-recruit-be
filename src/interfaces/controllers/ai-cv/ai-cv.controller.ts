@@ -1,7 +1,6 @@
-import { RESPONSE_CODE } from "@/common/constants/response";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
-import type { TokenPayload } from "@/common/types/token";
+import { RESPONSE_CODE } from "@/common/constants";
+import { GetUser, UploadFileAndBody } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { OptimizeAtsResponse } from "@/core";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";

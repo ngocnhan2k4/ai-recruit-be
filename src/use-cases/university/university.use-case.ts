@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IOrganizationRepository } from "@/core";
 import { ApiResponse, OrganizationDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
 
 @Injectable()

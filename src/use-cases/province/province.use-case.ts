@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IProvinceRepository } from "../../core/abstracts";
 import { ApiResponse, ProvinceDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @Injectable()
 export class ProvinceUseCases {

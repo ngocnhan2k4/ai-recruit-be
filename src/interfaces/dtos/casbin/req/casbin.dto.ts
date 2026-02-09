@@ -2,7 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsEnum, IsOptional } from "class-validator";
 import { DomainTypeEnum } from "@/core/entities";
 import { GeneralQueryDto } from "../../common/query";
-import { PtypeEnum } from "@/common/constants/roles";
+import { PtypeEnum } from "@/common/constants";
 
 export class AddPolicyDto {
   @ApiProperty({ description: "Subject (role or user)" })

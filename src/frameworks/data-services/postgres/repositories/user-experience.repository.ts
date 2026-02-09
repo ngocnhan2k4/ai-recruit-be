@@ -17,8 +17,8 @@ import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
 import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
-import { convertDateToStr } from "@/common/utils/date";
-import { slugify } from "@/common/utils/string";
+import { convertDateToStr } from "@/common/utils";
+import { slugify } from "@/common/utils";
 
 @Injectable()
 export class UserExperienceRepository

@@ -70,6 +70,7 @@ import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
 import { ImportLogRepository } from "./repositories/import-log.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
+import { createPoolLogger } from "@/common/utils";
 
 @Global()
 @Module({
@@ -90,6 +91,9 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          // Wrap pool để log SQL queries
+          const loggedPool = createPoolLogger(pool);
           const maxRetries = 3;
           let attempt = 0;
           let connected = false;
@@ -97,7 +101,7 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
           while (!connected && attempt < maxRetries) {
             attempt++;
             try {
-              await pool.query("SELECT 1");
+              await loggedPool.query("SELECT 1");
               connected = true;
               logger.log(
                 `Database connection established successfully (attempt ${attempt}).`,
@@ -114,7 +118,7 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
               }
             }
           }
-          const db = drizzle(pool, {
+          const db = drizzle(loggedPool, {
             casing: "snake_case",
             // logger: true,
           }) as DBDrizzle;

@@ -5,7 +5,7 @@ import {
   Province,
   Skill,
 } from "@/core";
-import { Environment } from "@/common/config/env.config";
+import { Environment } from "@/common/config";
 
 export interface JobIndexConfig {
   env: Environment;

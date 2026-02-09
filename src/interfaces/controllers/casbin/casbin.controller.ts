@@ -33,7 +33,7 @@ import {
   CheckPermissionWithDomainDto,
   GetPoliciesCasbinFilter,
 } from "../../dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @ApiTags("Casbin Authorization")
 @ApiBearerAuth()
