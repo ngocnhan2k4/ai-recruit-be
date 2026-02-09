@@ -51,7 +51,7 @@ export class JobMatchingQuery {
     ];
 
     if (workType) {
-      mustQueries.push({ term: { workType } });
+      mustQueries.push({ terms: { workType } });
     }
 
     if (filterProvinceIds && filterProvinceIds.length > 0) {
@@ -201,12 +201,11 @@ export class JobMatchingQuery {
                 ? [
                     {
                       filter: {
-                        term: {
+                        terms: {
                           provinceIds: userProvinceIds,
                         },
                       },
-                      weight: 0.15,
-                      boost_factor: 100,
+                      weight: 15,
                     },
                   ]
                 : []),
@@ -219,8 +218,7 @@ export class JobMatchingQuery {
                           categoryIds: userCategoryIds,
                         },
                       },
-                      weight: 0.05,
-                      boost_factor: 100,
+                      weight: 15,
                     },
                   ]
                 : []),
@@ -338,7 +336,7 @@ export class JobMatchingQuery {
     ];
 
     if (workType) {
-      mustQueries.push({ term: { workType } });
+      mustQueries.push({ terms: { workType } });
     }
 
     if (provinceIds && provinceIds.length > 0) {
