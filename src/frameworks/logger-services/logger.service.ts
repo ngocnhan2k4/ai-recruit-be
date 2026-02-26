@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import axios from "axios";
 import { retry } from "@/common/utils";
+import { Environment } from "@/common/config";
 
 @Injectable()
 export class LoggerService implements ILoggerServices {
@@ -14,7 +15,10 @@ export class LoggerService implements ILoggerServices {
   async logError(error: Logs) {
     try {
       const environment = this.configService.get<string>("NODE_ENV");
-      if (environment === "production" || environment === "development") {
+      if (
+        environment === Environment.Production ||
+        environment === Environment.Development
+      ) {
         const discordMessage = {
           text: `🚨 **Error Detected!**\n🔹 **Type:** ${error.type}\n🔹 **Error:** ${error.content}\n🔹 **Note:** ${error.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };
@@ -22,7 +26,7 @@ export class LoggerService implements ILoggerServices {
         await retry(
           () =>
             axios.post(
-              this.configService.get<string>("DISCORD_ERROR_WEBHOOK_URL")!,
+              this.configService.get<string>("ERROR_WEBHOOK_URL")!,
               discordMessage,
             ),
           { interval: 5000 },
@@ -35,7 +39,10 @@ export class LoggerService implements ILoggerServices {
   async logInfo(info: Logs) {
     try {
       const environment = this.configService.get<string>("NODE_ENV");
-      if (environment === "production" || environment === "development") {
+      if (
+        environment === Environment.Production ||
+        environment === Environment.Development
+      ) {
         const discordMessage = {
           text: `🔔 **Info Detected!**\n🔹 **Type:** ${info.type}\n🔹 **Info:** ${info.content}\n🔹 **Note:** ${info.note}\n **Time:** ${convertDateToStr(new Date())}`,
         };
@@ -43,7 +50,7 @@ export class LoggerService implements ILoggerServices {
         await retry(
           () =>
             axios.post(
-              this.configService.get<string>("DISCORD_INFO_WEBHOOK_URL")!,
+              this.configService.get<string>("INFO_WEBHOOK_URL")!,
               discordMessage,
             ),
           { interval: 5000 },
