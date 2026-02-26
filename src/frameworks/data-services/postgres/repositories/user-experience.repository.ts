@@ -128,8 +128,11 @@ export class UserExperienceRepository
     userId: string,
     data: CreateUserExperience,
   ) {
-    let organizationId = data.organizationId;
-    if (!organizationId) {
+    let organizationId;
+    const organizationExists = organizationId
+      ? await this.organizationRepository.get(organizationId)
+      : null;
+    if (!organizationExists) {
       const [organization] = await tx
         .insert(organizations)
         .values({
@@ -139,6 +142,8 @@ export class UserExperienceRepository
         })
         .returning();
       organizationId = organization.id;
+    } else {
+      organizationId = organizationExists.id;
     }
     const skillIds = data.skillIds || [];
     const skillNames = data.skillNames || [];
