@@ -27,6 +27,9 @@ import {
 import {
   StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
+  CompareStatisticsFilterRequestDto,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
 } from "@/interfaces/dtos";
 import {
   ApplyJobResponseDto,
@@ -94,6 +97,33 @@ export class JobController {
     @Query() filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<TopInMarketDtoResponse>> {
     return this.jobUseCases.getTopInMarket(filter);
+  }
+
+  @ApiOperation({
+    summary: "Compare job statistics across multiple categories",
+    description:
+      "Retrieve job statistics for multiple categories in a single request for comparison.",
+  })
+  @Get("statistics/compare")
+  async getCompareStatistics(
+    @Query() filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareStatisticsResponseDto>> {
+    return this.jobUseCases.getCompareStatistics(filter);
+  }
+
+  @ApiOperation({
+    summary: "Compare top-in-market data across multiple categories",
+    description:
+      "Retrieve top-in-market data for multiple categories in a single request for comparison.",
+  })
+  @Get("statistics/top-in-market/compare")
+  @ApiResponseDto(CompareTopInMarketResponseDto)
+  async getCompareTopInMarket(
+    @Query() filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareTopInMarketResponseDto>> {
+    const a = await this.jobUseCases.getCompareTopInMarket(filter);
+    console.log("a", a);
+    return a;
   }
 
   @ApiOperation({

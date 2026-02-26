@@ -18,14 +18,7 @@ import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
-import { Throttle } from "@nestjs/throttler";
-
 @ApiTags("Authentication")
-@Throttle({
-  short: { limit: 1, ttl: 1000 },
-  medium: { limit: 5, ttl: 60000 },
-  long: { limit: 10, ttl: 300000 },
-})
 @Controller("auth")
 export class AuthController {
   constructor(

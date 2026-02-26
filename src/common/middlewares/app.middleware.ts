@@ -1,13 +1,13 @@
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 import { getAppConfigs } from "@/common/config";
 import fastifyCompress from "@fastify/compress";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
-import fastifyRateLimit from "@fastify/rate-limit";
+
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-import { FastifyRequest, FastifyReply } from "fastify";
+import { type FastifyRequest, type FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
 
@@ -32,34 +32,14 @@ export const CORS_ORIGINS = [
   "https://airecruit-frontend-admin-git-dev-nhankhtns-projects.vercel.app",
 ];
 
-export const enableAppMiddleware = async (app: NestFastifyApplication) => {
+export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-  const logger = new Logger("RateLimit");
-
   app.register(fastifyCors, {
     origin: CORS_ORIGINS,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
     exposedHeaders: ["Set-Cookie"],
-  });
-
-  // Global rate limit: 200 req / minute / IP
-  await app.register(fastifyRateLimit, {
-    max: 200,
-    timeWindow: "1 minute",
-    keyGenerator: (req: FastifyRequest) => req.ip,
-    errorResponseBuilder: (_req: FastifyRequest, context) => ({
-      code: 429,
-      message: `Too many requests. Rate limit: ${context.max} per ${context.after}. Please try again later.`,
-      data: null,
-    }),
-    onExceeding: (req: FastifyRequest) => {
-      logger.warn(`Rate limit approaching: ${req.ip} ${req.method} ${req.url}`);
-    },
-    onExceeded: (req: FastifyRequest) => {
-      logger.error(`Rate limit exceeded: ${req.ip} ${req.method} ${req.url}`);
-    },
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);

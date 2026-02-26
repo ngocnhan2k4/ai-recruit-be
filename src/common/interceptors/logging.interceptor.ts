@@ -8,15 +8,23 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { Observable, tap } from "rxjs";
+import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
+import { Environment } from "../config/env.config";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger("HTTP");
   private readonly slowApiThreshold: number;
+  private readonly isLocal: boolean;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly loggerService: ILoggerServices,
+  ) {
     this.slowApiThreshold =
       this.configService.get<number>("SLOW_API_THRESHOLD_MS") ?? 1000;
+    const env = this.configService.get<string>("NODE_ENV");
+    this.isLocal = !env || env === Environment.Local.toString();
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -54,6 +62,14 @@ export class LoggingInterceptor implements NestInterceptor {
       this.logger.error(
         `🐌 ${method} ${url} -> ${statusCode} (${durationStr}ms)`,
       );
+
+      if (!this.isLocal) {
+        this.loggerService.logError({
+          type: "SLOW_API",
+          content: `${method} ${url} -> ${statusCode} (${durationStr}ms)`,
+          note: `Threshold: ${this.slowApiThreshold}ms`,
+        });
+      }
     } else if (statusCode >= 400) {
       this.logger.warn(`${method} ${url} -> ${statusCode} (${durationStr}ms)`);
     } else {

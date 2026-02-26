@@ -6,10 +6,7 @@ import {
   HealthCheckResult,
   //HealthIndicatorResult,
 } from "@nestjs/terminus";
-import { SkipThrottle } from "@nestjs/throttler";
-
 @ApiTags("Health")
-@SkipThrottle()
 @Controller("health")
 export class HealthController {
   constructor(
@@ -23,8 +20,7 @@ export class HealthController {
   })
   async check(): Promise<HealthCheckResult> {
     const result = await this.health.check([
-      async () =>
-        await this.http.pingCheck("nestjs-docs", "https://docs.nestjs.com"),
+      () => this.http.pingCheck("nestjs-docs", "https://docs.nestjs.com"),
     ]);
 
     return result;
