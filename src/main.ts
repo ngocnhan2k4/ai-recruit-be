@@ -28,7 +28,7 @@ async function bootstrap() {
   }
 
   enableSwaggerDoc(app);
-  await enableAppMiddleware(app);
+  enableAppMiddleware(app);
 
   await app.listen(port, "0.0.0.0", () => {
     app.getUrl().then((url) => {
