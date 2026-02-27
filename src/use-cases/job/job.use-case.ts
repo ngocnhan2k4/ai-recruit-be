@@ -11,11 +11,14 @@ import {
   OrganizationWithDetailsDto,
   StatisticsJobResponse,
   TopInMarketDtoResponse,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
+  CompareStatisticsFilterRequestDto,
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   CreateJobDto,
@@ -146,7 +149,7 @@ export class JobUseCases {
   ): Promise<ApiResponse<TopInMarketDtoResponse>> {
     const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([
       this.jobRepository.getTopAppliedJobs(filter),
-      this.jobRepository.getTopEmployers(filter),
+      this.jobRepository.getTopEmployers(filter, 5),
       this.jobRepository.getTopCategories(filter),
     ]);
 
@@ -159,6 +162,166 @@ export class JobUseCases {
         topEmployers,
         topCategories,
       },
+    };
+  }
+
+  /**
+   * Rank categories by job count, return top `limit` IDs.
+   */
+  private resolveTopIds<T extends { categoryId: string }>(
+    ranked: T[],
+    limit: number,
+    key: keyof T,
+  ): T[] {
+    return [...ranked]
+      .sort((a, b) => (Number(b[key]) || 0) - (Number(a[key]) || 0))
+      .slice(0, limit);
+  }
+
+  async getCompareStatistics(
+    filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareStatisticsResponseDto>> {
+    const { categoryIds, fromDate, toDate, provinceId, limit } = filter;
+
+    const effectiveLimit = limit ?? categoryIds.length;
+    const baseFilter = { fromDate, toDate, provinceId };
+
+    // 1) Ranking + data in batch queries (6 queries total, all parallel)
+    const [
+      allCounts,
+      openCounts,
+      allSalaries,
+      trendData,
+      salaryData,
+      totalJobs,
+    ] = await Promise.all([
+      this.jobRepository.countByCategories(categoryIds, baseFilter),
+      this.jobRepository.countByCategories(categoryIds, {
+        ...baseFilter,
+        isOpen: true,
+      }),
+      this.jobRepository.avgSalaryByCategories(categoryIds, baseFilter),
+      this.jobRepository.getFrequentlyJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getSalaryStatsByCategories(categoryIds, baseFilter),
+      this.jobRepository.count(baseFilter as StatisticsJobFilter),
+    ]);
+
+    // 2) Independently pick top N per metric from the batch results
+    const topByTotalJobs = this.resolveTopIds(
+      allCounts,
+      effectiveLimit,
+      "count",
+    ).map((c) => ({
+      categoryId: c.categoryId,
+      totalJobByCategoryId: c.count,
+    }));
+
+    const topByOpenJobs = this.resolveTopIds(
+      openCounts,
+      effectiveLimit,
+      "count",
+    ).map((c) => ({
+      categoryId: c.categoryId,
+      openJobCount: c.count,
+    }));
+
+    const trendCountMap = new Map(
+      allCounts.map((c) => [c.categoryId, c.count]),
+    );
+    const trendWithCount = trendData.map((t) => ({
+      ...t,
+      count: trendCountMap.get(t.categoryId) ?? 0,
+    }));
+    const topByTrend = this.resolveTopIds(
+      trendWithCount,
+      effectiveLimit,
+      "count",
+    ).map(({ categoryId, frequentlyJobs }) => ({
+      categoryId,
+      frequentlyJobs,
+    }));
+
+    const topBySalary = this.resolveTopIds(
+      allSalaries,
+      effectiveLimit,
+      "avgSalary",
+    ).map((s) => {
+      const detail = salaryData.find((d) => d.categoryId === s.categoryId);
+      return {
+        categoryId: s.categoryId,
+        salaryStatistics: detail?.salaryStatistics ?? [],
+      };
+    });
+
+    this.logger.log(
+      `Fetched compare statistics: totalJobs=${topByTotalJobs.length}, openJobs=${topByOpenJobs.length}, trend=${topByTrend.length}, salary=${topBySalary.length} / ${categoryIds.length} categories`,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        totalJobs,
+        topByTotalJobs,
+        topByOpenJobs,
+        topByTrend,
+        topBySalary,
+      },
+    };
+  }
+
+  async getCompareTopInMarket(
+    filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareTopInMarketResponseDto>> {
+    const { categoryIds, fromDate, toDate, provinceId, limit } = filter;
+
+    const effectiveLimit = limit ?? categoryIds.length;
+    const baseFilter = { fromDate, toDate, provinceId };
+
+    // Fetch ALL categories for each metric independently (2 batch queries)
+    const [appliedData, employerData] = await Promise.all([
+      this.jobRepository.getTopAppliedJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getTopEmployersByCategories(
+        categoryIds,
+        baseFilter,
+        5,
+      ),
+    ]);
+
+    // Rank independently: top by total application count
+    const appliedWithTotal = appliedData.map((d) => ({
+      ...d,
+      totalCount: d.topAppliedJobs.reduce((sum, j) => sum + (j.count ?? 0), 0),
+    }));
+    const topByApplied = this.resolveTopIds(
+      appliedWithTotal,
+      effectiveLimit,
+      "totalCount",
+    ).map(({ categoryId, topAppliedJobs }) => ({
+      categoryId,
+      topAppliedJobs,
+    }));
+
+    // Rank independently: top by total employer job count
+    const employerWithTotal = employerData.map((d) => ({
+      ...d,
+      totalCount: d.topEmployers.reduce((sum, e) => sum + (e.count ?? 0), 0),
+    }));
+    const topByEmployer = this.resolveTopIds(
+      employerWithTotal,
+      effectiveLimit,
+      "totalCount",
+    ).map(({ categoryId, topEmployers }) => ({
+      categoryId,
+      topEmployers,
+    }));
+
+    this.logger.log(
+      `Fetched compare top-in-market: applied=${topByApplied.length}, employer=${topByEmployer.length} / ${categoryIds.length} categories`,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { topByApplied, topByEmployer },
     };
   }
 

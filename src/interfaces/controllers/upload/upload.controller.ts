@@ -5,6 +5,7 @@ import {
   Param,
   BadRequestException,
   Req,
+  UseGuards,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import {
@@ -13,6 +14,7 @@ import {
   ApiBody,
   ApiParam,
   ApiConsumes,
+  ApiBearerAuth,
 } from "@nestjs/swagger";
 
 import { DeleteFileResponseDto, UploadResponseDto } from "@/interfaces/dtos";
@@ -20,8 +22,11 @@ import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("File Upload")
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller("upload")
 export class UploadController {
   constructor(private readonly storageService: StorageUseCase) {}

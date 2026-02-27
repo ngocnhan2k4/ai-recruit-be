@@ -9,16 +9,16 @@ class FrequentlyJobDto {
 }
 
 class SalaryStatisticsDto {
-  @ApiProperty({ example: 1 })
-  expYear: number;
+  @ApiProperty({ example: "1-3 năm" })
+  expRange: string;
 
-  @ApiProperty({ example: 500 })
+  @ApiProperty({ example: 8.5 })
   avgSalaryMin: number;
 
-  @ApiProperty({ example: 1000 })
+  @ApiProperty({ example: 14.2 })
   avgSalaryMax: number;
 
-  @ApiProperty({ example: 20 })
+  @ApiProperty({ example: 39 })
   jobCount: number;
 }
 
