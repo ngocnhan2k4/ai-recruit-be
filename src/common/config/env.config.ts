@@ -80,7 +80,7 @@ export class EnvironmentVariables {
   CLOUDINARY_API_SECRET: string;
 
   @IsString()
-  SLACK_ERROR_WEBHOOK_URL: string;
+  ERROR_WEBHOOK_URL: string;
 
   @IsString()
   AI_SERVICE_URL: string;
@@ -172,8 +172,7 @@ export default (): Record<string, any> => ({
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 
   // Slack
-  SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
-  SLACK_INFO_WEBHOOK_URL: process.env.SLACK_INFO_WEBHOOK_URL,
+  ERROR_WEBHOOK_URL: process.env.ERROR_WEBHOOK_URL,
 
   AI_SERVICE_URL: process.env.AI_SERVICE_URL,
   AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,

@@ -18,7 +18,6 @@ import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
-
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {

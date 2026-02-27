@@ -166,8 +166,6 @@ export class JobMatchingUseCases {
         : undefined,
     };
 
-    console.log("userProfile", userProfile);
-
     const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
 
     // Execute query

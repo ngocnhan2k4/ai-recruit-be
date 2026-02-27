@@ -6,7 +6,6 @@ import {
   HealthCheckResult,
   //HealthIndicatorResult,
 } from "@nestjs/terminus";
-
 @ApiTags("Health")
 @Controller("health")
 export class HealthController {
@@ -21,8 +20,7 @@ export class HealthController {
   })
   async check(): Promise<HealthCheckResult> {
     const result = await this.health.check([
-      async () =>
-        await this.http.pingCheck("nestjs-docs", "https://docs.nestjs.com"),
+      () => this.http.pingCheck("nestjs-docs", "https://docs.nestjs.com"),
     ]);
 
     return result;
