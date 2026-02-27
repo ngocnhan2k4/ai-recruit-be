@@ -121,9 +121,7 @@ export class JobController {
   async getCompareTopInMarket(
     @Query() filter: CompareStatisticsFilterRequestDto,
   ): Promise<ApiResponse<CompareTopInMarketResponseDto>> {
-    const a = await this.jobUseCases.getCompareTopInMarket(filter);
-    console.log("a", a);
-    return a;
+    return this.jobUseCases.getCompareTopInMarket(filter);
   }
 
   @ApiOperation({
