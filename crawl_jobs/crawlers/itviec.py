@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from helpers.http import crawl
 from helpers.extraction import extract_employees
-from helpers.text import safe_text
+from helpers.text import safe_text, html_to_mixed_content
 from helpers.date import get_date_posted, parse_posted_date
 from helpers.province import is_likely_province
 
@@ -54,42 +54,34 @@ def scrape_job_detail(
     if imb_3_wrap:
         category = safe_text(imb_3_wrap.find_all("a", class_="itag")[-1])
 
-    # skills - improved extraction with province filtering
+    # Skills extraction with province filtering
+    def _collect_itag_skills(container):
+        result = []
+        for a in container.find_all("a", class_="itag"):
+            t = safe_text(a)
+            if t and t != "N/A" and t not in locations and not is_likely_province(t):
+                result.append(t)
+        return result
+
     skills = []
-    
-    # First try to find a skills section by header
-    skills_section = soup.find("h2", string=lambda t: t and ("skills" in t.lower() or "kỹ năng" in t.lower()))
-    if skills_section:
-        skill_container = skills_section.find_next_sibling("div")
-        if skill_container:
-            for a in skill_container.find_all("a", class_="itag"):
-                skill_text = safe_text(a)
-                if (skill_text and 
-                    skill_text != "N/A" and
-                    skill_text not in locations and
-                    not is_likely_province(skill_text)):
-                    skills.append(skill_text)
-    
-    # Fallback to original igap-2 div if more specific fails
+    skills_header = soup.find("h2", string=lambda t: t and ("skills" in t.lower() or "kỹ năng" in t.lower()))
+    if skills_header:
+        container = skills_header.find_next_sibling("div")
+        if container:
+            skills = _collect_itag_skills(container)
+
     if not skills and imb_3_wrap:
         skill_wrap = imb_3_wrap.find("div", class_="igap-2")
         if skill_wrap:
-            for a in skill_wrap.find_all("a", class_="itag"):
-                skill_text = safe_text(a)
-                if (skill_text and 
-                    skill_text != "N/A" and
-                    skill_text not in locations and
-                    not is_likely_province(skill_text)):
-                    skills.append(skill_text)
+            skills = _collect_itag_skills(skill_wrap)
 
-    # description
-    description_parts = []
-    for p in soup.find_all("div", class_="paragraph"):
-        title = safe_text(p.find("h2"))
-        body_items = [li.get_text(strip=True) for li in p.find_all("li")]
-        body_text = ", ".join(b for b in body_items if b) or "N/A"
-        description_parts.append({"title": title, "body": body_text})
-    description = description_parts if description_parts else []
+    # Description — mixed content (markdown headings + raw HTML)
+    description_wrap = soup.find_all("div", class_="paragraph")
+    if description_wrap:
+        combined_html = "\n".join(str(p) for p in description_wrap)
+        description = html_to_mixed_content(combined_html)
+    else:
+        description = ""
 
     # --- Company page ---
     company_url_tag = soup.find("section", class_="job-show-employer-info").find("a")
@@ -166,15 +158,6 @@ def scrape_page(scraper, page_num, headers):
 
 
 def itviec_crawl(pages: int = 1, start_page: int = 1):
-    """
-    Crawl ITViec job listings.
-
-    Args:
-        pages: Number of listing pages to crawl
-        start_page: Starting page number
-
-    Returns:
-        Dictionary of companies and their jobs
-    """
+    """Crawl ITViec job listings."""
     print(f"[ITViec] Crawling (page {start_page})")
     return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)

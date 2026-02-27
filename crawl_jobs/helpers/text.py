@@ -16,20 +16,13 @@ def safe_text(el, is_strip: bool = True, sep: str = " ") -> str:
         el: BeautifulSoup element to extract text from
         is_strip: Whether to strip whitespace from the result
         sep: Separator to use when joining text from child elements.
-             Default is " " (space) to prevent words from merging.
 
     Returns:
         Extracted text or "N/A" if element is None/empty
-
-    Note:
-        The default separator is a space to prevent text from adjacent
-        HTML elements being concatenated without spacing. For example:
-        <li>Item 1</li><li>Item 2</li> becomes "Item 1 Item 2" instead of "Item 1Item 2"
     """
     if not el:
         return "N/A"
     txt = el.get_text(separator=sep, strip=is_strip)
-    # Normalize whitespace - replace multiple spaces/newlines with single space
     if txt:
         txt = normalize_text(txt)
     return txt if txt else "N/A"
@@ -39,16 +32,7 @@ def normalize_text(text: str) -> str:
     """
     Normalize text by cleaning up spacing issues.
 
-    Handles common issues from HTML text extraction:
-    - Multiple consecutive spaces/newlines become single space
-    - Adds space between lowercase and uppercase letters (camelCase from HTML)
-    - Cleans up punctuation spacing
-
-    Args:
-        text: Text to normalize
-
-    Returns:
-        Normalized text with proper spacing
+    Handles: multiple whitespace, camelCase from HTML, punctuation spacing.
 
     Example:
         >>> normalize_text("tạiGiới thiệu")
@@ -57,29 +41,23 @@ def normalize_text(text: str) -> str:
     if not text:
         return ""
 
-    # First, normalize multiple whitespace to single space
     text = re.sub(r"\s+", " ", text)
 
     # Add space between lowercase Vietnamese/ASCII letter followed by uppercase
-    # This fixes cases like "tạiGiới" -> "tại Giới"
-    # Pattern: lowercase letter (including Vietnamese) followed by uppercase letter
     text = re.sub(
         r"([a-zàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ])([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ])",
         r"\1 \2",
         text,
     )
 
-    # Also handle cases where punctuation is followed directly by a letter without space
-    # e.g., "đơnXây" should become "đơn Xây"
+    # Handle punctuation followed directly by uppercase letter
     text = re.sub(
         r"([.!?;:,])([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ])",
         r"\1 \2",
         text,
     )
 
-    # Clean up any double spaces that might have been introduced
     text = re.sub(r"  +", " ", text)
-
     return text.strip()
 
 
@@ -87,47 +65,101 @@ def slugify(text: str) -> str:
     """
     Convert text to a URL-friendly slug.
 
-    Removes Vietnamese diacritics and special characters,
-    converts to lowercase, and replaces spaces with hyphens.
-
-    Args:
-        text: Text to slugify
-
-    Returns:
-        URL-friendly slug string
-
     Example:
         >>> slugify("Công ty ABC")
         "cong-ty-abc"
     """
-    # Normalize and remove accents (Vietnamese, etc.)
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = text.lower()
     text = re.sub(r"[^a-z0-9]+", "-", text)
     return text.strip("-")
 
 
-def clean_whitespace(text: str) -> str:
+def html_to_mixed_content(element) -> str:
     """
-    Clean excessive whitespace from text.
+    Convert an HTML element to mixed content: markdown headings (##) + raw HTML body.
+
+    Section headings (h1-h6) become markdown ## headings.
+    All other content within each section is kept as raw HTML.
+    This allows the frontend to render both markdown headings and HTML content.
+
+    Output format example:
+        ## Mô tả công việc
+
+        <p><strong>Some description here</strong></p>
+
+        ## Yêu cầu công việc
+
+        <p>Requirements content...</p>
 
     Args:
-        text: Text to clean
+        element: BeautifulSoup Tag/element, or raw HTML string
 
     Returns:
-        Text with normalized whitespace
+        Mixed markdown+HTML string, or empty string if input is None/empty
     """
-    return re.sub(r"\s+", " ", text).strip()
+    from bs4 import BeautifulSoup as BS, Tag, NavigableString
 
+    if not element:
+        return ""
 
-def remove_html_tags(text: str) -> str:
-    """
-    Remove HTML tags from text.
+    # Parse to BeautifulSoup if needed
+    if isinstance(element, str):
+        soup = BS(element, "html.parser")
+    elif hasattr(element, "children"):
+        soup = element
+    else:
+        return ""
 
-    Args:
-        text: Text potentially containing HTML
+    # Remove unwanted tags
+    for tag in soup.find_all({"img", "script", "style", "iframe", "svg", "noscript"}):
+        tag.decompose()
 
-    Returns:
-        Plain text with HTML tags removed
-    """
-    return re.sub(r"<[^>]+>", "", text)
+    HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+
+    parts = []
+    current_body_parts = []
+
+    def _flush_body():
+        if current_body_parts:
+            body_html = "".join(current_body_parts).strip()
+            if body_html:
+                parts.append(body_html)
+            current_body_parts.clear()
+
+    def _get_inner_html(tag):
+        return "".join(str(child) for child in tag.children).strip()
+
+    def _process_children(parent):
+        for child in parent.children:
+            if isinstance(child, NavigableString):
+                text = str(child)
+                if text.strip():
+                    current_body_parts.append(text)
+            elif isinstance(child, Tag):
+                if child.name in HEADING_TAGS:
+                    _flush_body()
+                    heading_text = child.get_text(strip=True)
+                    if heading_text:
+                        parts.append(f"## {heading_text}")
+                elif child.name in ("div", "section", "article"):
+                    # Recurse into containers that have headings
+                    if child.find(HEADING_TAGS):
+                        _process_children(child)
+                    else:
+                        inner = _get_inner_html(child)
+                        if inner:
+                            current_body_parts.append(inner)
+                else:
+                    html_str = str(child)
+                    if html_str.strip():
+                        current_body_parts.append(html_str)
+
+    _process_children(soup)
+    _flush_body()
+
+    result = "\n\n".join(parts)
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    result = "\n".join(line.rstrip() for line in result.split("\n"))
+
+    return result.strip()

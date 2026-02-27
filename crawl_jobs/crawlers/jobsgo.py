@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
-
-from helpers.http import crawl, fetch_page
-from helpers.extraction import extract_experience_years_jobsgo, extract_salary
-from helpers.text import safe_text
 from helpers.date import vn_parse_posted_date
+from helpers.extraction import extract_experience_years_jobsgo, extract_salary
+from helpers.http import crawl, fetch_page
 from helpers.province import is_likely_province
+from helpers.text import html_to_mixed_content, safe_text
 
 
 def scrape_job_detail(scraper, card, job_url: str, companies: dict):
@@ -55,46 +54,48 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
 
     # skills - improved extraction with province filtering
     skills = []
-    
+
     # First, try to find skills in the requirements section
-    requirements_section = soup.find('h3', string=lambda t: t and ('yêu cầu công việc' in t.lower() or 'kỹ năng' in t.lower()))
+    requirements_section = soup.find(
+        "h3",
+        string=lambda t: (
+            t and ("yêu cầu công việc" in t.lower() or "kỹ năng" in t.lower())
+        ),
+    )
     if requirements_section:
-        skill_container = requirements_section.find_next_sibling('div')
+        skill_container = requirements_section.find_next_sibling("div")
         if skill_container:
-            skill_links = skill_container.find_all('a')
+            skill_links = skill_container.find_all("a")
             for skill_link in skill_links:
                 skill_text = safe_text(skill_link)
                 # Filter out provinces and invalid skills
-                if (skill_text and 
-                    len(skill_text) > 1 and 
-                    skill_text != "N/A" and
-                    skill_text not in locations and
-                    not is_likely_province(skill_text)):
+                if (
+                    skill_text
+                    and len(skill_text) > 1
+                    and skill_text != "N/A"
+                    and skill_text not in locations
+                    and not is_likely_province(skill_text)
+                ):
                     skills.append(skill_text)
-    
+
     # Fallback: look in the tab pane but with stricter filtering
     if not skills and body:
         skill_wrap = body.find_all("a")
         for skill in skill_wrap[:-1]:  # Skip last link (usually "apply" or navigation)
             skill_text = safe_text(skill)
             # Filter out provinces and invalid skills
-            if (skill_text and 
-                len(skill_text) > 1 and 
-                skill_text != "N/A" and
-                skill_text not in locations and
-                not is_likely_province(skill_text)):
+            if (
+                skill_text
+                and len(skill_text) > 1
+                and skill_text != "N/A"
+                and skill_text not in locations
+                and not is_likely_province(skill_text)
+            ):
                 skills.append(skill_text)
 
-    # description
-    description_parts = []
+    # description — convert HTML to Markdown
     desc_wrap = soup.select_one("div.job-detail-card")
-    title_wrap = desc_wrap.find_all("h3")
-    body_wrap = desc_wrap.find_all("div")
-
-    for index in range(0, len(title_wrap)):
-        description_parts.append(
-            {"title": safe_text(title_wrap[index]), "body": safe_text(body_wrap[index])}
-        )
+    description = html_to_mixed_content(desc_wrap) if desc_wrap else ""
 
     # --- Company page ---
     company_url = soup.select_one("div.card-company").find("a")["href"]
@@ -142,7 +143,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         }
 
     companies[company_name]["jobs"][job_title] = {
-        "description": description_parts,
+        "description": description,
         "locations": locations,
         "job_url": job_url,
         "date_posted": date_posted,
@@ -180,10 +181,5 @@ def scrape_page(scraper, page_num, headers):
 
 
 def jobsgo_crawl(pages: int = 1, start_page: int = 1):
-    """Crawl JobsGO listing pages.
-
-    Args:
-        pages: Number of listing pages to crawl
-        start_page: Starting page number
-    """
+    """Crawl JobsGO listing pages."""
     return crawl(scrape_page, delay=1, jitter=0, pages=pages, start_page=start_page)
