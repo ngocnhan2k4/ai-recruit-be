@@ -337,7 +337,7 @@ def _insert_job(
 
 
 def _find_province(cur, province_name):
-    """Find a province by name. Does NOT create new provinces.
+    """Find a province by name, falling back to "Khác" if not found.
 
     The provinces table is fixed — only lookup is allowed.
     Uses the alias map from province.py to normalize crawled names
@@ -348,10 +348,10 @@ def _find_province(cur, province_name):
         province_name: Raw province name from crawler
 
     Returns:
-        Province UUID if found, None otherwise
+        Province UUID if found, ID of "Khác" province as fallback, or None
     """
     if not province_name:
-        return None
+        return _get_fallback_province(cur)
 
     # Normalize the crawled name to the canonical DB name
     standard_name = get_standard_province_name(province_name)
@@ -373,11 +373,18 @@ def _find_province(cur, province_name):
     if row:
         return row[0]
 
-    # Not found — do NOT create a new province
+    # Not found — fallback to "Khác"
     print(
-        f"  ⚠ Province not found in DB: '{province_name}' (normalized: '{standard_name}')"
+        f"  ⚠ Province not found in DB: '{province_name}' (normalized: '{standard_name}') → using 'Khác'"
     )
-    return None
+    return _get_fallback_province(cur)
+
+
+def _get_fallback_province(cur):
+    """Return the ID of the 'Khác' province, or None if it doesn't exist."""
+    cur.execute("SELECT id FROM provinces WHERE name = 'Khác' LIMIT 1")
+    row = cur.fetchone()
+    return row[0] if row else None
 
 
 def _get_or_create_skill(cur, skill_name):
