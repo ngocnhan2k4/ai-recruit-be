@@ -111,9 +111,13 @@ def html_to_mixed_content(element) -> str:
     else:
         return ""
 
-    # Remove unwanted tags
-    for tag in soup.find_all({"img", "script", "style", "iframe", "svg", "noscript"}):
+    # Remove unwanted tags entirely (icons, scripts, images, etc.)
+    for tag in soup.find_all({"img", "script", "style", "iframe", "svg", "noscript", "i"}):
         tag.decompose()
+
+    # Unwrap <a> tags: keep their text content but remove the link wrapper
+    for tag in soup.find_all("a"):
+        tag.unwrap()
 
     HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 

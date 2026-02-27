@@ -93,9 +93,19 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
             ):
                 skills.append(skill_text)
 
-    # description — convert HTML to Markdown
+    # description — mixed content (markdown headings + raw HTML)
     desc_wrap = soup.select_one("div.job-detail-card")
-    description = html_to_mixed_content(desc_wrap) if desc_wrap else ""
+    if desc_wrap:
+        # Remove metadata sections (Kỹ năng, Ngành nghề, etc.)
+        for meta_div in desc_wrap.select("div.d-flex.align-items-start.my-4"):
+            meta_div.decompose()
+        # Remove the main card title ("Chi Tiết Công Việc")
+        card_title = desc_wrap.select_one("h2.card-title")
+        if card_title:
+            card_title.decompose()
+        description = html_to_mixed_content(desc_wrap)
+    else:
+        description = ""
 
     # --- Company page ---
     company_url = soup.select_one("div.card-company").find("a")["href"]

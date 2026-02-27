@@ -283,9 +283,26 @@ def scrape_job_detail(
 
     soup = BeautifulSoup(resp_text, "html.parser")
 
-    # description — convert HTML to Markdown
+    # description — mixed content (markdown headings + raw HTML)
     description_wrap = soup.select_one("div.job-description")
-    description = html_to_mixed_content(description_wrap) if description_wrap else ""
+    if description_wrap:
+        # Remove the main heading "Chi tiết tin tuyển dụng"
+        main_h2 = description_wrap.find("h2")
+        if main_h2:
+            main_h2.decompose()
+        # Remove non-description sections (location, work hours, apply method, custom form)
+        EXCLUDE_KEYWORDS = {"địa điểm", "thời gian", "cách thức", "dia diem", "thoi gian", "cach thuc"}
+        for item in description_wrap.select("div.job-description__item"):
+            h3 = item.find("h3")
+            if h3:
+                h3_text = h3.get_text(strip=True).lower()
+                if any(kw in h3_text for kw in EXCLUDE_KEYWORDS):
+                    item.decompose()
+        for form_div in description_wrap.select("div.job-description__custom-form-job"):
+            form_div.decompose()
+        description = html_to_mixed_content(description_wrap)
+    else:
+        description = ""
 
     # experiences
     exp_elem = soup.select_one("div#job-detail-info-experience")
