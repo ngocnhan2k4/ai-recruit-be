@@ -4,7 +4,6 @@ import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { provinces } from "../models";
 import { Province } from "@/core";
-import { eq } from "drizzle-orm";
 
 @Injectable()
 export class ProvinceRepository
@@ -16,10 +15,7 @@ export class ProvinceRepository
   }
 
   async getAllProvinces(): Promise<Province[]> {
-    const result = await this.db
-      .select()
-      .from(provinces)
-      .where(eq(provinces.isNew, true));
+    const result = await this.db.select().from(provinces);
 
     return result;
   }
