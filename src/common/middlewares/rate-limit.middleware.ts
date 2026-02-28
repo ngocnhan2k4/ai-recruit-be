@@ -109,11 +109,6 @@ export class RateLimitMiddleware implements NestMiddleware, OnModuleDestroy {
     }
   }
 
-  /**
-   * Fastify-native `onRequest` hook — use this with `addHook('onRequest', ...)`.
-   * Unlike `use()`, Fastify properly awaits this Promise and routes any error
-   * (including 429 HttpException) to the global exception handler.
-   */
   async onRequest(req: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this._checkRateLimit(req, reply);
   }
