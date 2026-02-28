@@ -377,23 +377,16 @@ export class OrganizationUseCase {
       };
     }
 
-    const updatedOrg = await this.organizationRepository.executeWithTransaction(
-      async (tx) => {
-        // Update company-specific fields
-        await this.companyRepository.update(
-          { organizationId: orgId },
-          {
-            culture: data.culture,
-            benefits: data.benefits,
-          },
-          tx,
-        );
-
-        // Get updated organization with details
-        const updated = await this.organizationRepository.get(orgId);
-        return updated;
+    await this.companyRepository.update(
+      { organizationId: orgId },
+      {
+        culture: data.culture,
+        benefits: data.benefits,
       },
     );
+
+    // Get updated organization with details
+    const updatedOrg = await this.organizationRepository.get(orgId);
 
     if (!updatedOrg) {
       throw new BadRequestException({

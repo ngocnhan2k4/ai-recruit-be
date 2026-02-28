@@ -1,10 +1,11 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
+import { ID } from "@/common/types";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -27,12 +28,21 @@ export class GenericRepository<T, TTable extends object>
       .from(this._table as any)) as Pick<T, K>[];
   }
 
-  async get(id: string | number): Promise<T | null> {
+  async get(id: ID): Promise<T | null> {
     const result = await this.db
       .select()
       .from(this._table as any)
       .where(eq((this._table as any).id, id));
     return (result[0] as T) || null;
+  }
+
+  async getByIds(ids: ID[]): Promise<T[]> {
+    if (ids.length === 0) return [];
+    const result = await this.db
+      .select()
+      .from(this._table as any)
+      .where(inArray((this._table as any).id, ids));
+    return result as T[];
   }
 
   async getByField(field: Partial<T>, omit: (keyof T)[] = []): Promise<T[]> {

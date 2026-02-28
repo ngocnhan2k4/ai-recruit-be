@@ -1,9 +1,11 @@
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
-
+import { ID } from "@/common/types";
 export abstract class IGenericRepository<T> {
   abstract getAll<K extends keyof T>(fields: K[]): Promise<Pick<T, K>[]>;
 
-  abstract get(id: string | number): Promise<T | null>;
+  abstract get(id: ID): Promise<T | null>;
+
+  abstract getByIds(ids: ID[]): Promise<T[]>;
 
   abstract getByField(field: Partial<T>, omit?: (keyof T)[]): Promise<T[]>;
 
