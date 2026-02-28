@@ -99,53 +99,67 @@ export class RateLimitMiddleware implements NestMiddleware, OnModuleDestroy {
     res: FastifyReply,
     next: () => void,
   ): Promise<void> {
+    try {
+      await this._checkRateLimit(req, res);
+      next();
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      this.logger.error("Rate limiter Redis error — failing open:", err);
+      next();
+    }
+  }
+
+  /**
+   * Fastify-native `onRequest` hook — use this with `addHook('onRequest', ...)`.
+   * Unlike `use()`, Fastify properly awaits this Promise and routes any error
+   * (including 429 HttpException) to the global exception handler.
+   */
+  async onRequest(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this._checkRateLimit(req, reply);
+  }
+
+  private async _checkRateLimit(
+    req: FastifyRequest,
+    res: FastifyReply,
+  ): Promise<void> {
     const ip = this.getClientIp(req);
     const key = `rl:${ip}`;
     const now = (Date.now() / 1000).toFixed(6);
 
-    try {
-      const result = (await this.redis.eval(
-        TOKEN_BUCKET_SCRIPT,
-        1,
-        key,
-        String(this.capacity),
-        String(this.refillRate),
-        now,
-        String(this.ttlSeconds),
-      )) as [number, string];
+    const result = (await this.redis.eval(
+      TOKEN_BUCKET_SCRIPT,
+      1,
+      key,
+      String(this.capacity),
+      String(this.refillRate),
+      now,
+      String(this.ttlSeconds),
+    )) as [number, string];
 
-      const [allowed, tokensRemaining] = result;
-      const remaining = parseFloat(tokensRemaining);
+    const [allowed, tokensRemaining] = result;
+    const remaining = parseFloat(tokensRemaining);
 
-      res.header("X-RateLimit-Limit", this.capacity);
-      res.header("X-RateLimit-Remaining", Math.floor(remaining));
-      res.header(
-        "X-RateLimit-Reset",
-        Math.ceil(
-          Date.now() / 1000 + (this.capacity - remaining) / this.refillRate,
-        ),
+    res.header("X-RateLimit-Limit", this.capacity);
+    res.header("X-RateLimit-Remaining", Math.floor(remaining));
+    res.header(
+      "X-RateLimit-Reset",
+      Math.ceil(
+        Date.now() / 1000 + (this.capacity - remaining) / this.refillRate,
+      ),
+    );
+
+    if (!allowed) {
+      const retryAfter = Math.ceil(1 / this.refillRate);
+      res.header("Retry-After", retryAfter);
+      this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: "Too many requests. Please slow down.",
+          retryAfter,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
       );
-
-      if (!allowed) {
-        const retryAfter = Math.ceil(1 / this.refillRate);
-        res.header("Retry-After", retryAfter);
-        this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.TOO_MANY_REQUESTS,
-            message: "Too many requests. Please slow down.",
-            retryAfter,
-          },
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
-
-      next();
-    } catch (err) {
-      if (err instanceof HttpException) throw err;
-      // Fail open — if Redis is unavailable, don't block legitimate traffic
-      this.logger.error("Rate limiter Redis error — failing open:", err);
-      next();
     }
   }
 

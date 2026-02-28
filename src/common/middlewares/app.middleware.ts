@@ -57,11 +57,17 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
   };
   app.register(fastifyMultipart, multipartOptions);
 
-  // Add rate limit middleware (token bucket, per IP)
+  // Rate limit middleware (token bucket, per IP).
   const rateLimitMiddleware = new RateLimitMiddleware(new ConfigService());
-  app.use((req: FastifyRequest, res: FastifyReply, next: () => void) => {
-    void rateLimitMiddleware.use(req, res, next);
-  });
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook(
+      "onRequest",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        await rateLimitMiddleware.onRequest(request, reply);
+      },
+    );
 
   // Add logger middleware
   const loggerMiddleware = new LoggerMiddleware(new ConfigService());

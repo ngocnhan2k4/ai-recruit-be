@@ -198,7 +198,7 @@ export default (): Record<string, any> => ({
   ),
 
   // Rate limiting (token bucket)
-  RATE_LIMIT_REDIS_DB: parseInt(process.env.RATE_LIMIT_REDIS_DB || "2", 10),
+  RATE_LIMIT_REDIS_DB: parseInt(process.env.RATE_LIMIT_REDIS_DB || "1", 10),
   RATE_LIMIT_CAPACITY: parseInt(process.env.RATE_LIMIT_CAPACITY || "60", 10),
   RATE_LIMIT_REFILL_RATE: parseFloat(process.env.RATE_LIMIT_REFILL_RATE || "1"),
 });
