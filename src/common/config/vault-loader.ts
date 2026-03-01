@@ -10,13 +10,6 @@ export async function loadVaultIntoEnv(): Promise<void> {
   config({ path: resolve(process.cwd(), ".env.development") });
   config({ path: resolve(process.cwd(), ".env.production") });
 
-  const vaultEnabled = process.env.VAULT_ENABLED === "true";
-
-  if (!vaultEnabled) {
-    console.log("Vault is disabled, skipping Vault config loading");
-    return;
-  }
-
   const vaultAddr = process.env.VAULT_ADDR;
   const vaultToken = process.env.VAULT_TOKEN;
   const vaultSecretPath = process.env.VAULT_SECRET_PATH;
