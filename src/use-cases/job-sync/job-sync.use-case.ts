@@ -8,6 +8,8 @@ import {
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { ConfigService } from "@nestjs/config";
 import { Environment } from "@/common/config";
+import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
+import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class JobSyncUseCases {
@@ -62,81 +64,119 @@ export class JobSyncUseCases {
   async syncAllActiveJobs(): Promise<
     ApiResponse<{ totalSynced: number; message: string }>
   > {
-    try {
-      this.logger.log("Starting manual sync of all active jobs...");
+    this.logger.log("Starting manual sync of all active jobs...");
 
-      const batchSize = 100;
-      let offset = 0;
-      let hasMore = true;
-      let totalSynced = 0;
+    const batchSize = 100;
+    let offset = 0;
+    let hasMore = true;
+    let totalSynced = 0;
 
-      while (hasMore) {
-        const data = (
-          await this.jobRepository.getJobsByAdmin({
-            limit: batchSize,
-            page: offset / batchSize + 1,
-          })
-        ).data.filter((item) => item.category != null);
+    while (hasMore) {
+      const data = (
+        await this.jobRepository.getJobsByAdmin({
+          limit: batchSize,
+          page: offset / batchSize + 1,
+        })
+      ).data.filter((item) => item.category != null);
 
-        if (data.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        const documents = data.map((item) => ({
-          id: item.job.id,
-          document: transformJobToDocument(item),
-        }));
-
-        if (documents.length > 0) {
-          const result = await this.searchService.bulkIndex(
-            this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
-            documents,
-          );
-          totalSynced += result.success;
-          this.logger.log(
-            `Synced batch: ${result.success} jobs (total: ${totalSynced})`,
-          );
-        }
-
-        offset += batchSize;
+      if (data.length === 0) {
+        hasMore = false;
+        break;
       }
 
-      this.logger.log(`Full sync completed: ${totalSynced} jobs synced`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          totalSynced,
-          message: "All active jobs synced successfully",
-        },
-      };
-    } catch (error) {
-      this.logger.error("Failed to sync all active jobs", error);
-      throw error;
+      const documents = data.map((item) => ({
+        id: item.job.id,
+        document: transformJobToDocument(item),
+      }));
+
+      if (documents.length > 0) {
+        const result = await this.searchService.bulkIndex(
+          this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
+          documents,
+        );
+        totalSynced += result.success;
+        this.logger.log(
+          `Synced batch: ${result.success} jobs (total: ${totalSynced})`,
+        );
+      }
+
+      offset += batchSize;
     }
+
+    this.logger.log(`Full sync completed: ${totalSynced} jobs synced`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        totalSynced,
+        message: "All active jobs synced successfully",
+      },
+    };
   }
 
   /**
    * Delete a job from Elasticsearch
    */
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
-    try {
-      await this.searchService.deleteDocument(
-        this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
-        jobId,
-      );
-      this.logger.log(`Job ${jobId} deleted from search index`);
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          message: `Job ${jobId} deleted from search index successfully`,
-        },
-      };
-    } catch (error) {
-      this.logger.error(`Failed to delete job ${jobId}`, error);
-      throw error;
-    }
+    await this.searchService.deleteDocument(
+      this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
+      jobId,
+    );
+    this.logger.log(`Job ${jobId} deleted from search index`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        message: `Job ${jobId} deleted from search index successfully`,
+      },
+    };
+  }
+
+  /**
+   * Sync data from another Elasticsearch instance
+   */
+  async syncFromElasticsearch(
+    dto: SyncFromElasticsearchRequestDto,
+  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
+    this.logger.log(
+      `Starting sync from remote ES: ${dto.sourceNode}/${dto.sourceIndex}`,
+    );
+
+    // Ensure target index exists
+    const targetIndex =
+      dto.targetIndex ||
+      this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
+    await this.ensureIndex();
+
+    const sourceAuth =
+      dto.sourceUsername && dto.sourcePassword
+        ? {
+            username: dto.sourceUsername,
+            password: dto.sourcePassword,
+          }
+        : undefined;
+
+    const reindexResult = await this.searchService.reindexFromRemote(
+      dto.sourceNode,
+      dto.sourceIndex,
+      targetIndex,
+      sourceAuth,
+      dto.query,
+    );
+    const result = {
+      total: reindexResult.total,
+      took: reindexResult.took,
+      message: `Successfully synced ${reindexResult.total} documents from ${dto.sourceIndex} to ${targetIndex}`,
+    };
+
+    this.logger.log(
+      `Sync completed: ${result.total} documents synced to ${targetIndex}`,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
   }
 }

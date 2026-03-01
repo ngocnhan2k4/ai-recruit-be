@@ -178,4 +178,49 @@ export class ElasticsearchService
       refresh: true,
     });
   }
+
+  /**
+   * Reindex from remote Elasticsearch using Reindex API
+   * This is the recommended method as it's faster and more efficient
+   */
+  async reindexFromRemote(
+    sourceNode: string,
+    sourceIndex: string,
+    targetIndex: string,
+    sourceAuth?: { username: string; password: string },
+    query?: any,
+  ): Promise<{ total: number; took: number }> {
+    const remote = {
+      host: sourceNode,
+      ...(sourceAuth && {
+        auth: {
+          username: sourceAuth.username,
+          password: sourceAuth.password,
+        },
+      }),
+    };
+
+    const source: any = {
+      remote,
+      index: sourceIndex,
+    };
+
+    if (query) {
+      source.query = query;
+    }
+
+    const response = await this.client.reindex({
+      source,
+      dest: {
+        index: targetIndex,
+      },
+      refresh: true,
+      wait_for_completion: true,
+    });
+
+    return {
+      total: response.total || 0,
+      took: response.took || 0,
+    };
+  }
 }
