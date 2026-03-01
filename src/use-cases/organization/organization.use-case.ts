@@ -245,16 +245,15 @@ export class OrganizationUseCase {
       phone?: string;
     },
   ): Promise<ApiResponse<OrganizationWithDetails>> {
-    const org = await this.organizationRepository.get(orgId);
-    if (!org) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
-        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
-      });
-    }
-
-    // If request body is empty, return success without doing anything
+    // If request body is empty, get and return existing organization
     if (Object.keys(data).length === 0) {
+      const org = await this.organizationRepository.getOrganizationById(orgId);
+      if (!org) {
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+          code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+        });
+      }
       return {
         data: org,
         message: "Cập nhật thông tin cơ bản thành công",
@@ -262,24 +261,16 @@ export class OrganizationUseCase {
       };
     }
 
-    const updatedOrg = await this.organizationRepository.executeWithTransaction(
-      async (tx) => {
-        // Update organization table with only provided fields
-        const updated =
-          await this.organizationRepository.updateOrganizationById(
-            orgId,
-            data,
-            tx,
-          );
-
-        return updated;
-      },
+    // Update organization table with only provided fields
+    const updatedOrg = await this.organizationRepository.updateOrganizationById(
+      orgId,
+      data,
     );
 
     if (!updatedOrg) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
-        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
 
