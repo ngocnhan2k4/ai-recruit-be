@@ -19,7 +19,16 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     PaginatedResult<
       Pick<
         OrganizationWithDetails,
-        "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
+        | "id"
+        | "name"
+        | "type"
+        | "logoUrl"
+        | "description"
+        | "email"
+        | "phone"
+        | "foundedYear"
+        | "verifiedAt"
+        | "createdAt"
       >
     >
   >;

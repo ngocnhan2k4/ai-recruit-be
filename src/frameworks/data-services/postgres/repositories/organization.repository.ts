@@ -137,15 +137,19 @@ export class OrganizationRepository
       );
     }
 
-    if (query.cursor) {
+    const usePage = query.page != null && query.page >= 1;
+    if (!usePage && query.cursor) {
       whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
 
     const baseSelect = {
       id: organizations.id,
       name: organizations.name,
+      type: organizations.type,
       logoUrl: organizations.logoUrl,
       description: organizations.description,
+      email: organizations.email,
+      phone: organizations.phone,
       foundedYear: organizations.foundedYear,
       verifiedAt: organizations.verifiedAt,
       createdAt: organizations.createdAt,
@@ -161,7 +165,21 @@ export class OrganizationRepository
         }
       : baseSelect;
 
-    const results = await this.db
+    // Count total with same filters (for page-based pagination)
+    const countResult = await this.db
+      .select({ count: sql<number>`count(distinct ${organizations.id})` })
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .where(and(...whereConditions));
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const limit = query.limit + (usePage ? 0 : 1); // when cursor-based, request limit+1 to detect hasNext
+    const offset = usePage ? (query.page! - 1) * query.limit : 0;
+
+    const baseQuery = this.db
       .select(selectFields)
       .from(organizations)
       .leftJoin(
@@ -174,14 +192,24 @@ export class OrganizationRepository
       )
       .where(and(...whereConditions))
       .orderBy(desc(organizations.createdAt))
-      .groupBy(organizations.id)
-      .limit(query.limit + 1);
+      .groupBy(organizations.id);
 
-    const hasNextPage = results.length > query.limit;
-    const data = hasNextPage ? results.slice(0, query.limit) : results;
+    const results =
+      offset > 0
+        ? await baseQuery.offset(offset).limit(limit)
+        : await baseQuery.limit(limit);
+
+    const hasNextPage = usePage
+      ? query.page! * query.limit < total
+      : results.length > query.limit;
+    const data = usePage
+      ? results
+      : hasNextPage
+        ? results.slice(0, query.limit)
+        : results;
 
     const nextCursor =
-      hasNextPage && data.length > 0
+      !usePage && hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
@@ -190,6 +218,7 @@ export class OrganizationRepository
       pagination: {
         nextCursor,
         hasNextPage,
+        total,
       },
     };
   }

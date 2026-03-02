@@ -370,3 +370,34 @@ export class UpdateOrganizationAdditionalInfoDto {
   @MaxLength(500, { message: "Benefits must not exceed 500 characters" })
   benefits?: string;
 }
+
+export class AdminUpdateOrganizationUpsertDTO {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @IsUrl({}, { message: "Invalid URL format" })
+  websiteUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Set verifiedAt (ISO date) to verify organization, null to unverify",
+  })
+  @IsOptional()
+  verifiedAt?: string | null;
+}
