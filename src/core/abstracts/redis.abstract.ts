@@ -17,6 +17,11 @@ export abstract class IRedisService {
     ttlSeconds?: number,
   ): Promise<void>;
 
+  // Hash operations
+  abstract hgetall(key: string): Promise<Record<string, string>>;
+  abstract hset(key: string, data: Record<string, any>): Promise<void>;
+  abstract expire(key: string, seconds: number): Promise<void>;
+
   // Sorted Set operations for queue
   abstract addToSortedSet(
     key: string,

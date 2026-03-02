@@ -61,6 +61,19 @@ export class RedisService implements IRedisService, OnModuleDestroy {
     }
   }
 
+  // Hash operations
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return this.redis.hgetall(key);
+  }
+
+  async hset(key: string, data: Record<string, any>): Promise<void> {
+    await this.redis.hset(key, data);
+  }
+
+  async expire(key: string, seconds: number): Promise<void> {
+    await this.redis.expire(key, seconds);
+  }
+
   // Sorted Set operations for queue
   async addToSortedSet(
     key: string,
