@@ -77,7 +77,7 @@ export class OrganizationController {
     return await this.organizationUseCase.checkOrganizationName(name);
   }
 
-  @UseGuards(OptionalJwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId")
   @ApiOperation({
     summary: "Get organization by ID",
