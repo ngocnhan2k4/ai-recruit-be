@@ -76,11 +76,31 @@ export class ToggleQuestionStatusDto {
   isActive: boolean;
 }
 
+export class AddQuestionsToSkillDto {
+  @ApiProperty({
+    example: ["123e4567-e89b-12d3-a456-426614174000"],
+    type: [String],
+    description: "Question IDs to assign to this skill",
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  questionIds: string[];
+}
+
 export class QueryQuestionsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
   skillId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Exclude questions belonging to this skill (for add-to-skill picker)",
+  })
+  @IsOptional()
+  @IsUUID()
+  excludeSkillId?: string;
 
   @ApiPropertyOptional({
     type: [String],

@@ -25,6 +25,7 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  AddQuestionsToSkillDto,
 } from "@/interfaces/dtos/exam";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
@@ -35,6 +36,67 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class AdminExamController {
   constructor(private readonly examUseCases: ExamUseCases) {}
+
+  // ==================== SKILL-CENTRIC MANAGEMENT ====================
+
+  @ApiOperation({
+    summary: "List skills with question count",
+    description:
+      "Get all skills with question count for admin. Use this to manage exam by skills.",
+  })
+  @Get("skills")
+  async getSkillsWithQuestionCount(
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+    @Query("keyword") keyword?: string,
+  ) {
+    return this.examUseCases.getSkillsWithQuestionCount({
+      page,
+      limit,
+      keyword,
+    });
+  }
+
+  @ApiOperation({
+    summary: "List questions available to add to this skill",
+    description:
+      "Questions that belong to other skills. Use this list to pick questions and add them to the current skill via POST skills/:skillId/questions.",
+  })
+  @Get("skills/:skillId/questions/available")
+  async getAvailableQuestionsForSkill(
+    @Param("skillId") skillId: string,
+    @Query() query: Omit<QueryQuestionsDto, "skillId" | "excludeSkillId">,
+  ) {
+    return this.examUseCases.getQuestions({
+      ...query,
+      excludeSkillId: skillId,
+    });
+  }
+
+  @ApiOperation({
+    summary: "List questions in a skill",
+    description: "Get paginated questions that belong to the given skill.",
+  })
+  @Get("skills/:skillId/questions")
+  async getSkillQuestions(
+    @Param("skillId") skillId: string,
+    @Query() query: Omit<QueryQuestionsDto, "skillId">,
+  ) {
+    return this.examUseCases.getQuestions({ ...query, skillId });
+  }
+
+  @ApiOperation({
+    summary: "Add questions to skill",
+    description:
+      "Assign selected questions to this skill (moves questions from their current skill to this one).",
+  })
+  @Post("skills/:skillId/questions")
+  async addQuestionsToSkill(
+    @Param("skillId") skillId: string,
+    @Body() dto: AddQuestionsToSkillDto,
+  ) {
+    return this.examUseCases.assignQuestionsToSkill(skillId, dto);
+  }
 
   // ==================== QUESTION MANAGEMENT ====================
 

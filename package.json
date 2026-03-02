@@ -28,6 +28,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun drizzle/seed/index.ts",
+    "db:seed:exam": "bun drizzle/seed/exam-seed.ts",
+    "db:seed:exam-questions": "bun drizzle/seed/add-exam-questions.ts",
     "db:studio": "drizzle-kit studio",
     "casbin:init": "ts-node casbin_rule.config.ts init",
     "casbin:clear": "ts-node casbin_rule.config.ts clear",

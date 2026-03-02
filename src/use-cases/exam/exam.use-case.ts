@@ -21,6 +21,7 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  AddQuestionsToSkillDto,
   CreateLevelDto,
   UpdateLevelDto,
   StartExamDto,
@@ -188,6 +189,55 @@ export class ExamUseCases {
       success: true,
       message: "Questions fetched successfully",
       data: result,
+    };
+  }
+
+  // ==================== ADMIN: SKILL-CENTRIC EXAM MANAGEMENT ====================
+
+  /** List skills with question count for admin (manage by skills). */
+  async getSkillsWithQuestionCount(query: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+  }) {
+    const result = await this.skillRepo.getSkillsWithQuestionCount({
+      page: query.page,
+      limit: query.limit ?? 20,
+      keyword: query.keyword,
+    });
+    return {
+      success: true,
+      message: "Skills with question count fetched successfully",
+      data: result,
+    };
+  }
+
+  /** Assign selected questions to a skill (move questions to this skill). */
+  async assignQuestionsToSkill(skillId: string, dto: AddQuestionsToSkillDto) {
+    const skill = await this.skillRepo.get(skillId);
+    if (!skill) {
+      throw new NotFoundException("Skill not found");
+    }
+
+    const updated: Question[] = [];
+    for (const questionId of dto.questionIds) {
+      const question = await this.questionRepo.get(questionId);
+      if (!question) {
+        throw new NotFoundException(`Question not found: ${questionId}`);
+      }
+      const [q] = await this.questionRepo.update({ id: questionId }, {
+        skillId,
+      } as Partial<Question>);
+      if (q) updated.push(q);
+    }
+
+    this.logger.log(
+      `Assigned ${updated.length} question(s) to skill ${skillId} (${skill.name})`,
+    );
+    return {
+      success: true,
+      message: `Assigned ${updated.length} question(s) to skill successfully`,
+      data: { skill, assignedCount: updated.length, questions: updated },
     };
   }
 
