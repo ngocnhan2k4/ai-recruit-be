@@ -1,4 +1,4 @@
-import { PtypeEnum } from "@/common/constants/roles";
+import { PtypeEnum } from "@/common/constants";
 
 export interface RemovePolicyParams {
   ptype: PtypeEnum;

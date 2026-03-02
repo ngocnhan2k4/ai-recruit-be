@@ -1,4 +1,4 @@
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Feedback } from "@/core/entities";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";

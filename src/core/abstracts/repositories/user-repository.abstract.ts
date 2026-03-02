@@ -1,7 +1,7 @@
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { NewUser, User } from "@/core/entities";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 
 export abstract class IUserRepository extends IGenericRepository<User> {
   abstract getAllWithOffset(

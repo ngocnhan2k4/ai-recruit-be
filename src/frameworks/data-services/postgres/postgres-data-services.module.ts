@@ -90,6 +90,8 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          // Wrap pool để log SQL queries
           const maxRetries = 3;
           let attempt = 0;
           let connected = false;

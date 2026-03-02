@@ -3,8 +3,8 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { skills, questions } from "../models";
-import { GeneralQuery, PaginatedResult } from "@/common/types/api";
-import { count, ilike, and, SQL, sql } from "drizzle-orm";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { count, ilike, and, SQL, sql, isNotNull } from "drizzle-orm";
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
@@ -33,7 +33,7 @@ export class SkillRepository
     const page = Math.max(query.page ?? 1, 1);
     const keyword = query.keyword ?? "";
 
-    const whereConditions: SQL[] = [];
+    const whereConditions: SQL[] = [isNotNull(skills.description)];
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
@@ -44,14 +44,14 @@ export class SkillRepository
     const items = await this.db
       .select()
       .from(skills)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .where(and(...whereConditions))
       .limit(limit)
       .offset(offset);
 
     const totalRow = await this.db
       .select({ count: count(skills.id) })
       .from(skills)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+      .where(and(...whereConditions));
     const total = Number(totalRow[0]?.count ?? 0);
 
     const hasNext = offset + items.length < total;

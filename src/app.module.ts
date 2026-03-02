@@ -43,10 +43,11 @@ import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.mod
 import { StorageModule } from "./use-cases/storage/storage.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
-import { APP_FILTER } from "@nestjs/core";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { HttpExceptionFilter } from "./common/middlewares/http-exception.config";
+import { LoggingInterceptor } from "@/common/interceptors";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
-import { AppConfigProps } from "@/common/config/app.config";
+import { AppConfigProps } from "@/common/config";
 import { LoggerServiceModule } from "@/frameworks/logger-services/logger.module";
 import { ProvinceUseCasesModule } from "@/use-cases/province/province-use-cases.module";
 import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
@@ -146,6 +147,10 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
   ],
   providers: [
     JwtStrategy,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
     {
       provide: APP_FILTER,
       useFactory: (

@@ -13,4 +13,10 @@ export class ProvinceRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, provinces);
   }
+
+  async getAllProvinces(): Promise<Province[]> {
+    const result = await this.db.select().from(provinces);
+
+    return result;
+  }
 }

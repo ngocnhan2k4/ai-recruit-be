@@ -6,7 +6,6 @@ import {
   text,
   date,
   timestamp,
-  json,
   uuid,
   primaryKey,
   numeric,
@@ -54,7 +53,7 @@ export const jobs = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     title: varchar("title", { length: 255 }).notNull(),
-    description: json("description"),
+    description: text("description"),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id),

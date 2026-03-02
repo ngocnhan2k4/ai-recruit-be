@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Inject } from "@nestjs/common";
 import { IAIService } from "@/core/abstracts";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,

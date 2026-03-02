@@ -9,12 +9,11 @@ export class JobDto {
   title: string;
 
   @ApiProperty({
-    type: "object",
+    type: "string",
     nullable: true,
-    description: "Job description in JSON format",
-    additionalProperties: {},
+    description: "Job description in plain text format",
   })
-  description: unknown;
+  description: string | null;
 
   @ApiProperty({
     type: [String],

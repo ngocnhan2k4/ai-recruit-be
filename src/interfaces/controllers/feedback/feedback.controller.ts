@@ -2,8 +2,8 @@ import { FeedbackUseCase } from "@/use-cases/feedback/feedback.use-case";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import {
   CreateFeedbackRequestDto,
   CreateFeedbackResponseDto,

@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import { FireBaseAuthService } from "./firebase-auth-services.service";
 import { IAuthService } from "@/core";
 import { JwtModule } from "@nestjs/jwt";
-import { FIREBASE_ADMIN } from "@/common/constants/response";
+import { FIREBASE_ADMIN } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
 
 @Module({

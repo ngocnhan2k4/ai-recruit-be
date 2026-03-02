@@ -2,8 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import * as admin from "firebase-admin";
 import { IAuthService } from "@/core";
 import { JwtService } from "@nestjs/jwt";
-import { FIREBASE_ADMIN } from "@/common/constants/response";
-import { RoleEnum } from "@/common/constants/roles";
+import { FIREBASE_ADMIN, RoleEnum } from "@/common/constants";
 @Injectable()
 export class FireBaseAuthService implements IAuthService {
   constructor(
@@ -42,7 +41,6 @@ export class FireBaseAuthService implements IAuthService {
     claims: { roles: RoleEnum[] },
   ): Promise<void> {
     const newClaims = await this.overlapUserClaims(uid, claims);
-
     await this.firebaseApp.auth().setCustomUserClaims(uid, newClaims);
   }
 

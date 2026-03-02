@@ -33,13 +33,12 @@ import {
   SendEmailVerificationDto,
   VerifyOrganizationEmailDto,
 } from "../../dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser, UploadFileAndBody } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
 import { OrganizationQueryDto } from "@/interfaces/dtos";
 import { OrganizationWithDetails } from "@/core";
 import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
 import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")

@@ -105,13 +105,12 @@ export class CreateJobDto {
   title: string;
 
   @ApiProperty({
-    type: "object",
+    type: "string",
     nullable: true,
-    description: "Job description in JSON format",
-    additionalProperties: {},
+    description: "Job description in plain text format",
   })
   @IsOptional()
-  description?: unknown;
+  description: string | null;
 
   @ApiProperty({ type: "string", format: "uuid" })
   @IsUUID()
@@ -208,13 +207,12 @@ export class UpdateJobDto {
   title?: string;
 
   @ApiProperty({
-    type: "object",
+    type: "string",
     nullable: true,
-    description: "Job description in JSON format",
-    additionalProperties: {},
+    description: "Job description in plain text format",
   })
   @IsOptional()
-  description?: unknown;
+  description: string | null;
 
   @ApiProperty({ type: "string", format: "uuid", required: false })
   @IsOptional()

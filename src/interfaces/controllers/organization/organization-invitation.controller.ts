@@ -1,5 +1,5 @@
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { OrganizationMemberInvitation } from "@/core";
 import {
   JwtAuthGuard,

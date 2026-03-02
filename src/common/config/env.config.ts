@@ -80,7 +80,7 @@ export class EnvironmentVariables {
   CLOUDINARY_API_SECRET: string;
 
   @IsString()
-  SLACK_ERROR_WEBHOOK_URL: string;
+  ERROR_WEBHOOK_URL: string;
 
   @IsString()
   AI_SERVICE_URL: string;
@@ -119,6 +119,11 @@ export class EnvironmentVariables {
 
   @IsString()
   ELASTICSEARCH_INDEX_JOBS: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  SLOW_API_THRESHOLD_MS: number = 1000;
 }
 
 export default (): Record<string, any> => ({
@@ -151,8 +156,7 @@ export default (): Record<string, any> => ({
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 
   // Slack
-  SLACK_ERROR_WEBHOOK_URL: process.env.SLACK_ERROR_WEBHOOK_URL,
-  SLACK_INFO_WEBHOOK_URL: process.env.SLACK_INFO_WEBHOOK_URL,
+  ERROR_WEBHOOK_URL: process.env.ERROR_WEBHOOK_URL,
 
   AI_SERVICE_URL: process.env.AI_SERVICE_URL,
   AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,
@@ -170,6 +174,12 @@ export default (): Record<string, any> => ({
   ELASTICSEARCH_USERNAME: process.env.ELASTICSEARCH_USERNAME,
   ELASTICSEARCH_PASSWORD: process.env.ELASTICSEARCH_PASSWORD,
   ELASTICSEARCH_INDEX_JOBS: process.env.ELASTICSEARCH_INDEX_JOBS,
+
+  // Performance
+  SLOW_API_THRESHOLD_MS: parseInt(
+    process.env.SLOW_API_THRESHOLD_MS || "1000",
+    10,
+  ),
 });
 
 export const validateConfig = (

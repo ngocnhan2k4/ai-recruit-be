@@ -21,8 +21,8 @@ import type { FastifyReply } from "fastify";
 import { LearningPathUseCase } from "@/use-cases/learning-path/learning-path.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, PaginatedResultDto } from "../../dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import { Logger } from "@nestjs/common";
 
 import {

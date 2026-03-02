@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
-import { PtypeEnum } from "@/common/constants/roles";
+import { PtypeEnum, RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   AddPolicyDto,
   RemovePolicyDto,
@@ -15,8 +15,7 @@ import {
   GetPoliciesCasbinFilter,
 } from "@/interfaces/dtos";
 import { ApiResponse } from "@/interfaces/dtos";
-import { PaginatedResult } from "@/common/types/api";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { PaginatedResult } from "@/common/types";
 
 @Injectable()
 export class CasbinUseCases {
