@@ -2,14 +2,14 @@ import {
   Injectable,
   Logger,
   NestMiddleware,
-  HttpException,
   HttpStatus,
   Inject,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { IRedisService } from "@/core/abstracts/redis.abstract";
-import { FastifyRequest, FastifyReply } from "fastify";
+import { IncomingMessage, ServerResponse } from "http";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "../constants";
+import { ApiResponse } from "@/interfaces/dtos";
 
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
@@ -29,98 +29,70 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   async use(
-    req: FastifyRequest,
-    res: FastifyReply,
+    req: IncomingMessage,
+    res: ServerResponse,
     next: () => void,
-  ): Promise<void> {
-    try {
-      await this.checkRateLimit(req, res);
-      next();
-    } catch (err) {
-      if (err instanceof HttpException) throw err;
-      this.logger.error("Rate limiter error — failing open:", err);
-      next();
-    }
-  }
-
-  async onRequest(req: FastifyRequest, reply: FastifyReply): Promise<void> {
-    await this.checkRateLimit(req, reply);
-  }
-
-  private async checkRateLimit(
-    req: FastifyRequest,
-    _: FastifyReply,
   ): Promise<void> {
     const ip = this.getClientIp(req);
     const key = `rl:${ip}`;
     const now = Date.now() / 1000;
 
-    const bucket = await (this.redisService as any).hgetall(key);
+    try {
+      const bucket = await (this.redisService as any).hgetall(key);
 
-    let tokens: number;
-    let lastRefill: number;
+      let tokens: number;
+      let lastRefill: number;
 
-    if (!bucket || Object.keys(bucket).length === 0) {
-      tokens = this.capacity;
+      if (!bucket || Object.keys(bucket).length === 0) {
+        tokens = this.capacity;
+        lastRefill = now;
+      } else {
+        tokens = parseFloat(bucket.tokens);
+        lastRefill = parseFloat(bucket.lastRefill);
+      }
+
+      const elapsed = Math.max(0, now - lastRefill);
+      tokens = Math.min(this.capacity, tokens + elapsed * this.refillRate);
       lastRefill = now;
-    } else {
-      tokens = parseFloat(bucket.tokens);
-      lastRefill = parseFloat(bucket.lastRefill);
-    }
 
-    const elapsed = Math.max(0, now - lastRefill);
+      let allowed = false;
+      if (tokens >= 1) {
+        tokens -= 1;
+        allowed = true;
+      }
 
-    tokens = Math.min(this.capacity, tokens + elapsed * this.refillRate);
-    lastRefill = now;
+      await (this.redisService as any).hset(key, {
+        tokens: tokens.toString(),
+        lastRefill: lastRefill.toString(),
+      });
+      await (this.redisService as any).expire(key, this.ttlSeconds);
 
-    let allowed = false;
-    if (tokens >= 1) {
-      tokens -= 1;
-      allowed = true;
-    }
-
-    await (this.redisService as any).hset(key, {
-      tokens: tokens.toString(),
-      lastRefill: lastRefill.toString(),
-    });
-    await (this.redisService as any).expire(key, this.ttlSeconds);
-
-    if (!allowed) {
-      const retryAfter = Math.ceil(1 / this.refillRate);
-      this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
-
-      throw new HttpException(
-        {
+      if (!allowed) {
+        this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
+        const body: ApiResponse<never> = {
           code: RESPONSE_CODE.TOO_MANY_REQUESTS,
           message: RESPONSE_MESSAGE.TOO_MANY_REQUESTS,
-          retryAfter,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+        };
+
+        res.statusCode = HttpStatus.TOO_MANY_REQUESTS;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+        return;
+      }
+
+      next();
+    } catch (err) {
+      this.logger.error("Rate limiter error — failing open:", err);
+      next();
     }
   }
 
-  private getClientIp(req: any): string {
-    if (req && typeof req === "object" && "raw" in req && req.raw) {
-      const forwarded = req.raw.headers["x-forwarded-for"];
-      if (forwarded) {
-        const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-        return String(first).split(",")[0].trim();
-      }
-      const remoteAddr = req.raw.socket?.remoteAddress;
-      return typeof remoteAddr === "string" ? remoteAddr : "unknown";
+  private getClientIp(req: IncomingMessage): string {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded) {
+      const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+      return first.split(",")[0].trim();
     }
-
-    if (req && typeof req === "object" && "headers" in req) {
-      const forwarded = req.headers["x-forwarded-for"];
-      if (forwarded) {
-        const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-        return String(first).split(",")[0].trim();
-      }
-    }
-
-    const socketAddr = (req as { socket?: { remoteAddress?: string } })?.socket
-      ?.remoteAddress;
-    return typeof socketAddr === "string" ? socketAddr : "unknown";
+    return req.socket?.remoteAddress ?? "unknown";
   }
 }

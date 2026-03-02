@@ -125,12 +125,6 @@ export class EnvironmentVariables {
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
 
-  // Rate limiting (token bucket)
-  @IsOptional()
-  @IsNumber()
-  @Transform(({ value }: { value: string }) => parseInt(value, 10))
-  RATE_LIMIT_REDIS_DB: number = 2;
-
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
@@ -198,7 +192,6 @@ export default (): Record<string, any> => ({
   ),
 
   // Rate limiting (token bucket)
-  RATE_LIMIT_REDIS_DB: parseInt(process.env.RATE_LIMIT_REDIS_DB || "1", 10),
   RATE_LIMIT_CAPACITY: parseInt(process.env.RATE_LIMIT_CAPACITY || "60", 10),
   RATE_LIMIT_REFILL_RATE: parseFloat(process.env.RATE_LIMIT_REFILL_RATE || "1"),
 });

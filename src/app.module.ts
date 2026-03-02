@@ -75,7 +75,6 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
 import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 import { RateLimitMiddleware } from "./common/middlewares";
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -168,10 +167,11 @@ import { RateLimitMiddleware } from "./common/middlewares";
       },
       inject: [ConfigService, ILoggerServices],
     },
+    RateLimitMiddleware,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RateLimitMiddleware).forRoutes("*");
+    consumer.apply(RateLimitMiddleware).exclude("/health").forRoutes("*");
   }
 }
