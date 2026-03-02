@@ -1,5 +1,4 @@
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -9,8 +8,11 @@ import { LoggerService } from "@/frameworks/logger-services/logger.service";
 import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
+import { loadVaultIntoEnv } from "./common/config";
 
 async function bootstrap() {
+  await loadVaultIntoEnv();
+  const { AppModule } = await import("./app.module.js");
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
@@ -24,7 +26,7 @@ async function bootstrap() {
     // and ignore to fallback to console logging.
     globalLoggerService = app.get(LoggerService);
   } catch (e) {
-    this.logger.error("[main] [bootstrap] Failed to get LoggerService", e);
+    logger.error("[main] [bootstrap] Failed to get LoggerService", e);
   }
 
   enableSwaggerDoc(app);
