@@ -1,15 +1,12 @@
 import vault from "node-vault";
-import { config } from "dotenv";
-import { resolve } from "path";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 /**
  * Load secrets from Vault and merge into process.env
  */
 export async function loadVaultIntoEnv(): Promise<void> {
-  config({ path: resolve(process.cwd(), ".env") });
-  config({ path: resolve(process.cwd(), ".env.development") });
-  config({ path: resolve(process.cwd(), ".env.production") });
-
   const vaultAddr = process.env.VAULT_ADDR;
   const vaultToken = process.env.VAULT_TOKEN;
   const vaultSecretPath = process.env.VAULT_SECRET_PATH;
