@@ -15,8 +15,6 @@ import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,
 } from "@/interfaces/dtos/ai-cv";
-import { AiCvOptimizeUseCases } from "@/use-cases/ai-cv/ai-cv-optimize.use-case";
-import { AiCvSuggestFieldUseCases } from "@/use-cases/ai-cv/ai-cv-suggest.use-case";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
   BadRequestException,
@@ -43,11 +41,7 @@ import {
 @Controller("ai-cv")
 @UseGuards(JwtAuthGuard)
 export class AiCvController {
-  constructor(
-    private readonly aiCvUseCases: AiCvUseCases,
-    private readonly aiCvOptimizeUseCase: AiCvOptimizeUseCases,
-    private readonly aiCvSuggestFieldUseCase: AiCvSuggestFieldUseCases,
-  ) {}
+  constructor(private readonly aiCvUseCases: AiCvUseCases) {}
 
   @ApiOperation({
     summary: "Get AI CVs",
@@ -97,7 +91,7 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvOptimizeUseCase.optimizeCvForAts(request);
+    return await this.aiCvUseCases.optimizeCvForAts(request);
   }
 
   @Post("suggest-field")
@@ -110,7 +104,7 @@ export class AiCvController {
   async suggestCvField(
     @Body() request: CvFieldSuggestionRequestDto,
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
-    return await this.aiCvSuggestFieldUseCase.suggestCvField(request);
+    return await this.aiCvUseCases.suggestCvField(request);
   }
 
   @ApiOperation({

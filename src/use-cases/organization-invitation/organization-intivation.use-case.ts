@@ -217,11 +217,12 @@ export class OrganizationInvitationUseCase {
   ): Promise<void> {
     // Queue email invitation (non-blocking)
     try {
-      const [invitee, inviter, organization] = await Promise.all([
-        this.userRepository.get(inviteeId),
-        this.userRepository.get(inviterId),
+      const [users, organization] = await Promise.all([
+        this.userRepository.getByIds([inviteeId, inviterId]),
         this.organizationRepository.get(organizationId),
       ]);
+      const invitee = users.find((u) => u.id === inviteeId);
+      const inviter = users.find((u) => u.id === inviterId);
 
       if (invitee?.email && inviter?.name && organization?.name) {
         const invitationLink = `${this.configService.get<string>("FRONTEND_URL")}/dashboard/organizations/${organizationId}/overview`;
