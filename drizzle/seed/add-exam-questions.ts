@@ -12,6 +12,7 @@ import { inArray, eq } from "drizzle-orm";
 import {
   skills,
   questions,
+  type Difficulty,
 } from "../../src/frameworks/data-services/postgres/models";
 
 dotenv.config();
@@ -62,7 +63,7 @@ async function addMoreExamQuestions() {
         .values(
           toCreate.map((name) => ({ name, description: `${name} skill` })),
         )
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: skills.name });
       const afterInsert = await db
         .select()
         .from(skills)
@@ -308,7 +309,7 @@ async function addMoreExamQuestions() {
           options: q.options,
           correctAnswer: q.correctAnswer,
           point: q.point,
-          difficultyLevels: q.difficultyLevels,
+          difficultyLevels: q.difficultyLevels as Difficulty[],
         })),
       );
       console.log(`✅ Inserted ${toInsert.length} new questions.`);
