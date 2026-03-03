@@ -1,4 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { SHORT_TTL, LONG_TTL } from "@/common/constants";
 import {
   IOrganizationRepository,
   NewOrganizationWithDetails,
@@ -37,13 +40,36 @@ export class OrganizationRepository
   extends GenericRepository<OrganizationWithDetails, typeof organizations>
   implements IOrganizationRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, organizations);
+  }
+
+  async get(id: string): Promise<OrganizationWithDetails | null> {
+    const cacheKey = `org:get:${id}`;
+    const cached = await this.cacheManager.get<OrganizationWithDetails | null>(
+      cacheKey,
+    );
+    if (cached !== undefined) return cached;
+
+    const result = await super.get(id);
+    if (result) {
+      await this.cacheManager.set(cacheKey, result, SHORT_TTL);
+    }
+    return result;
   }
 
   async getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null> {
+    const cacheKey = `org:getById:${id}`;
+    const cached = await this.cacheManager.get<OrganizationWithDetails | null>(
+      cacheKey,
+    );
+    if (cached !== undefined) return cached;
+
     const result = await this.db
       .select({
         // Organization fields
@@ -79,7 +105,10 @@ export class OrganizationRepository
       .leftJoin(schools, eq(organizations.id, schools.organizationId))
       .where(eq(organizations.id, id));
 
-    if (!result[0]) return null;
+    if (!result[0]) {
+      await this.cacheManager.set(cacheKey, null, SHORT_TTL);
+      return null;
+    }
 
     const locations = await this.db
       .select({
@@ -99,7 +128,7 @@ export class OrganizationRepository
 
     const row = result[0];
 
-    return {
+    const mappedResult = {
       ...row,
       companySize: row.companySize,
       taxCode: row.taxCode,
@@ -108,9 +137,17 @@ export class OrganizationRepository
       schoolType: row.schoolType as SchoolTypeEnum,
       locations: locations,
     };
+
+    await this.cacheManager.set(cacheKey, mappedResult, SHORT_TTL);
+    return mappedResult;
   }
 
   async getAllOrganizations(query: OrganizationQuery) {
+    const cacheKey = `org:getAll:${JSON.stringify(query)}`;
+    const cached = await this.cacheManager.get<any>(cacheKey);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    if (cached !== undefined) return cached;
+
     const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
 
     if (query.keyword) {
@@ -185,16 +222,23 @@ export class OrganizationRepository
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    return {
+    const resultToSend = {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
       },
     };
+    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
+    return resultToSend;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
+    const cacheKey = `org:getMy:${userId}:${JSON.stringify(query)}`;
+    const cached = await this.cacheManager.get<any>(cacheKey);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    if (cached !== undefined) return cached;
+
     const whereConditions: SQL<unknown>[] = [
       isNull(organizations.deletedAt),
       isNull(organizationMembers.deletedAt),
@@ -233,18 +277,27 @@ export class OrganizationRepository
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    return {
+    const resultToSend = {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
       },
     };
+    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
+    return resultToSend;
   }
 
   async getAllNamesByType(
     type: OrganizationTypeEnum,
   ): Promise<Pick<OrganizationWithDetails, "name">[]> {
+    const cacheKey = `org:getNamesByType:${type}`;
+    const cached =
+      await this.cacheManager.get<Pick<OrganizationWithDetails, "name">[]>(
+        cacheKey,
+      );
+    if (cached !== undefined) return cached;
+
     const result = await this.db
       .select({
         name: organizations.name,
@@ -252,10 +305,15 @@ export class OrganizationRepository
       .from(organizations)
       .where(eq(organizations.type, type));
 
+    await this.cacheManager.set(cacheKey, result, LONG_TTL);
     return result;
   }
 
   async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
+    const cacheKey = `org:getMembers:${orgId}`;
+    const cached = await this.cacheManager.get<{ id: string }[]>(cacheKey);
+    if (cached !== undefined) return cached;
+
     const results = await this.db
       .select({
         id: organizationMembers.userId,
@@ -266,6 +324,8 @@ export class OrganizationRepository
         eq(organizationMembers.organizationId, organizations.id),
       )
       .where(eq(organizationMembers.organizationId, orgId));
+
+    await this.cacheManager.set(cacheKey, results, SHORT_TTL);
     return results;
   }
 
@@ -330,6 +390,11 @@ export class OrganizationRepository
   async getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]> {
+    const cacheKey = `org:getByTypes:${types.sort().join(",")}`;
+    const cached =
+      await this.cacheManager.get<OrganizationWithDetails[]>(cacheKey);
+    if (cached !== undefined) return cached;
+
     const result = await this.db
       .select({
         id: organizations.id,
@@ -362,9 +427,12 @@ export class OrganizationRepository
       .leftJoin(schools, eq(organizations.id, schools.organizationId))
       .where(or(...types.map((type) => eq(organizations.type, type))));
 
-    if (!result) return [];
+    if (!result) {
+      await this.cacheManager.set(cacheKey, [], SHORT_TTL);
+      return [];
+    }
 
-    return result.map((row) => ({
+    const resultToSend = result.map((row) => ({
       ...row,
       companySize: row.companySize,
       taxCode: row.taxCode,
@@ -372,5 +440,8 @@ export class OrganizationRepository
       culture: row.culture,
       schoolType: row.schoolType as SchoolTypeEnum,
     }));
+
+    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
+    return resultToSend;
   }
 }

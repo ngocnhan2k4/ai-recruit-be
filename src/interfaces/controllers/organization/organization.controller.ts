@@ -88,8 +88,6 @@ export class OrganizationController {
     description: "Retrieve an organization by its ID",
   })
   @ApiResponseDto(GetCompanyDto)
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(SHORT_TTL)
   async getOrganization(
     @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
