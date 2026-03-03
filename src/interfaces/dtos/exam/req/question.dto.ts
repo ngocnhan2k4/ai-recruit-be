@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsString,
   IsNotEmpty,
@@ -118,12 +119,22 @@ export class QueryQuestionsDto {
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isNaN(n) ? undefined : Math.max(1, Math.floor(n));
+  })
   @IsNumber()
   @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ example: 20 })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isNaN(n) ? undefined : Math.max(1, Math.floor(n));
+  })
   @IsNumber()
   @Min(1)
   limit?: number;

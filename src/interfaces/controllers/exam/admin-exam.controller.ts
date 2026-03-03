@@ -49,11 +49,15 @@ export class AdminExamController {
     @Query("page") page?: number,
     @Query("limit") limit?: number,
     @Query("keyword") keyword?: string,
+    @Query("sortBy") sortBy?: string,
+    @Query("sortDirection") sortDirection?: "asc" | "desc",
   ) {
     return this.examUseCases.getSkillsWithQuestionCount({
       page,
       limit,
       keyword,
+      sortBy,
+      sortDirection,
     });
   }
 

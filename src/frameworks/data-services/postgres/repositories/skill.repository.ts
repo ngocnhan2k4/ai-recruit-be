@@ -11,8 +11,9 @@ import {
   SQL,
   sql,
   isNotNull,
-  isNull,
   inArray,
+  asc,
+  desc,
 } from "drizzle-orm";
 @Injectable()
 export class SkillRepository
@@ -124,21 +125,14 @@ export class SkillRepository
     const limit = Math.max(query.limit ?? 20, 1);
     const page = Math.max(query.page ?? 1, 1);
     const keyword = query.keyword ?? "";
+    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
+    const sortDirection = query.sortDirection === "desc" ? "desc" : "asc";
 
-    const whereConditions: SQL[] = [isNull(skills.deletedAt)];
+    const whereConditions: SQL[] = [isNotNull(skills.description)];
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
     }
-
-    const offset = (page - 1) * limit;
-
-    const items = await this.db
-      .select()
-      .from(skills)
-      .where(and(...whereConditions))
-      .limit(limit)
-      .offset(offset);
 
     const totalRow = await this.db
       .select({ count: count(skills.id) })
@@ -146,12 +140,68 @@ export class SkillRepository
       .where(and(...whereConditions));
     const total = Number(totalRow[0]?.count ?? 0);
 
-    if (items.length === 0) {
+    if (total === 0) {
       return {
         data: [],
         pagination: { hasNextPage: false, total: 0 },
       } as PaginatedResult<SkillWithQuestionCount>;
     }
+
+    if (sortBy === "questionCount") {
+      const allItems = await this.db
+        .select()
+        .from(skills)
+        .where(and(...whereConditions));
+
+      const countRows = await this.db
+        .select({
+          skillId: questions.skillId,
+          questionCount: count(questions.id),
+        })
+        .from(questions)
+        .where(
+          inArray(
+            questions.skillId,
+            allItems.map((s) => s.id),
+          ),
+        )
+        .groupBy(questions.skillId);
+
+      const countMap = new Map(
+        countRows.map((r) => [r.skillId, Number(r.questionCount)]),
+      );
+
+      const merged: SkillWithQuestionCount[] = allItems.map((s) => ({
+        ...s,
+        questionCount: countMap.get(s.id) ?? 0,
+      }));
+
+      merged.sort((a, b) => {
+        const diff = a.questionCount - b.questionCount;
+        return sortDirection === "desc" ? -diff : diff;
+      });
+
+      const offset = (page - 1) * limit;
+      const data = merged.slice(offset, offset + limit);
+      const hasNext = offset + data.length < total;
+
+      return {
+        data,
+        pagination: { hasNextPage: hasNext, total },
+      } as PaginatedResult<SkillWithQuestionCount>;
+    }
+
+    const offset = (page - 1) * limit;
+    const orderBy =
+      sortDirection === "desc" ? desc(skills.name) : asc(skills.name);
+
+    const items = await this.db
+      .select()
+      .from(skills)
+      .where(and(...whereConditions))
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
 
     const skillIds = items.map((s) => s.id);
     const countRows = await this.db

@@ -14,6 +14,7 @@ import {
   ISkillRepository,
   Question,
 } from "@/core";
+import { RESPONSE_CODE } from "@/common/constants";
 import {
   CreateAreaDto,
   UpdateAreaDto,
@@ -181,8 +182,16 @@ export class ExamUseCases {
   }
 
   async getQuestions(query: QueryQuestionsDto) {
+    const rawKeyword = query.keyword ?? "";
+    const keyword =
+      typeof rawKeyword === "string" &&
+      (rawKeyword === "undefined" || rawKeyword === "null")
+        ? ""
+        : rawKeyword;
+
     const result = await this.questionRepo.getPaginatedQuestions({
       ...query,
+      keyword,
       limit: query.limit ?? 20,
     });
     return {
@@ -199,16 +208,40 @@ export class ExamUseCases {
     page?: number;
     limit?: number;
     keyword?: string;
+    sortBy?: string;
+    sortDirection?: "asc" | "desc";
   }) {
+    const page =
+      query.page !== undefined && query.page !== null
+        ? Math.max(1, Number(query.page) || 1)
+        : 1;
+    const limit =
+      query.limit !== undefined && query.limit !== null
+        ? Math.min(100, Math.max(1, Number(query.limit) || 20))
+        : 20;
+    const rawKeyword = query.keyword ?? "";
+    const keyword =
+      typeof rawKeyword === "string" &&
+      (rawKeyword === "undefined" || rawKeyword === "null")
+        ? ""
+        : rawKeyword;
+    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
+    const sortDirection = query.sortDirection === "desc" ? "desc" : "asc";
+
     const result = await this.skillRepo.getSkillsWithQuestionCount({
-      page: query.page,
-      limit: query.limit ?? 20,
-      keyword: query.keyword,
+      page,
+      limit,
+      keyword,
+      sortBy,
+      sortDirection,
     });
     return {
-      success: true,
+      code: RESPONSE_CODE.SUCCESS,
       message: "Skills with question count fetched successfully",
-      data: result,
+      data: {
+        data: result.data ?? [],
+        pagination: result.pagination ?? { hasNextPage: false, total: 0 },
+      },
     };
   }
 
