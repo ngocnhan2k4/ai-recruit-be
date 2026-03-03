@@ -16,6 +16,7 @@ import {
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
+import { SHORT_TTL } from "@/common/constants";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponseDto,
@@ -87,6 +88,8 @@ export class OrganizationController {
     description: "Retrieve an organization by its ID",
   })
   @ApiResponseDto(GetCompanyDto)
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(SHORT_TTL)
   async getOrganization(
     @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
@@ -278,7 +281,7 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(15 * 60 * 1000) // 15 mins
+  @CacheTTL(SHORT_TTL)
   async getAllOrganizations(
     @Query() query: OrganizationQueryDto,
   ): Promise<

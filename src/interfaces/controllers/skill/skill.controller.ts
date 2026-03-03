@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { LLONG_TTL } from "@/common/constants";
 import {
   ApiResponseDto,
   ApiResponse,
@@ -44,7 +45,7 @@ export class SkillController {
   })
   @ApiResponseDto(SkillDto, { isArray: true })
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(7 * 24 * 60 * 60 * 1000) // 7 days (ms)
+  @CacheTTL(LLONG_TTL)
   @Get()
   async getPaginatedSkills(
     @Query() query: GetSkillsQueryDto,

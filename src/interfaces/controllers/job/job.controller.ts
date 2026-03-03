@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
+import { SHORT_TTL, LONG_TTL } from "@/common/constants";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import {
   ApiResponse,
@@ -84,7 +85,7 @@ export class JobController {
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(60 * 60 * 1000) // 60 mins
+  @CacheTTL(LONG_TTL)
   @Get("statistics")
   async getJobStatistics(
     @Query() filter: StatisticsJobFilterRequestDto,
@@ -98,7 +99,7 @@ export class JobController {
       "Retrieve top applied jobs, top employers, and top job categories in the market.",
   })
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(60 * 60 * 1000) // 60 mins
+  @CacheTTL(LONG_TTL)
   @Get("statistics/top-in-market")
   async getTopInMarket(
     @Query() filter: StatisticsJobFilterRequestDto,
@@ -112,7 +113,7 @@ export class JobController {
       "Retrieve job statistics for multiple categories in a single request for comparison.",
   })
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(60 * 60 * 1000) // 60 mins
+  @CacheTTL(LONG_TTL)
   @Get("statistics/compare")
   async getCompareStatistics(
     @Query() filter: CompareStatisticsFilterRequestDto,
@@ -126,7 +127,7 @@ export class JobController {
       "Retrieve top-in-market data for multiple categories in a single request for comparison.",
   })
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(60 * 60 * 1000) // 60 mins
+  @CacheTTL(LONG_TTL)
   @Get("statistics/top-in-market/compare")
   @ApiResponseDto(CompareTopInMarketResponseDto)
   async getCompareTopInMarket(
@@ -270,7 +271,7 @@ export class JobController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobResponseDto)
   @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(10 * 60 * 1000) // 10 mins
+  @CacheTTL(SHORT_TTL)
   @Get(":id")
   async getJobById(
     @Param("id") jobId: string,
