@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
-import { SHORT_TTL, LONG_TTL } from "@/common/constants";
+import { SHORT_TTL, LONG_TTL, CACHE_KEYS } from "@/common/constants";
 import {
   IOrganizationRepository,
   NewOrganizationWithDetails,
@@ -34,6 +34,7 @@ import {
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
+import { cacheWithRetryBackoff } from "@/common/utils";
 
 @Injectable()
 export class OrganizationRepository
@@ -48,106 +49,110 @@ export class OrganizationRepository
   }
 
   async get(id: string): Promise<OrganizationWithDetails | null> {
-    const cacheKey = `org:get:${id}`;
-    const cached = await this.cacheManager.get<OrganizationWithDetails | null>(
-      cacheKey,
+    const key = CACHE_KEYS.organization.get(id);
+    return cacheWithRetryBackoff<OrganizationWithDetails | null>(
+      key,
+      () => this.cacheManager.get<OrganizationWithDetails | null>(key),
+      () => super.get(id),
+      (data: OrganizationWithDetails | null) =>
+        this.cacheManager.set<OrganizationWithDetails | null>(
+          CACHE_KEYS.organization.get(id),
+          data,
+          SHORT_TTL,
+        ),
     );
-    if (cached !== undefined) return cached;
-
-    const result = await super.get(id);
-    if (result) {
-      await this.cacheManager.set(cacheKey, result, SHORT_TTL);
-    }
-    return result;
   }
 
   async getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null> {
-    const cacheKey = `org:getById:${id}`;
-    const cached = await this.cacheManager.get<OrganizationWithDetails | null>(
+    const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
+    return cacheWithRetryBackoff<OrganizationWithDetails | null>(
       cacheKey,
+      () => this.cacheManager.get<OrganizationWithDetails | null>(cacheKey),
+      async () => {
+        const result = await this.db
+          .select({
+            // Organization fields
+            id: organizations.id,
+            name: organizations.name,
+            slug: organizations.slug,
+            type: organizations.type,
+            description: organizations.description,
+            address: organizations.address,
+            logoUrl: organizations.logoUrl,
+            about: organizations.about,
+            websiteUrl: organizations.websiteUrl,
+            email: organizations.email,
+            phone: organizations.phone,
+            foundedYear: organizations.foundedYear,
+            verifiedAt: organizations.verifiedAt,
+            employeesMin: organizations.employeesMin,
+            employeesMax: organizations.employeesMax,
+            createdAt: organizations.createdAt,
+            updatedAt: organizations.updatedAt,
+            deletedAt: organizations.deletedAt,
+            // Company fields (nullable)
+            companySize: companies.companySize,
+            taxCode: companies.taxCode,
+            benefits: companies.benefits,
+            companyRawId: companies.companyRawId,
+            culture: companies.culture,
+            // School fields (nullable)
+            schoolType: schools.schoolType,
+          })
+          .from(organizations)
+          .leftJoin(companies, eq(organizations.id, companies.organizationId))
+          .leftJoin(schools, eq(organizations.id, schools.organizationId))
+          .where(eq(organizations.id, id));
+
+        if (!result[0]) {
+          await this.cacheManager.set(cacheKey, null, SHORT_TTL);
+          return null;
+        }
+
+        const locations = await this.db
+          .select({
+            id: organizationLocations.id,
+            organizationId: organizationLocations.organizationId,
+            address: organizationLocations.address,
+            provinceId: organizationLocations.provinceId,
+            provinceName: provinces.name,
+            createdAt: organizationLocations.createdAt,
+            updatedAt: organizationLocations.updatedAt,
+            deletedAt: organizationLocations.deletedAt,
+          })
+          .from(organizationLocations)
+          .leftJoin(
+            provinces,
+            eq(organizationLocations.provinceId, provinces.id),
+          )
+          .where(eq(organizationLocations.organizationId, id))
+          .execute();
+
+        const row = result[0];
+
+        const mappedResult = {
+          ...row,
+          companySize: row.companySize,
+          taxCode: row.taxCode,
+          benefits: row.benefits,
+          culture: row.culture,
+          schoolType: row.schoolType as SchoolTypeEnum,
+          locations: locations,
+        };
+        return mappedResult;
+      },
+      (data: OrganizationWithDetails | null) =>
+        this.cacheManager.set<OrganizationWithDetails | null>(
+          cacheKey,
+          data,
+          SHORT_TTL,
+        ),
     );
-    if (cached !== undefined) return cached;
-
-    const result = await this.db
-      .select({
-        // Organization fields
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        type: organizations.type,
-        description: organizations.description,
-        address: organizations.address,
-        logoUrl: organizations.logoUrl,
-        about: organizations.about,
-        websiteUrl: organizations.websiteUrl,
-        email: organizations.email,
-        phone: organizations.phone,
-        foundedYear: organizations.foundedYear,
-        verifiedAt: organizations.verifiedAt,
-        employeesMin: organizations.employeesMin,
-        employeesMax: organizations.employeesMax,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-        deletedAt: organizations.deletedAt,
-        // Company fields (nullable)
-        companySize: companies.companySize,
-        taxCode: companies.taxCode,
-        benefits: companies.benefits,
-        companyRawId: companies.companyRawId,
-        culture: companies.culture,
-        // School fields (nullable)
-        schoolType: schools.schoolType,
-      })
-      .from(organizations)
-      .leftJoin(companies, eq(organizations.id, companies.organizationId))
-      .leftJoin(schools, eq(organizations.id, schools.organizationId))
-      .where(eq(organizations.id, id));
-
-    if (!result[0]) {
-      await this.cacheManager.set(cacheKey, null, SHORT_TTL);
-      return null;
-    }
-
-    const locations = await this.db
-      .select({
-        id: organizationLocations.id,
-        organizationId: organizationLocations.organizationId,
-        address: organizationLocations.address,
-        provinceId: organizationLocations.provinceId,
-        provinceName: provinces.name,
-        createdAt: organizationLocations.createdAt,
-        updatedAt: organizationLocations.updatedAt,
-        deletedAt: organizationLocations.deletedAt,
-      })
-      .from(organizationLocations)
-      .leftJoin(provinces, eq(organizationLocations.provinceId, provinces.id))
-      .where(eq(organizationLocations.organizationId, id))
-      .execute();
-
-    const row = result[0];
-
-    const mappedResult = {
-      ...row,
-      companySize: row.companySize,
-      taxCode: row.taxCode,
-      benefits: row.benefits,
-      culture: row.culture,
-      schoolType: row.schoolType as SchoolTypeEnum,
-      locations: locations,
-    };
-
-    await this.cacheManager.set(cacheKey, mappedResult, SHORT_TTL);
-    return mappedResult;
   }
 
   async getAllOrganizations(query: OrganizationQuery) {
-    const cacheKey = `org:getAll:${JSON.stringify(query)}`;
-    const cached = await this.cacheManager.get<any>(cacheKey);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    if (cached !== undefined) return cached;
-
     const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
 
     if (query.keyword) {
@@ -229,16 +234,10 @@ export class OrganizationRepository
         hasNextPage,
       },
     };
-    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
     return resultToSend;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
-    const cacheKey = `org:getMy:${userId}:${JSON.stringify(query)}`;
-    const cached = await this.cacheManager.get<any>(cacheKey);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    if (cached !== undefined) return cached;
-
     const whereConditions: SQL<unknown>[] = [
       isNull(organizations.deletedAt),
       isNull(organizationMembers.deletedAt),
@@ -284,7 +283,6 @@ export class OrganizationRepository
         hasNextPage,
       },
     };
-    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
     return resultToSend;
   }
 
@@ -310,10 +308,6 @@ export class OrganizationRepository
   }
 
   async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
-    const cacheKey = `org:getMembers:${orgId}`;
-    const cached = await this.cacheManager.get<{ id: string }[]>(cacheKey);
-    if (cached !== undefined) return cached;
-
     const results = await this.db
       .select({
         id: organizationMembers.userId,
@@ -325,7 +319,6 @@ export class OrganizationRepository
       )
       .where(eq(organizationMembers.organizationId, orgId));
 
-    await this.cacheManager.set(cacheKey, results, SHORT_TTL);
     return results;
   }
 
@@ -390,11 +383,6 @@ export class OrganizationRepository
   async getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]> {
-    const cacheKey = `org:getByTypes:${types.sort().join(",")}`;
-    const cached =
-      await this.cacheManager.get<OrganizationWithDetails[]>(cacheKey);
-    if (cached !== undefined) return cached;
-
     const result = await this.db
       .select({
         id: organizations.id,
@@ -427,10 +415,7 @@ export class OrganizationRepository
       .leftJoin(schools, eq(organizations.id, schools.organizationId))
       .where(or(...types.map((type) => eq(organizations.type, type))));
 
-    if (!result) {
-      await this.cacheManager.set(cacheKey, [], SHORT_TTL);
-      return [];
-    }
+    if (!result) return [];
 
     const resultToSend = result.map((row) => ({
       ...row,
@@ -441,7 +426,6 @@ export class OrganizationRepository
       schoolType: row.schoolType as SchoolTypeEnum,
     }));
 
-    await this.cacheManager.set(cacheKey, resultToSend, SHORT_TTL);
     return resultToSend;
   }
 }
