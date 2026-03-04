@@ -1,5 +1,6 @@
 import { Transform, plainToClass } from "class-transformer";
 import {
+  IsArray,
   IsEnum,
   IsNumber,
   IsOptional,
@@ -124,6 +125,10 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
+
+  @IsArray()
+  @IsString({ each: true })
+  CORS_ORIGINS: string[];
 }
 
 export default (): Record<string, any> => ({
@@ -180,6 +185,10 @@ export default (): Record<string, any> => ({
     process.env.SLOW_API_THRESHOLD_MS || "1000",
     10,
   ),
+
+  CORS_ORIGINS: (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim()),
 });
 
 export const validateConfig = (
