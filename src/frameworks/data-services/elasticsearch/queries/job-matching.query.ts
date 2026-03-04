@@ -41,11 +41,13 @@ export class JobMatchingQuery {
 
     const mustQueries: any[] = [
       { term: { status } },
+      // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
-        range: {
-          endDate: {
-            gte: "now/d",
-          },
+        bool: {
+          should: [
+            { range: { endDate: { gte: "now/d" } } },
+            { bool: { must_not: { exists: { field: "endDate" } } } },
+          ],
         },
       },
     ];
@@ -112,7 +114,8 @@ export class JobMatchingQuery {
               bool: {
                 must: mustQueries,
                 should: shouldQueries,
-                minimum_should_match: shouldQueries.length > 0 ? 1 : 0,
+                // should queries only boost score, not filter
+                minimum_should_match: 0,
               },
             },
             functions: [
@@ -303,8 +306,13 @@ export class JobMatchingQuery {
             "experienceMin",
             "experienceMax",
             "workType",
+            "status",
+            "endDate",
             "datePosted",
             "createdAt",
+            "updatedAt",
+            "categoryId",
+            "categoryName",
           ],
         },
       },
@@ -326,11 +334,13 @@ export class JobMatchingQuery {
 
     const mustQueries: any[] = [
       { term: { status } },
+      // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
-        range: {
-          endDate: {
-            gte: "now/d",
-          },
+        bool: {
+          should: [
+            { range: { endDate: { gte: "now/d" } } },
+            { bool: { must_not: { exists: { field: "endDate" } } } },
+          ],
         },
       },
     ];

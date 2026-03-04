@@ -70,7 +70,7 @@ jobs:
             exit 1
           fi
 
-          DAY_INDEX=$(date +%j)
+          DAY_INDEX=$(date +%-j)
           IDX=$(( DAY_INDEX % COUNT ))
 
           SELECTED="${KEYWORDS[$IDX]}"

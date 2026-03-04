@@ -55,14 +55,14 @@ export class EnvironmentVariables {
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
 
-  // @IsString()
-  // REDIS_HOST: string;
+  @IsString()
+  REDIS_HOST: string;
 
-  // @IsNumber()
-  // REDIS_PORT: number;
+  @IsNumber()
+  REDIS_PORT: number;
 
-  // @IsString()
-  // REDIS_PASSWORD: string;
+  @IsString()
+  REDIS_PASSWORD: string;
 
   // @IsNumber()
   // REDIS_DB: number;
@@ -124,6 +124,16 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  RATE_LIMIT_CAPACITY: number = 60;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  RATE_LIMIT_REFILL_RATE: number = 1;
 }
 
 export default (): Record<string, any> => ({
@@ -180,6 +190,10 @@ export default (): Record<string, any> => ({
     process.env.SLOW_API_THRESHOLD_MS || "1000",
     10,
   ),
+
+  // Rate limiting (token bucket)
+  RATE_LIMIT_CAPACITY: parseInt(process.env.RATE_LIMIT_CAPACITY || "60", 10),
+  RATE_LIMIT_REFILL_RATE: parseFloat(process.env.RATE_LIMIT_REFILL_RATE || "1"),
 });
 
 export const validateConfig = (

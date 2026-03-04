@@ -2,9 +2,8 @@
 from helpers.text import (
     safe_text,
     slugify,
-    clean_whitespace,
-    remove_html_tags,
     normalize_text,
+    html_to_mixed_content,
 )
 
 # Date utilities
@@ -41,63 +40,37 @@ from helpers.http import (
     fetch_page,
     create_scraper,
     crawl,
-    generate_realistic_headers,
-    create_browser_config,
 )
 
 # Security utilities
 from helpers.security import (
     is_safe_db_url,
-    sanitize_input,
-    is_valid_url,
     DISALLOWED_SCHEMES,
     BLACKLISTED_NETWORKS,
 )
 
+# Skill utilities
+from helpers.skills import (
+    COMMON_TECH_SKILLS,
+    extract_skills_from_text,
+)
 
-# Define __all__ for explicit public API
+
 __all__ = [
     # Text
-    "safe_text",
-    "slugify",
-    "clean_whitespace",
-    "remove_html_tags",
-    "normalize_text",
-    
+    "safe_text", "slugify", "normalize_text", "html_to_mixed_content",
     # Date
-    "parse_posted_date",
-    "vn_parse_posted_date",
-    "get_date_posted",
-    "vietnam_time_now",
-    
+    "parse_posted_date", "vn_parse_posted_date", "get_date_posted", "vietnam_time_now",
     # Extraction
-    "extract_salary",
-    "extract_employees",
-    "extract_employee_range",
-    "extract_experience_years",
-    "extract_experience_years_jobsgo",
-    
+    "extract_salary", "extract_employees", "extract_employee_range",
+    "extract_experience_years", "extract_experience_years_jobsgo",
     # Province
-    "VIETNAM_PROVINCES",
-    "is_likely_province",
-    "process_province",
-    "normalize_province_name",
-    "get_standard_province_name",
-    
+    "VIETNAM_PROVINCES", "is_likely_province", "process_province",
+    "normalize_province_name", "get_standard_province_name",
     # HTTP
-    "USER_AGENTS",
-    "get_headers",
-    "human_delay",
-    "fetch_page",
-    "create_scraper",
-    "crawl",
-    "generate_realistic_headers",
-    "create_browser_config",
-    
+    "USER_AGENTS", "get_headers", "human_delay", "fetch_page", "create_scraper", "crawl",
     # Security
-    "is_safe_db_url",
-    "sanitize_input",
-    "is_valid_url",
-    "DISALLOWED_SCHEMES",
-    "BLACKLISTED_NETWORKS",
+    "is_safe_db_url", "DISALLOWED_SCHEMES", "BLACKLISTED_NETWORKS",
+    # Skills
+    "COMMON_TECH_SKILLS", "extract_skills_from_text",
 ]
