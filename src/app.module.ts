@@ -29,10 +29,7 @@ import { ExamController } from "./interfaces/controllers/exam/exam.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import envConfig, {
-  Environment,
-  validateConfig,
-} from "./common/config/env.config";
+import { Environment, validateConfig } from "./common/config/env.config";
 import { AuthUseCasesModule } from "./use-cases/auth/auth-use-cases.module";
 import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
 import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
@@ -80,7 +77,7 @@ import { RateLimitMiddleware } from "./common/middlewares";
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
-      load: [envConfig],
+      // load: [envConfig],
       validate: validateConfig,
     }),
     ScheduleModule.forRoot(),
