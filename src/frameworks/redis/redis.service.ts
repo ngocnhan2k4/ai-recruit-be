@@ -1,9 +1,9 @@
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
 import { Redis } from "ioredis";
 
 @Injectable()
-export class RedisService implements IRedisService, OnModuleDestroy {
+export class RedisService implements ICacheService, OnModuleDestroy {
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
   async onModuleDestroy() {

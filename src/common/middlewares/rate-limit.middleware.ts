@@ -6,7 +6,7 @@ import {
   Inject,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 import { IncomingMessage, ServerResponse } from "http";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "../constants";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -21,7 +21,7 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   constructor(
     configService: ConfigService,
-    @Inject(IRedisService) private readonly redisService: IRedisService,
+    @Inject(ICacheService) private readonly cacheService: ICacheService,
   ) {
     this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 60);
     this.refillRate = configService.get<number>("RATE_LIMIT_REFILL_RATE", 1);
@@ -38,7 +38,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     const now = Date.now() / 1000;
 
     try {
-      const bucket = await (this.redisService as any).hgetall(key);
+      const bucket = await (this.cacheService as any).hgetall(key);
 
       let tokens: number;
       let lastRefill: number;
@@ -61,11 +61,11 @@ export class RateLimitMiddleware implements NestMiddleware {
         allowed = true;
       }
 
-      await (this.redisService as any).hset(key, {
+      await (this.cacheService as any).hset(key, {
         tokens: tokens.toString(),
         lastRefill: lastRefill.toString(),
       });
-      await (this.redisService as any).expire(key, this.ttlSeconds);
+      await (this.cacheService as any).expire(key, this.ttlSeconds);
 
       if (!allowed) {
         this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
