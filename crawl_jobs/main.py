@@ -70,7 +70,6 @@ def main():
 
     update_mode = args.mode == "update"
     
-    # Resolve page counts (individual options override global)
     itviec_pages = args.itviec_pages or args.pages
     linkedin_pages = args.linkedin_pages or args.pages
     topcv_pages = args.topcv_pages or args.pages

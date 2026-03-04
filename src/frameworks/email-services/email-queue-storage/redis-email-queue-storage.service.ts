@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IEmailQueueStorageService } from "@/core/abstracts/email-queue-storage.abstract";
 import { EmailJob } from "@/core/entities/email.entity";
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 
 @Injectable()
 export class RedisEmailQueueStorageService
@@ -10,7 +10,7 @@ export class RedisEmailQueueStorageService
   private readonly logger = new Logger(RedisEmailQueueStorageService.name);
   private readonly QUEUE_KEY = "email:queue";
 
-  constructor(private readonly redisService: IRedisService) {}
+  constructor(private readonly redisService: ICacheService) {}
 
   addToQueue(job: EmailJob): void {
     // Use fire-and-forget pattern for non-blocking

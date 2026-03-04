@@ -1,9 +1,9 @@
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
 import { Redis } from "ioredis";
 
 @Injectable()
-export class RedisService implements IRedisService, OnModuleDestroy {
+export class RedisService implements ICacheService, OnModuleDestroy {
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
   async onModuleDestroy() {
@@ -59,6 +59,19 @@ export class RedisService implements IRedisService, OnModuleDestroy {
     } else {
       await this.redis.set(`${key}:metadata`, value);
     }
+  }
+
+  // Hash operations
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return this.redis.hgetall(key);
+  }
+
+  async hset(key: string, data: Record<string, any>): Promise<void> {
+    await this.redis.hset(key, data);
+  }
+
+  async expire(key: string, seconds: number): Promise<void> {
+    await this.redis.expire(key, seconds);
   }
 
   // Sorted Set operations for queue
