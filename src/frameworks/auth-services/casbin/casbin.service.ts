@@ -1,12 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { PtypeEnum, RoleEnum } from "@/common/constants/roles";
+import { PtypeEnum, RoleEnum } from "@/common/constants";
 import { newSyncedEnforcer, SyncedEnforcer } from "casbin";
 import path from "path";
 import { DrizzleCasbinAdapter } from "./casbin.adapter";
 import { ConfigService } from "@nestjs/config";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin/casbin.dto";
-import { PaginatedResult } from "@/common/types/api";
+import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin";
+import { PaginatedResult } from "@/common/types";
 import { eq, and, count, SQL, asc, desc, gt } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
 import { ICasbinRepository } from "@/core";
@@ -51,10 +51,12 @@ export class CasbinService {
       this.sharedAdapter,
     );
 
-    // Load filtered policies: all "p" policies + user's "g" policies
+    // Load filtered policies: all "p" policies + user's "g" and "g2" policies
     await newEnforcer.loadFilteredPolicy([
-      { ptype: "p" }, // All policies
-      { ptype: "g", v0: userId }, // Only this user's role assignments
+      { ptype: "p" }, // All system-level policies
+      { ptype: "p2" }, // All domain-level policies
+      { ptype: "g", v0: userId }, // Only this user's system-level role assignments
+      { ptype: "g2", v0: userId }, // Only this user's organization-level role assignments
     ]);
 
     // Cache the enforcer
@@ -185,7 +187,22 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    return await this.enforcer.addNamedGroupingPolicy(user, role, domainId);
+    // Always uppercase role for consistency
+    const normalizedRole = role.toUpperCase();
+
+    const result = await this.enforcer.addNamedGroupingPolicy(
+      PtypeEnum.DOMAIN_ASSIGNMENT,
+      user,
+      normalizedRole,
+      domainId,
+    );
+
+    // Clear user's cached enforcer so it reloads with new g2 policy
+    if (result) {
+      this.cache.delete(user);
+    }
+
+    return result;
   }
 
   async deleteRoleForUserInDomain(
@@ -193,7 +210,22 @@ export class CasbinService {
     role: string,
     domainId: string,
   ): Promise<boolean> {
-    return await this.enforcer.removeNamedGroupingPolicy(user, role, domainId);
+    // Always uppercase role for consistency
+    const normalizedRole = role.toUpperCase();
+
+    const result = await this.enforcer.removeNamedGroupingPolicy(
+      PtypeEnum.DOMAIN_ASSIGNMENT,
+      user,
+      normalizedRole,
+      domainId,
+    );
+
+    // Clear user's cached enforcer so it reloads without old g2 policy
+    if (result) {
+      this.cache.delete(user);
+    }
+
+    return result;
   }
 
   async getRolesForUser(user: string): Promise<string[]> {

@@ -1,12 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { Company, ICompanyRepository } from "@/core";
+import { Company, ICompanyRepository, NewCompany } from "@/core";
 import { companies } from "../models/company.model";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import { count, desc, lt } from "drizzle-orm";
 import { isNull } from "drizzle-orm";
 import { eq, and, ilike } from "drizzle-orm";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { CompanyFilters } from "@/core/entities/company.entity";
 import {
   organizationLocations,
@@ -111,5 +111,40 @@ export class CompanyRepository
         total: totalCount,
       },
     };
+  }
+
+  async createCompany(
+    data: NewCompany,
+    tx?: DBDrizzleTransaction,
+  ): Promise<Company> {
+    const database = tx || this.db;
+    const insertData = {
+      ...data,
+    };
+    const result = await database
+      .insert(companies)
+      .values(insertData)
+      .returning();
+    return {
+      ...data,
+      organizationId: result[0].organizationId,
+    } as Company;
+  }
+
+  async updateCompany(
+    orgId: string,
+    data: Partial<NewCompany>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<Company> {
+    const dbClient = tx || this.db;
+    const [company] = await dbClient
+      .update(companies)
+      .set({
+        ...data,
+      })
+      .where(eq(companies.organizationId, orgId))
+      .returning();
+
+    return company as Company;
   }
 }

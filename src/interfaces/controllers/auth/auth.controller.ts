@@ -16,10 +16,8 @@ import {
 } from "../../dtos";
 import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
-import { REFRESH_TOKEN } from "@/common/constants/token";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
-
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
@@ -45,7 +43,11 @@ export class AuthController {
   ): Promise<ApiResponse<LoginResponseDto>> {
     const result = await this.authUseCases.logIn(loginDto.idToken);
 
-    if (!result.data) throw new Error("Login failed");
+    if (!result.data)
+      throw new BadRequestException({
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        message: "Login failed",
+      });
 
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,

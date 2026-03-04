@@ -10,24 +10,27 @@ import {
   Delete,
   Param,
 } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../../dtos";
+import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import {
-  QueryJobDto,
-  CreateJobDto,
-  UpdateJobDto,
-} from "../../dtos/jobs/job-query.dto";
+  ApiResponse,
+  ApiResponseDto,
+  TopInMarketDtoResponse,
+} from "../../dtos";
+import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
   JobResponseDto,
-} from "../../dtos/jobs/job.dto";
+} from "@/interfaces/dtos";
 import {
   StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
-} from "../../dtos";
+  CompareStatisticsFilterRequestDto,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
+} from "@/interfaces/dtos";
 import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
@@ -36,16 +39,17 @@ import {
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
-} from "../../dtos/jobs/job-interaction.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards/optional-jwt-auth.guard";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
-import { GeneralQueryDto } from "../../dtos/common/query";
-import { PaginatedResultDto } from "../../dtos/common/query";
-import { RoleEnum } from "@/common/constants/roles";
+import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
+import { GeneralQueryDto } from "@/interfaces/dtos";
+import { PaginatedResultDto } from "@/interfaces/dtos";
+import { RoleEnum } from "@/common/constants";
 
 @ApiTags("Jobs")
+@ApiBearerAuth()
 @Controller("jobs")
 export class JobController {
   constructor(private readonly jobUseCases: JobUseCases) {}
@@ -76,12 +80,48 @@ export class JobController {
     description:
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
-  @ApiResponseDto(StatisticsJobResponse)
   @Get("statistics")
-  async getStatisticsJob(
+  async getJobStatistics(
     @Query() filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
-    return this.jobUseCases.getStatisticsJobs(filter);
+    return this.jobUseCases.getJobStatistics(filter);
+  }
+
+  @ApiOperation({
+    summary: "Get top in market",
+    description:
+      "Retrieve top applied jobs, top employers, and top job categories in the market.",
+  })
+  @Get("statistics/top-in-market")
+  async getTopInMarket(
+    @Query() filter: StatisticsJobFilterRequestDto,
+  ): Promise<ApiResponse<TopInMarketDtoResponse>> {
+    return this.jobUseCases.getTopInMarket(filter);
+  }
+
+  @ApiOperation({
+    summary: "Compare job statistics across multiple categories",
+    description:
+      "Retrieve job statistics for multiple categories in a single request for comparison.",
+  })
+  @Get("statistics/compare")
+  async getCompareStatistics(
+    @Query() filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareStatisticsResponseDto>> {
+    return this.jobUseCases.getCompareStatistics(filter);
+  }
+
+  @ApiOperation({
+    summary: "Compare top-in-market data across multiple categories",
+    description:
+      "Retrieve top-in-market data for multiple categories in a single request for comparison.",
+  })
+  @Get("statistics/top-in-market/compare")
+  @ApiResponseDto(CompareTopInMarketResponseDto)
+  async getCompareTopInMarket(
+    @Query() filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareTopInMarketResponseDto>> {
+    return this.jobUseCases.getCompareTopInMarket(filter);
   }
 
   @ApiOperation({
@@ -202,10 +242,14 @@ export class JobController {
     @Body() updateJobDto: UpdateJobDto,
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, {
-      ...updateJobDto,
-      userId: user.userId,
-    });
+    return await this.jobUseCases.updateJob(
+      jobId,
+      {
+        ...updateJobDto,
+        userId: user.userId,
+      },
+      user,
+    );
   }
 
   @ApiOperation({

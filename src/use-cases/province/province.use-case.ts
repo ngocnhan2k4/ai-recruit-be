@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IProvinceRepository } from "../../core/abstracts";
 import { ApiResponse, ProvinceDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE } from "@/common/constants/response";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @Injectable()
 export class ProvinceUseCases {
@@ -9,7 +9,7 @@ export class ProvinceUseCases {
   constructor(private readonly provinceRepository: IProvinceRepository) {}
 
   async getProvinces(): Promise<ApiResponse<ProvinceDto[]>> {
-    const data = await this.provinceRepository.getAll(["id", "name"]);
+    const data = await this.provinceRepository.getAllProvinces();
     this.logger.log(`Fetched ${data.length} provinces`);
     return {
       message: "Provinces fetched successfully",

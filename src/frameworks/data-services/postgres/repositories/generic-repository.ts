@@ -1,10 +1,11 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { IGenericRepository } from "@/core";
 import { Inject } from "@nestjs/common";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
+import { ID } from "@/common/types";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -27,7 +28,7 @@ export class GenericRepository<T, TTable extends object>
       .from(this._table as any)) as Pick<T, K>[];
   }
 
-  async get(id: string | number): Promise<T | null> {
+  async get(id: ID): Promise<T | null> {
     const result = await this.db
       .select()
       .from(this._table as any)
@@ -35,14 +36,28 @@ export class GenericRepository<T, TTable extends object>
     return (result[0] as T) || null;
   }
 
+  async getByIds(ids: ID[]): Promise<T[]> {
+    if (ids.length === 0) return [];
+    const result = await this.db
+      .select()
+      .from(this._table as any)
+      .where(inArray((this._table as any).id, ids));
+    return result as T[];
+  }
+
   async getByField(field: Partial<T>, omit: (keyof T)[] = []): Promise<T[]> {
     const keys = Object.keys(field) as (keyof T)[];
     if (keys.length === 0) {
       return [];
     }
-    const conditions = keys.map((key) =>
-      eq((this._table as any)[key as string], field[key]),
-    );
+    const conditions = keys.map((key) => {
+      const value = field[key];
+      // Use isNull() for null values to generate proper "IS NULL" SQL
+      if (value === null) {
+        return isNull((this._table as any)[key as string]);
+      }
+      return eq((this._table as any)[key as string], value);
+    });
 
     const allColumns = Object.keys(this._table) as (keyof T)[];
     const selectedColumns = allColumns.filter((c) => !omit.includes(c));
@@ -59,8 +74,9 @@ export class GenericRepository<T, TTable extends object>
     return result as T[];
   }
 
-  async create(item: Partial<T>): Promise<T> {
-    const result = await this.db
+  async create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T> {
+    const dbClient = tx ?? this.db;
+    const result = await dbClient
       .insert(this._table as any)
       .values(
         item as {
@@ -71,12 +87,18 @@ export class GenericRepository<T, TTable extends object>
     return result[0] as T;
   }
 
-  async update(where: Partial<T>, item: Partial<T>): Promise<T[]> {
+  async update(
+    where: Partial<T>,
+    item: Partial<T>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
     const conditions = Object.entries(where).map(([key, value]) =>
       eq((this._table as any)[key], value),
     );
 
-    const result = await this.db
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
       .update(this._table as any)
       .set(
         item as {
@@ -88,12 +110,32 @@ export class GenericRepository<T, TTable extends object>
     return result;
   }
 
-  async delete(where: Partial<T>): Promise<T[]> {
+  async delete(where: Partial<T>, tx?: DBDrizzleTransaction): Promise<T[]> {
     const conditions = Object.entries(where).map(([key, value]) =>
       eq((this._table as any)[key], value),
     );
 
-    const result = await this.db
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
+      .update(this._table as any)
+      .set({ deletedAt: new Date() })
+      .where(and(...conditions))
+      .returning();
+    return result as T[];
+  }
+
+  async deletePermanently(
+    where: Partial<T>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
+    const conditions = Object.entries(where).map(([key, value]) =>
+      eq((this._table as any)[key], value),
+    );
+
+    const dbClient = tx ?? this.db;
+
+    const result = await dbClient
       .delete(this._table as any)
       .where(and(...conditions))
       .returning();

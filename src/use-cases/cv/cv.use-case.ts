@@ -5,12 +5,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import {
-  CvDto,
-  CvListResponseDto,
-  CvRequestDto,
-} from "@/interfaces/dtos/cv/cv.dto";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { MultipartFile } from "@fastify/multipart";
 import { ICvRepository } from "@/core";
@@ -235,8 +231,8 @@ export class CvUseCases {
     }
 
     // Delete CV record from database (soft delete)
-    const deleted = await this.cvRepository.delete({ id: cvId });
-    if (deleted.length === 0) {
+    const result = await this.cvRepository.deletePermanently({ id: cvId });
+    if (result.length === 0) {
       throw new BadRequestException({
         message: "Failed to delete CV from database",
         code: RESPONSE_CODE.CV_NOT_DELETED,

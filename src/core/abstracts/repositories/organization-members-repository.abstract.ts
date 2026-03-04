@@ -1,7 +1,7 @@
 import { OrganizationMember, User } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { MemberQuery } from "@/core/entities/organization-members.entity";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 
 export abstract class IOrganizationMembersRepository extends IGenericRepository<OrganizationMember> {
   abstract getAllMembers(
@@ -16,4 +16,9 @@ export abstract class IOrganizationMembersRepository extends IGenericRepository<
   >;
 
   abstract getMemberRole(orgId: string, userId: string): Promise<string | null>;
+
+  abstract isActiveMember(
+    organizationId: string,
+    userId: string,
+  ): Promise<boolean>;
 }

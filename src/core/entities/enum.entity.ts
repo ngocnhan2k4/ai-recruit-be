@@ -1,5 +1,4 @@
 export enum JobStatusEnum {
-  DRAFT = "draft",
   PENDING_APPROVAL = "pending_approval",
   ACTIVE = "active",
   PAUSED = "paused",
@@ -55,6 +54,7 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
+  ORGANIZATION_INVITED = "organization_invited",
   SYSTEM = "system",
 }
 export enum NotificationStatusEnum {
@@ -86,6 +86,17 @@ export enum OrganizationRoleEnum {
   ANONYMOUSLY = "anonymously",
 }
 
+export enum OrganizationInviteStatusEnum {
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  DECLINED = "declined",
+}
+
+export enum OrganizationInvitationTypeEnum {
+  INCOMING = "incoming",
+  OUTGOING = "outgoing",
+}
+
 export enum DomainTypeEnum {
   ORGANIZATION = "org",
   ALL = "*",
@@ -95,4 +106,64 @@ export enum UpdateJobTypeEnum {
   UPDATE = "update",
   APPROVAL = "approval",
   REJECTED = "rejected",
+}
+export enum FeedbackStatusEnum {
+  PENDING = "pending",
+  READ = "read",
+  RESOLVED = "resolved",
+}
+
+export enum SkillLevelEnum {
+  BEGINNER = "beginner",
+  INTERMEDIATE = "intermediate",
+  ADVANCED = "advanced",
+}
+
+export enum ResourceTypeEnum {
+  VIDEO = "video",
+  COURSE = "course",
+  ARTICLE = "article",
+  BOOK = "book",
+  DOCUMENTATION = "documentation",
+}
+
+export enum GapDifficultyEnum {
+  EASY = "easy",
+  MEDIUM = "medium",
+  HARD = "hard",
+}
+
+export enum CvLanguageEnum {
+  ENGLISH = "en",
+  VIETNAMESE = "vi",
+}
+
+export enum CvTemplateEnum {
+  CLASSIC = "classic",
+  MODERN_BLUE = "modern-blue",
+  MODERN_GREEN = "modern-green",
+}
+
+export enum EmailJobType {
+  ORGANIZATION_INVITATION = "organization_invitation",
+  ORGANIZATION_VERIFICATION = "organization_verification",
+  ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
+  JOB_RECOMMENDATIONS = "job_recommendations",
+  CUSTOM = "custom",
+}
+
+export enum OtpPurpose {
+  VERIFY_EMAIL = "VERIFY_EMAIL",
+  VERIFY_ORGANIZATION_EMAIL = "VERIFY_ORGANIZATION_EMAIL",
+  CHANGE_ORGANIZATION_EMAIL = "CHANGE_ORGANIZATION_EMAIL",
+}
+
+export enum UserInteractionEnum {
+  SAVE = "save",
+  HIDE = "hide",
+}
+export enum PhaseStatusEnum {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
 }

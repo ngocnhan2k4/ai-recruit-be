@@ -6,3 +6,29 @@ services:
       - .env
     ports:
       - "3000:3000"
+
+  elasticsearch:
+    build: "./pkg/elasticsearch"
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  esdata:

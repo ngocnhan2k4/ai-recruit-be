@@ -1,4 +1,4 @@
-import { GeneralQuery } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types";
 import { OrganizationWithDetails, User } from ".";
 
 export interface NotificationFilter extends GeneralQuery {

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_MESSAGE } from "@/common/constants";
 import { MultipartFile } from "@fastify/multipart";
 
 @Injectable()

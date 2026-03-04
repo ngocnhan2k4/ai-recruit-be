@@ -19,6 +19,18 @@ import {
   IUserOnboardingRepository,
   INotificationRepository,
   IOrganizationRepository,
+  IFeedbackRepository,
+  ILearningRoadmapRepository,
+  IRoadmapPhaseRepository,
+  IRoadmapSkillRepository,
+  IRoadmapSkillOptionRepository,
+  IAreaRepository,
+  IQuestionRepository,
+  ILevelRepository,
+  IUserTestRepository,
+  IUserAnswerRepository,
+  IImportLogRepository,
+  IWeeklyProgressRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -38,6 +50,26 @@ import { NotificationRepository } from "./repositories/notification.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { UserEducationRepository } from "./repositories/user-education.repository";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { ISchoolRepository } from "@/core/abstracts/repositories/school-repository.abstract";
+import { SchoolRepository } from "./repositories/school.repository copy";
+import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
+import { OrganizationLocationRepository } from "./repositories/organization-location.repository";
+import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
+import { OrganizationMemberInvitationsRepository } from "./repositories/organization-member-invitation.repository";
+import { FeedbackRepository } from "./repositories/feedback.repository";
+import { LearningRoadmapRepository } from "./repositories/learning-roadmap.repository";
+import { RoadmapPhaseRepository } from "./repositories/roadmap-phase.repository";
+import { RoadmapSkillRepository } from "./repositories/roadmap-skill.repository";
+import { RoadmapSkillOptionRepository } from "./repositories/roadmap-skill-option.repository";
+import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
+import { AiCvRepository } from "./repositories/ai-cv.repository";
+import { AreaRepository } from "./repositories/area.repository";
+import { QuestionRepository } from "./repositories/question.repository";
+import { LevelRepository } from "./repositories/level.repository";
+import { UserTestRepository } from "./repositories/user-test.repository";
+import { UserAnswerRepository } from "./repositories/user-answer.repository";
+import { ImportLogRepository } from "./repositories/import-log.repository";
+import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
 
 @Global()
 @Module({
@@ -58,6 +90,8 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          // Wrap pool để log SQL queries
           const maxRetries = 3;
           let attempt = 0;
           let connected = false;
@@ -111,6 +145,14 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
       useClass: CompanyRepository,
     },
     {
+      provide: ISchoolRepository,
+      useClass: SchoolRepository,
+    },
+    {
+      provide: IOrganizationLocationRepository,
+      useClass: OrganizationLocationRepository,
+    },
+    {
       provide: IJobRepository,
       useClass: JobRepository,
     },
@@ -158,13 +200,68 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
       provide: IUserEducationRepository,
       useClass: UserEducationRepository,
     },
+    {
+      provide: IOrganizationMemberInvitationRepository,
+      useClass: OrganizationMemberInvitationsRepository,
+    },
+    {
+      provide: IFeedbackRepository,
+      useClass: FeedbackRepository,
+    },
+    {
+      provide: ILearningRoadmapRepository,
+      useClass: LearningRoadmapRepository,
+    },
+    {
+      provide: IRoadmapPhaseRepository,
+      useClass: RoadmapPhaseRepository,
+    },
+    {
+      provide: IRoadmapSkillRepository,
+      useClass: RoadmapSkillRepository,
+    },
+    {
+      provide: IRoadmapSkillOptionRepository,
+      useClass: RoadmapSkillOptionRepository,
+    },
+    {
+      provide: IAreaRepository,
+      useClass: AreaRepository,
+    },
+    {
+      provide: IQuestionRepository,
+      useClass: QuestionRepository,
+    },
+    {
+      provide: ILevelRepository,
+      useClass: LevelRepository,
+    },
+    {
+      provide: IUserTestRepository,
+      useClass: UserTestRepository,
+    },
+    {
+      provide: IUserAnswerRepository,
+      useClass: UserAnswerRepository,
+    },
+    {
+      provide: IImportLogRepository,
+      useClass: ImportLogRepository,
+    },
+    {
+      provide: IAiCvRepository,
+      useClass: AiCvRepository,
+    },
+    {
+      provide: IWeeklyProgressRepository,
+      useClass: WeeklyProgressRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
     IAuthRepository,
     ICategoryRepository,
     ICasbinRepository,
-    ICompanyRepository,
     ICvRepository,
     IJobRepository,
     IProvinceRepository,
@@ -173,10 +270,27 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
     IUserSkillRepository,
     IUserRepository,
     IUserOnboardingRepository,
-    IOrganizationMembersRepository,
     INotificationRepository,
-    IOrganizationRepository,
     IUserEducationRepository,
+    IOrganizationRepository,
+    ICompanyRepository,
+    IOrganizationMembersRepository,
+    ISchoolRepository,
+    IOrganizationLocationRepository,
+    IOrganizationMemberInvitationRepository,
+    IFeedbackRepository,
+    ILearningRoadmapRepository,
+    IRoadmapPhaseRepository,
+    IRoadmapSkillRepository,
+    IRoadmapSkillOptionRepository,
+    IAreaRepository,
+    IQuestionRepository,
+    ILevelRepository,
+    IUserTestRepository,
+    IUserAnswerRepository,
+    IImportLogRepository,
+    IAiCvRepository,
+    IWeeklyProgressRepository,
   ],
 })
 export class PostgresDataServicesModule {}

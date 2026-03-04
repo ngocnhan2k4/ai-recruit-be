@@ -1,26 +1,37 @@
-import { TokenPayload } from "@/common/types/token";
+import { TokenPayload, GeneralQuery } from "@/common/types";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
-import { GeneralQuery } from "@/common/types/api";
-import { Job, OrganizationWithDetails, Province, Skill } from ".";
+import {
+  Category,
+  Company,
+  Job,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+} from ".";
 
 export interface JobFilters extends GeneralQuery {
-  organizationId?: string;
+  organizationId?: OrganizationWithDetails["id"];
   salaryMin?: number;
   salaryMax?: number;
   experienceMin?: number;
   experienceMax?: number;
-  provinceId?: string;
-  companyId?: string;
+  provinceId?: Province["id"];
+  provinceIds?: Province["id"][];
+  companyId?: Company["id"];
+  categoryId?: Category["id"];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   user?: TokenPayload;
+  createdAtStart?: Date;
+  createdAtEnd?: Date;
+  isJobSystem?: boolean;
 }
 
 export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
   categoryId?: string;
-  provinceId?: string;
+  provinceId: Province["id"];
   isOpen?: boolean;
 }
 
@@ -33,6 +44,7 @@ export interface JobResponse {
   isApplied?: boolean;
   applyStatus?: string;
   applyId?: string;
+  category: Category;
 }
 
 // Job Application Related Entities
@@ -62,4 +74,16 @@ export interface JobCounts {
     status: JobStatusEnum;
     count: number;
   }[];
+}
+
+export interface TopInMarketResponse {
+  name: string;
+  logoUrl?: string;
+  count?: number;
+  percentage: number;
+}
+
+export enum JobEventType {
+  UPSERT = "upsert",
+  DELETE = "delete",
 }

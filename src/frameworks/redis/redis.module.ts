@@ -2,6 +2,7 @@ import { Module, Logger } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { Redis } from "ioredis";
 import { RedisService } from "./redis.service";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 
 @Module({
   imports: [ConfigModule],
@@ -39,7 +40,11 @@ import { RedisService } from "./redis.service";
       inject: [ConfigService],
     },
     RedisService,
+    {
+      provide: ICacheService,
+      useClass: RedisService,
+    },
   ],
-  exports: [RedisService, "REDIS_CLIENT"],
+  exports: [ICacheService],
 })
 export class RedisModule {}

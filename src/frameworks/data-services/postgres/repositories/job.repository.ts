@@ -13,6 +13,8 @@ import {
   ilike,
   asc,
   desc,
+  inArray,
+  lt,
 } from "drizzle-orm";
 import { Inject, Injectable } from "@nestjs/common";
 import {
@@ -20,18 +22,20 @@ import {
   companies,
   skills,
   jobSkills,
-  jobCategories,
+  categories,
   provinces,
   userInteractions,
   applyJobs,
   cvs,
   jobRaws,
+  users,
+  jobProvinces,
 } from "../models";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
-import { convertDateToStr } from "@/common/utils/date";
+import { convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import {
   IJobRepository,
@@ -42,6 +46,10 @@ import {
   Notification,
   NotificationType,
   IUserRepository,
+  Category,
+  User,
+  UserInteractionEnum,
+  ApplyJob,
 } from "@/core";
 import {
   Job,
@@ -55,16 +63,16 @@ import {
   UserInteractionResponse,
   JobAnswer,
   JobCounts,
+  TopInMarketResponse,
 } from "@/core/entities/job.entity";
-import { PaginatedResult } from "@/common/types/api";
-import { GeneralQuery } from "@/common/types/api";
+import { PaginatedResult, GeneralQuery } from "@/common/types";
 import { organizations } from "../models/organization.model";
 import {
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
 } from "@/core/entities/job.entity";
-import { getJobStatus } from "@/common/utils/string";
+import { getJobStatus } from "@/common/utils";
 
 @Injectable()
 export class JobRepository
@@ -106,7 +114,13 @@ export class JobRepository
     }
 
     if (filters?.provinceId) {
-      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = ${jobs.id} 
+          AND jp.province_id = ${filters.provinceId}
+        )`,
+      );
     }
 
     if (filters?.organizationId) {
@@ -121,6 +135,18 @@ export class JobRepository
       whereConditions.push(eq(jobs.status, filters.status));
     }
 
+    if (filters?.createdAtStart) {
+      whereConditions.push(gte(jobs.createdAt, filters.createdAtStart));
+    }
+
+    if (filters?.createdAtEnd) {
+      whereConditions.push(lte(jobs.createdAt, filters.createdAtEnd));
+    }
+
+    if (filters?.isJobSystem) {
+      whereConditions.push(isNull(jobs.jobRawId));
+    }
+
     const offset = (Math.max(page || 1, 1) - 1) * limit;
 
     // Add one extra item to check if there's a next page
@@ -130,9 +156,10 @@ export class JobRepository
           ...jobs,
           applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
         },
-        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
+        category: categories,
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -141,8 +168,9 @@ export class JobRepository
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
-          FROM ${provinces} p
-          WHERE p.id = ${jobs.provinceId}
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
         ) p_lateral`,
         sql`TRUE`,
       )
@@ -155,14 +183,16 @@ export class JobRepository
         ) s_lateral`,
         sql`TRUE`,
       )
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id))
       .offset(offset)
       .limit(limit)) as {
       job: Job;
       provinces: Province[];
       organization: OrganizationWithDetails;
       skills: Skill[];
+      category: Category;
     }[];
 
     const total = (
@@ -171,7 +201,7 @@ export class JobRepository
           total: countDistinct(jobs.id).as("total"),
         })
         .from(jobs)
-        .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
+        .leftJoin(categories, eq(jobs.categoryId, categories.id))
         .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     )[0]?.total;
 
@@ -210,7 +240,13 @@ export class JobRepository
     }
 
     if (filters?.provinceId) {
-      whereConditions.push(eq(jobs.provinceId, filters.provinceId));
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = ${jobs.id} 
+          AND jp.province_id = ${filters.provinceId}
+        )`,
+      );
     }
 
     if (filters?.organizationId) {
@@ -243,7 +279,7 @@ export class JobRepository
           data: [],
           pagination: { nextCursor: undefined, hasNextPage: false },
         };
-      whereConditions.push(gt(jobs.id, cursor));
+      whereConditions.push(lt(jobs.createdAt, new Date(Number(cursor))));
     }
 
     // Add one extra item to check if there's a next page
@@ -290,6 +326,7 @@ export class JobRepository
               LIMIT 1
             )`.as("applyId")
           : sql`NULL`.as("applyId"),
+        category: categories,
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -298,8 +335,9 @@ export class JobRepository
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
-          FROM ${provinces} p
-          WHERE p.id = ${jobs.provinceId}
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
         ) p_lateral`,
         sql`TRUE`,
       )
@@ -312,13 +350,17 @@ export class JobRepository
         ) s_lateral`,
         sql`TRUE`,
       )
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(asc(jobs.id))
+      .orderBy(
+        filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt),
+      )
       .limit(limit + 1)) as {
       job: Job;
       provinces: Province[];
       organization: OrganizationWithDetails;
       skills: Skill[];
+      category: Category;
     }[];
 
     // Check if there's a next page
@@ -326,11 +368,11 @@ export class JobRepository
     const data = hasNextPage ? result.slice(0, limit) : result;
 
     // Next cursor is only applicable for cursor pagination
+    // Use the last item from the sliced data, convert Date to timestamp
     const nextCursor =
-      hasNextPage && result[limit - 1]?.job
-        ? `${result[limit - 1].job.id}`
+      hasNextPage && data[data.length - 1]?.job?.createdAt
+        ? data[data.length - 1].job.createdAt.getTime()
         : undefined;
-
     return {
       data,
       pagination: {
@@ -351,7 +393,6 @@ export class JobRepository
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions))
       .groupBy(jobs.datePosted);
 
@@ -366,10 +407,317 @@ export class JobRepository
         totalJobs: countDistinct(jobs.id).as("totalJobs"),
       })
       .from(jobs)
-      .leftJoin(jobCategories, eq(jobs.id, jobCategories.jobId))
       .where(and(...conditions));
 
     return result[0]?.totalJobs ?? 0;
+  }
+
+  async countByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<{ categoryId: string; count: number }[]> {
+    if (categoryIds.length === 0) return [];
+
+    const conditions = this.buildJobFilterQuery(filter);
+    conditions.push(inArray(jobs.categoryId, categoryIds));
+
+    const rows = await this.db
+      .select({
+        categoryId: jobs.categoryId,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(and(...conditions))
+      .groupBy(jobs.categoryId);
+
+    return rows.map((r) => ({
+      categoryId: r.categoryId!,
+      count: Number(r.count ?? 0),
+    }));
+  }
+
+  async avgSalaryByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<{ categoryId: string; avgSalary: number }[]> {
+    if (categoryIds.length === 0) return [];
+
+    const conditions = this.buildJobFilterQuery(filter);
+    conditions.push(
+      inArray(jobs.categoryId, categoryIds),
+      isNotNull(jobs.salaryMin),
+      isNotNull(jobs.salaryMax),
+    );
+
+    const rows = await this.db
+      .select({
+        categoryId: jobs.categoryId,
+        avgSalary:
+          sql<number>`ROUND(AVG((${jobs.salaryMin}::numeric + ${jobs.salaryMax}::numeric) / 2), 1)`.as(
+            "avg_salary",
+          ),
+      })
+      .from(jobs)
+      .where(and(...conditions))
+      .groupBy(jobs.categoryId);
+
+    return rows.map((r) => ({
+      categoryId: r.categoryId!,
+      avgSalary: Number(r.avgSalary ?? 0),
+    }));
+  }
+
+  // --- Batch (multi-category) methods ---
+
+  async getFrequentlyJobsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<
+    { categoryId: string; frequentlyJobs: { date: string; count: number }[] }[]
+  > {
+    if (categoryIds.length === 0) return [];
+
+    const conditions = this.buildJobFilterQuery(filter);
+    conditions.push(inArray(jobs.categoryId, categoryIds));
+
+    const rows = await this.db
+      .select({
+        categoryId: jobs.categoryId,
+        date: jobs.datePosted,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(and(...conditions))
+      .groupBy(jobs.categoryId, jobs.datePosted);
+
+    const map = new Map<string, { date: string; count: number }[]>();
+    for (const r of rows) {
+      const id = r.categoryId!;
+      if (!map.has(id)) map.set(id, []);
+      map.get(id)!.push({ date: r.date as string, count: Number(r.count) });
+    }
+
+    return categoryIds
+      .filter((id) => map.has(id))
+      .map((id) => ({ categoryId: id, frequentlyJobs: map.get(id)! }));
+  }
+
+  async getSalaryStatsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<
+    {
+      categoryId: string;
+      salaryStatistics: {
+        expRange: string;
+        avgSalaryMin: number;
+        avgSalaryMax: number;
+        jobCount: number;
+      }[];
+    }[]
+  > {
+    if (categoryIds.length === 0) return [];
+
+    const { fromDate, toDate, provinceId } = filter;
+
+    const where: SQL[] = [
+      sql`j.salary_min IS NOT NULL`,
+      sql`j.salary_max IS NOT NULL`,
+      sql`j.category_id IN (${sql.join(
+        categoryIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`,
+    ];
+    if (fromDate) {
+      where.push(sql`j.date_posted >= ${convertDateToStr(fromDate)}`);
+    }
+    if (toDate) {
+      where.push(sql`j.date_posted <= ${convertDateToStr(toDate)}`);
+    }
+    if (provinceId) {
+      where.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp
+          WHERE jp.job_id = j.id
+          AND jp.province_id = ${provinceId}
+        )`,
+      );
+    }
+
+    const result = await this.db.execute(sql`
+      SELECT
+        s.category_id,
+        s.exp_range,
+        s.avg_salary_min,
+        s.avg_salary_max,
+        s.job_count
+      FROM (
+        SELECT
+          j.category_id,
+          CASE
+            WHEN j.experience_min IS NULL AND j.experience_max IS NULL THEN 'Chưa yêu cầu'
+            WHEN COALESCE(j.experience_min, 0) = 0 AND COALESCE(j.experience_max, 0) <= 1 THEN '0-1 năm'
+            WHEN COALESCE(j.experience_min, 0) <= 1 AND COALESCE(j.experience_max, 1) <= 3 THEN '1-3 năm'
+            WHEN COALESCE(j.experience_min, 0) <= 3 AND COALESCE(j.experience_max, 3) <= 5 THEN '3-5 năm'
+            WHEN COALESCE(j.experience_min, 0) <= 5 AND COALESCE(j.experience_max, 5) <= 10 THEN '5-10 năm'
+            ELSE '>10 năm'
+          END AS exp_range,
+          ROUND(AVG(j.salary_min)::numeric, 1) AS avg_salary_min,
+          ROUND(AVG(j.salary_max)::numeric, 1) AS avg_salary_max,
+          COUNT(DISTINCT j.id) AS job_count
+        FROM jobs j
+        WHERE ${sql.join(where, sql` AND `)}
+        GROUP BY j.category_id, 2
+      ) s
+      ORDER BY
+        s.category_id,
+        CASE s.exp_range
+          WHEN 'Chưa yêu cầu' THEN 0
+          WHEN '0-1 năm' THEN 1
+          WHEN '1-3 năm' THEN 2
+          WHEN '3-5 năm' THEN 3
+          WHEN '5-10 năm' THEN 4
+          WHEN '>10 năm' THEN 5
+        END
+    `);
+
+    const map = new Map<
+      string,
+      {
+        expRange: string;
+        avgSalaryMin: number;
+        avgSalaryMax: number;
+        jobCount: number;
+      }[]
+    >();
+    for (const r of result.rows as any[]) {
+      const id = String(r.category_id);
+      if (!map.has(id)) map.set(id, []);
+      map.get(id)!.push({
+        expRange: String(r.exp_range),
+        avgSalaryMin: Number(r.avg_salary_min),
+        avgSalaryMax: Number(r.avg_salary_max),
+        jobCount: Number(r.job_count),
+      });
+    }
+
+    return categoryIds
+      .filter((id) => map.has(id))
+      .map((id) => ({ categoryId: id, salaryStatistics: map.get(id)! }));
+  }
+
+  async getTopAppliedJobsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+    limit = 10,
+  ): Promise<{ categoryId: string; topAppliedJobs: TopInMarketResponse[] }[]> {
+    if (categoryIds.length === 0) return [];
+
+    const result = await this.db.execute(sql`
+      SELECT * FROM (
+        SELECT
+          j.category_id,
+          j.title AS name,
+          COUNT(DISTINCT aj.id) AS count,
+          ROW_NUMBER() OVER (PARTITION BY j.category_id ORDER BY COUNT(DISTINCT aj.id) DESC) AS rn
+        FROM jobs j
+        INNER JOIN ${applyJobs} aj ON aj.job_id = j.id
+        WHERE j.category_id IN (${sql.join(
+          categoryIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})
+          ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
+          ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
+          ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
+        GROUP BY j.category_id, j.title
+      ) sub
+      WHERE sub.rn <= ${limit}
+      ORDER BY sub.category_id, sub.rn
+    `);
+
+    const map = new Map<string, { name: string; count: number }[]>();
+    for (const r of result.rows as any[]) {
+      const id = String(r.category_id);
+      if (!map.has(id)) map.set(id, []);
+      map.get(id)!.push({ name: String(r.name), count: Number(r.count) });
+    }
+
+    return categoryIds
+      .filter((id) => map.has(id))
+      .map((id) => {
+        const items = map.get(id)!;
+        const total = items.reduce((s, i) => s + i.count, 0);
+        return {
+          categoryId: id,
+          topAppliedJobs: items.map((i) => ({
+            name: i.name,
+            count: i.count,
+            percentage: total > 0 ? Math.round((i.count / total) * 100) : 0,
+          })),
+        };
+      });
+  }
+
+  async getTopEmployersByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+    limit = 5,
+  ): Promise<{ categoryId: string; topEmployers: TopInMarketResponse[] }[]> {
+    if (categoryIds.length === 0) return [];
+
+    const result = await this.db.execute(sql`
+      SELECT * FROM (
+        SELECT
+          j.category_id,
+          o.name,
+          o.logo_url,
+          COUNT(DISTINCT j.id) AS count,
+          ROW_NUMBER() OVER (PARTITION BY j.category_id ORDER BY COUNT(DISTINCT j.id) DESC) AS rn
+        FROM jobs j
+        INNER JOIN ${organizations} o ON o.id = j.organization_id
+        WHERE j.category_id IN (${sql.join(
+          categoryIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})
+          AND o.name IS NOT NULL
+          ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
+          ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
+          ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
+        GROUP BY j.category_id, o.name, o.logo_url
+      ) sub
+      WHERE sub.rn <= ${limit}
+      ORDER BY sub.category_id, sub.rn
+    `);
+
+    const map = new Map<
+      string,
+      { name: string; logoUrl: string | null; count: number }[]
+    >();
+    for (const r of result.rows as any[]) {
+      const id = String(r.category_id);
+      if (!map.has(id)) map.set(id, []);
+      map.get(id)!.push({
+        name: String(r.name),
+        logoUrl: r.logo_url ? String(r.logo_url) : null,
+        count: Number(r.count),
+      });
+    }
+
+    return categoryIds
+      .filter((id) => map.has(id))
+      .map((id) => {
+        const items = map.get(id)!;
+        const total = items.reduce((s, i) => s + i.count, 0);
+        return {
+          categoryId: id,
+          topEmployers: items.map((i) => ({
+            name: i.name,
+            logoUrl: i.logoUrl ?? undefined,
+            count: i.count,
+            percentage: total > 0 ? Math.round((i.count / total) * 100) : 0,
+          })),
+        };
+      });
   }
 
   buildJobFilterQuery(
@@ -391,8 +739,14 @@ export class JobRepository
         ? gte(jobsTable.datePosted, convertDateToStr(fromDate))
         : undefined,
       toDate ? lte(jobsTable.datePosted, convertDateToStr(toDate)) : undefined,
-      categoryId ? eq(jobCategories.categoryId, categoryId) : undefined,
-      provinceId ? eq(jobsTable.provinceId, provinceId) : undefined,
+      categoryId ? eq(jobsTable.categoryId, categoryId) : undefined,
+      provinceId
+        ? sql`EXISTS (
+            SELECT 1 FROM ${jobProvinces} jp 
+            WHERE jp.job_id = ${jobsTable.id} 
+            AND jp.province_id = ${provinceId}
+          )`
+        : undefined,
       isOpen
         ? or(
             isNull(jobsTable.endDate),
@@ -407,27 +761,24 @@ export class JobRepository
   async getSalaryStatisticsByExperience(filter: StatisticsJobFilter) {
     const { fromDate, toDate, categoryId, provinceId } = filter;
 
-    const sqlChunks: SQL[] = [];
+    const innerChunks: SQL[] = [];
 
-    sqlChunks.push(sql`
+    // Inner query: group by experience ranges
+    innerChunks.push(sql`
       SELECT 
-        b.exp_year,
-        AVG(j.salary_min) AS "avgSalaryMin",
-        AVG(j.salary_max) AS "avgSalaryMax",
-        COUNT(distinct j.id) AS "jobCount"
-      FROM (
-        SELECT generate_series(
-          (SELECT COALESCE(MIN(experience_min), 0) FROM jobs),
-          (SELECT COALESCE(MAX(experience_max), 20) FROM jobs)
-        ) AS exp_year
-      ) b
-      INNER JOIN jobs j ON
-          (j.experience_min IS NULL AND j.experience_max IS NULL)
-          OR (j.experience_min IS NULL AND b.exp_year < j.experience_max)
-          OR (j.experience_max IS NULL AND b.exp_year >= j.experience_min)
-          OR (b.exp_year BETWEEN j.experience_min AND j.experience_max)
-      LEFT JOIN job_categories jc ON j.id = jc.job_id
-      `);
+        CASE
+          WHEN j.experience_min IS NULL AND j.experience_max IS NULL THEN 'Chưa yêu cầu'
+          WHEN COALESCE(j.experience_min, 0) = 0 AND COALESCE(j.experience_max, 0) <= 1 THEN '0-1 năm'
+          WHEN COALESCE(j.experience_min, 0) <= 1 AND COALESCE(j.experience_max, 1) <= 3 THEN '1-3 năm'
+          WHEN COALESCE(j.experience_min, 0) <= 3 AND COALESCE(j.experience_max, 3) <= 5 THEN '3-5 năm'
+          WHEN COALESCE(j.experience_min, 0) <= 5 AND COALESCE(j.experience_max, 5) <= 10 THEN '5-10 năm'
+          ELSE '>10 năm'
+        END AS exp_range,
+        ROUND(AVG(j.salary_min)::numeric, 1) AS avg_salary_min,
+        ROUND(AVG(j.salary_max)::numeric, 1) AS avg_salary_max,
+        COUNT(DISTINCT j.id) AS job_count
+      FROM jobs j
+    `);
 
     const where: SQL[] = [
       sql`j.salary_min IS NOT NULL`,
@@ -440,24 +791,142 @@ export class JobRepository
       where.push(sql`j.date_posted <= ${convertDateToStr(toDate)}`);
     }
     if (categoryId) {
-      where.push(sql`jc.category_id = ${categoryId}`);
+      where.push(sql`j.category_id = ${categoryId}`);
     }
     if (provinceId) {
-      where.push(sql`j.province_id = ${provinceId}`);
+      where.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp 
+          WHERE jp.job_id = j.id 
+          AND jp.province_id = ${provinceId}
+        )`,
+      );
     }
 
-    sqlChunks.push(sql`
+    innerChunks.push(sql`
       WHERE ${sql.join(where, sql` AND `)}
-      GROUP BY b.exp_year
-      ORDER BY b.exp_year DESC
+      GROUP BY 1
     `);
-    const result = await this.db.execute(sql.join(sqlChunks, sql` `));
+
+    // Wrap in outer query so we can reference the alias in ORDER BY
+    const result = await this.db.execute(sql`
+      SELECT s.exp_range, s.avg_salary_min, s.avg_salary_max, s.job_count
+      FROM (${sql.join(innerChunks, sql` `)}) s
+      ORDER BY
+        CASE s.exp_range
+          WHEN 'Chưa yêu cầu' THEN 0
+          WHEN '0-1 năm' THEN 1
+          WHEN '1-3 năm' THEN 2
+          WHEN '3-5 năm' THEN 3
+          WHEN '5-10 năm' THEN 4
+          WHEN '>10 năm' THEN 5
+        END
+    `);
 
     return result.rows.map((r: any) => ({
-      expYear: Number(r.exp_year),
-      avgSalaryMin: Number(r.avgSalaryMin),
-      avgSalaryMax: Number(r.avgSalaryMax),
-      jobCount: Number(r.jobCount),
+      expRange: String(r.exp_range),
+      avgSalaryMin: Number(r.avg_salary_min),
+      avgSalaryMax: Number(r.avg_salary_max),
+      jobCount: Number(r.job_count),
+    }));
+  }
+
+  async getTopAppliedJobs(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery(filter);
+
+    const result = await this.db
+      .select({
+        term: jobs.title,
+        count: countDistinct(applyJobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(applyJobs, eq(jobs.id, applyJobs.jobId))
+      .where(and(...conditions, isNotNull(applyJobs.id)))
+      .groupBy(jobs.title)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalApplications = result.reduce(
+      (sum, item) => sum + Number(item.count),
+      0,
+    );
+
+    return result.map((item) => ({
+      name: item.term,
+      count: Number(item.count),
+      percentage:
+        totalApplications > 0
+          ? Math.round((Number(item.count) / totalApplications) * 100)
+          : 0,
+    }));
+  }
+
+  async getTopEmployers(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery(filter);
+
+    const result = await this.db
+      .select({
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .where(and(...conditions, isNotNull(organizations.name)))
+      .groupBy(organizations.name, organizations.logoUrl)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
+
+    return result.map((item) => ({
+      name: item.name!,
+      logoUrl: item.logoUrl!,
+      percentage:
+        totalJobs > 0 ? Math.round((Number(item.count) / totalJobs) * 100) : 0,
+      count: Number(item.count),
+    }));
+  }
+
+  async getTopCategories(
+    filter: StatisticsJobFilter,
+    limit = 10,
+  ): Promise<TopInMarketResponse[]> {
+    const conditions = this.buildJobFilterQuery({
+      ...filter,
+      categoryId: undefined,
+    });
+
+    const result = await this.db
+      .select({
+        name: categories.name,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
+      .where(and(...conditions, isNotNull(categories.name)))
+      .groupBy(categories.name)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const totalJobsWithCategories = result.reduce(
+      (sum, item) => sum + Number(item.count),
+      0,
+    );
+
+    return result.map((item) => ({
+      name: item.name!,
+      count: Number(item.count),
+      percentage:
+        totalJobsWithCategories > 0
+          ? Math.round((Number(item.count) / totalJobsWithCategories) * 100)
+          : 0,
     }));
   }
 
@@ -827,7 +1296,10 @@ export class JobRepository
   }
 
   async createJob(
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     sendNotifications = false,
     senderUserId?: string,
   ): Promise<
@@ -840,6 +1312,7 @@ export class JobRepository
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
+      categoryId: job.categoryId!,
       description: job.description,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
@@ -849,9 +1322,7 @@ export class JobRepository
       endDate: job.endDate,
       workType: job.workType,
       jobRawId: job.jobRawId,
-      provinceId: job.provinceId,
       questions: job.questions,
-      status: job.status || "active",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -867,6 +1338,19 @@ export class JobRepository
         }));
 
         await tx.insert(jobSkills).values(skillAssociations);
+      }
+
+      // Handle province associations
+      const provinceIds = (
+        job.provinceIds ??
+        (job.provinceIds !== undefined ? job.provinceIds : [])
+      ).filter((id): id is string => Boolean(id));
+      if (provinceIds.length > 0) {
+        const provinceAssociations = provinceIds.map((provinceId) => ({
+          jobId: newJob.id,
+          provinceId,
+        }));
+        await tx.insert(jobProvinces).values(provinceAssociations);
       }
 
       // If notifications not requested or no senderUserId, just return job
@@ -910,7 +1394,10 @@ export class JobRepository
 
   async updateJob(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null> {
     return this.db.transaction(async (tx) => {
       return this.preUpdateJob(tx, jobId, job);
@@ -920,7 +1407,10 @@ export class JobRepository
   async preUpdateJob(
     tx: DBDrizzleTransaction,
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null> {
     const [updatedJob] = await tx
       .update(jobs)
@@ -942,12 +1432,29 @@ export class JobRepository
         await tx.insert(jobSkills).values(skillAssociations);
       }
     }
+
+    if (job.provinceIds !== undefined) {
+      await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+      const filteredProvinceIds: string[] = job.provinceIds.filter(
+        (id): id is string => Boolean(id),
+      );
+      if (filteredProvinceIds.length > 0) {
+        const provinceAssociations = filteredProvinceIds.map((provinceId) => ({
+          jobId,
+          provinceId,
+        }));
+        await tx.insert(jobProvinces).values(provinceAssociations);
+      }
+    }
     return updatedJob as Job | null;
   }
 
   async updateJobWithNotifications(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
     const result = await this.db.transaction(async (tx) => {
@@ -975,6 +1482,17 @@ export class JobRepository
           }));
 
           await tx.insert(jobSkills).values(skillAssociations);
+        }
+      }
+      if (job.provinceIds && job.provinceIds.length > 0) {
+        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+
+        if (job.provinceIds.length > 0) {
+          const provinceAssociations = job.provinceIds.map((provinceId) => ({
+            jobId,
+            provinceId,
+          }));
+          await tx.insert(jobProvinces).values(provinceAssociations);
         }
       }
 
@@ -1039,7 +1557,7 @@ export class JobRepository
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
     }>
   > {
@@ -1057,13 +1575,17 @@ export class JobRepository
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
-        provinceName: provinces.name,
+        provinceNames: sql`(
+          SELECT json_agg(p.name) 
+          FROM ${jobProvinces} jp 
+          INNER JOIN ${provinces} p ON jp.province_id = p.id 
+          WHERE jp.job_id = ${jobs.id}
+        )`.as("provinceNames"),
         applyJobId: applyJobs.id,
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .leftJoin(applyJobs, eq(applyJobs.jobId, jobs.id))
       .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
       .where(
@@ -1090,6 +1612,7 @@ export class JobRepository
         ...item,
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
+        provinceNames: (item.provinceNames as string[]) || [],
       })),
       pagination: {
         hasNextPage,
@@ -1105,15 +1628,9 @@ export class JobRepository
     const result = await this.db
       .select({
         job: jobs,
-        provinces:
-          sql`COALESCE(json_agg(DISTINCT ${provinces}) FILTER (WHERE ${provinces}.id IS NOT NULL), '[]')`.as(
-            "provinces",
-          ),
+        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: organizations,
-        skills:
-          sql`COALESCE(json_agg(${skills}) FILTER (WHERE ${skills}.id IS NOT NULL), '[]')`.as(
-            "skills",
-          ),
+        skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         // If user is authenticated, check if job is saved or applied
         isSaved: userId
           ? sql`EXISTS (
@@ -1149,14 +1666,30 @@ export class JobRepository
             LIMIT 1
           )`.as("applyId")
           : sql`NULL`.as("applyId"),
+        category: categories,
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(provinces, eq(jobs.provinceId, provinces.id))
-      .leftJoin(jobSkills, eq(jobs.id, jobSkills.jobId))
-      .leftJoin(skills, eq(jobSkills.skillId, skills.id))
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(p) AS provinces
+          FROM ${jobProvinces} jp
+          INNER JOIN ${provinces} p ON jp.province_id = p.id
+          WHERE jp.job_id = ${jobs.id}
+        ) p_lateral`,
+        sql`TRUE`,
+      )
+      .leftJoin(
+        sql`LATERAL (
+          SELECT json_agg(s) AS skills
+          FROM ${jobSkills} js
+          INNER JOIN ${skills} s ON js.skill_id = s.id
+          WHERE js.job_id = ${jobs.id}
+        ) s_lateral`,
+        sql`TRUE`,
+      )
+      .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .groupBy(jobs.id, organizations.id, provinces.id)
       .limit(1);
 
     if (!result || result.length === 0) {
@@ -1175,6 +1708,7 @@ export class JobRepository
       isApplied: (data.isApplied || undefined) as boolean | undefined,
       applyStatus: (data.applyStatus || undefined) as string | undefined,
       applyId: (data.applyId || undefined) as string | undefined,
+      category: data.category as Category,
     };
   }
   async getNumberOfSavedJobs(userId: string): Promise<number> {
@@ -1218,7 +1752,7 @@ export class JobRepository
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
       applyStatus: ApplyStatusEnum;
     }>
@@ -1237,7 +1771,12 @@ export class JobRepository
         workType: jobs.workType,
         createdAt: jobs.createdAt,
         endedAt: jobs.endDate,
-        provinceName: provinces.name,
+        provinceNames: sql`(
+          SELECT json_agg(p.name) 
+          FROM ${jobProvinces} jp 
+          INNER JOIN ${provinces} p ON jp.province_id = p.id 
+          WHERE jp.job_id = ${jobs.id} 
+        )`.as("provinceNames"),
         applyJobId: applyJobs.id,
         applyStatus: applyJobs.status,
       })
@@ -1245,7 +1784,6 @@ export class JobRepository
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .innerJoin(provinces, eq(jobs.provinceId, provinces.id))
       .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)))
       .orderBy(
         query.sortDirection === "desc"
@@ -1265,11 +1803,258 @@ export class JobRepository
         isApplied: item.applyJobId ? true : false,
         workType: item.workType as WorkTypeEnum,
         applyStatus: item.applyStatus as ApplyStatusEnum,
+        provinceNames: (item.provinceNames as string[]) || [],
       })),
       pagination: {
         hasNextPage,
         total: total,
       },
     };
+  }
+
+  async getUsersWithAppliedJobs(): Promise<
+    Array<{
+      userId: string;
+      email: string;
+      name: string;
+      appliedJobIds: string[];
+      skillIds: string[];
+      categoryIds: string[];
+    }>
+  > {
+    const result = await this.db
+      .select({
+        userId: cvs.userId,
+        email: users.email,
+        name: users.name,
+        jobId: applyJobs.jobId,
+        skillId: jobSkills.skillId,
+        categoryId: jobs.categoryId,
+      })
+      .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(users, eq(cvs.userId, users.id))
+      .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
+      .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(and(isNotNull(users.email), isNull(users.deletedAt)));
+
+    // Group by user
+    const userMap = new Map<
+      string,
+      {
+        userId: string;
+        email: string;
+        name: string;
+        appliedJobIds: string[];
+        skillIds: string[];
+        categoryIds: string[];
+      }
+    >();
+
+    for (const row of result) {
+      if (!row.userId || !row.email) continue;
+
+      if (!userMap.has(row.userId)) {
+        userMap.set(row.userId, {
+          userId: row.userId,
+          email: row.email,
+          name: row.name || "User",
+          appliedJobIds: [],
+          skillIds: [],
+          categoryIds: [],
+        });
+      }
+
+      const user = userMap.get(row.userId)!;
+
+      if (row.jobId && !user.appliedJobIds.includes(row.jobId)) {
+        user.appliedJobIds.push(row.jobId);
+      }
+
+      if (row.skillId && !user.skillIds.includes(row.skillId)) {
+        user.skillIds.push(row.skillId);
+      }
+
+      if (row.categoryId && !user.categoryIds.includes(row.categoryId)) {
+        user.categoryIds.push(row.categoryId);
+      }
+    }
+
+    return Array.from(userMap.values());
+  }
+
+  // [UPDATE]: Update logic to find recommended jobs
+  async findRecommendedJobs(
+    userId: string,
+    appliedJobIds: string[],
+    skillIds: string[],
+    categoryIds: string[],
+    createdAtStart: Date,
+    createdAtEnd: Date,
+    isJobSystem: boolean,
+    limit = 20,
+  ): Promise<JobResponse[]> {
+    if (
+      appliedJobIds.length === 0 ||
+      (skillIds.length === 0 && categoryIds.length === 0)
+    ) {
+      return [];
+    }
+
+    const filters: JobFilters = {
+      limit,
+      page: 1,
+      user: {
+        userId,
+        roles: [],
+      },
+      createdAtStart,
+      createdAtEnd,
+      isJobSystem,
+    };
+
+    const allJobs = await this.getJobsByAdmin(filters);
+
+    // Filter jobs:
+    // 1. Không phải job đã apply
+    // 2. Có status = 'active'
+    // 3. Chưa hết hạn
+    // 4. Có skill hoặc category trùng với applied jobs
+    const recommendedJobs = allJobs.data.filter((jobResponse) => {
+      const job = jobResponse.job;
+
+      if (appliedJobIds.includes(job.id)) {
+        return false;
+      }
+
+      if (job.status !== "active") {
+        return false;
+      }
+
+      if (job.endDate && new Date(job.endDate) < new Date()) {
+        return false;
+      }
+
+      // Kiểm tra có skill hoặc category trùng
+      const hasMatchingSkill =
+        skillIds.length > 0 &&
+        jobResponse.skills.some((skill) => skillIds.includes(skill.id));
+
+      // Note: categories không có trong JobResponse, cần query thêm nếu cần
+      // Tạm thời chỉ dùng skills để match
+
+      return hasMatchingSkill;
+    });
+
+    recommendedJobs.sort((a, b) => {
+      const aMatchCount = a.skills.filter((skill) =>
+        skillIds.includes(skill.id),
+      ).length;
+      const bMatchCount = b.skills.filter((skill) =>
+        skillIds.includes(skill.id),
+      ).length;
+      return bMatchCount - aMatchCount;
+    });
+
+    return recommendedJobs;
+  }
+
+  async getJobIdsActive(query: GeneralQuery): Promise<string[]> {
+    const activeJobs = await this.db
+      .select({
+        id: jobs.id,
+      })
+      .from(jobs)
+      .where(and(isNull(jobs.deletedAt), eq(jobs.status, JobStatusEnum.ACTIVE)))
+      .limit(query.limit)
+      .offset((query.page! - 1) * query.limit);
+
+    return activeJobs.map((job) => job.id);
+  }
+
+  async getUserJobStatuses(
+    userId: User["id"],
+    jobIds: Job["id"][],
+  ): Promise<
+    Map<
+      Job["id"],
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: ApplyJob["id"] | null;
+      }
+    >
+  > {
+    const statusMap = new Map<
+      string,
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >();
+
+    if (jobIds.length === 0) {
+      return statusMap;
+    }
+
+    jobIds.forEach((jobId) => {
+      statusMap.set(jobId, {
+        isSaved: false,
+        isApplied: false,
+        applyStatus: null,
+        applyId: null,
+      });
+    });
+
+    // Parallel queries for saved and applied jobs
+    const [savedJobs, appliedJobs] = await Promise.all([
+      this.db
+        .select({
+          jobId: userInteractions.jobId,
+        })
+        .from(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+            inArray(userInteractions.jobId, jobIds),
+          ),
+        ),
+      this.db
+        .select({
+          jobId: applyJobs.jobId,
+          status: applyJobs.status,
+          applyId: applyJobs.id,
+        })
+        .from(applyJobs)
+        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(and(eq(cvs.userId, userId), inArray(applyJobs.jobId, jobIds))),
+    ]);
+
+    // Update saved status
+    savedJobs.forEach((saved) => {
+      const status = statusMap.get(saved.jobId);
+      if (status) {
+        status.isSaved = true;
+      }
+    });
+
+    // Update applied status (take first application if multiple exist)
+    appliedJobs.forEach((applied) => {
+      const status = statusMap.get(applied.jobId);
+      if (status) {
+        status.isApplied = true;
+        // Only update if not already set (prefer first result)
+        if (!status.applyStatus) {
+          status.applyStatus = applied.status;
+          status.applyId = applied.applyId;
+        }
+      }
+    });
+
+    return statusMap;
   }
 }

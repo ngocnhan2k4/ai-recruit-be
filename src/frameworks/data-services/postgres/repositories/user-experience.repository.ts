@@ -17,8 +17,8 @@ import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
 import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
-import { convertDateToStr } from "@/common/utils/date";
-import { slugify } from "@/common/utils/string";
+import { convertDateToStr } from "@/common/utils";
+import { slugify } from "@/common/utils";
 
 @Injectable()
 export class UserExperienceRepository
@@ -44,7 +44,7 @@ export class UserExperienceRepository
         OrganizationWithDetails,
         "id" | "name" | "address" | "logoUrl"
       >;
-      skills: Skill[];
+      skills: Pick<Skill, "id" | "name">[];
     }[]
   > {
     const rows = await this.db
@@ -114,7 +114,7 @@ export class UserExperienceRepository
               OrganizationWithDetails,
               "id" | "name" | "address" | "logoUrl"
             >;
-            skills: Skill[];
+            skills: Pick<Skill, "id" | "name">[];
           }
         >,
       ),
@@ -128,8 +128,11 @@ export class UserExperienceRepository
     userId: string,
     data: CreateUserExperience,
   ) {
-    let organizationId = data.organizationId;
-    if (!organizationId) {
+    let organizationId;
+    const organizationExists = organizationId
+      ? await this.organizationRepository.get(organizationId)
+      : null;
+    if (!organizationExists) {
       const [organization] = await tx
         .insert(organizations)
         .values({
@@ -139,6 +142,8 @@ export class UserExperienceRepository
         })
         .returning();
       organizationId = organization.id;
+    } else {
+      organizationId = organizationExists.id;
     }
     const skillIds = data.skillIds || [];
     const skillNames = data.skillNames || [];

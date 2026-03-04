@@ -1,11 +1,14 @@
-import { OrganizationMember, User } from "@/core";
+import {
+  IOrganizationMembersRepository,
+  OrganizationMember,
+  User,
+} from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
 import { Inject, Injectable } from "@nestjs/common";
-import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { PaginatedResult } from "@/common/types/api";
-import { eq, and, gt, or, ilike, SQL, isNull, desc } from "drizzle-orm";
+import { PaginatedResult } from "@/common/types";
+import { eq, and, or, ilike, SQL, isNull, desc, lt } from "drizzle-orm";
 import { MemberQuery } from "@/core/entities/organization-members.entity";
 
 @Injectable()
@@ -44,7 +47,7 @@ export class OrganizationMembersRepository
 
     if (query.cursor) {
       whereConditions.push(
-        gt(organizationMembers.createdAt, new Date(query.cursor)),
+        lt(organizationMembers.createdAt, new Date(query.cursor)),
       );
     }
 
@@ -92,11 +95,34 @@ export class OrganizationMembersRepository
         and(
           eq(organizationMembers.organizationId, orgId),
           eq(organizationMembers.userId, userId),
+          isNull(organizationMembers.deletedAt),
         ),
       )
       .limit(1)
       .execute();
 
     return member[0]?.role ?? null;
+  }
+
+  async isActiveMember(
+    organizationId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const member = await this.db
+      .select({
+        id: organizationMembers.id,
+      })
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.userId, userId),
+          isNull(organizationMembers.deletedAt),
+        ),
+      )
+      .limit(1)
+      .execute();
+
+    return member.length > 0;
   }
 }

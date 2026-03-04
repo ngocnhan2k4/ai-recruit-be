@@ -1,9 +1,9 @@
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
 import { Redis } from "ioredis";
 
 @Injectable()
-export class RedisService implements IRedisService, OnModuleDestroy {
+export class RedisService implements ICacheService, OnModuleDestroy {
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
   async onModuleDestroy() {
@@ -59,5 +59,85 @@ export class RedisService implements IRedisService, OnModuleDestroy {
     } else {
       await this.redis.set(`${key}:metadata`, value);
     }
+  }
+
+  // Hash operations
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return this.redis.hgetall(key);
+  }
+
+  async hset(key: string, data: Record<string, any>): Promise<void> {
+    await this.redis.hset(key, data);
+  }
+
+  async expire(key: string, seconds: number): Promise<void> {
+    await this.redis.expire(key, seconds);
+  }
+
+  // Sorted Set operations for queue
+  async addToSortedSet(
+    key: string,
+    score: number,
+    member: string,
+  ): Promise<void> {
+    await this.redis.zadd(key, score, member);
+  }
+
+  async getRangeBySortedSetScore(
+    key: string,
+    min: number,
+    max: number,
+    limit?: number,
+  ): Promise<string[]> {
+    if (limit) {
+      return this.redis.zrangebyscore(key, min, max, "LIMIT", 0, limit);
+    }
+    return this.redis.zrangebyscore(key, min, max);
+  }
+
+  async removeFromSortedSet(key: string, member: string): Promise<void> {
+    await this.redis.zrem(key, member);
+  }
+
+  async getSortedSetRange(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<string[]> {
+    return this.redis.zrange(key, start, stop);
+  }
+
+  async getSortedSetSize(key: string): Promise<number> {
+    return this.redis.zcard(key);
+  }
+
+  async countSortedSetByScore(
+    key: string,
+    min: number,
+    max: number,
+  ): Promise<number> {
+    return this.redis.zcount(key, min, max);
+  }
+
+  // Bulk operations
+  async getKeysByPattern(pattern: string): Promise<string[]> {
+    return this.redis.keys(pattern);
+  }
+
+  async deleteMultipleKeys(keys: string[]): Promise<void> {
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
+  }
+
+  async popMinFromSortedSet(key: string, count?: number): Promise<string[]> {
+    const result = await this.redis.zpopmin(key, count ?? 1);
+    const members: string[] = [];
+
+    for (let i = 0; i < result.length; i += 2) {
+      members.push(result[i]);
+    }
+
+    return members;
   }
 }

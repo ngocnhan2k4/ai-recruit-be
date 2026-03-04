@@ -2,7 +2,7 @@ import { CategoryUseCases } from "@/use-cases/category/category.use-case";
 import { Controller, Get } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponseDto, ApiResponse } from "../../dtos";
-import { CategoryDto } from "../../dtos/category.dto";
+import { CategoryDto } from "../../dtos/category";
 
 @ApiTags("Categories")
 @Controller("categories")

@@ -23,7 +23,7 @@ import {
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   ApiResponse,
   GetUserResponseDto,
@@ -35,27 +35,22 @@ import {
   AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { TokenPayload } from "@/common/types/token";
+import { TokenPayload } from "@/common/types";
 import { MultipartFile } from "@fastify/multipart";
-import {
-  IOrganizationRepository,
-  UserSkill,
-  UserOnboarding,
-  ISkillRepository,
-} from "@/core";
+import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "@/interfaces/dtos/users/user-experience.dto";
+} from "@/interfaces/dtos";
 import { GetUserQuery } from "@/core/entities/user.entity";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
-import { RoleEnum } from "@/common/constants/roles";
+import { RoleEnum } from "@/common/constants";
 import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
-} from "@/interfaces/dtos/users/user-education.dto";
+} from "@/interfaces/dtos";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 
 @Injectable()
@@ -70,15 +65,20 @@ export class UserUseCases implements OnModuleInit {
     private readonly cloudinaryService: CloudinaryService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
-    private readonly skillRepository: ISkillRepository,
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
-
     private readonly userEducationRepository: IUserEducationRepository,
   ) {}
 
   async onModuleInit() {
-    await this.initializeBloomFilter();
+    try {
+      await this.initializeBloomFilter();
+    } catch (error) {
+      this.logger.warn(
+        "[UserUseCases] [onModuleInit] Failed to initialize bloom filter:",
+        error,
+      );
+    }
   }
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -154,6 +154,7 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserByUsername(
     username: string,
+    currentUserId?: string,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
     const user = (await this.userRepository.getByField({ username }))[0];
     if (!user) {
@@ -174,20 +175,44 @@ export class UserUseCases implements OnModuleInit {
       );
     }
 
+    const isOwner = currentUserId && currentUserId === user.id;
+
+    const response: UserPublicResponseDto = {
+      username: user.username,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      gender: user.gender as GenderEnum,
+      dob: user.dob,
+      bio: user.bio,
+      bannerUrl: user.bannerUrl,
+      address: user.address,
+      school: school?.name || null,
+    };
+
+    // Add private information if user is viewing their own profile
+    if (isOwner) {
+      const [userOnboarding] = await Promise.all([
+        this.userOnboardingRepository.getByField({ userId: user.id }),
+      ]);
+
+      const onboarding = userOnboarding[0];
+      if (onboarding) {
+        response.provinceIds = onboarding.provinceIds || [];
+        response.categoryIds = onboarding.categoryIds || [];
+        response.expectedSalary = onboarding.expectedSalary
+          ? Number(onboarding.expectedSalary)
+          : null;
+      } else {
+        response.provinceIds = [];
+        response.categoryIds = [];
+        response.expectedSalary = null;
+      }
+    }
+
     return {
       message: "User profile fetched successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        username: user.username,
-        name: user.name,
-        avatarUrl: user.avatarUrl,
-        gender: user.gender as GenderEnum,
-        dob: user.dob,
-        bio: user.bio,
-        bannerUrl: user.bannerUrl,
-        address: user.address,
-        school: school?.name || null,
-      },
+      data: response,
     };
   }
 
@@ -203,27 +228,62 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    // Extract preferences from updateUserDto
+    const { provinceIds, categoryIds, expectedSalary, ...userUpdateData } =
+      updateUserDto;
+
     const updatedUser = {
       ...user,
-      ...updateUserDto,
+      ...userUpdateData,
     };
 
     try {
-      const result = (
-        await this.userRepository.update(
+      // Update user profile
+      const [result] = await Promise.all([
+        this.userRepository.update(
           {
             id: userId,
           },
           updatedUser,
-        )
-      )[0];
+        ),
+        updatedUser.onboardingCompleted
+          ? this.userOnboardingRepository.create({
+              userId,
+            })
+          : Promise.resolve(),
+      ]);
 
-      if (!result) {
+      if (result.length === 0) {
         throw new NotFoundException({
           message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
           code: RESPONSE_MESSAGE.USER_NOT_UPDATED,
         });
       }
+
+      // Update preferences if provided
+      if (
+        provinceIds !== undefined ||
+        categoryIds !== undefined ||
+        expectedSalary !== undefined
+      ) {
+        const preferencesUpdate: Partial<UserOnboarding> = {};
+        if (provinceIds !== undefined) {
+          preferencesUpdate.provinceIds = provinceIds;
+        }
+        if (categoryIds !== undefined) {
+          preferencesUpdate.categoryIds = categoryIds;
+        }
+        if (expectedSalary !== undefined) {
+          preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
+        }
+
+        // Update existing onboarding
+        await this.userOnboardingRepository.update(
+          { userId },
+          preferencesUpdate,
+        );
+      }
+
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
@@ -348,13 +408,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
   ): Promise<ApiResponse<number>> {
-    const result = (
-      await this.userExperienceRepository.delete({
-        userId,
-        id,
-      })
-    )[0];
-    if (!result) {
+    const result = await this.userExperienceRepository.deletePermanently({
+      userId,
+      id,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
@@ -414,13 +472,11 @@ export class UserUseCases implements OnModuleInit {
       organizationId: string | null;
     }>
   > {
-    const result = (
-      await this.userSkillRepository.delete({
-        userId,
-        skillId,
-      })
-    )[0];
-    if (!result) {
+    const result = await this.userSkillRepository.deletePermanently({
+      userId,
+      skillId,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserSkill] - [deleteUserSkill] User skill not found",
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
@@ -430,8 +486,8 @@ export class UserUseCases implements OnModuleInit {
       message: "User skill deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
       data: {
-        skillId: result.skillId,
-        organizationId: result.organizationId,
+        skillId: skillId,
+        organizationId: null,
       },
     };
   }
@@ -653,6 +709,24 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  async adminDeleteUser(userId: string): Promise<ApiResponse<void>> {
+    const result = await this.userRepository.delete({
+      id: userId,
+      deletedAt: null,
+    });
+    if (result.length === 0) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: undefined,
+    };
+  }
+
   async getUserEducations(
     userId: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
@@ -797,13 +871,10 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
-    const result = (
-      await this.userEducationRepository.delete({
-        id: userEducation[0].id,
-      })
-    )[0];
-
-    if (!result) {
+    const result = await this.userEducationRepository.deletePermanently({
+      id: userEducation[0].id,
+    });
+    if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserEducation] - User education not found",
         code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
@@ -812,7 +883,25 @@ export class UserUseCases implements OnModuleInit {
     return {
       message: "User education deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
-      data: result.id,
+      data: 1,
+    };
+  }
+
+  async deleteUserAccount(userId: string): Promise<ApiResponse<boolean>> {
+    const result = await this.userRepository.delete({
+      id: userId,
+      deletedAt: null,
+    });
+    if (result.length === 0) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+    return {
+      message: "User account deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: true,
     };
   }
 }

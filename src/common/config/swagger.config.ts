@@ -1,7 +1,6 @@
-import { AppConfigProps, getAppConfigs } from "@/common/config/app.config";
+import { AppConfigProps, getAppConfigs, Environment } from "@/common/config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { Environment } from "./env.config";
 
 const tags: string[] = ["Users", "File Upload"];
 const localUrls: string[] = ["localhost"];

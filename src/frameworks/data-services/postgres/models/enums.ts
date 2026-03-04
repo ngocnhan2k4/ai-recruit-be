@@ -29,7 +29,6 @@ export const organizationTypeEnum = pgEnum("organization_type", [
 ]);
 
 export const JobStatusEnum = pgEnum("job_status", [
-  "draft",
   "pending_approval",
   "active",
   "paused",
@@ -61,6 +60,7 @@ export const NotificationTypeEnum = pgEnum("notification_type", [
   "profile_viewed",
   "cv_approved",
   "cv_rejected",
+  "organization_invitation",
   "system",
 ]);
 export const OrganizationRoleEnum = pgEnum("organization_role", [
@@ -80,6 +80,13 @@ export const OrganizationRoleEnum = pgEnum("organization_role", [
   "organization_employee",
   "anonymously",
 ]);
+
+export const FeedbackStatusEnum = pgEnum("feedback_status", [
+  "pending",
+  "read",
+  "resolved",
+]);
+
 export const OrganizationInviteStatusEnum = pgEnum(
   "organization_invite_status",
   ["pending", "accepted", "declined"],
@@ -87,4 +94,37 @@ export const OrganizationInviteStatusEnum = pgEnum(
 export const OrganizationInviteTypeEnum = pgEnum("organization_invite_type", [
   "outgoing", // from the organization's perspective
   "incoming", // from the user's perspective
+]);
+
+export const PgSkillLevelEnum = pgEnum("skill_level", [
+  "beginner",
+  "intermediate",
+  "advanced",
+]);
+
+export const ResourceTypeEnum = pgEnum("resource_type", [
+  "video",
+  "course",
+  "article",
+  "book",
+  "documentation",
+]);
+
+export const GapDifficultyEnum = pgEnum("gap_difficulty", [
+  "easy",
+  "medium",
+  "hard",
+]);
+
+export const LanguageEnum = pgEnum("language", ["vi", "en"]);
+
+export const TemplateEnum = pgEnum("cv_template", [
+  "classic",
+  "modern-blue",
+  "modern-green",
+]);
+
+export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
+  "save",
+  "hide",
 ]);

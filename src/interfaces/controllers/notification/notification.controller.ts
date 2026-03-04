@@ -15,8 +15,8 @@ import {
   PaginatedResultDto,
   PaginatedResultDecorator,
 } from "@/interfaces/dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import {
   GetNotificationRequestDto,
   GetNotificationResponseDto,
@@ -24,7 +24,7 @@ import {
   NotificationActionResponseDto,
   UpdateNotificationStatusRequestDto,
   UpdateNotificationStatusResponseDto,
-} from "@/interfaces/dtos/notifications/notification.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Notification")

@@ -1,12 +1,10 @@
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
   Job,
-  Province,
-  Skill,
-  OrganizationWithDetails,
   WorkTypeEnum,
   Notification,
   ApplyStatusEnum,
+  User,
 } from "@/core/entities";
 import {
   JobResponse,
@@ -16,9 +14,9 @@ import {
   ApplyJobResponse,
   UserInteractionResponse,
   JobCounts,
+  TopInMarketResponse,
 } from "@/core/entities/job.entity";
-import { GeneralQuery } from "@/common/types/api";
-import { PaginatedResult } from "@/common/types/api";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getJobs(filters?: JobFilters): Promise<PaginatedResult<JobResponse>>;
@@ -33,16 +31,77 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract count(filter: StatisticsJobFilter): Promise<number>;
 
+  abstract countByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<{ categoryId: string; count: number }[]>;
+
+  abstract avgSalaryByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<{ categoryId: string; avgSalary: number }[]>;
+
   abstract getSalaryStatisticsByExperience(
     filter: StatisticsJobFilter,
   ): Promise<
     {
-      expYear: number;
+      expRange: string;
       avgSalaryMin: number;
       avgSalaryMax: number;
       jobCount: number;
     }[]
   >;
+
+  // --- Batch (multi-category) methods ---
+
+  abstract getFrequentlyJobsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<
+    { categoryId: string; frequentlyJobs: { date: string; count: number }[] }[]
+  >;
+
+  abstract getSalaryStatsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+  ): Promise<
+    {
+      categoryId: string;
+      salaryStatistics: {
+        expRange: string;
+        avgSalaryMin: number;
+        avgSalaryMax: number;
+        jobCount: number;
+      }[];
+    }[]
+  >;
+
+  abstract getTopAppliedJobsByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+    limit?: number,
+  ): Promise<{ categoryId: string; topAppliedJobs: TopInMarketResponse[] }[]>;
+
+  abstract getTopEmployersByCategories(
+    categoryIds: string[],
+    filter: Omit<StatisticsJobFilter, "categoryId">,
+    limit?: number,
+  ): Promise<{ categoryId: string; topEmployers: TopInMarketResponse[] }[]>;
+
+  // --- Single-category methods ---
+
+  abstract getTopAppliedJobs(
+    filter: StatisticsJobFilter,
+  ): Promise<TopInMarketResponse[]>;
+
+  abstract getTopEmployers(
+    filter: StatisticsJobFilter,
+    limit?: number,
+  ): Promise<TopInMarketResponse[]>;
+
+  abstract getTopCategories(
+    filter: StatisticsJobFilter,
+  ): Promise<TopInMarketResponse[]>;
 
   abstract applyJob(
     jobId: string,
@@ -91,7 +150,10 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   // CRUD operations
   abstract createJob(
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     sendNotifications?: boolean,
     senderUserId?: string,
   ): Promise<
@@ -103,11 +165,17 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   >;
   abstract updateJob(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
   ): Promise<Job | null>;
   abstract updateJobWithNotifications(
     jobId: string,
-    job: Partial<Job> & { skillIds?: string[] },
+    job: Partial<Job> & {
+      skillIds?: string[];
+      provinceIds?: string[];
+    },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
   abstract deleteJob(jobId: string): Promise<boolean>;
@@ -115,16 +183,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getFullJobById(
     jobId: string,
     userId?: string,
-  ): Promise<{
-    job: Job;
-    provinces: Province[];
-    organization: OrganizationWithDetails;
-    skills: Skill[];
-    isSaved?: boolean;
-    isApplied?: boolean;
-    applyStatus?: string;
-    applyId?: string;
-  } | null>;
+  ): Promise<JobResponse | null>;
 
   abstract getApplyJobs(jobId: string): Promise<ApplyJobResponse[]>;
 
@@ -144,7 +203,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
     }>
   >;
@@ -164,9 +223,48 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       workType: WorkTypeEnum;
       createdAt: Date;
       endedAt: string | null;
-      provinceName: string;
+      provinceNames: string[];
       isApplied: boolean;
       applyStatus: ApplyStatusEnum;
     }>
+  >;
+
+  abstract getUsersWithAppliedJobs(): Promise<
+    Array<{
+      userId: string;
+      email: string;
+      name: string;
+      appliedJobIds: string[];
+      skillIds: string[];
+      categoryIds: string[];
+    }>
+  >;
+
+  abstract findRecommendedJobs(
+    userId: string,
+    appliedJobIds: string[],
+    skillIds: string[],
+    categoryIds: string[],
+    createdAtStart: Date,
+    createdAtEnd: Date,
+    isJobSystem: boolean,
+    limit?: number,
+  ): Promise<JobResponse[]>;
+
+  abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
+
+  abstract getUserJobStatuses(
+    userId: User["id"],
+    jobIds: Job["id"][],
+  ): Promise<
+    Map<
+      Job["id"],
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >
   >;
 }

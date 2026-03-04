@@ -12,20 +12,16 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
-import {
-  QueryJobDto,
-  CreateJobDto,
-  UpdateJobDto,
-} from "../../dtos/jobs/job-query.dto";
+import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobCountsDto,
   JobPaginationResponseDto,
   JobResponseDto,
-} from "../../dtos/jobs/job.dto";
+} from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import type { TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import type { TokenPayload } from "@/common/types";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Jobs Admin")
@@ -84,10 +80,14 @@ export class JobAdminController {
     @Body() updateJobDto: UpdateJobDto,
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, {
-      ...updateJobDto,
-      userId: user.userId,
-    });
+    return await this.jobUseCases.updateJob(
+      jobId,
+      {
+        ...updateJobDto,
+        userId: user.userId,
+      },
+      user,
+    );
   }
 
   @ApiOperation({

@@ -13,15 +13,14 @@ import { ConfigService } from "@nestjs/config";
 import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
+import { RoleEnum } from "@/common/constants";
 
-interface AuthenticatedSocket extends Socket, IdentityUser {}
+interface AuthenticatedSocket extends Socket, IdentityUser {
+  roles?: RoleEnum[];
+}
 
 @Injectable()
 @WSGateway({
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
   namespace: "/notifications",
 })
 export class WebSocketGateway
@@ -37,6 +36,14 @@ export class WebSocketGateway
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  afterInit(server: Server) {
+    server.engine.opts.cors = {
+      origin: this.configService.get<string[]>("CORS_ORIGINS"),
+      methods: ["GET", "POST"],
+      credentials: true,
+    };
+  }
 
   handleConnection(client: AuthenticatedSocket) {
     try {
@@ -56,6 +63,7 @@ export class WebSocketGateway
         secret: this.configService.get<string>("JWT_SECRET"),
       });
       client.userId = payload.userId;
+      client.roles = payload.roles || [];
 
       if (!client.userId) {
         this.logger.warn("Token invalid");
@@ -80,12 +88,24 @@ export class WebSocketGateway
         })} connected to WebSocket`,
       );
 
+      // Join user-specific room
       client.join(
         `user_${this.getKeyIdentity({
           userId: client.userId,
           organizationId: orgId,
         })}`,
       );
+
+      // Check if user is admin and join admin room
+      const isAdmin =
+        client.roles &&
+        (client.roles.includes(RoleEnum.ADMIN) ||
+          client.roles.includes(RoleEnum.SUPER_ADMIN));
+
+      if (isAdmin) {
+        client.join("admin");
+        this.logger.log(`Admin user ${client.userId} joined admin room`);
+      }
 
       client.emit("connected", {
         message: "Connected to notification service",

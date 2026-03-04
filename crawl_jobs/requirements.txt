@@ -1,4 +1,18 @@
+# Crawl Jobs
 cloudscraper
 beautifulsoup4
 python-dotenv
 psycopg2
+aiohttp>=3.9.0
+asyncio
+
+# Multi-Class Classification
+# pandas
+# torch
+# transformers
+# scikit-learn 
+# matplotlib
+# datasets
+# accelerate
+# hf_xet
+# huggingface_hub

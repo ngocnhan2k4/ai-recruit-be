@@ -1,10 +1,13 @@
-import { GeneralQuery } from "@/common/types/api";
+import { GeneralQuery } from "@/common/types";
 
 export interface OrganizationQuery extends GeneralQuery {
-  userId?: string;
   employeeMin?: number;
   employeeMax?: number;
   verified?: boolean;
   provinceIds?: string[];
   organizationType?: string;
+}
+
+export interface MyOrganizationQuery extends GeneralQuery {
+  userId?: string;
 }

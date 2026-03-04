@@ -1,5 +1,12 @@
-import { GeneralQuery } from "@/common/types/api";
-import { Job, OrganizationWithDetails, Skill } from ".";
+import { GeneralQuery } from "@/common/types";
+import {
+  Category,
+  Job,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  User,
+} from ".";
 
 export interface GetUserQuery extends GeneralQuery {
   isActive?: boolean;
@@ -16,4 +23,13 @@ export class CreateUserExperience {
   description: string;
   skillIds?: Skill["id"][];
   skillNames?: Skill["name"][];
+}
+
+export interface UserProfile {
+  userId: User["id"];
+  skillIds: Skill["id"][];
+  experienceYears: number;
+  provinceIds: Province["id"][];
+  categoryIds: Category["id"][];
+  expectedSalary?: number;
 }

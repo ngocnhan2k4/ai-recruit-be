@@ -8,9 +8,10 @@ import {
   NewUserNotification,
 } from "@/core/entities";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
-import { eq, and, isNull, desc, count, lt, inArray } from "drizzle-orm";
+import { eq, and, isNull, desc, count, lt, inArray, sql } from "drizzle-orm";
 import { NotificationFilter } from "@/core/entities/notification.entity";
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
+import { organizationInvitations, organizations, users } from "../models";
 
 @Injectable()
 export class NotificationRepository
@@ -19,6 +20,44 @@ export class NotificationRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, notifications);
+  }
+
+  async deleteInviationNotifications(
+    organizationId: string,
+    inviteeId: string,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void> {
+    const dbClient = tx || this.db;
+    await dbClient.delete(userNotifications).where(
+      and(
+        eq(userNotifications.receiverId, inviteeId),
+        inArray(
+          userNotifications.notificationId,
+          dbClient
+            .select({ id: notifications.id })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.type, "organization_invitation"),
+                sql`(${notifications.payload}->>'orgId')::uuid = ${organizationId}`,
+                sql`(${notifications.payload}->>'userId')::uuid = ${inviteeId}`,
+              ),
+            ),
+        ),
+      ),
+    );
+  }
+
+  async updateNotificationPayload(
+    notificationId: string,
+    payload: Record<string, any>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void> {
+    const dbClient = tx || this.db;
+    await dbClient
+      .update(notifications)
+      .set({ payload })
+      .where(eq(notifications.id, notificationId));
   }
 
   async preCreateNotifications(
@@ -45,9 +84,33 @@ export class NotificationRepository
       .values(userNotificationData)
       .returning();
 
+    let senderInfo;
+    if (createdNotification.senderId) {
+      senderInfo = await tx
+        .select({
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(eq(users.id, createdNotification.senderId));
+    }
+
+    let organizationInfo;
+    if (createdNotification.payload?.orgId) {
+      organizationInfo = await tx
+        .select({
+          name: organizations.name,
+          logoUrl: organizations.logoUrl,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, createdNotification.payload.orgId));
+    }
+
     return createdUserNotifications.map((d) => ({
       ...d,
       ...createdNotification,
+      senderInfo,
+      organizationInfo,
     }));
   }
 
@@ -83,15 +146,35 @@ export class NotificationRepository
       );
     }
 
+    const orgIdFromPayload = sql<string>`(${notifications.payload} ->> 'orgId')::uuid`;
+    const orgInvitationId = sql<string>`(${notifications.payload} ->> 'orgInvitationId')::uuid`;
+
     const notificationsResult = await this.db
       .select({
         userNotification: userNotifications,
         notification: notifications,
+        sender: {
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+        organization: {
+          name: organizations.name,
+          logoUrl: organizations.logoUrl,
+        },
+        orgInvitation: {
+          status: organizationInvitations.status,
+        },
       })
       .from(userNotifications)
       .innerJoin(
         notifications,
         eq(userNotifications.notificationId, notifications.id),
+      )
+      .leftJoin(users, eq(notifications.senderId, users.id))
+      .leftJoin(organizations, eq(orgIdFromPayload, organizations.id))
+      .leftJoin(
+        organizationInvitations,
+        eq(orgInvitationId, organizationInvitations.id),
       )
       .where(and(...whereConditions))
       .orderBy(desc(notifications.createdAt))
@@ -113,6 +196,9 @@ export class NotificationRepository
       data: slicedResults.map((row) => ({
         ...row.notification,
         ...row.userNotification,
+        sender: row.sender,
+        organization: row.organization,
+        orgInvitation: row.orgInvitation,
       })),
       pagination: {
         nextCursor,

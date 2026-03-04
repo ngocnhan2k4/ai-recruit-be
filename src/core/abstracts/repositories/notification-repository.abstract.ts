@@ -1,4 +1,4 @@
-import { PaginatedResult } from "@/common/types/api";
+import { PaginatedResult } from "@/common/types";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { Notification, NewNotification } from "@/core/entities";
 import { NotificationFilter } from "@/core/entities/notification.entity";
@@ -20,6 +20,7 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
       receiverId: string;
       organizationId?: string;
     }[],
+    tx?: DBDrizzleTransaction,
   ): Promise<Notification[]>;
 
   abstract getNotificationsByUser(
@@ -28,6 +29,18 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
   abstract markAsRead(userNotificationIds: string[]): Promise<void>;
 
   abstract markAsDeleted(userNotificationIds: string[]): Promise<void>;
+
+  abstract deleteInviationNotifications(
+    organizationId: string,
+    inviteeId: string,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void>;
+
+  abstract updateNotificationPayload(
+    notificationId: string,
+    payload: Record<string, any>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void>;
 
   abstract getUnreadCount(
     userId: string,

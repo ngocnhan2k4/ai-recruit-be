@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   Patch,
+  Delete,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import {
@@ -21,9 +22,9 @@ import {
   GetAllUserResponseDto,
   GetUserQueryDto,
   GetUserResponseDto,
-} from "@/interfaces/dtos/users/user.dto";
+} from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
-import { AdminUpdateUserRequestDto } from "@/interfaces/dtos/users/user.dto";
+import { AdminUpdateUserRequestDto } from "@/interfaces/dtos";
 
 @ApiTags("Admin Users")
 @ApiBearerAuth()
@@ -57,5 +58,13 @@ export class AdminUserController {
     @Body() updateUserDto: AdminUpdateUserRequestDto,
   ) {
     return await this.userUseCases.adminUpdateUser(userId, updateUserDto);
+  }
+
+  @ApiOperation({ summary: "Delete user" })
+  @Delete(":userId")
+  @ApiParam({ name: "userId", description: "User ID", example: "123" })
+  @ApiResponseDto(GetUserResponseDto)
+  async deleteUser(@Param("userId") userId: string) {
+    return await this.userUseCases.adminDeleteUser(userId);
   }
 }

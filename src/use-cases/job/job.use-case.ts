@@ -5,12 +5,20 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
-import { ApiResponse, CompanyDto, JobCountsDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
+import {
+  ApiResponse,
+  JobCountsDto,
+  OrganizationWithDetailsDto,
+  StatisticsJobResponse,
+  TopInMarketDtoResponse,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
+} from "@/interfaces/dtos";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
-  StatisticsJobResponse,
+  CompareStatisticsFilterRequestDto,
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   CreateJobDto,
@@ -37,17 +45,18 @@ import {
 } from "@/interfaces/dtos";
 import {
   ApplyJobResponse,
+  JobEventType,
   JobFilters,
   JobResponse,
   StatisticsJobFilter,
-} from "@/core/entities/job.entity";
-import { convertDateToStr } from "@/common/utils/date";
+} from "@/core";
+import { convertDateToStr } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult } from "@/common/types/api";
-import { RoleEnum } from "@/common/constants/roles";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
-import { TokenPayload } from "@/common/types/token";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()
 export class JobUseCases {
@@ -56,6 +65,7 @@ export class JobUseCases {
     private readonly jobRepository: IJobRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getJobs(
@@ -63,11 +73,12 @@ export class JobUseCases {
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
     let result: PaginatedResult<JobResponse>;
     // Decide which method to call based on user role
-    if (filters.user?.roles.includes(RoleEnum.ADMIN)) {
-      this.logger.log("Fetching jobs for admin user");
+    if (
+      filters.user?.roles.includes(RoleEnum.ADMIN) ||
+      filters.user?.roles.includes(RoleEnum.SUPER_ADMIN)
+    ) {
       result = await this.jobRepository.getJobsByAdmin(filters);
     } else {
-      this.logger.log("Fetching jobs for regular user");
       result = await this.jobRepository.getJobs(filters);
     }
 
@@ -80,15 +91,9 @@ export class JobUseCases {
         questions: item.job.questions,
         organizationId: item.organization.id,
       } as JobDto,
-      company: {
+      organization: {
         ...item.organization,
-        organizationId: item.organization.id,
-        companySize: item.organization.companySize || 0,
-        taxCode: item.organization.taxCode || "",
-        benefits: item.organization.benefits || "",
-        companyRawId: item.organization.companyRawId || 0,
-        verifiedAt: item.organization.verifiedAt?.toISOString() || null,
-      } as CompanyDto,
+      } as OrganizationWithDetailsDto,
     }));
 
     return {
@@ -101,7 +106,7 @@ export class JobUseCases {
     };
   }
 
-  async getStatisticsJobs(
+  async getJobStatistics(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
     const [
@@ -125,7 +130,7 @@ export class JobUseCases {
       }),
     ]);
 
-    this.logger.log(`Fetched statistics jobs`);
+    this.logger.log(`Fetched job statistics`);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -136,6 +141,187 @@ export class JobUseCases {
         totalJobs,
         totalJobByCategoryId,
       },
+    };
+  }
+
+  async getTopInMarket(
+    filter: StatisticsJobFilterRequestDto,
+  ): Promise<ApiResponse<TopInMarketDtoResponse>> {
+    const [topAppliedJobs, topEmployers, topCategories] = await Promise.all([
+      this.jobRepository.getTopAppliedJobs(filter),
+      this.jobRepository.getTopEmployers(filter, 5),
+      this.jobRepository.getTopCategories(filter),
+    ]);
+
+    this.logger.log(`Fetched top in market data`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        topAppliedJobs,
+        topEmployers,
+        topCategories,
+      },
+    };
+  }
+
+  /**
+   * Rank categories by job count, return top `limit` IDs.
+   */
+  private resolveTopIds<T extends { categoryId: string }>(
+    ranked: T[],
+    limit: number,
+    key: keyof T,
+  ): T[] {
+    return [...ranked]
+      .sort((a, b) => (Number(b[key]) || 0) - (Number(a[key]) || 0))
+      .slice(0, limit);
+  }
+
+  async getCompareStatistics(
+    filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareStatisticsResponseDto>> {
+    const { categoryIds, fromDate, toDate, provinceId, limit } = filter;
+
+    const effectiveLimit = limit ?? categoryIds.length;
+    const baseFilter = { fromDate, toDate, provinceId };
+
+    // 1) Ranking + data in batch queries (6 queries total, all parallel)
+    const [
+      allCounts,
+      openCounts,
+      allSalaries,
+      trendData,
+      salaryData,
+      totalJobs,
+    ] = await Promise.all([
+      this.jobRepository.countByCategories(categoryIds, baseFilter),
+      this.jobRepository.countByCategories(categoryIds, {
+        ...baseFilter,
+        isOpen: true,
+      }),
+      this.jobRepository.avgSalaryByCategories(categoryIds, baseFilter),
+      this.jobRepository.getFrequentlyJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getSalaryStatsByCategories(categoryIds, baseFilter),
+      this.jobRepository.count(baseFilter as StatisticsJobFilter),
+    ]);
+
+    // 2) Independently pick top N per metric from the batch results
+    const topByTotalJobs = this.resolveTopIds(
+      allCounts,
+      effectiveLimit,
+      "count",
+    ).map((c) => ({
+      categoryId: c.categoryId,
+      totalJobByCategoryId: c.count,
+    }));
+
+    const topByOpenJobs = this.resolveTopIds(
+      openCounts,
+      effectiveLimit,
+      "count",
+    ).map((c) => ({
+      categoryId: c.categoryId,
+      openJobCount: c.count,
+    }));
+
+    const trendCountMap = new Map(
+      allCounts.map((c) => [c.categoryId, c.count]),
+    );
+    const trendWithCount = trendData.map((t) => ({
+      ...t,
+      count: trendCountMap.get(t.categoryId) ?? 0,
+    }));
+    const topByTrend = this.resolveTopIds(
+      trendWithCount,
+      effectiveLimit,
+      "count",
+    ).map(({ categoryId, frequentlyJobs }) => ({
+      categoryId,
+      frequentlyJobs,
+    }));
+
+    const topBySalary = this.resolveTopIds(
+      allSalaries,
+      effectiveLimit,
+      "avgSalary",
+    ).map((s) => {
+      const detail = salaryData.find((d) => d.categoryId === s.categoryId);
+      return {
+        categoryId: s.categoryId,
+        salaryStatistics: detail?.salaryStatistics ?? [],
+      };
+    });
+
+    this.logger.log(
+      `Fetched compare statistics: totalJobs=${topByTotalJobs.length}, openJobs=${topByOpenJobs.length}, trend=${topByTrend.length}, salary=${topBySalary.length} / ${categoryIds.length} categories`,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        totalJobs,
+        topByTotalJobs,
+        topByOpenJobs,
+        topByTrend,
+        topBySalary,
+      },
+    };
+  }
+
+  async getCompareTopInMarket(
+    filter: CompareStatisticsFilterRequestDto,
+  ): Promise<ApiResponse<CompareTopInMarketResponseDto>> {
+    const { categoryIds, fromDate, toDate, provinceId, limit } = filter;
+
+    const effectiveLimit = limit ?? categoryIds.length;
+    const baseFilter = { fromDate, toDate, provinceId };
+
+    // Fetch ALL categories for each metric independently (2 batch queries)
+    const [appliedData, employerData] = await Promise.all([
+      this.jobRepository.getTopAppliedJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getTopEmployersByCategories(
+        categoryIds,
+        baseFilter,
+        5,
+      ),
+    ]);
+
+    // Rank independently: top by total application count
+    const appliedWithTotal = appliedData.map((d) => ({
+      ...d,
+      totalCount: d.topAppliedJobs.reduce((sum, j) => sum + (j.count ?? 0), 0),
+    }));
+    const topByApplied = this.resolveTopIds(
+      appliedWithTotal,
+      effectiveLimit,
+      "totalCount",
+    ).map(({ categoryId, topAppliedJobs }) => ({
+      categoryId,
+      topAppliedJobs,
+    }));
+
+    // Rank independently: top by total employer job count
+    const employerWithTotal = employerData.map((d) => ({
+      ...d,
+      totalCount: d.topEmployers.reduce((sum, e) => sum + (e.count ?? 0), 0),
+    }));
+    const topByEmployer = this.resolveTopIds(
+      employerWithTotal,
+      effectiveLimit,
+      "totalCount",
+    ).map(({ categoryId, topEmployers }) => ({
+      categoryId,
+      topEmployers,
+    }));
+
+    this.logger.log(
+      `Fetched compare top-in-market: applied=${topByApplied.length}, employer=${topByEmployer.length} / ${categoryIds.length} categories`,
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { topByApplied, topByEmployer },
     };
   }
 
@@ -355,25 +541,14 @@ export class JobUseCases {
       newJob = repoResult.job;
       const notifications = repoResult.newNotifications;
 
-      // Send notifications to recipients
-      notifications.forEach((notification) => {
-        const sent = this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-          },
-          notification,
+      // Broadcast notification to admin room instead of looping through each user
+      if (notifications && notifications.length > 0) {
+        const notification = notifications[0]; // Use first notification for broadcast
+        this.webSocketGateway.sendToRoom("admin", notification);
+        this.logger.log(
+          `Broadcast job-created notification to admin room for job "${newJob.title}" (${notifications.length} notifications created in DB)`,
         );
-
-        if (sent) {
-          this.logger.log(
-            `Sent job-created notification to ${notification.receiverId} for job "${newJob.title}"`,
-          );
-        } else {
-          this.logger.warn(
-            `Failed to send websocket notification to ${notification.receiverId}`,
-          );
-        }
-      });
+      }
     } else {
       newJob = repoResult;
     }
@@ -387,6 +562,9 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
+    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+      jobId: newJob.id,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -397,12 +575,26 @@ export class JobUseCases {
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto & { userId: string },
+    user?: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    // Only admin can update job status
+    if (
+      updateJobDto.status !== undefined &&
+      user &&
+      !user.roles.includes(RoleEnum.ADMIN) &&
+      !user.roles.includes(RoleEnum.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException({
+        message: "Only admin can update job status",
+        code: RESPONSE_CODE.FORBIDDEN,
       });
     }
 
@@ -431,15 +623,13 @@ export class JobUseCases {
           updateData,
           updateJobDto.userId,
         );
-      newNotifications.forEach((notification) => {
-        this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
-          },
-          notification,
+
+      if (newNotifications && newNotifications.length > 0) {
+        this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+        this.logger.log(
+          `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${newNotifications.length} notifications created in DB)`,
         );
-      });
+      }
     }
     // Transform questions field
     const transformedJob: JobDto = {
@@ -450,6 +640,9 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
+    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+      jobId: jobId,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -505,6 +698,9 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
+    await this.messageQueueService.addJob(JobEventType.DELETE, {
+      jobId: jobId,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -545,7 +741,7 @@ export class JobUseCases {
         status: job.job.status as JobStatusEnum,
         workType: job.job.workType as WorkTypeEnum,
       },
-      company: {
+      organization: {
         id: job.organization.id,
         name: job.organization.name,
         slug: job.organization.slug,
@@ -553,7 +749,7 @@ export class JobUseCases {
         description: job.organization.description,
         address: job.organization.address,
         logoUrl: job.organization.logoUrl,
-      } as CompanyDto,
+      } as OrganizationWithDetailsDto,
     };
 
     return {

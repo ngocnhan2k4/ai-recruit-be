@@ -1,36 +1,20 @@
 import { ValidationPipe } from "@nestjs/common";
-import { getAppConfigs } from "@/common/config/app.config";
+import { getAppConfigs } from "@/common/config";
 import fastifyCompress from "@fastify/compress";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
+
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-import { FastifyRequest, FastifyReply } from "fastify";
+import { type FastifyRequest, type FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
 
 export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-
   app.register(fastifyCors, {
-    origin: [
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:8000",
-      "http://127.0.0.1:3001",
-      "http://127.0.0.1:8080",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3000",
-      "http://localhost:4000", // Add common frontend port
-      "http://localhost:8080",
-      "https://airecruit.software",
-      "https://airecruit-frontend.vercel.app",
-      "https://airecruit-frontend-git-dev-nhankhtns-projects.vercel.app",
-      "https://dev.airecruit.software",
-      "https://airecruit-frontend-admin.vercel.app",
-      "https://airecruit-frontend-ashen.vercel.app",
-    ],
+    origin: appConfigs.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],

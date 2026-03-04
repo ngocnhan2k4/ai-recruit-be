@@ -14,9 +14,9 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
@@ -31,37 +31,39 @@ import {
   UserDto,
   UserPublicResponseDto,
   UserOnboardingDto,
-  GetUserQueryDto,
-  GetAllUserResponseDto,
   GetUserResponseDto,
   UserSeoPublicResponseDto,
+  RespondToInvitationDto,
 } from "../../dtos";
-import { GetUser } from "@/common/decorators/get-user.decorator";
-import { type TokenPayload } from "@/common/types/token";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
-} from "../../dtos/users/user-experience.dto";
+} from "@/interfaces/dtos";
 import {
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
   UserSkillDto,
-} from "../../dtos/users/user-skill.dto";
+} from "@/interfaces/dtos";
 import { Skill } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants/response";
-import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { RESPONSE_CODE } from "@/common/constants";
+import { UploadFileAndBody } from "@/common/decorators";
 import { type MultipartFile } from "@fastify/multipart";
-import { PaginatedResultDto } from "../../dtos/common/query";
 import {
   CreateUserEducationDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
-} from "@/interfaces/dtos/users/user-education.dto";
+} from "@/interfaces/dtos";
+import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 
 @ApiTags("Users")
 @Controller("users")
 export class UserController {
-  constructor(private readonly userUseCases: UserUseCases) {}
+  constructor(
+    private readonly userUseCases: UserUseCases,
+    private readonly organizationInvitationUseCases: OrganizationInvitationUseCase,
+  ) {}
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @Get("check-username/:username")
@@ -96,14 +98,21 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
-  @ApiOperation({ summary: "Get user by username" })
-  @CasbinPermission("/", "GET")
+  @ApiOperation({
+    summary: "Get user by username",
+    description:
+      "Get user public profile. If authenticated user views their own profile, additional private information (statistics, preferences) will be included.",
+  })
   @Get(":username")
   @ApiResponseDto(UserPublicResponseDto)
   async getUserProfilePublic(
     @Param("username") username: string,
+    @GetUser() currentUser?: TokenPayload,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
-    return await this.userUseCases.getUserByUsername(username);
+    return await this.userUseCases.getUserByUsername(
+      username,
+      currentUser?.userId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -145,9 +154,7 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  // @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Update user profile" })
-  // @CasbinPermission("/", "PUT")
   @ApiBody({ type: UpdateUserRequestDto })
   @Put("profile")
   @ApiResponseDto(UserDto)
@@ -172,7 +179,6 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create user experience" })
-  @CasbinPermission("/user-experiences", "POST")
   @Post("user-experiences")
   @ApiBody({ type: CreateUserExperienceRequestDto })
   @ApiResponseDto("number")
@@ -302,17 +308,6 @@ export class UserController {
     );
   }
 
-  // @UseGuards(JwtAuthGuard, CasbinGuard)
-  // @ApiOperation({ summary: "Get user onboarding status" })
-  // @CasbinPermission("/onboarding", "GET")
-  // @Get("onboarding")
-  // @ApiResponseDto(UserOnboardingStatusDto)
-  // async getUserOnboardingStatus(
-  //   @GetUser() user: TokenPayload,
-  // ): Promise<ApiResponse<UserOnboardingStatusDto>> {
-  //   return this.userUseCases.checkUserEnterOnboarding(user.userId);
-  // }
-
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Complete user onboarding" })
   @Post("onboarding")
@@ -325,17 +320,6 @@ export class UserController {
       userOnboardingDto,
       user.userId,
     );
-  }
-
-  // [TODO]: Admin only - add CasbinPermission
-  // @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "Get all users (admin only)" })
-  @Get()
-  @ApiResponseDto(PaginatedResultDto<UserDto>)
-  async getUsers(
-    @Query() query: GetUserQueryDto,
-  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
-    return await this.userUseCases.getAllUsers(query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -392,5 +376,32 @@ export class UserController {
     @Param("educationId") educationId: string,
   ) {
     return this.userUseCases.deleteUserEducation(user.userId, educationId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Respond to organization invitation" })
+  @CasbinPermission("/invitations/:invitationId", "PATCH")
+  @Patch("/me/invitations/:invitationId")
+  @ApiResponseDto(Boolean)
+  async respondToOrganizationInvitation(
+    @GetUser() user: TokenPayload,
+    @Param("invitationId") invitationId: string,
+    @Body() respondToInvitationDto: RespondToInvitationDto,
+  ): Promise<ApiResponse<boolean>> {
+    return this.organizationInvitationUseCases.respondToInvitation(
+      user.userId,
+      invitationId,
+      respondToInvitationDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Delete user account" })
+  @Delete("/me")
+  @ApiResponseDto(Boolean)
+  async deleteUserAccount(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<boolean>> {
+    return this.userUseCases.deleteUserAccount(user.userId);
   }
 }

@@ -1,5 +1,5 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
-import { PaginatedResult } from "@/common/types/api";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { PaginatedResult } from "@/common/types";
 import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -10,7 +10,7 @@ import {
   NotificationActionRequestDto,
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
-} from "@/interfaces/dtos/notifications/notification.dto";
+} from "@/interfaces/dtos";
 
 @Injectable()
 export class NotificationUseCase {
