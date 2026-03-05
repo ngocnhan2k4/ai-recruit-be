@@ -168,10 +168,7 @@ export function transformJobToDocument({
   return {
     id: job.id,
     title: job.title,
-    description:
-      typeof job.description === "string"
-        ? job.description
-        : JSON.stringify(job.description || {}),
+    description: job.description || "",
     organizationId: job.organizationId,
     organizationName: organization?.name || null,
     skillIds: skills.map((s: Skill) => s.id).filter(Boolean),

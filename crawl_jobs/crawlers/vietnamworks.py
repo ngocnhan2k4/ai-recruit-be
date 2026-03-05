@@ -15,7 +15,8 @@ from bs4 import BeautifulSoup
 from helpers.extraction import extract_experience_years, extract_salary
 from helpers.http import crawl, fetch_page, human_delay
 from helpers.province import is_likely_province
-from helpers.text import safe_text
+from helpers.skills import extract_skills_from_text
+from helpers.text import html_to_mixed_content, safe_text
 
 
 def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
@@ -26,253 +27,62 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
         resp = scraper.get(job_url)
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Job title - h1 is the main title on detail page
-        job_title = None
+        # Job title
         title_elem = soup.select_one("h1")
-        if title_elem:
-            job_title = safe_text(title_elem)
-
+        job_title = safe_text(title_elem) if title_elem else None
         if not job_title or job_title == "N/A":
             job_title = job_data.get("title", "Unknown Job")
 
-        # Company name - usually in a link near the top
-        company_name = None
-        # Look for links that might be company links (exclude job-related links)
-        company_links = soup.select(
-            "a[href*='/nha-tuyen-dung/'], a[href*='/employer/'], a[href*='/company/']"
-        )
-        if company_links:
-            company_name = safe_text(company_links[0])
+        # Company name
+        company_name = _extract_company_name(soup, job_data)
 
-        if not company_name or company_name == "N/A":
-            # Fallback: look for text near company logo or header area
-            header_section = soup.select_one(
-                "header, .header, [class*='header'], [class*='company']"
-            )
-            if header_section:
-                links = header_section.select("a")
-                for link in links:
-                    text = safe_text(link)
-                    if text and text != "N/A" and len(text) > 2 and len(text) < 100:
-                        company_name = text
-                        break
+        # Company logo
+        logo = _extract_logo(soup)
 
-        if not company_name or company_name == "N/A":
-            company_name = job_data.get("company", "Unknown Company")
-
-        # Company logo - look for img tags with logo-like src
-        logo = None
-        logo_candidates = soup.select(
-            "img[src*='logo'], img[src*='company'], img[alt*='logo']"
-        )
-        if logo_candidates:
-            logo = logo_candidates[0].get("src") or logo_candidates[0].get("data-src")
-        else:
-            # Fallback: first image in header/company area
-            header = soup.select_one(
-                "header, [class*='header'], [class*='company-info']"
-            )
-            if header:
-                img = header.select_one("img")
-                if img:
-                    logo = img.get("src") or img.get("data-src")
-
-        # Locations - look for text containing Vietnamese city names
+        # Locations
         locations = job_data.get("locations", [])
         if not locations:
-            # Try to find location elements
-            loc_candidates = soup.find_all(
-                string=lambda t: t
-                and any(
-                    city in t
-                    for city in [
-                        "Hà Nội",
-                        "Hồ Chí Minh",
-                        "Đà Nẵng",
-                        "Cần Thơ",
-                        "Hải Phòng",
-                    ]
-                )
-            )
-            for loc in loc_candidates[:2]:
-                loc_text = str(loc).strip()
-                if len(loc_text) < 50:  # Avoid long text blocks
-                    locations.append(loc_text)
+            locations = _extract_locations(soup)
 
-        # Salary - look for "Thương lượng" or salary patterns
-        salary_min, salary_max = 0, 0
-        salary_text = None
+        # Salary
+        salary_min, salary_max = _extract_salary(soup)
 
-        # Look for salary keywords
-        salary_candidates = soup.find_all(
-            string=lambda t: t
-            and (
-                "triệu" in t.lower()
-                or "usd" in t.lower()
-                or "thương lượng" in t.lower()
-                or "lương" in t.lower()
-            )
-        )
-        for candidate in salary_candidates:
-            text = str(candidate).strip()
-            if len(text) < 100:  # Avoid long text blocks
-                salary_text = text
-                break
+        # Experience
+        experience_min = _extract_experience(soup)
 
-        if salary_text and "thương lượng" not in salary_text.lower():
-            salary_min, salary_max = extract_salary(salary_text)
+        # Skills from requirements section
+        skills = _extract_skills_from_sections(soup, locations)
 
-        # Experience - look for "năm kinh nghiệm" patterns
-        experience_min = None
-        exp_candidates = soup.find_all(
-            string=lambda t: t
-            and "năm" in t.lower()
-            and ("kinh nghiệm" in t.lower() or "experience" in t.lower())
-        )
-        for candidate in exp_candidates:
-            text = str(candidate).strip()
-            if len(text) < 100:
-                experience_min = extract_experience_years(text)
-                if experience_min:
-                    break
-
-        # Skills - look for list items in requirements section
-        skills = []
-
-        # Find "Yêu cầu công việc" or similar sections
-        req_headers = soup.find_all(
-            ["h2", "h3", "h4", "strong", "b"],
-            string=lambda t: t
-            and (
-                "yêu cầu" in t.lower() or "kỹ năng" in t.lower() or "skill" in t.lower()
-            ),
-        )
-
-        for header in req_headers:
-            # Get the next sibling elements (usually ul/ol with li items)
-            sibling = header.find_next_sibling()
-            if sibling:
-                items = sibling.select("li")
-                for item in items[:10]:  # Limit to avoid too many
-                    skill_text = safe_text(item)
-                    # Extract first part before comma or colon if too long
-                    if len(skill_text) > 50:
-                        parts = skill_text.split(",")
-                        skill_text = parts[0].strip() if parts else skill_text[:50]
-
-                    if (
-                        skill_text
-                        and skill_text != "N/A"
-                        and len(skill_text) > 1
-                        and len(skill_text) < 80
-                        and not is_likely_province(skill_text)
-                    ):
-                        skills.append(skill_text)
-
-        # Also try to extract common tech skills from description
+        # Also extract common tech skills from full page text
         desc_text = safe_text(soup.select_one("body"))
-        common_skills = [
-            "Python",
-            "JavaScript",
-            "Java",
-            "C++",
-            "C#",
-            "TypeScript",
-            "Go",
-            "Rust",
-            "React",
-            "Angular",
-            "Vue",
-            "Node.js",
-            "Django",
-            "Flask",
-            "Spring",
-            "AWS",
-            "Azure",
-            "GCP",
-            "Docker",
-            "Kubernetes",
-            "Git",
-            "CI/CD",
-            "SQL",
-            "PostgreSQL",
-            "MySQL",
-            "MongoDB",
-            "Redis",
-            "Elasticsearch",
-            ".NET",
-            "PHP",
-            "Ruby",
-            "Swift",
-            "Kotlin",
-            "Scala",
-            "Linux",
-            "DevOps",
-            "Agile",
-            "Scrum",
-        ]
-        for skill in common_skills:
-            if skill.lower() in desc_text.lower() and skill not in skills:
-                skills.append(skill)
+        skills = extract_skills_from_text(desc_text, skills)
 
-        # Description - find "Mô tả công việc" section
-        description_parts = []
-        desc_headers = soup.find_all(
-            ["h2", "h3", "h4", "strong", "b"],
-            string=lambda t: t and ("mô tả" in t.lower() or "description" in t.lower()),
-        )
+        # Description — mixed content (markdown headings + raw HTML)
+        description = _extract_description(soup)
 
-        for header in desc_headers:
-            title = safe_text(header)
-            sibling = header.find_next_sibling()
-            if sibling:
-                body = safe_text(sibling, sep="\n")
-                if body != "N/A":
-                    description_parts.append({"title": title, "body": body})
-
-        # Fallback: get main content area
-        if not description_parts:
-            main_content = soup.select_one(
-                "main, article, [class*='content'], [class*='description']"
-            )
-            if main_content:
-                full_text = safe_text(main_content, sep="\n")
-                if full_text != "N/A" and len(full_text) > 100:
-                    description_parts.append(
-                        {"title": "", "body": full_text[:2000]}
-                    )  # Limit length
-
-        # Company info
-        company_desc = ""
-        company_website = None
-        employees_min, employees_max = None, None
-        comp_addr = []
-
-        # Build company data
+        # Build company and job data
         if company_name not in companies:
             companies[company_name] = {
                 "logo": logo,
-                "address": comp_addr,
-                "description": company_desc,
-                "employees_min": employees_min,
-                "employees_max": employees_max,
-                "website_url": company_website,
+                "address": [],
+                "description": "",
+                "employees_min": None,
+                "employees_max": None,
+                "website_url": None,
                 "crawled_at": datetime.now(),
                 "source": "vietnamworks",
                 "jobs": {},
             }
 
-        # Update logo if we found one and company doesn't have it
         if logo and not companies[company_name].get("logo"):
             companies[company_name]["logo"] = logo
 
-        # Build job data
         companies[company_name]["jobs"][job_title] = {
-            "description": description_parts,
+            "description": description,
             "locations": locations,
             "job_url": job_url,
             "date_posted": job_data.get("date_posted"),
-            "skills": skills[:15],  # Limit skills
+            "skills": skills[:15],
             "experience_min": experience_min,
             "crawled_at": datetime.now(timezone.utc),
             "salary_min": salary_min if salary_min else None,
@@ -286,10 +96,155 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
         print(f"    ⚠️ Error: {e}")
 
 
+def _extract_company_name(soup, job_data):
+    """Extract company name from job detail page."""
+    company_links = soup.select(
+        "a[href*='/nha-tuyen-dung/'], a[href*='/employer/'], a[href*='/company/']"
+    )
+    if company_links:
+        name = safe_text(company_links[0])
+        if name and name != "N/A":
+            return name
+
+    # Fallback: header area
+    header_section = soup.select_one(
+        "header, .header, [class*='header'], [class*='company']"
+    )
+    if header_section:
+        for link in header_section.select("a"):
+            text = safe_text(link)
+            if text and text != "N/A" and 2 < len(text) < 100:
+                return text
+
+    return job_data.get("company", "Unknown Company")
+
+
+def _extract_logo(soup):
+    """Extract company logo URL."""
+    logo_candidates = soup.select(
+        "img[src*='logo'], img[src*='company'], img[alt*='logo']"
+    )
+    if logo_candidates:
+        return logo_candidates[0].get("src") or logo_candidates[0].get("data-src")
+
+    header = soup.select_one("header, [class*='header'], [class*='company-info']")
+    if header:
+        img = header.select_one("img")
+        if img:
+            return img.get("src") or img.get("data-src")
+    return None
+
+
+def _extract_locations(soup):
+    """Extract locations from page text."""
+    cities = ["Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Cần Thơ", "Hải Phòng"]
+    locations = []
+    loc_candidates = soup.find_all(
+        string=lambda t: t and any(city in t for city in cities)
+    )
+    for loc in loc_candidates[:2]:
+        loc_text = str(loc).strip()
+        if len(loc_text) < 50:
+            locations.append(loc_text)
+    return locations
+
+
+def _extract_salary(soup):
+    """Extract salary range from page text."""
+    salary_candidates = soup.find_all(
+        string=lambda t: (
+            t
+            and (
+                "triệu" in t.lower()
+                or "usd" in t.lower()
+                or "thương lượng" in t.lower()
+                or "lương" in t.lower()
+            )
+        )
+    )
+    for candidate in salary_candidates:
+        text = str(candidate).strip()
+        if len(text) < 100 and "thương lượng" not in text.lower():
+            return extract_salary(text)
+    return 0, 0
+
+
+def _extract_experience(soup):
+    """Extract experience requirement."""
+    exp_candidates = soup.find_all(
+        string=lambda t: (
+            t
+            and "năm" in t.lower()
+            and ("kinh nghiệm" in t.lower() or "experience" in t.lower())
+        )
+    )
+    for candidate in exp_candidates:
+        text = str(candidate).strip()
+        if len(text) < 100:
+            result = extract_experience_years(text)
+            if result:
+                return result
+    return None
+
+
+def _extract_skills_from_sections(soup, locations):
+    """Extract skills from requirement sections."""
+    skills = []
+    req_headers = soup.find_all(
+        ["h2", "h3", "h4", "strong", "b"],
+        string=lambda t: (
+            t
+            and ("yêu cầu" in t.lower() or "kỹ năng" in t.lower() or "skill" in t.lower())
+        ),
+    )
+
+    for header in req_headers:
+        sibling = header.find_next_sibling()
+        if sibling:
+            for item in sibling.select("li")[:10]:
+                skill_text = safe_text(item)
+                if len(skill_text) > 50:
+                    skill_text = skill_text.split(",")[0].strip()
+
+                if (
+                    skill_text
+                    and skill_text != "N/A"
+                    and 1 < len(skill_text) < 80
+                    and not is_likely_province(skill_text)
+                ):
+                    skills.append(skill_text)
+    return skills
+
+
+def _extract_description(soup):
+    """Extract job description as mixed markdown+HTML content."""
+    desc_headers = soup.find_all(
+        ["h2", "h3", "h4", "strong", "b"],
+        string=lambda t: t and ("mô tả" in t.lower() or "description" in t.lower()),
+    )
+
+    if desc_headers:
+        desc_html_parts = []
+        for header in desc_headers:
+            desc_html_parts.append(str(header))
+            sibling = header.find_next_sibling()
+            if sibling:
+                desc_html_parts.append(str(sibling))
+        return html_to_mixed_content("\n".join(desc_html_parts))
+
+    # Fallback: main content area
+    main_content = soup.select_one(
+        "main, article, [class*='content'], [class*='description']"
+    )
+    if main_content:
+        return html_to_mixed_content(main_content)
+
+    return ""
+
+
 def scrape_page(scraper, page_num, headers):
     """Scrape a single listing page."""
     base_url = "https://www.vietnamworks.com"
-    # g=5 is IT/Software category
     listing_url = f"{base_url}/viec-lam?g=5&ignoreLocation=true&page={page_num}"
 
     print(f"\n--- VietnamWorks page {page_num}: {listing_url} ---")
@@ -302,17 +257,12 @@ def scrape_page(scraper, page_num, headers):
     soup = BeautifulSoup(html, "html.parser")
     companies = {}
 
-    # VietnamWorks uses dynamic class names, so we look for job links by URL pattern
-    # Job URLs contain the job ID pattern like "senior-it-infrastructure--1979484-jv"
-    job_links = soup.select("a[href*='-jv']")  # Jobs end with -jv suffix
-
-    # Filter to unique job URLs
+    # Find job links by URL pattern (-jv suffix)
     seen_urls = set()
     unique_jobs = []
-    for link in job_links:
+    for link in soup.select("a[href*='-jv']"):
         href = link.get("href", "")
         if "-jv" in href and href not in seen_urls:
-            # Skip navigation/filter links
             if "/viec-lam?" in href or "/tim-viec-lam" in href:
                 continue
             seen_urls.add(href)
@@ -321,29 +271,20 @@ def scrape_page(scraper, page_num, headers):
     print(f"Found {len(unique_jobs)} unique job links")
 
     if not unique_jobs:
-        # Fallback: look for any links that might be jobs
-        all_links = soup.select("a[href]")
-        for link in all_links:
+        # Fallback: look for any job-like links
+        for link in soup.select("a[href]"):
             href = link.get("href", "")
-            # Check if it looks like a job URL (contains numbers and keywords)
-            if any(
-                keyword in href for keyword in ["/job/", "/viec-lam/", "/tuyen-dung/"]
-            ):
+            if any(kw in href for kw in ["/job/", "/viec-lam/", "/tuyen-dung/"]):
                 if href not in seen_urls:
                     seen_urls.add(href)
                     unique_jobs.append(link)
-
         print(f"Fallback: found {len(unique_jobs)} potential job links")
 
-    # Limit to avoid too many requests
-    jobs_to_process = unique_jobs[:15]
-
-    for idx, job_link in enumerate(jobs_to_process):
+    for idx, job_link in enumerate(unique_jobs[:15]):
         try:
             href = job_link.get("href", "")
             job_url = urljoin(base_url, href)
 
-            # Get preview info from link text/context
             job_data = {
                 "title": safe_text(job_link),
                 "company": "",
@@ -351,19 +292,13 @@ def scrape_page(scraper, page_num, headers):
                 "date_posted": None,
             }
 
-            # Try to get more context from parent/sibling elements
             parent = job_link.find_parent()
             if parent:
-                # Look for company name nearby
                 company_elem = parent.find_next_sibling()
                 if company_elem:
                     job_data["company"] = safe_text(company_elem)
 
-            print(
-                f"\n[{idx + 1}/{len(jobs_to_process)}] Processing: {job_data['title'][:50]}..."
-            )
-
-            # Scrape detail page
+            print(f"\n[{idx + 1}/{min(len(unique_jobs), 15)}] Processing: {job_data['title'][:50]}...")
             scrape_job_detail(scraper, job_url, job_data, companies)
             human_delay(2, 3)
 
@@ -375,16 +310,7 @@ def scrape_page(scraper, page_num, headers):
 
 
 def vietnamworks_crawl(pages: int = 1, start_page: int = 1):
-    """
-    Crawl VietnamWorks IT job listings.
-
-    Args:
-        pages: Number of listing pages to crawl
-        start_page: Starting page number
-
-    Returns:
-        Dictionary of companies and their jobs
-    """
+    """Crawl VietnamWorks IT job listings."""
     print(
         f"\n🔄 [VietnamWorks] Starting IT job crawl (pages {start_page}-{start_page + pages - 1})"
     )
