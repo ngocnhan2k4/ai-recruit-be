@@ -961,13 +961,19 @@ export class JobRepository
    * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
    * this will create notifications for the job's organization members.
    */
-  async applyJob(
-    jobId: string,
-    userCvId: string,
+  async applyJob({
+    jobId,
+    userCvId,
     sendNotifications = false,
-    senderUserId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
+    senderUserId,
+    answers,
+  }: {
+    jobId: string;
+    userCvId: string;
+    sendNotifications?: boolean;
+    senderUserId: string;
+    answers?: JobAnswer[];
+  }): Promise<
     | ApplyJobResponse
     | {
         application: ApplyJobResponse;
@@ -977,9 +983,10 @@ export class JobRepository
   > {
     const result = await this.db.transaction(async (tx) => {
       const existingApplication = await tx
-        .select()
+        .select({ id: applyJobs.id })
         .from(applyJobs)
-        .where(and(eq(applyJobs.cvId, userCvId), eq(applyJobs.jobId, jobId)))
+        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)))
         .limit(1);
 
       if (existingApplication.length > 0) {
