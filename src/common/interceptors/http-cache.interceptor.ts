@@ -58,7 +58,7 @@ export class HttpCacheInterceptor extends CacheInterceptor {
 
     const path = url.split("?")[0];
 
-    const sortedQuery = Object.keys(query || {})
+    const sortedQuery = Object.entries(query || {})
       .filter(([_, v]) => v !== undefined && v !== "")
       .sort()
       .map(([key, value]) => `${key}=${decodeURIComponent(value)}`)

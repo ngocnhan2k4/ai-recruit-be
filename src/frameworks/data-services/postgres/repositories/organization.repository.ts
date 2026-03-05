@@ -34,7 +34,7 @@ import {
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
-import { cacheWithRetryBackoff } from "@/common/utils";
+import { cacheWithDedup } from "@/common/utils";
 
 @Injectable()
 export class OrganizationRepository
@@ -50,13 +50,13 @@ export class OrganizationRepository
 
   async get(id: string): Promise<OrganizationWithDetails | null> {
     const key = CACHE_KEYS.organization.get(id);
-    return cacheWithRetryBackoff<OrganizationWithDetails | null>(
+    return cacheWithDedup<OrganizationWithDetails | null>(
       key,
       () => this.cacheManager.get<OrganizationWithDetails | null>(key),
       () => super.get(id),
       (data: OrganizationWithDetails | null) =>
         this.cacheManager.set<OrganizationWithDetails | null>(
-          CACHE_KEYS.organization.get(id),
+          key,
           data,
           SHORT_TTL,
         ),
@@ -67,7 +67,7 @@ export class OrganizationRepository
     id: string,
   ): Promise<OrganizationWithDetails | null> {
     const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
-    return cacheWithRetryBackoff<OrganizationWithDetails | null>(
+    return cacheWithDedup<OrganizationWithDetails | null>(
       cacheKey,
       () => this.cacheManager.get<OrganizationWithDetails | null>(cacheKey),
       async () => {
