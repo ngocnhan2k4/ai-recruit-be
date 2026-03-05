@@ -63,6 +63,60 @@ export class OrganizationRepository
     );
   }
 
+  async update(
+    where: Partial<OrganizationWithDetails>,
+    item: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<OrganizationWithDetails[]> {
+    const data = await super.update(where, item, tx);
+
+    const keys: string[] = [];
+    for (const org of data) {
+      const keyGet = CACHE_KEYS.organization.get(org.id);
+      const keyGetWithDetail = CACHE_KEYS.organization.getWithDetail(org.id);
+      const keyGetNamesByType = CACHE_KEYS.organization.getNamesByType(
+        org.type,
+      );
+      keys.push(keyGet, keyGetWithDetail, keyGetNamesByType);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        console.warn(
+          `[cache] Failed to invalidate cache for organizations ${keys.join(
+            ",",
+          )}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
+  async delete(
+    where: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<OrganizationWithDetails[]> {
+    const data = await super.delete(where, tx);
+
+    const keys: string[] = [];
+    for (const org of data) {
+      const keyGet = CACHE_KEYS.organization.get(org.id);
+      const keyGetWithDetail = CACHE_KEYS.organization.getWithDetail(org.id);
+      keys.push(keyGet, keyGetWithDetail);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        console.warn(
+          `[cache] Failed to invalidate cache for organizations ${keys.join(
+            ",",
+          )}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
   async getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null> {
@@ -289,22 +343,25 @@ export class OrganizationRepository
   async getAllNamesByType(
     type: OrganizationTypeEnum,
   ): Promise<Pick<OrganizationWithDetails, "name">[]> {
-    const cacheKey = `org:getNamesByType:${type}`;
-    const cached =
-      await this.cacheManager.get<Pick<OrganizationWithDetails, "name">[]>(
-        cacheKey,
-      );
-    if (cached !== undefined) return cached;
-
-    const result = await this.db
-      .select({
-        name: organizations.name,
-      })
-      .from(organizations)
-      .where(eq(organizations.type, type));
-
-    await this.cacheManager.set(cacheKey, result, LONG_TTL);
-    return result;
+    const key = CACHE_KEYS.organization.getNamesByType(type);
+    return cacheWithDedup<Pick<OrganizationWithDetails, "name">[]>(
+      key,
+      () => this.cacheManager.get<Pick<OrganizationWithDetails, "name">[]>(key),
+      async () => {
+        return this.db
+          .select({
+            name: organizations.name,
+          })
+          .from(organizations)
+          .where(eq(organizations.type, type));
+      },
+      (data: Pick<OrganizationWithDetails, "name">[]) =>
+        this.cacheManager.set<Pick<OrganizationWithDetails, "name">[]>(
+          key,
+          data,
+          LONG_TTL,
+        ),
+    );
   }
 
   async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
@@ -377,6 +434,19 @@ export class OrganizationRepository
       .set(data)
       .where(eq(organizations.id, id))
       .returning();
+
+    await this.cacheManager
+      .mdel([
+        CACHE_KEYS.organization.get(id),
+        CACHE_KEYS.organization.getWithDetail(id),
+      ])
+      .catch((err) =>
+        console.warn(
+          `[cache] Failed to invalidate cache for organization ${id}:`,
+          err,
+        ),
+      );
+
     return org;
   }
 

@@ -5,6 +5,11 @@ export const LLONG_TTL = 3 * 24 * 60 * 60 * 1000; // 3 days
 export const CACHE_KEYS = {
   organization: {
     get: (orgId: string) => `org:${orgId}:get`,
-    getWithDetail: (orgId: string) => `org:${orgId}:getById`,
+    getWithDetail: (orgId: string) => `org:${orgId}:getWithDetail`,
+    getNamesByType: (type: string) => `org:${type}:getNamesByType`,
+  },
+  job: {
+    get: (jobId: string) => `job:${jobId}:get`,
+    getWithDetail: (jobId: string) => `job:${jobId}:getWithDetail`,
   },
 };

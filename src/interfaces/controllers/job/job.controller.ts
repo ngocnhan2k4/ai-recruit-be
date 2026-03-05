@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
-import { SHORT_TTL, LONG_TTL } from "@/common/constants";
+import { LONG_TTL } from "@/common/constants";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import {
   ApiResponse,
@@ -270,8 +270,6 @@ export class JobController {
   })
   @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobResponseDto)
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(SHORT_TTL)
   @Get(":id")
   async getJobById(
     @Param("id") jobId: string,
