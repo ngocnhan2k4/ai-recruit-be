@@ -46,9 +46,9 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app-main/
-            docker-compose -f docker-compose.yaml down
-            docker rmi -f $(docker images -aq)
-            docker-compose -f docker-compose.yaml up -d
+            docker compose -f docker-compose.yaml down
+            docker image prune -f
+            docker compose -f docker-compose.yaml up -d
 
       # - name: Health Check After Deployment
       #   id: healthcheck
@@ -185,9 +185,9 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
-            docker-compose -f docker-compose-dev.yaml down
-            docker rmi -f $(docker images -aq)
-            docker-compose -f docker-compose-dev.yaml up -d
+            docker compose -f docker-compose-dev.yaml down
+            docker image prune -f
+            docker compose -f docker-compose-dev.yaml up -d
 
       # - name: Health Check After Deployment
       #   id: healthcheck
