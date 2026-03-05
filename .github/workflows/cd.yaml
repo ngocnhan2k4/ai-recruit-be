@@ -28,7 +28,7 @@ jobs:
           docker push ${{ env.IMAGE_NAME }}:latest
 
       - name: Copy docker-compose to prod server
-        uses: appleboy/scp-action@v0.1.4
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
           username: ${{ secrets.DEV_SERVER_USER }}
@@ -38,7 +38,7 @@ jobs:
           target: "/var/www/my-app-main/"
 
       - name: Deploy to Production Server
-        uses: appleboy/ssh-action@v0.1.6
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
           username: ${{ secrets.DEV_SERVER_USER }}
