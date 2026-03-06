@@ -187,6 +187,7 @@ jobs:
             cd /var/www/my-app
             docker compose -f docker-compose-dev.yaml down
             docker image prune -f
+            docker compose -f docker-compose-dev.yaml pull
             docker compose -f docker-compose-dev.yaml up -d
 
       # - name: Health Check After Deployment
