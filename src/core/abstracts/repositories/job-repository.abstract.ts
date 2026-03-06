@@ -178,7 +178,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
-  abstract deleteJob(jobId: string): Promise<boolean>;
 
   abstract getFullJobById(
     jobId: string,

@@ -12,11 +12,7 @@ import {
   Post,
   Query,
   UseGuards,
-  UseInterceptors,
 } from "@nestjs/common";
-import { CacheTTL } from "@nestjs/cache-manager";
-import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
-import { SHORT_TTL } from "@/common/constants";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponseDto,
@@ -278,8 +274,6 @@ export class OrganizationController {
     description: "Get all organizations (only basic information)",
   })
   @ApiResponseDto(String)
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(SHORT_TTL)
   async getAllOrganizations(
     @Query() query: OrganizationQueryDto,
   ): Promise<

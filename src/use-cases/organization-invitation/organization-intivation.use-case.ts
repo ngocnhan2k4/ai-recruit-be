@@ -497,7 +497,6 @@ export class OrganizationInvitationUseCase {
         userId: userId,
         deletedAt: null,
       });
-    console.log({ inviterInOrganization });
 
     if (!inviterInOrganization || inviterInOrganization.length === 0) {
       throw new ForbiddenException({
