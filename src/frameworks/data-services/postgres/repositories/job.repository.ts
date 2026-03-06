@@ -73,6 +73,7 @@ import {
   StatisticsJobFilter,
 } from "@/core/entities/job.entity";
 import { getJobStatus } from "@/common/utils";
+import { exists } from "drizzle-orm";
 
 @Injectable()
 export class JobRepository
@@ -982,14 +983,21 @@ export class JobRepository
       }
   > {
     const result = await this.db.transaction(async (tx) => {
-      const existingApplication = await tx
-        .select({ id: applyJobs.id })
-        .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)))
-        .limit(1);
+      const [existingApplication] = await tx
+        .select({
+          exists: exists(
+            tx
+              .select()
+              .from(applyJobs)
+              .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+              .where(
+                and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)),
+              ),
+          ),
+        })
+        .from(applyJobs);
 
-      if (existingApplication.length > 0) {
+      if (existingApplication.exists) {
         throw new Error("User has already applied for this job");
       }
 
