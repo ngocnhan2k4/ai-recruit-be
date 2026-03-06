@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, Logger } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { SHORT_TTL, LONG_TTL, CACHE_KEYS } from "@/common/constants";
@@ -41,6 +41,8 @@ export class OrganizationRepository
   extends GenericRepository<OrganizationWithDetails, typeof organizations>
   implements IOrganizationRepository
 {
+  private readonly logger = new Logger(OrganizationRepository.name);
+
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -60,6 +62,9 @@ export class OrganizationRepository
           data,
           SHORT_TTL,
         ),
+      {
+        logger: this.logger,
+      },
     );
   }
 
@@ -82,7 +87,7 @@ export class OrganizationRepository
     await this.cacheManager
       .mdel(keys)
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for organizations ${keys.join(
             ",",
           )}:`,
@@ -107,7 +112,7 @@ export class OrganizationRepository
     await this.cacheManager
       .mdel(keys)
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for organizations ${keys.join(
             ",",
           )}:`,
@@ -203,6 +208,9 @@ export class OrganizationRepository
           data,
           SHORT_TTL,
         ),
+      {
+        logger: this.logger,
+      },
     );
   }
 
@@ -361,6 +369,9 @@ export class OrganizationRepository
           data,
           LONG_TTL,
         ),
+      {
+        logger: this.logger,
+      },
     );
   }
 
@@ -441,7 +452,7 @@ export class OrganizationRepository
         CACHE_KEYS.organization.getWithDetail(id),
       ])
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for organization ${id}:`,
           err,
         ),

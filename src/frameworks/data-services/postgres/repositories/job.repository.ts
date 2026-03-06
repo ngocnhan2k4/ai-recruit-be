@@ -16,7 +16,7 @@ import {
   inArray,
   lt,
 } from "drizzle-orm";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   jobs,
   companies,
@@ -82,6 +82,8 @@ export class JobRepository
   extends GenericRepository<Job, typeof jobs>
   implements IJobRepository
 {
+  private readonly logger = new Logger(JobRepository.name);
+
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -100,6 +102,9 @@ export class JobRepository
       () => super.get(id),
       (data: Job | null) =>
         this.cacheManager.set<Job | null>(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
     );
   }
 
@@ -119,7 +124,7 @@ export class JobRepository
     await this.cacheManager
       .mdel(keys)
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
           err,
         ),
@@ -139,7 +144,7 @@ export class JobRepository
     await this.cacheManager
       .mdel(keys)
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
           err,
         ),
@@ -1509,7 +1514,7 @@ export class JobRepository
     await this.cacheManager
       .del(CACHE_KEYS.job.get(jobId))
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for job ${jobId}:`,
           err,
         ),
@@ -1598,7 +1603,7 @@ export class JobRepository
       await this.cacheManager
         .del(CACHE_KEYS.job.get(jobId))
         .catch((err) =>
-          console.warn(
+          this.logger.warn(
             `[cache] Failed to invalidate cache for job ${jobId}:`,
             err,
           ),
@@ -1621,7 +1626,7 @@ export class JobRepository
     await this.cacheManager
       .del(CACHE_KEYS.job.get(jobId))
       .catch((err) =>
-        console.warn(
+        this.logger.warn(
           `[cache] Failed to invalidate cache for job ${jobId}:`,
           err,
         ),
@@ -1804,6 +1809,9 @@ export class JobRepository
         };
       },
       (data: JobResponse | null) => this.cacheManager.set(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
     );
   }
   async getNumberOfSavedJobs(userId: string): Promise<number> {

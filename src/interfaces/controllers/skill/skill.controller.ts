@@ -36,7 +36,6 @@ export class SkillController {
   async createMany(
     @Body() createSkillDto: CreateSkillDto,
   ): Promise<ApiResponse<SkillDto[]>> {
-    console.log(createSkillDto);
     return this.skillUseCases.createMany(createSkillDto);
   }
 

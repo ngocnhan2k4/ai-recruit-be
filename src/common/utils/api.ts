@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 interface RetryOptions {
   retries?: number;
   interval?: number;
@@ -33,6 +34,7 @@ export const cacheWithDedup = async <T>(
   cacher: () => Promise<T | undefined>,
   fetcher: () => Promise<T>,
   updateCacher: (data: T) => Promise<any>,
+  options: { logger?: Logger } = {},
 ): Promise<T> => {
   const cached = await cacher();
   if (cached !== undefined) return cached;
@@ -42,9 +44,13 @@ export const cacheWithDedup = async <T>(
     pendingFetches.set(key, fetchPromise);
     try {
       const data = await fetchPromise;
-      await updateCacher(data).catch((err) =>
-        console.warn(`[cache] updateCacher failed for key "${key}":`, err),
-      );
+      await updateCacher(data).catch((err) => {
+        const { logger } = options;
+        (logger || console).warn(
+          `[cache] updateCacher failed for key "${key}":`,
+          err,
+        );
+      });
       return data;
     } finally {
       pendingFetches.delete(key);
