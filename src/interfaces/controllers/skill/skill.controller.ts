@@ -1,5 +1,15 @@
-import { Controller, Get, Post, Body, UseGuards, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Query,
+  UseInterceptors,
+} from "@nestjs/common";
+import { CacheTTL } from "@nestjs/cache-manager";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { LLONG_TTL } from "@/common/constants";
 import {
   ApiResponseDto,
   ApiResponse,
@@ -8,6 +18,7 @@ import {
   PaginatedResultDto,
   GetSkillsQueryDto,
 } from "../../dtos";
+import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 
@@ -15,15 +26,6 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 @Controller("skills")
 export class SkillController {
   constructor(private readonly skillUseCases: SkillUseCases) {}
-
-  @ApiOperation({
-    summary: "Get all skills",
-  })
-  @ApiResponseDto(SkillDto, { isArray: true })
-  @Get("/all")
-  async getSkills(): Promise<ApiResponse<SkillDto[]>> {
-    return this.skillUseCases.getSkills();
-  }
 
   @ApiOperation({
     summary: "Create new skills",
@@ -34,7 +36,6 @@ export class SkillController {
   async createMany(
     @Body() createSkillDto: CreateSkillDto,
   ): Promise<ApiResponse<SkillDto[]>> {
-    console.log(createSkillDto);
     return this.skillUseCases.createMany(createSkillDto);
   }
 
@@ -42,6 +43,8 @@ export class SkillController {
     summary: "Get pageinated skills",
   })
   @ApiResponseDto(SkillDto, { isArray: true })
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LLONG_TTL)
   @Get()
   async getPaginatedSkills(
     @Query() query: GetSkillsQueryDto,

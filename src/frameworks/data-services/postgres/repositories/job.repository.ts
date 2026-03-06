@@ -16,7 +16,7 @@ import {
   inArray,
   lt,
 } from "drizzle-orm";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   jobs,
   companies,
@@ -35,7 +35,7 @@ import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
-import { convertDateToStr } from "@/common/utils";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import {
   IJobRepository,
@@ -73,6 +73,9 @@ import {
   StatisticsJobFilter,
 } from "@/core/entities/job.entity";
 import { getJobStatus } from "@/common/utils";
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
 
 @Injectable()
@@ -80,13 +83,74 @@ export class JobRepository
   extends GenericRepository<Job, typeof jobs>
   implements IJobRepository
 {
+  private readonly logger = new Logger(JobRepository.name);
+
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly userRepository: IUserRepository,
   ) {
     super(db, jobs);
+  }
+
+  get(id: string): Promise<Job | null> {
+    const key = CACHE_KEYS.job.get(id);
+    return cacheWithDedup<Job | null>(
+      key,
+      () => this.cacheManager.get<Job | null>(key),
+      () => super.get(id),
+      (data: Job | null) =>
+        this.cacheManager.set<Job | null>(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
+  }
+
+  async update(
+    where: Partial<Job>,
+    item: Partial<Job>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<Job[]> {
+    const data = await super.update(where, item, tx);
+
+    const keys: string[] = [];
+    for (const job of data) {
+      const keyGet = CACHE_KEYS.job.get(job.id);
+      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
+      keys.push(keyGet, keyGetWithDetail);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
+  async delete(where: Partial<Job>, tx?: DBDrizzleTransaction): Promise<Job[]> {
+    const data = await super.delete(where, tx);
+
+    const keys: string[] = [];
+    for (const job of data) {
+      const keyGet = CACHE_KEYS.job.get(job.id);
+      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
+      keys.push(keyGet, keyGetWithDetail);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
   }
 
   async getJobsByAdmin(
@@ -1461,6 +1525,15 @@ export class JobRepository
         await tx.insert(jobProvinces).values(provinceAssociations);
       }
     }
+
+    await this.cacheManager
+      .del(CACHE_KEYS.job.get(jobId))
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for job ${jobId}:`,
+          err,
+        ),
+      );
     return updatedJob as Job | null;
   }
 
@@ -1541,6 +1614,16 @@ export class JobRepository
           },
           recipients,
         );
+
+      await this.cacheManager
+        .del(CACHE_KEYS.job.get(jobId))
+        .catch((err) =>
+          this.logger.warn(
+            `[cache] Failed to invalidate cache for job ${jobId}:`,
+            err,
+          ),
+        );
+
       return { job: updatedJob as Job, newNotifications: notifications };
     });
     return result;
@@ -1554,6 +1637,15 @@ export class JobRepository
       })
       .where(eq(jobs.id, jobId))
       .returning();
+
+    await this.cacheManager
+      .del(CACHE_KEYS.job.get(jobId))
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for job ${jobId}:`,
+          err,
+        ),
+      );
 
     return result.length > 0;
   }
@@ -1640,91 +1732,102 @@ export class JobRepository
     userId?: string,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
-    const result = await this.db
-      .select({
-        job: jobs,
-        provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
-        organization: organizations,
-        skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
-        // If user is authenticated, check if job is saved or applied
-        isSaved: userId
-          ? sql`EXISTS (
+    const key = CACHE_KEYS.job.getWithDetail(jobId);
+    return cacheWithDedup(
+      key,
+      () => this.cacheManager.get<JobResponse | null>(key),
+      async () => {
+        const result = await this.db
+          .select({
+            job: jobs,
+            provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
+            organization: organizations,
+            skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
+            // If user is authenticated, check if job is saved or applied
+            isSaved: userId
+              ? sql`EXISTS (
             SELECT 1 FROM ${userInteractions} ui 
             WHERE ui.job_id = ${jobs.id} 
             AND ui.user_id = ${userId} 
             AND ui.type = 'save'
           )`.as("isSaved")
-          : sql`false`.as("isSaved"),
-        isApplied: userId
-          ? sql`EXISTS (
+              : sql`false`.as("isSaved"),
+            isApplied: userId
+              ? sql`EXISTS (
             SELECT 1 FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
             AND c.user_id = ${userId}
           )`.as("isApplied")
-          : sql`false`.as("isApplied"),
-        applyStatus: userId
-          ? sql`(
+              : sql`false`.as("isApplied"),
+            applyStatus: userId
+              ? sql`(
             SELECT aj.status FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
             AND c.user_id = ${userId}
             LIMIT 1
           )`.as("applyStatus")
-          : sql`NULL`.as("applyStatus"),
-        applyId: userId
-          ? sql`(
+              : sql`NULL`.as("applyStatus"),
+            applyId: userId
+              ? sql`(
             SELECT aj.id FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
             AND c.user_id = ${userId}
             LIMIT 1
           )`.as("applyId")
-          : sql`NULL`.as("applyId"),
-        category: categories,
-      })
-      .from(jobs)
-      .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(
-        sql`LATERAL (
+              : sql`NULL`.as("applyId"),
+            category: categories,
+          })
+          .from(jobs)
+          .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
+          .leftJoin(
+            sql`LATERAL (
           SELECT json_agg(p) AS provinces
           FROM ${jobProvinces} jp
           INNER JOIN ${provinces} p ON jp.province_id = p.id
           WHERE jp.job_id = ${jobs.id}
         ) p_lateral`,
-        sql`TRUE`,
-      )
-      .leftJoin(
-        sql`LATERAL (
+            sql`TRUE`,
+          )
+          .leftJoin(
+            sql`LATERAL (
           SELECT json_agg(s) AS skills
           FROM ${jobSkills} js
           INNER JOIN ${skills} s ON js.skill_id = s.id
           WHERE js.job_id = ${jobs.id}
         ) s_lateral`,
-        sql`TRUE`,
-      )
-      .leftJoin(categories, eq(jobs.categoryId, categories.id))
-      .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
-      .limit(1);
+            sql`TRUE`,
+          )
+          .leftJoin(categories, eq(jobs.categoryId, categories.id))
+          .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
+          .limit(1);
 
-    if (!result || result.length === 0) {
-      return null;
-    }
+        if (!result || result.length === 0) {
+          return null;
+        }
 
-    // get data from result
-    const data = result[0];
+        // get data from result
+        const data = result[0];
 
-    return {
-      job: data.job as Job,
-      provinces: data.provinces as Province[],
-      organization: data.organization as OrganizationWithDetails,
-      skills: data.skills as Skill[],
-      isSaved: (data.isSaved || undefined) as boolean | undefined,
-      isApplied: (data.isApplied || undefined) as boolean | undefined,
-      applyStatus: (data.applyStatus || undefined) as string | undefined,
-      applyId: (data.applyId || undefined) as string | undefined,
-      category: data.category as Category,
-    };
+        return {
+          job: data.job as Job,
+          provinces: data.provinces as Province[],
+          organization: data.organization as OrganizationWithDetails,
+          skills: data.skills as Skill[],
+          isSaved: (data.isSaved || undefined) as boolean | undefined,
+          isApplied: (data.isApplied || undefined) as boolean | undefined,
+          applyStatus: (data.applyStatus || undefined) as string | undefined,
+          applyId: (data.applyId || undefined) as string | undefined,
+          category: data.category as Category,
+        };
+      },
+      (data: JobResponse | null) => this.cacheManager.set(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
   }
   async getNumberOfSavedJobs(userId: string): Promise<number> {
     const result = await this.db

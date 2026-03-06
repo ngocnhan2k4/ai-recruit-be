@@ -3,6 +3,7 @@ import { IOtpStorageService } from "@/core/abstracts/otp-storage.abstract";
 import { OtpEntity } from "@/core/entities/otp.entity";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
 
+// [TODO] Move this logic, use wrapper for Redis is no longer necessary
 @Injectable()
 export class RedisOtpStorageService implements IOtpStorageService {
   private readonly logger = new Logger(RedisOtpStorageService.name);

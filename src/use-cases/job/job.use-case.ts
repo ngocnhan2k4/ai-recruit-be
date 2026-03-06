@@ -678,7 +678,7 @@ export class JobUseCases {
       }
     }
 
-    const deleted = await this.jobRepository.deleteJob(jobId);
+    const deleted = await this.jobRepository.delete({ id: jobId });
     if (!deleted) {
       throw new BadRequestException({
         message: "Job deleted failed",
