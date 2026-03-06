@@ -11,31 +11,10 @@ import { type FastifyRequest, type FastifyReply } from "fastify";
 import { LoggerMiddleware } from "./logger.middleware";
 import { ConfigService } from "@nestjs/config";
 
-// -[TODO]: move to env config
-export const CORS_ORIGINS = [
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:8000",
-  "http://127.0.0.1:3001",
-  "http://127.0.0.1:8080",
-  "http://127.0.0.1:8081",
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:4000",
-  "http://localhost:8080",
-  "http://localhost:8081",
-  "https://airecruit.software",
-  "https://airecruit-frontend.vercel.app",
-  "https://airecruit-frontend-git-dev-nhankhtns-projects.vercel.app",
-  "https://dev.airecruit.software",
-  "https://airecruit-frontend-admin.vercel.app",
-  "https://airecruit-frontend-ashen.vercel.app",
-  "https://airecruit-frontend-admin-git-dev-nhankhtns-projects.vercel.app",
-];
-
 export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
   app.register(fastifyCors, {
-    origin: CORS_ORIGINS,
+    origin: appConfigs.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],

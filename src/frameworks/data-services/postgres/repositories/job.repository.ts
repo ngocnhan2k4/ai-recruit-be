@@ -76,6 +76,7 @@ import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
+import { exists } from "drizzle-orm";
 
 @Injectable()
 export class JobRepository
@@ -94,7 +95,7 @@ export class JobRepository
     super(db, jobs);
   }
 
-  async get(id: string): Promise<Job | null> {
+  get(id: string): Promise<Job | null> {
     const key = CACHE_KEYS.job.get(id);
     return cacheWithDedup<Job | null>(
       key,
@@ -1025,13 +1026,19 @@ export class JobRepository
    * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
    * this will create notifications for the job's organization members.
    */
-  async applyJob(
-    jobId: string,
-    userCvId: string,
+  async applyJob({
+    jobId,
+    userCvId,
     sendNotifications = false,
-    senderUserId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
+    senderUserId,
+    answers,
+  }: {
+    jobId: string;
+    userCvId: string;
+    sendNotifications?: boolean;
+    senderUserId: string;
+    answers?: JobAnswer[];
+  }): Promise<
     | ApplyJobResponse
     | {
         application: ApplyJobResponse;
@@ -1040,13 +1047,21 @@ export class JobRepository
       }
   > {
     const result = await this.db.transaction(async (tx) => {
-      const existingApplication = await tx
-        .select()
-        .from(applyJobs)
-        .where(and(eq(applyJobs.cvId, userCvId), eq(applyJobs.jobId, jobId)))
-        .limit(1);
+      const [existingApplication] = await tx
+        .select({
+          exists: exists(
+            tx
+              .select()
+              .from(applyJobs)
+              .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+              .where(
+                and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)),
+              ),
+          ),
+        })
+        .from(applyJobs);
 
-      if (existingApplication.length > 0) {
+      if (existingApplication.exists) {
         throw new Error("User has already applied for this job");
       }
 

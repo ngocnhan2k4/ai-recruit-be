@@ -1,4 +1,4 @@
-export abstract class IRedisService {
+export abstract class ICacheService {
   abstract get(key: string): Promise<string | null>;
   abstract set(key: string, value: string, ttlSeconds?: number): Promise<void>;
   abstract del(key: string): Promise<void>;
@@ -16,6 +16,11 @@ export abstract class IRedisService {
     metadata: { lastUpdated: number; itemCount: number },
     ttlSeconds?: number,
   ): Promise<void>;
+
+  // Hash operations
+  abstract hgetall(key: string): Promise<Record<string, string>>;
+  abstract hset(key: string, data: Record<string, any>): Promise<void>;
+  abstract expire(key: string, seconds: number): Promise<void>;
 
   // Sorted Set operations for queue
   abstract addToSortedSet(

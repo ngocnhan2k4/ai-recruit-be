@@ -50,7 +50,7 @@ export class OrganizationRepository
     super(db, organizations);
   }
 
-  async get(id: string): Promise<OrganizationWithDetails | null> {
+  get(id: string): Promise<OrganizationWithDetails | null> {
     const key = CACHE_KEYS.organization.get(id);
     return cacheWithDedup<OrganizationWithDetails | null>(
       key,
@@ -122,9 +122,7 @@ export class OrganizationRepository
     return data;
   }
 
-  async getOrganizationById(
-    id: string,
-  ): Promise<OrganizationWithDetails | null> {
+  getOrganizationById(id: string): Promise<OrganizationWithDetails | null> {
     const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
     return cacheWithDedup<OrganizationWithDetails | null>(
       cacheKey,
@@ -348,7 +346,7 @@ export class OrganizationRepository
     return resultToSend;
   }
 
-  async getAllNamesByType(
+  getAllNamesByType(
     type: OrganizationTypeEnum,
   ): Promise<Pick<OrganizationWithDetails, "name">[]> {
     const key = CACHE_KEYS.organization.getNamesByType(type);

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import {
   UserController,
   AuthController,
@@ -29,16 +29,13 @@ import { ExamController } from "./interfaces/controllers/exam/exam.controller";
 import { UserUseCasesModule } from "./use-cases/user/user-use-cases.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import envConfig, {
-  Environment,
-  validateConfig,
-} from "./common/config/env.config";
+import { Environment, validateConfig } from "./common/config/env.config";
 import { AuthUseCasesModule } from "./use-cases/auth/auth-use-cases.module";
 import { CasbinModule } from "./frameworks/auth-services/casbin/casbin.module";
 import { JwtStrategy } from "./frameworks/auth-services/strategies/jwt.strategy";
 import { CategoryUseCasesModule } from "./use-cases/category/category-use-cases.module";
 import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
-//import { RedisModule } from "./frameworks/redis/redis.module";
+import { RedisModule } from "./frameworks/redis/redis.module";
 import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.module";
 import { StorageModule } from "./use-cases/storage/storage.module";
 import { CacheModule } from "@nestjs/cache-manager";
@@ -76,13 +73,13 @@ import { OtpModule } from "@/frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
 import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
-
+import { RateLimitMiddleware } from "./common/middlewares";
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
-      load: [envConfig],
+      // load: [envConfig],
       validate: validateConfig,
     }),
     ScheduleModule.forRoot(),
@@ -103,7 +100,7 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
         };
       },
     }),
-    //RedisModule,
+    RedisModule,
     UserUseCasesModule,
     JobUseCasesModule,
     AuthUseCasesModule,
@@ -186,6 +183,11 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
       },
       inject: [ConfigService, ILoggerServices],
     },
+    RateLimitMiddleware,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RateLimitMiddleware).exclude("/health").forRoutes("*");
+  }
+}

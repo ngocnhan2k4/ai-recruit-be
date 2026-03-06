@@ -103,13 +103,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     filter: StatisticsJobFilter,
   ): Promise<TopInMarketResponse[]>;
 
-  abstract applyJob(
-    jobId: string,
-    userCvId: string,
-    sendNotifications: boolean,
-    senderUserId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
+  abstract applyJob({
+    jobId,
+    userCvId,
+    sendNotifications,
+    senderUserId,
+    answers,
+  }: {
+    jobId: string;
+    userCvId: string;
+    sendNotifications: boolean;
+    senderUserId: string;
+    answers?: JobAnswer[];
+  }): Promise<
     | ApplyJobResponse
     | {
         application: ApplyJobResponse;
