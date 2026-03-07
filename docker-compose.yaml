@@ -5,13 +5,6 @@ services:
     env_file:
       - .env
     ports:
-      - "3001:3001"
+      - "8001:8001"
     command: >
       sh -c "npx drizzle-kit push && npm run build && npm run start:prod"
-
-networks:
-  ai-network:
-    driver: bridge
-
-volumes:
-  esdata:
