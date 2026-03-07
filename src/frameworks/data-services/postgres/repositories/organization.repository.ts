@@ -1,4 +1,7 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { SHORT_TTL, LONG_TTL, CACHE_KEYS } from "@/common/constants";
 import {
   IOrganizationRepository,
   NewOrganizationWithDetails,
@@ -31,83 +34,182 @@ import {
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
+import { cacheWithDedup } from "@/common/utils";
 
 @Injectable()
 export class OrganizationRepository
   extends GenericRepository<OrganizationWithDetails, typeof organizations>
   implements IOrganizationRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  private readonly logger = new Logger(OrganizationRepository.name);
+
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, organizations);
   }
 
-  async getOrganizationById(
-    id: string,
-  ): Promise<OrganizationWithDetails | null> {
-    const result = await this.db
-      .select({
-        // Organization fields
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        type: organizations.type,
-        description: organizations.description,
-        address: organizations.address,
-        logoUrl: organizations.logoUrl,
-        about: organizations.about,
-        websiteUrl: organizations.websiteUrl,
-        email: organizations.email,
-        phone: organizations.phone,
-        foundedYear: organizations.foundedYear,
-        verifiedAt: organizations.verifiedAt,
-        employeesMin: organizations.employeesMin,
-        employeesMax: organizations.employeesMax,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-        deletedAt: organizations.deletedAt,
-        // Company fields (nullable)
-        companySize: companies.companySize,
-        taxCode: companies.taxCode,
-        benefits: companies.benefits,
-        companyRawId: companies.companyRawId,
-        culture: companies.culture,
-        // School fields (nullable)
-        schoolType: schools.schoolType,
-      })
-      .from(organizations)
-      .leftJoin(companies, eq(organizations.id, companies.organizationId))
-      .leftJoin(schools, eq(organizations.id, schools.organizationId))
-      .where(eq(organizations.id, id));
+  get(id: string): Promise<OrganizationWithDetails | null> {
+    const key = CACHE_KEYS.organization.get(id);
+    return cacheWithDedup<OrganizationWithDetails | null>(
+      key,
+      () => this.cacheManager.get<OrganizationWithDetails | null>(key),
+      () => super.get(id),
+      (data: OrganizationWithDetails | null) =>
+        this.cacheManager.set<OrganizationWithDetails | null>(
+          key,
+          data,
+          SHORT_TTL,
+        ),
+      {
+        logger: this.logger,
+      },
+    );
+  }
 
-    if (!result[0]) return null;
+  async update(
+    where: Partial<OrganizationWithDetails>,
+    item: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<OrganizationWithDetails[]> {
+    const data = await super.update(where, item, tx);
 
-    const locations = await this.db
-      .select({
-        id: organizationLocations.id,
-        organizationId: organizationLocations.organizationId,
-        address: organizationLocations.address,
-        provinceId: organizationLocations.provinceId,
-        provinceName: provinces.name,
-        createdAt: organizationLocations.createdAt,
-        updatedAt: organizationLocations.updatedAt,
-        deletedAt: organizationLocations.deletedAt,
-      })
-      .from(organizationLocations)
-      .leftJoin(provinces, eq(organizationLocations.provinceId, provinces.id))
-      .where(eq(organizationLocations.organizationId, id))
-      .execute();
+    const keys: string[] = [];
+    for (const org of data) {
+      const keyGet = CACHE_KEYS.organization.get(org.id);
+      const keyGetWithDetail = CACHE_KEYS.organization.getWithDetail(org.id);
+      const keyGetNamesByType = CACHE_KEYS.organization.getNamesByType(
+        org.type,
+      );
+      keys.push(keyGet, keyGetWithDetail, keyGetNamesByType);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for organizations ${keys.join(
+            ",",
+          )}:`,
+          err,
+        ),
+      );
+    return data;
+  }
 
-    const row = result[0];
+  async delete(
+    where: Partial<OrganizationWithDetails>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<OrganizationWithDetails[]> {
+    const data = await super.delete(where, tx);
 
-    return {
-      ...row,
-      companySize: row.companySize,
-      taxCode: row.taxCode,
-      benefits: row.benefits,
-      culture: row.culture,
-      schoolType: row.schoolType as SchoolTypeEnum,
-      locations: locations,
-    };
+    const keys: string[] = [];
+    for (const org of data) {
+      const keyGet = CACHE_KEYS.organization.get(org.id);
+      const keyGetWithDetail = CACHE_KEYS.organization.getWithDetail(org.id);
+      keys.push(keyGet, keyGetWithDetail);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for organizations ${keys.join(
+            ",",
+          )}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
+  getOrganizationById(id: string): Promise<OrganizationWithDetails | null> {
+    const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
+    return cacheWithDedup<OrganizationWithDetails | null>(
+      cacheKey,
+      () => this.cacheManager.get<OrganizationWithDetails | null>(cacheKey),
+      async () => {
+        const result = await this.db
+          .select({
+            // Organization fields
+            id: organizations.id,
+            name: organizations.name,
+            slug: organizations.slug,
+            type: organizations.type,
+            description: organizations.description,
+            address: organizations.address,
+            logoUrl: organizations.logoUrl,
+            about: organizations.about,
+            websiteUrl: organizations.websiteUrl,
+            email: organizations.email,
+            phone: organizations.phone,
+            foundedYear: organizations.foundedYear,
+            verifiedAt: organizations.verifiedAt,
+            employeesMin: organizations.employeesMin,
+            employeesMax: organizations.employeesMax,
+            createdAt: organizations.createdAt,
+            updatedAt: organizations.updatedAt,
+            deletedAt: organizations.deletedAt,
+            // Company fields (nullable)
+            companySize: companies.companySize,
+            taxCode: companies.taxCode,
+            benefits: companies.benefits,
+            companyRawId: companies.companyRawId,
+            culture: companies.culture,
+            // School fields (nullable)
+            schoolType: schools.schoolType,
+          })
+          .from(organizations)
+          .leftJoin(companies, eq(organizations.id, companies.organizationId))
+          .leftJoin(schools, eq(organizations.id, schools.organizationId))
+          .where(eq(organizations.id, id));
+
+        if (!result[0]) {
+          await this.cacheManager.set(cacheKey, null, SHORT_TTL);
+          return null;
+        }
+
+        const locations = await this.db
+          .select({
+            id: organizationLocations.id,
+            organizationId: organizationLocations.organizationId,
+            address: organizationLocations.address,
+            provinceId: organizationLocations.provinceId,
+            provinceName: provinces.name,
+            createdAt: organizationLocations.createdAt,
+            updatedAt: organizationLocations.updatedAt,
+            deletedAt: organizationLocations.deletedAt,
+          })
+          .from(organizationLocations)
+          .leftJoin(
+            provinces,
+            eq(organizationLocations.provinceId, provinces.id),
+          )
+          .where(eq(organizationLocations.organizationId, id))
+          .execute();
+
+        const row = result[0];
+
+        const mappedResult = {
+          ...row,
+          companySize: row.companySize,
+          taxCode: row.taxCode,
+          benefits: row.benefits,
+          culture: row.culture,
+          schoolType: row.schoolType as SchoolTypeEnum,
+          locations: locations,
+        };
+        return mappedResult;
+      },
+      (data: OrganizationWithDetails | null) =>
+        this.cacheManager.set<OrganizationWithDetails | null>(
+          cacheKey,
+          data,
+          SHORT_TTL,
+        ),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   async getAllOrganizations(query: OrganizationQuery) {
@@ -185,13 +287,14 @@ export class OrganizationRepository
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    return {
+    const resultToSend = {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
       },
     };
+    return resultToSend;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
@@ -233,26 +336,41 @@ export class OrganizationRepository
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    return {
+    const resultToSend = {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
       },
     };
+    return resultToSend;
   }
 
-  async getAllNamesByType(
+  getAllNamesByType(
     type: OrganizationTypeEnum,
   ): Promise<Pick<OrganizationWithDetails, "name">[]> {
-    const result = await this.db
-      .select({
-        name: organizations.name,
-      })
-      .from(organizations)
-      .where(eq(organizations.type, type));
-
-    return result;
+    const key = CACHE_KEYS.organization.getNamesByType(type);
+    return cacheWithDedup<Pick<OrganizationWithDetails, "name">[]>(
+      key,
+      () => this.cacheManager.get<Pick<OrganizationWithDetails, "name">[]>(key),
+      async () => {
+        return this.db
+          .select({
+            name: organizations.name,
+          })
+          .from(organizations)
+          .where(eq(organizations.type, type));
+      },
+      (data: Pick<OrganizationWithDetails, "name">[]) =>
+        this.cacheManager.set<Pick<OrganizationWithDetails, "name">[]>(
+          key,
+          data,
+          LONG_TTL,
+        ),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   async getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]> {
@@ -266,6 +384,7 @@ export class OrganizationRepository
         eq(organizationMembers.organizationId, organizations.id),
       )
       .where(eq(organizationMembers.organizationId, orgId));
+
     return results;
   }
 
@@ -324,6 +443,19 @@ export class OrganizationRepository
       .set(data)
       .where(eq(organizations.id, id))
       .returning();
+
+    await this.cacheManager
+      .mdel([
+        CACHE_KEYS.organization.get(id),
+        CACHE_KEYS.organization.getWithDetail(id),
+      ])
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for organization ${id}:`,
+          err,
+        ),
+      );
+
     return org;
   }
 
@@ -364,7 +496,7 @@ export class OrganizationRepository
 
     if (!result) return [];
 
-    return result.map((row) => ({
+    const resultToSend = result.map((row) => ({
       ...row,
       companySize: row.companySize,
       taxCode: row.taxCode,
@@ -372,5 +504,7 @@ export class OrganizationRepository
       culture: row.culture,
       schoolType: row.schoolType as SchoolTypeEnum,
     }));
+
+    return resultToSend;
   }
 }

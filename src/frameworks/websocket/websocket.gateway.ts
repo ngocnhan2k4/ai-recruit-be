@@ -14,6 +14,7 @@ import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
 import { RoleEnum } from "@/common/constants";
+import { ROOM_NOTIFICATIONS } from "@/common/constants";
 
 interface AuthenticatedSocket extends Socket, IdentityUser {
   roles?: RoleEnum[];
@@ -72,29 +73,16 @@ export class WebSocketGateway
       }
 
       const orgId = client.handshake.query.organizationId as string;
+      const roomUser = ROOM_NOTIFICATIONS.user({
+        userId: client.userId,
+        orgId: orgId,
+      });
+      this.connectedUsers.set(roomUser, client);
 
-      this.connectedUsers.set(
-        this.getKeyIdentity({
-          userId: client.userId,
-          organizationId: orgId,
-        }),
-        client,
-      );
-
-      this.logger.log(
-        `User ${this.getKeyIdentity({
-          userId: client.userId,
-          organizationId: orgId,
-        })} connected to WebSocket`,
-      );
+      this.logger.log(`User ${roomUser} connected to WebSocket`);
 
       // Join user-specific room
-      client.join(
-        `user_${this.getKeyIdentity({
-          userId: client.userId,
-          organizationId: orgId,
-        })}`,
-      );
+      client.join(`user_${roomUser}`);
 
       // Check if user is admin and join admin room
       const isAdmin =
@@ -103,8 +91,15 @@ export class WebSocketGateway
           client.roles.includes(RoleEnum.SUPER_ADMIN));
 
       if (isAdmin) {
-        client.join("admin");
+        client.join(ROOM_NOTIFICATIONS.admin);
         this.logger.log(`Admin user ${client.userId} joined admin room`);
+      }
+
+      if (orgId) {
+        client.join(ROOM_NOTIFICATIONS.org({ orgId: orgId }));
+        this.logger.log(
+          `User ${client.userId} joined organization room ${ROOM_NOTIFICATIONS.org({ orgId: orgId })}`,
+        );
       }
 
       client.emit("connected", {
@@ -120,9 +115,17 @@ export class WebSocketGateway
 
   handleDisconnect(client: AuthenticatedSocket) {
     if (client.userId) {
-      this.connectedUsers.delete(this.getKeyIdentity(client));
+      const roomUser = ROOM_NOTIFICATIONS.user({
+        userId: client.userId,
+        orgId: client.organizationId,
+      });
+
+      this.connectedUsers.delete(roomUser);
       this.logger.log(
-        `User ${this.getKeyIdentity(client)} disconnected from WebSocket`,
+        `User ${ROOM_NOTIFICATIONS.user({
+          userId: client.userId,
+          orgId: client.organizationId,
+        })} disconnected from WebSocket`,
       );
     }
   }
@@ -133,7 +136,12 @@ export class WebSocketGateway
   }
 
   sendToUser(identity: IdentityUser, notification: Notification) {
-    const userSocket = this.connectedUsers.get(this.getKeyIdentity(identity));
+    const userSocket = this.connectedUsers.get(
+      ROOM_NOTIFICATIONS.user({
+        userId: identity.userId,
+        orgId: identity.organizationId,
+      }),
+    );
 
     if (userSocket) {
       userSocket.emit("notification", notification);
@@ -167,8 +175,5 @@ export class WebSocketGateway
 
   getConnectedUsers(): string[] {
     return Array.from(this.connectedUsers.keys());
-  }
-  private getKeyIdentity(identity: IdentityUser): string {
-    return `${identity.userId}:${identity.organizationId ?? "none"}`;
   }
 }

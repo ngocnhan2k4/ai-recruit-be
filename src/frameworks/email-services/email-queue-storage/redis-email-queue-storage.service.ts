@@ -3,6 +3,7 @@ import { IEmailQueueStorageService } from "@/core/abstracts/email-queue-storage.
 import { EmailJob } from "@/core/entities/email.entity";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
 
+// [TODO] Move this to use message queue
 @Injectable()
 export class RedisEmailQueueStorageService
   implements IEmailQueueStorageService

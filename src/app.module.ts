@@ -38,6 +38,8 @@ import { JobUseCasesModule } from "./use-cases/job/job-use-cases.module";
 import { RedisModule } from "./frameworks/redis/redis.module";
 import { CloudinaryModule } from "./frameworks/storage/cloudinary/cloudinary.module";
 import { StorageModule } from "./use-cases/storage/storage.module";
+import { CacheModule } from "@nestjs/cache-manager";
+import { createKeyv } from "@keyv/redis";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
@@ -81,6 +83,23 @@ import { RateLimitMiddleware } from "./common/middlewares";
       validate: validateConfig,
     }),
     ScheduleModule.forRoot(),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const host = configService.get<string>("REDIS_HOST");
+        const port = configService.get<string>("REDIS_PORT");
+        const password = configService.get<string>("REDIS_PASSWORD")
+          ? `:${configService.get<string>("REDIS_PASSWORD")}@`
+          : "";
+
+        const redisUrl = `redis://${password}${host}:${port}`;
+        return {
+          stores: [createKeyv(redisUrl)],
+        };
+      },
+    }),
     RedisModule,
     UserUseCasesModule,
     JobUseCasesModule,
