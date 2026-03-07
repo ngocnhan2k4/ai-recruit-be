@@ -8,6 +8,8 @@ export interface AppConfigProps {
   globalPrefix: string;
   nodeEnv: Environment;
   corsOrigins: string[];
+  swaggerUsername?: string;
+  swaggerPassword?: string;
 }
 
 export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
@@ -18,5 +20,7 @@ export const getAppConfigs = (app: NestFastifyApplication): AppConfigProps => {
     globalPrefix: configService.get<string>("GLOBAL_PREFIX")!,
     nodeEnv: configService.get<string>("NODE_ENV")! as Environment,
     corsOrigins: configService.get<string[]>("CORS_ORIGINS") || [],
+    swaggerUsername: configService.get<string>("SWAGGER_USERNAME"),
+    swaggerPassword: configService.get<string>("SWAGGER_PASSWORD"),
   };
 };
