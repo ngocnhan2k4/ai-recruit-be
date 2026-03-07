@@ -3,7 +3,6 @@ import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 const tags: string[] = ["Users", "File Upload"];
-// const localUrls: string[] = ["localhost"];
 
 const generateTags = (tags: string[]) => {
   return tags.map((tag) => {
@@ -27,21 +26,21 @@ export const generateDocumentBuilder = ({ name }: AppConfigProps) => {
     document.addTag(tag.name, tag.description),
   );
   // if (nodeEnv === Environment.Development) {
-  //   developmentUrls.forEach((url, index) => {
+  //   urls.forEach((url, index) => {
   //     document.addServer(
   //       `https://${url}${globalPrefix}`,
   //       `Development server ${index + 1}`,
   //     );
   //   });
   // } else if (nodeEnv === Environment.Local) {
-  //   localUrls.forEach((url, index) => {
+  //   urls.forEach((url, index) => {
   //     document.addServer(
   //       `http://${url}:${port}${globalPrefix}`,
   //       `Local server ${index + 1}`,
   //     );
   //   });
   // } else {
-  //   productionUrls.forEach((url, index) => {
+  //   urls.forEach((url, index) => {
   //     if (url.includes("https")) {
   //       document.addServer(
   //         `${url}${globalPrefix}`,
@@ -68,5 +67,6 @@ export const enableSwaggerDoc = (app: NestFastifyApplication) => {
     swaggerOptions: {
       persistAuthorization: true,
     },
+    useGlobalPrefix: true,
   });
 };
