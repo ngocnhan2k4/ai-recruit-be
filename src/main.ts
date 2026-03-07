@@ -29,15 +29,15 @@ async function bootstrap() {
     logger.error("[main] [bootstrap] Failed to get LoggerService", e);
   }
 
-  enableSwaggerDoc(app);
   enableAppMiddleware(app);
+  enableSwaggerDoc(app);
 
   await app.listen(port, "0.0.0.0", () => {
     app.getUrl().then((url) => {
       const serverUrl = url.replace("[::1]", "localhost");
       logger.log(`Server is running on ${serverUrl}`);
       logger.log(`APIs is running on ${serverUrl + globalPrefix}`);
-      logger.log(`Swagger docs is running on ${serverUrl}/docs`);
+      logger.log(`Swagger docs is running on ${serverUrl}${globalPrefix}/docs`);
     });
   });
 }

@@ -57,6 +57,7 @@ import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { ROOM_NOTIFICATIONS } from "@/common/constants";
 
 @Injectable()
 export class JobUseCases {
@@ -346,13 +347,13 @@ export class JobUseCases {
           application: ApplyJobResponse;
           notifications: Notification[];
           jobTitle?: string;
-        } = await this.jobRepository.applyJob(
-      applyJobDto.jobId,
-      applyJobDto.cvId!,
-      isSendNotifications,
-      userId,
-      applyJobDto.answers,
-    );
+        } = await this.jobRepository.applyJob({
+      jobId: applyJobDto.jobId,
+      userCvId: applyJobDto.cvId!,
+      sendNotifications: isSendNotifications,
+      senderUserId: userId,
+      answers: applyJobDto.answers,
+    });
 
     let application: ApplyJobResponse;
     if ("application" in repoResult) {
@@ -360,26 +361,14 @@ export class JobUseCases {
       const notifications = repoResult.notifications;
       const jobTitle = repoResult.jobTitle;
 
-      // Send notifications to recipients
-      notifications.forEach((notification) => {
-        const sent = this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
-          },
-          notification,
-        );
-
-        if (sent) {
-          this.logger.log(
-            `Sent new-application notification to ${notification.receiverId} for job "${jobTitle}"`,
-          );
-        } else {
-          this.logger.warn(
-            `Failed to send websocket notification to ${notification.receiverId}`,
-          );
-        }
-      });
+      // Send notifications to room org
+      this.webSocketGateway.sendToRoom(
+        ROOM_NOTIFICATIONS.org({ orgId: job.organizationId }),
+        notifications[0],
+      );
+      this.logger.log(
+        `Sent new-application notification to room ${ROOM_NOTIFICATIONS.org({ orgId: job.organizationId })} for job "${jobTitle}"`,
+      );
     } else {
       application = repoResult;
     }
@@ -689,7 +678,7 @@ export class JobUseCases {
       }
     }
 
-    const deleted = await this.jobRepository.deleteJob(jobId);
+    const deleted = await this.jobRepository.delete({ id: jobId });
     if (!deleted) {
       throw new BadRequestException({
         message: "Job deleted failed",

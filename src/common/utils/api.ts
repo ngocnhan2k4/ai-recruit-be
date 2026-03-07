@@ -1,6 +1,9 @@
+import { Logger } from "@nestjs/common";
 interface RetryOptions {
   retries?: number;
   interval?: number;
+  maxAttempts?: number;
+  maxDelay?: number;
 }
 
 export async function retry<T>(
@@ -22,3 +25,37 @@ export async function retry<T>(
 
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+// [TODO] Using redis to cache if we need scale
+const pendingFetches = new Map<string, Promise<any>>();
+
+export const cacheWithDedup = async <T>(
+  key: string,
+  cacher: () => Promise<T | undefined>,
+  fetcher: () => Promise<T>,
+  updateCacher: (data: T) => Promise<any>,
+  options: { logger?: Logger } = {},
+): Promise<T> => {
+  const cached = await cacher();
+  if (cached !== undefined) return cached;
+
+  if (!pendingFetches.has(key)) {
+    const fetchPromise = fetcher();
+    pendingFetches.set(key, fetchPromise);
+    try {
+      const data = await fetchPromise;
+      await updateCacher(data).catch((err) => {
+        const { logger } = options;
+        (logger || console).warn(
+          `[cache] updateCacher failed for key "${key}":`,
+          err,
+        );
+      });
+      return data;
+    } finally {
+      pendingFetches.delete(key);
+    }
+  }
+
+  return pendingFetches.get(key);
+};
