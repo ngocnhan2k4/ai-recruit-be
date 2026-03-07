@@ -7,4 +7,4 @@ services:
     ports:
       - "8001:8001"
     command: >
-      sh -c "npx drizzle-kit push && npm run build && npm run start:prod"
+      sh -c "npm run build && npm run start:prod"
