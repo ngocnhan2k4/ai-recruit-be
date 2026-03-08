@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { SentryModule } from "@sentry/nestjs/setup";
 import {
   UserController,
   AuthController,
@@ -77,6 +78,8 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 
 @Module({
   imports: [
+    // SentryModule must be the first import so Sentry can instrument all other modules
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],

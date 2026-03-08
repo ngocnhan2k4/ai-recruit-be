@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiTags, ApiExcludeEndpoint } from "@nestjs/swagger";
 import {
   HealthCheckService,
   HttpHealthIndicator,
@@ -24,5 +24,11 @@ export class HealthController {
     ]);
 
     return result;
+  }
+
+  @Get("debug-sentry")
+  @ApiExcludeEndpoint()
+  debugSentry(): never {
+    throw new Error("Sentry test error – this is intentional!");
   }
 }

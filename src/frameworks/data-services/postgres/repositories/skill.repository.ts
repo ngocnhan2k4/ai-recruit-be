@@ -148,41 +148,44 @@ export class SkillRepository
     }
 
     if (sortBy === "questionCount") {
-      const allItems = await this.db
-        .select()
-        .from(skills)
-        .where(and(...whereConditions));
-
-      const countRows = await this.db
-        .select({
-          skillId: questions.skillId,
-          questionCount: count(questions.id),
-        })
-        .from(questions)
-        .where(
-          inArray(
-            questions.skillId,
-            allItems.map((s) => s.id),
-          ),
-        )
-        .groupBy(questions.skillId);
-
-      const countMap = new Map(
-        countRows.map((r) => [r.skillId, Number(r.questionCount)]),
-      );
-
-      const merged: SkillWithQuestionCount[] = allItems.map((s) => ({
-        ...s,
-        questionCount: countMap.get(s.id) ?? 0,
-      }));
-
-      merged.sort((a, b) => {
-        const diff = a.questionCount - b.questionCount;
-        return sortDirection === "desc" ? -diff : diff;
-      });
-
       const offset = (page - 1) * limit;
-      const data = merged.slice(offset, offset + limit);
+      const orderByCount =
+        sortDirection === "desc"
+          ? sql`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id}) DESC`
+          : sql`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id}) ASC`;
+
+      const rows = await this.db
+        .select({
+          id: skills.id,
+          slug: skills.slug,
+          name: skills.name,
+          description: skills.description,
+          proficiencyLevels: skills.proficiencyLevels,
+          createdAt: skills.createdAt,
+          updatedAt: skills.updatedAt,
+          deletedAt: skills.deletedAt,
+          questionCount:
+            sql<number>`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id})`.as(
+              "question_count",
+            ),
+        })
+        .from(skills)
+        .where(and(...whereConditions))
+        .orderBy(orderByCount)
+        .limit(limit)
+        .offset(offset);
+
+      const data: SkillWithQuestionCount[] = rows.map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        description: r.description,
+        proficiencyLevels: r.proficiencyLevels,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        deletedAt: r.deletedAt,
+        questionCount: Number(r.questionCount ?? 0),
+      }));
       const hasNext = offset + data.length < total;
 
       return {

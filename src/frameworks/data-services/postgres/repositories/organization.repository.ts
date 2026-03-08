@@ -19,7 +19,8 @@ import {
   eq,
   desc,
   and,
-  gt,
+  gte,
+  lte,
   SQL,
   isNotNull,
   inArray,
@@ -120,11 +121,11 @@ export class OrganizationRepository
     }
 
     if (query.employeeMin !== undefined) {
-      whereConditions.push(gt(organizations.employeesMin, query.employeeMin));
+      whereConditions.push(gte(organizations.employeesMin, query.employeeMin));
     }
 
     if (query.employeeMax !== undefined) {
-      whereConditions.push(gt(organizations.employeesMax, query.employeeMax));
+      whereConditions.push(lte(organizations.employeesMax, query.employeeMax));
     }
 
     if (query.verified) {

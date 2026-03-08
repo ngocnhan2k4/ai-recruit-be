@@ -14,7 +14,6 @@ import {
   ISkillRepository,
   Question,
 } from "@/core";
-import { RESPONSE_CODE } from "@/common/constants";
 import {
   CreateAreaDto,
   UpdateAreaDto,
@@ -236,7 +235,7 @@ export class ExamUseCases {
       sortDirection,
     });
     return {
-      code: RESPONSE_CODE.SUCCESS,
+      success: true,
       message: "Skills with question count fetched successfully",
       data: {
         data: result.data ?? [],
@@ -252,17 +251,27 @@ export class ExamUseCases {
       throw new NotFoundException("Skill not found");
     }
 
-    const updated: Question[] = [];
     for (const questionId of dto.questionIds) {
       const question = await this.questionRepo.get(questionId);
       if (!question) {
         throw new NotFoundException(`Question not found: ${questionId}`);
       }
-      const [q] = await this.questionRepo.update({ id: questionId }, {
-        skillId,
-      } as Partial<Question>);
-      if (q) updated.push(q);
     }
+
+    const updated: Question[] = await this.questionRepo.executeWithTransaction(
+      async (tx) => {
+        const result: Question[] = [];
+        for (const questionId of dto.questionIds) {
+          const [q] = await this.questionRepo.update(
+            { id: questionId },
+            { skillId } as Partial<Question>,
+            tx,
+          );
+          if (q) result.push(q);
+        }
+        return result;
+      },
+    );
 
     this.logger.log(
       `Assigned ${updated.length} question(s) to skill ${skillId} (${skill.name})`,

@@ -74,6 +74,7 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/terminus": "^11.0.0",
     "@nestjs/websockets": "^11.1.6",
+    "@sentry/nestjs": "^10.42.0",
     "ai-recruit": ".",
     "axios": "^1.12.2",
     "bloom-filters": "^3.0.4",

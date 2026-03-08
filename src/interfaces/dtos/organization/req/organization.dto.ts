@@ -2,6 +2,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
@@ -396,8 +398,10 @@ export class AdminUpdateOrganizationUpsertDTO {
   @ApiProperty({
     required: false,
     description:
-      "Set verifiedAt (ISO date) to verify organization, null to unverify",
+      "Set verifiedAt (ISO 8601 date string) to verify organization, null to unverify",
   })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsISO8601({}, { message: "verifiedAt must be a valid ISO 8601 date string" })
   @IsOptional()
   verifiedAt?: string | null;
 }
