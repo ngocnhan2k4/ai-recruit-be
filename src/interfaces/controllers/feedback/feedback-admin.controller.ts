@@ -15,6 +15,8 @@ import {
   GetFeedbacksRequestDto,
   GetFeedbacksResponseDto,
   UpdateFeedbackRequestDto,
+  FeedbackTrendsQueryDto,
+  FeedbackTrendsResponseDto,
 } from "@/interfaces/dtos/feedback";
 import {
   JwtAuthGuard,
@@ -58,5 +60,17 @@ export class FeedbackAdminController {
   @Delete(":id")
   async deleteFeedback(@Param("id") id: string): Promise<ApiResponse<void>> {
     return this.feedbackUseCase.deleteFeedback(id);
+  }
+
+  @ApiOperation({
+    summary: "Get feedback trends",
+    description: "Get feedback submission trends over time",
+  })
+  @ApiResponseDto(FeedbackTrendsResponseDto)
+  @Get("trends")
+  async getFeedbackTrends(
+    @Query() query: FeedbackTrendsQueryDto,
+  ): Promise<ApiResponse<FeedbackTrendsResponseDto>> {
+    return this.feedbackUseCase.getFeedbackTrends(query);
   }
 }

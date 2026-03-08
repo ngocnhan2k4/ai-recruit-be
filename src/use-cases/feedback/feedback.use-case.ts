@@ -1,4 +1,4 @@
-import { RESPONSE_CODE } from "@/common/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   FeedbackStatusEnum,
   IFeedbackRepository,
@@ -6,7 +6,11 @@ import {
   NewFeedback,
 } from "@/core";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
-import { ApiResponse } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  FeedbackTrendsResponseDto,
+  FeedbackTrendsQueryDto,
+} from "@/interfaces/dtos";
 import { Injectable, Logger } from "@nestjs/common";
 import {
   CreateFeedbackRequestDto,
@@ -106,6 +110,23 @@ export class FeedbackUseCase {
       code: RESPONSE_CODE.SUCCESS,
       message: "Feedback deleted successfully",
       data: undefined,
+    };
+  }
+
+  async getFeedbackTrends(
+    query: FeedbackTrendsQueryDto,
+  ): Promise<ApiResponse<FeedbackTrendsResponseDto>> {
+    const trends = await this.feedbackRepository.getFeedbackTrends({
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: trends,
+      },
     };
   }
 }

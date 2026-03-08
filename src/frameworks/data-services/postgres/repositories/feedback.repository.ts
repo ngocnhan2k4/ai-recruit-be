@@ -4,9 +4,22 @@ import { Inject, Injectable } from "@nestjs/common";
 import { feedbacks } from "../models/feedback.model";
 import { Feedback } from "@/core/entities";
 import { IFeedbackRepository } from "@/core/abstracts/repositories/feedback-repository.abstract";
-import { eq, and, desc, SQL, count, gte, lte, isNotNull } from "drizzle-orm";
-import { FeedbackFilter } from "@/core/entities/feedback.entity";
+import {
+  eq,
+  and,
+  desc,
+  SQL,
+  count,
+  gte,
+  lte,
+  isNotNull,
+  isNull,
+  countDistinct,
+  asc,
+} from "drizzle-orm";
+import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
 import { PaginatedResult } from "@/common/types";
+import { convertDateToStr } from "@/common/utils";
 
 @Injectable()
 export class FeedbackRepository
@@ -55,5 +68,35 @@ export class FeedbackRepository
       data: feedbacksResult,
       pagination: { total: Number(total[0]?.count ?? 0) },
     };
+  }
+
+  async getFeedbackTrends(
+    params: FeedbackTrendsQuery,
+  ): Promise<FeedbackTrends[]> {
+    const { fromDate, toDate } = params;
+
+    const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
+
+    if (fromDate) {
+      whereConditions.push(gte(feedbacks.createdAt, new Date(fromDate)));
+    }
+    if (toDate) {
+      whereConditions.push(lte(feedbacks.createdAt, new Date(toDate)));
+    }
+
+    const result = await this.db
+      .select({
+        date: feedbacks.createdAt,
+        count: countDistinct(feedbacks.id).as("count"),
+      })
+      .from(feedbacks)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .groupBy(feedbacks.createdAt)
+      .orderBy(asc(feedbacks.createdAt));
+
+    return result.map((r) => ({
+      date: convertDateToStr(r.date),
+      count: Number(r.count),
+    }));
   }
 }

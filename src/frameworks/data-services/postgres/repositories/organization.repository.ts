@@ -30,11 +30,15 @@ import {
   sql,
   or,
   lt,
+  countDistinct,
+  gte,
+  lte,
+  asc,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
-import { cacheWithDedup } from "@/common/utils";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
 
 @Injectable()
 export class OrganizationRepository
@@ -506,5 +510,36 @@ export class OrganizationRepository
     }));
 
     return resultToSend;
+  }
+
+  async getOrganizationTrends(params: {
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<{ date: string; count: number }[]> {
+    const { fromDate, toDate } = params;
+
+    const whereConditions: SQL[] = [isNull(organizations.deletedAt)];
+
+    if (fromDate) {
+      whereConditions.push(gte(organizations.createdAt, new Date(fromDate)));
+    }
+    if (toDate) {
+      whereConditions.push(lte(organizations.createdAt, new Date(toDate)));
+    }
+
+    const result = await this.db
+      .select({
+        date: organizations.createdAt,
+        count: countDistinct(organizations.id).as("count"),
+      })
+      .from(organizations)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .groupBy(organizations.createdAt)
+      .orderBy(asc(organizations.createdAt));
+
+    return result.map((r) => ({
+      date: convertDateToStr(r.date),
+      count: Number(r.count),
+    }));
   }
 }

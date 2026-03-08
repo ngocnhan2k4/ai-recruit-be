@@ -19,11 +19,14 @@ import {
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import {
+  ApiResponse,
+  ApiResponseDto,
   GetAllUserResponseDto,
   GetUserQueryDto,
   GetUserResponseDto,
+  UserTrendsQueryDto,
+  UserTrendsResponseDto,
 } from "@/interfaces/dtos";
-import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { AdminUpdateUserRequestDto } from "@/interfaces/dtos";
 
 @ApiTags("Admin Users")
@@ -66,5 +69,17 @@ export class AdminUserController {
   @ApiResponseDto(GetUserResponseDto)
   async deleteUser(@Param("userId") userId: string) {
     return await this.userUseCases.adminDeleteUser(userId);
+  }
+
+  @ApiOperation({
+    summary: "Get user trends",
+    description: "Get user registration trends over time",
+  })
+  @ApiResponseDto(UserTrendsResponseDto)
+  @Get("trends")
+  async getUserTrends(
+    @Query() query: UserTrendsQueryDto,
+  ): Promise<ApiResponse<UserTrendsResponseDto>> {
+    return this.userUseCases.getUserTrends(query);
   }
 }

@@ -15,13 +15,18 @@ import {
   SQL,
   not,
   arrayOverlaps,
+  gte,
+  lte,
+  countDistinct,
+  asc,
 } from "drizzle-orm";
 import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types";
-import { GetUserQuery } from "@/core/entities/user.entity";
+import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
 import { RoleEnum } from "@/common/constants";
+import { convertDateToStr } from "@/common/utils";
 
 @Injectable()
 export class UserRepository
@@ -238,5 +243,33 @@ export class UserRepository
         total,
       },
     };
+  }
+
+  async getUserTrends(params: UserTrendsQuery): Promise<UserTrends[]> {
+    const { fromDate, toDate } = params;
+
+    const whereConditions: SQL[] = [];
+
+    if (fromDate) {
+      whereConditions.push(gte(users.createdAt, new Date(fromDate)));
+    }
+    if (toDate) {
+      whereConditions.push(lte(users.createdAt, new Date(toDate)));
+    }
+
+    const result = await this.db
+      .select({
+        date: users.createdAt,
+        count: countDistinct(users.id).as("count"),
+      })
+      .from(users)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .groupBy(users.createdAt)
+      .orderBy(asc(users.createdAt));
+
+    return result.map((r) => ({
+      date: convertDateToStr(r.date),
+      count: Number(r.count),
+    }));
   }
 }
