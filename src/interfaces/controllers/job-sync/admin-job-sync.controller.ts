@@ -7,12 +7,12 @@ import {
   Body,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../../dtos";
+import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
 import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
-import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos/jobs/res/sync-from-es.dto";
+import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @ApiTags("Job Sync Admin")
 @ApiBearerAuth()

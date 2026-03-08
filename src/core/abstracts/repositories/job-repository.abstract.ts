@@ -5,6 +5,8 @@ import {
   Notification,
   ApplyStatusEnum,
   User,
+  JobTrends,
+  JobTrendsQuery,
 } from "@/core/entities";
 import {
   JobResponse,
@@ -15,7 +17,7 @@ import {
   UserInteractionResponse,
   JobCounts,
   TopInMarketResponse,
-} from "@/core/entities/job.entity";
+} from "@/core";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
@@ -272,4 +274,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       }
     >
   >;
+
+  abstract getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]>;
 }

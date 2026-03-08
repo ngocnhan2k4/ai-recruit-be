@@ -14,7 +14,6 @@ export * from "./exam";
 export * from "./learning-path";
 export * from "./ai-cv";
 export * from "./schools";
-export * from "./common/api-response.dto";
-export * from "./common/query";
+export * from "./common";
 export * from "./category";
 export * from "./upload";

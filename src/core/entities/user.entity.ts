@@ -33,3 +33,13 @@ export interface UserProfile {
   categoryIds: Category["id"][];
   expectedSalary?: number;
 }
+
+export interface UserTrends {
+  date: string;
+  count: number;
+}
+
+export interface UserTrendsQuery {
+  fromDate?: string;
+  toDate?: string;
+}
