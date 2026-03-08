@@ -78,7 +78,7 @@ export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
     const fastify = app.getHttpAdapter().getInstance();
 
     await fastify.register(fastifyBasicAuth, {
-      validate: async (username, password, _req, _reply) => {
+      validate: (username, password, _req, _reply) => {
         if (
           username !== appConfigs.swaggerUsername ||
           password !== appConfigs.swaggerPassword

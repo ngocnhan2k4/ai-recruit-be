@@ -137,7 +137,6 @@ export class ElasticsearchService
     indexName: string,
     documents: Array<{ id: string; document: any }>,
   ): Promise<{ success: number; failed: number }> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     const body = documents.flatMap(({ id, document }) => [
       { index: { _index: indexName, _id: id } },
       document,

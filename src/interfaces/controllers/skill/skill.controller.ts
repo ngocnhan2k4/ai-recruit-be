@@ -7,14 +7,10 @@ import {
   ParseIntPipe,
   UseGuards,
   Query,
-} from "@nestjs/common";
-import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
-  UseGuards,
-  Query,
   UseInterceptors,
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { LLONG_TTL } from "@/common/constants";
 import {
   ApiResponseDto,
@@ -39,7 +35,7 @@ export class SkillController {
   @ApiResponseDto(SkillDto, { isArray: true })
   @Get("/all")
   async getSkills(): Promise<ApiResponse<SkillDto[]>> {
-    return this.skillUseCases.getSkills();
+    return await this.skillUseCases.getSkills();
   }
 
   @ApiOperation({
