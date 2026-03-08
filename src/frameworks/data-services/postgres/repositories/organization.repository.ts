@@ -214,6 +214,9 @@ export class OrganizationRepository
   }
 
   async getAllOrganizations(query: OrganizationQuery) {
+    const limit = Math.max(query.limit ?? 10, 1);
+    const page = Math.max(query.page ?? 1, 1);
+
     const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
 
     if (query.keyword) {
@@ -240,6 +243,11 @@ export class OrganizationRepository
       );
     }
 
+    // Cursor-based: FE gửi cursor → thêm điều kiện lọc, không query total
+    if (query.cursor && !query.page) {
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
+    }
+
     const baseSelect = {
       id: organizations.id,
       name: organizations.name,
@@ -263,26 +271,28 @@ export class OrganizationRepository
         }
       : baseSelect;
 
-    const baseQuery = () =>
-      this.db
-        .select(selectFields)
-        .from(organizations)
-        .leftJoin(
-          organizationLocations,
-          eq(organizations.id, organizationLocations.organizationId),
-        )
-        .leftJoin(
-          organizationMembers,
-          eq(organizations.id, organizationMembers.organizationId),
-        )
-        .where(and(...whereConditions))
-        .orderBy(desc(organizations.createdAt))
-        .groupBy(organizations.id);
+    const offset = query.page ? (page - 1) * limit : 0;
 
-    // 1) Page-based: client sends page (>= 1). Need total for hasNextPage and UI.
-    const isPageBased =
-      query.page != null && Number.isFinite(query.page) && query.page >= 1;
-    if (isPageBased) {
+    const results = await this.db
+      .select(selectFields)
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .leftJoin(
+        organizationMembers,
+        eq(organizations.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
+      .groupBy(organizations.id)
+      .offset(offset)
+      .limit(limit + 1);
+
+    // Page-based: FE gửi page → query total để trả về
+    let total: number | undefined = undefined;
+    if (query.page) {
       const countResult = await this.db
         .select({ count: sql<number>`count(distinct ${organizations.id})` })
         .from(organizations)
@@ -291,33 +301,13 @@ export class OrganizationRepository
           eq(organizations.id, organizationLocations.organizationId),
         )
         .where(and(...whereConditions));
-      const total = Number(countResult[0]?.count ?? 0);
-
-      const offset = (query.page! - 1) * query.limit;
-      const results = await baseQuery().offset(offset).limit(query.limit);
-
-      const hasNextPage = query.page! * query.limit < total;
-      return {
-        data: results,
-        pagination: {
-          nextCursor: null,
-          hasNextPage,
-          total,
-        },
-      };
+      total = Number(countResult[0]?.count ?? 0);
     }
 
-    // 2) Cursor-based: no total query. Use limit+1 to detect hasNextPage.
-    if (query.cursor) {
-      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
-    }
-    const fetchLimit = query.limit + 1;
-    const results = await baseQuery().limit(fetchLimit);
-
-    const hasNextPage = results.length > query.limit;
-    const data = hasNextPage ? results.slice(0, query.limit) : results;
+    const hasNextPage = results.length > limit;
+    const data = hasNextPage ? results.slice(0, limit) : results;
     const nextCursor =
-      hasNextPage && data.length > 0
+      !query.page && hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
@@ -326,7 +316,7 @@ export class OrganizationRepository
       pagination: {
         nextCursor,
         hasNextPage,
-        total: undefined,
+        total,
       },
     };
   }
