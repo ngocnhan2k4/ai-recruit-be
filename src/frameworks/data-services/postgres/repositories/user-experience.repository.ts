@@ -1,9 +1,4 @@
-import {
-  IOrganizationRepository,
-  ISkillRepository,
-  IUserExperienceRepository,
-  IUserSkillRepository,
-} from "@/core";
+import { IOrganizationRepository, IUserExperienceRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
@@ -28,8 +23,6 @@ export class UserExperienceRepository
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
     private readonly organizationRepository: IOrganizationRepository,
-    private readonly skillRepository: ISkillRepository,
-    private readonly userSkillRepository: IUserSkillRepository,
   ) {
     super(db, userExperiences);
   }

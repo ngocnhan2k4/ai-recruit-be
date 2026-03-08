@@ -1,4 +1,8 @@
-import { GetUserQuery } from "@/core/entities/user.entity";
+import {
+  GetUserQuery,
+  UserProfile,
+  UserCvData,
+} from "@/core/entities/user.entity";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { NewUser, User } from "@/core/entities";
 import { PaginatedResult } from "@/common/types";
@@ -50,4 +54,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
       >
     >
   >;
+
+  abstract getUserProfile(userId: string): Promise<UserProfile | null>;
+  abstract getUserCvData(userId: string): Promise<UserCvData | null>;
 }

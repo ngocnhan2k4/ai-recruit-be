@@ -33,3 +33,32 @@ export interface UserProfile {
   categoryIds: Category["id"][];
   expectedSalary?: number;
 }
+
+export interface UserCvExperience {
+  position: string;
+  jobTitle: string;
+  organizationName: string;
+  startDate: string;
+  endDate: string | null;
+  description: string | null;
+}
+
+export interface UserCvEducation {
+  degree: string | null;
+  major: string | null;
+  schoolName: string;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export interface UserCvData {
+  userId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  bio: string | null;
+  skills: string[];
+  experiences: UserCvExperience[];
+  educations: UserCvEducation[];
+}
