@@ -1,11 +1,9 @@
-import { AppConfigProps, getAppConfigs, Environment } from "@/common/config";
+import { AppConfigProps, Environment, getAppConfigs } from "@/common/config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import fastifyBasicAuth from "@fastify/basic-auth";
 
 const tags: string[] = ["Users", "File Upload"];
-const localUrls: string[] = ["localhost"];
-const developmentUrls: string[] = ["airecruit.software"];
-const productionUrls: string[] = [];
 
 const generateTags = (tags: string[]) => {
   return tags.map((tag) => {
@@ -16,12 +14,7 @@ const generateTags = (tags: string[]) => {
   });
 };
 
-export const generateDocumentBuilder = ({
-  name,
-  port,
-  nodeEnv,
-  globalPrefix,
-}: AppConfigProps) => {
+export const generateDocumentBuilder = ({ name }: AppConfigProps) => {
   const document = new DocumentBuilder()
     .setTitle(`${name} Documentation`)
     .setDescription("This is the API Docs for using internally.")
@@ -33,40 +26,43 @@ export const generateDocumentBuilder = ({
   generateTags(tags).forEach((tag) =>
     document.addTag(tag.name, tag.description),
   );
-  if (nodeEnv === Environment.Development) {
-    developmentUrls.forEach((url, index) => {
-      document.addServer(
-        `https://${url}${globalPrefix}`,
-        `Development server ${index + 1}`,
-      );
-    });
-  } else if (nodeEnv === Environment.Local) {
-    localUrls.forEach((url, index) => {
-      document.addServer(
-        `http://${url}:${port}${globalPrefix}`,
-        `Local server ${index + 1}`,
-      );
-    });
-  } else {
-    productionUrls.forEach((url, index) => {
-      if (url.includes("https")) {
-        document.addServer(
-          `${url}${globalPrefix}`,
-          `Production server ${index + 1}`,
-        );
-      } else {
-        document.addServer(
-          `http://${url}:${port}${globalPrefix}`,
-          `Production server ${index + 1}`,
-        );
-      }
-    });
-  }
+  // if (nodeEnv === Environment.Development) {
+  //   urls.forEach((url, index) => {
+  //     document.addServer(
+  //       `https://${url}${globalPrefix}`,
+  //       `Development server ${index + 1}`,
+  //     );
+  //   });
+  // } else if (nodeEnv === Environment.Local) {
+  //   urls.forEach((url, index) => {
+  //     document.addServer(
+  //       `http://${url}:${port}${globalPrefix}`,
+  //       `Local server ${index + 1}`,
+  //     );
+  //   });
+  // } else {
+  //   urls.forEach((url, index) => {
+  //     if (url.includes("https")) {
+  //       document.addServer(
+  //         `${url}${globalPrefix}`,
+  //         `Production server ${index + 1}`,
+  //       );
+  //     } else {
+  //       document.addServer(
+  //         `http://${url}:${port}${globalPrefix}`,
+  //         `Production server ${index + 1}`,
+  //       );
+  //     }
+  //   });
+  // }
   return document.build();
 };
 
-export const enableSwaggerDoc = (app: NestFastifyApplication) => {
+export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
+
+  if (appConfigs.nodeEnv === Environment.Production) return;
+
   const swaggerConfig = generateDocumentBuilder(appConfigs);
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
@@ -75,5 +71,30 @@ export const enableSwaggerDoc = (app: NestFastifyApplication) => {
     swaggerOptions: {
       persistAuthorization: true,
     },
+    useGlobalPrefix: true,
   });
+
+  if (appConfigs.nodeEnv !== Environment.Local) {
+    const fastify = app.getHttpAdapter().getInstance();
+
+    await fastify.register(fastifyBasicAuth, {
+      validate: async (username, password, _req, _reply) => {
+        if (
+          username !== appConfigs.swaggerUsername ||
+          password !== appConfigs.swaggerPassword
+        ) {
+          throw new Error("Unauthorized");
+        }
+      },
+      authenticate: true,
+    });
+
+    fastify.addHook("onRequest", (req, reply, done) => {
+      if (req.url.startsWith(`${appConfigs.globalPrefix}/docs`)) {
+        fastify.basicAuth(req, reply, done);
+      } else {
+        done();
+      }
+    });
+  }
 };

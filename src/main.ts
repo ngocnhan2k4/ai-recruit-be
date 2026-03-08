@@ -3,7 +3,6 @@
 import "./instrument";
 
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -13,8 +12,11 @@ import { LoggerService } from "@/frameworks/logger-services/logger.service";
 import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
+import { loadVaultIntoEnv } from "./common/config";
 
 async function bootstrap() {
+  await loadVaultIntoEnv();
+  const { AppModule } = await import("./app.module.js");
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
@@ -28,18 +30,18 @@ async function bootstrap() {
     // and ignore to fallback to console logging.
     globalLoggerService = app.get(LoggerService);
   } catch (e) {
-    this.logger.error("[main] [bootstrap] Failed to get LoggerService", e);
+    logger.error("[main] [bootstrap] Failed to get LoggerService", e);
   }
 
-  enableSwaggerDoc(app);
   enableAppMiddleware(app);
+  enableSwaggerDoc(app);
 
   await app.listen(port, "0.0.0.0", () => {
     app.getUrl().then((url) => {
       const serverUrl = url.replace("[::1]", "localhost");
       logger.log(`Server is running on ${serverUrl}`);
       logger.log(`APIs is running on ${serverUrl + globalPrefix}`);
-      logger.log(`Swagger docs is running on ${serverUrl}/docs`);
+      logger.log(`Swagger docs is running on ${serverUrl}${globalPrefix}/docs`);
     });
   });
 }

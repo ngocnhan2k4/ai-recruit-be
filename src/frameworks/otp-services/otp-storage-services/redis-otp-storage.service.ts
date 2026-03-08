@@ -1,14 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IOtpStorageService } from "@/core/abstracts/otp-storage.abstract";
 import { OtpEntity } from "@/core/entities/otp.entity";
-import { IRedisService } from "@/core/abstracts/redis.abstract";
+import { ICacheService } from "@/core/abstracts/cache.abstract";
 
+// [TODO] Move this logic, use wrapper for Redis is no longer necessary
 @Injectable()
 export class RedisOtpStorageService implements IOtpStorageService {
   private readonly logger = new Logger(RedisOtpStorageService.name);
   private readonly OTP_PREFIX = "otp:";
 
-  constructor(private readonly redisService: IRedisService) {}
+  constructor(private readonly redisService: ICacheService) {}
 
   async store(key: string, otp: OtpEntity): Promise<void> {
     const redisKey = this.OTP_PREFIX + key;

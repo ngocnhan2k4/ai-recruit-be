@@ -1,7 +1,19 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { CvLanguageEnum, CvTemplateEnum, NewAiCv } from "@/core";
+import { FileTextExtractor } from "@/common/utils";
+import {
+  CvLanguageEnum,
+  CvTemplateEnum,
+  IAIService,
+  NewAiCv,
+  OptimizeAtsResponse,
+} from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
-import { ApiResponse } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  CvFieldSuggestionRequestDto,
+  CvFieldSuggestionResponseDto,
+  OptimizeAtsUploadDto,
+} from "@/interfaces/dtos";
 import {
   AiCvDto,
   AiCvListResponseDto,
@@ -22,6 +34,8 @@ export class AiCvUseCases {
   private readonly logger = new Logger(AiCvUseCases.name);
   constructor(
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
+    @Inject(IAIService)
+    private readonly aiService: IAIService,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -191,5 +205,87 @@ export class AiCvUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data: { message: RESPONSE_CODE.SUCCESS },
     };
+  }
+
+  async suggestCvField(
+    request: CvFieldSuggestionRequestDto,
+  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+    this.logger.log(`Generating suggestion for field: ${request.targetField}`);
+
+    try {
+      const result = await this.aiService.suggestCvField({
+        cvData: request.cvData as any,
+        targetField: request.targetField,
+        fieldContext: request.fieldContext,
+        jobDescription: request.jobDescription,
+      });
+
+      const response: CvFieldSuggestionResponseDto = {
+        targetField: result.targetField,
+        suggestion: result.suggestion,
+        generatedAt: result.generatedAt,
+      };
+
+      return {
+        data: response,
+        message: "Field suggestion generated successfully",
+        code: RESPONSE_CODE.SUCCESS,
+      };
+    } catch (error) {
+      this.logger.error(error.message);
+      throw new BadRequestException({
+        message: error.message,
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+  }
+
+  async optimizeCvForAts(
+    request: OptimizeAtsUploadDto,
+  ): Promise<ApiResponse<OptimizeAtsResponse>> {
+    this.logger.log("Starting CV optimization for ATS");
+
+    // Call AI service to optimize CV
+    try {
+      let cvText = "";
+
+      if (request?.file) {
+        cvText = await FileTextExtractor.extractText(request.file);
+
+        this.logger.log(`Extracted ${cvText.length} chars from CV`);
+      } else if (request?.cvText) {
+        cvText = request.cvText;
+      }
+
+      const optimizeRequest = {
+        cvText,
+        language: request.body.language || CvLanguageEnum.VIETNAMESE,
+        ...(request.body.jobDescription && {
+          jobDescription: request.body.jobDescription,
+        }),
+      };
+
+      this.logger.log(
+        request.body.jobDescription
+          ? "Performing targeted ATS optimization with job description"
+          : "Performing general ATS optimization",
+      );
+
+      const result = await this.aiService.optimizeCvAts(optimizeRequest);
+
+      result.language = request.body.language!;
+
+      return {
+        data: result,
+        message: "CV optimized successfully",
+        code: RESPONSE_CODE.SUCCESS,
+      };
+    } catch (error) {
+      this.logger.error(error.message);
+      throw new BadRequestException({
+        message: error.message,
+        code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
+      });
+    }
   }
 }

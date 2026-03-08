@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 
 import requests
 from bs4 import BeautifulSoup
-
-from helpers.http import get_headers, human_delay
-from helpers.extraction import extract_employee_range
-from helpers.text import safe_text
 from helpers.date import parse_posted_date
+from helpers.extraction import extract_employee_range
+from helpers.http import get_headers, human_delay
 from helpers.province import process_province
+from helpers.skills import extract_skills_from_text
+from helpers.text import html_to_mixed_content, safe_text
 
 
 def linkedin_crawl(
@@ -16,14 +16,12 @@ def linkedin_crawl(
     keywords: str = "Web Development",
 ):
     companies = {}
-
     headers = get_headers()
 
-    job_ids = get_job_ids(
+    job_ids = _get_job_ids(
         headers, pages=pages, start_page=start_page, keywords=keywords
     )
 
-    # Crawl job details for each job ID
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
     for job_id in job_ids:
         try:
@@ -31,67 +29,38 @@ def linkedin_crawl(
             res = requests.get(job_url, headers=headers)
             soup = BeautifulSoup(res.text, "html.parser")
 
-            # company_name
             top_card = soup.select_one("div.top-card-layout__card")
             if not top_card:
                 print(f"Skipping job {job_id}: no top card found")
                 continue
-            
-            company_name = (
-                top_card
-                .find("a")
-                .find("img")
-                .get("alt")
-            )
 
-            # job_title
+            company_name = top_card.find("a").find("img").get("alt")
             job_title = (
-                soup.select_one("div.top-card-layout__entity-info").find("a").text.strip()
+                soup.select_one("div.top-card-layout__entity-info")
+                .find("a")
+                .text.strip()
             )
 
-            # logo
             logo_elem = soup.select_one("img.artdeco-entity-image")
             logo = logo_elem["data-delayed-url"] if logo_elem else None
 
-            # locations
             locations = process_province(
                 safe_text(soup.select_one("span.topcard__flavor--bullet")).split(", ")
             )
 
-            # date_posted
-            date_posted = safe_text(soup.select_one("span.posted-time-ago__text")).replace(
-                "s", ""
-            )
+            date_posted = safe_text(
+                soup.select_one("span.posted-time-ago__text")
+            ).replace("s", "")
             process = parse_posted_date(date_posted)
 
-            # description
+            # Description — mixed content (markdown headings + raw HTML)
             desc_wrap = soup.select_one("div.show-more-less-html__markup")
-            description_text = safe_text(desc_wrap, is_strip=False, sep="\n").strip() if desc_wrap else ""
-            description_parts = [
-                {
-                    "title": "",
-                    "body": description_text,
-                }
-            ]
-            
-            # Extract skills from description (LinkedIn doesn't have dedicated skill tags)
-            skills = []
-            if description_text:
-                # Common tech skills to look for in description
-                common_skills = [
-                    "Python", "JavaScript", "Java", "C++", "C#", "TypeScript", "Go", "Rust",
-                    "React", "Angular", "Vue", "Node.js", "Django", "Flask", "Spring",
-                    "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Git", "CI/CD",
-                    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch",
-                    "HTML", "CSS", "REST", "GraphQL", "API", "Microservices",
-                    "Agile", "Scrum", "Linux", "DevOps", "Machine Learning", "AI",
-                    "TensorFlow", "PyTorch", "Kafka", "RabbitMQ", "Jenkins", "Terraform",
-                    "PHP", "Ruby", "Swift", "Kotlin", "Scala", "R", "MATLAB",
-                ]
-                description_lower = description_text.lower()
-                for skill in common_skills:
-                    if skill.lower() in description_lower and skill not in skills:
-                        skills.append(skill)
+            description = html_to_mixed_content(desc_wrap) if desc_wrap else ""
+
+            # Extract skills from description text
+            skills = extract_skills_from_text(
+                desc_wrap.get_text() if desc_wrap else ""
+            )
 
             human_delay(base=3, jitter=2)
 
@@ -102,16 +71,13 @@ def linkedin_crawl(
             comp_res = requests.get(company_url, headers=headers)
             comp_soup = BeautifulSoup(comp_res.text, "html.parser")
 
-            # company_desc
             company_desc = safe_text(comp_soup.select_one("span.line-clamp-2"))
 
-            # company_website_url
             comp_wrap = comp_soup.select_one("dl.mt-6")
             comp_web_url = safe_text(comp_wrap.find("a")) if comp_wrap else None
 
             dd = comp_wrap.find_all("dd") if comp_wrap else []
 
-            # company_size
             employees_min, employees_max = None, None
             if len(dd) > 2:
                 company_size = safe_text(dd[2]).strip()
@@ -120,7 +86,6 @@ def linkedin_crawl(
                 except Exception as e:
                     print(f"Could not parse employee range from '{company_size}'. Error: {e}")
 
-            # comp_addr
             comp_addr = [safe_text(dd[3])] if len(dd) > 3 else []
 
             if company_name not in companies:
@@ -137,11 +102,11 @@ def linkedin_crawl(
                 }
 
             companies[company_name]["jobs"][job_title] = {
-                "description": description_parts,
+                "description": description,
                 "locations": locations,
                 "job_url": job_url,
                 "date_posted": process,
-                "skills": skills,  # Now includes extracted skills
+                "skills": skills,
                 "crawled_at": datetime.now(timezone.utc),
                 "source": "linkedin",
             }
@@ -152,7 +117,7 @@ def linkedin_crawl(
     return companies
 
 
-def get_job_ids(
+def _get_job_ids(
     headers, pages: int = 1, start_page: int = 0, keywords: str = "Web Development"
 ) -> list:
     job_ids = []

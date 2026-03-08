@@ -1,5 +1,6 @@
 import { Transform, plainToClass } from "class-transformer";
 import {
+  IsArray,
   IsEnum,
   IsNumber,
   IsOptional,
@@ -55,14 +56,14 @@ export class EnvironmentVariables {
   @IsNumber()
   REFRESH_EXPIRES_IN: number;
 
-  // @IsString()
-  // REDIS_HOST: string;
+  @IsString()
+  REDIS_HOST: string;
 
-  // @IsNumber()
-  // REDIS_PORT: number;
+  @IsNumber()
+  REDIS_PORT: number;
 
-  // @IsString()
-  // REDIS_PASSWORD: string;
+  @IsString()
+  REDIS_PASSWORD: string;
 
   // @IsNumber()
   // REDIS_DB: number;
@@ -188,6 +189,32 @@ export default (): Record<string, any> => ({
   // Sentry
   SENTRY_DSN: process.env.SENTRY_DSN,
 });
+
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string }) =>
+    Array.isArray(value) ? value : value.split(",").map((o) => o.trim()),
+  )
+  CORS_ORIGINS: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  RATE_LIMIT_CAPACITY: number = 60;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  RATE_LIMIT_REFILL_RATE: number = 1;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_USERNAME: string;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_PASSWORD: string;
+}
 
 export const validateConfig = (
   config: Record<string, unknown>,

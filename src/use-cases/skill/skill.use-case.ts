@@ -14,16 +14,6 @@ export class SkillUseCases {
   private readonly logger = new Logger(SkillUseCases.name);
   constructor(private readonly skillRepository: ISkillRepository) {}
 
-  async getSkills(): Promise<ApiResponse<SkillDto[]>> {
-    const data = await this.skillRepository.getAll(["id", "name"]);
-    this.logger.log(`Fetched ${data.length} skills`);
-    return {
-      message: "Skills fetched successfully",
-      code: RESPONSE_CODE.SUCCESS,
-      data: data,
-    };
-  }
-
   async createMany(
     createSkillDto: CreateSkillDto,
   ): Promise<ApiResponse<SkillDto[]>> {
