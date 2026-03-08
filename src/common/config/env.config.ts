@@ -129,6 +129,32 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SENTRY_DSN: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string }) =>
+    Array.isArray(value) ? value : value.split(",").map((o) => o.trim()),
+  )
+  CORS_ORIGINS: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  RATE_LIMIT_CAPACITY: number = 60;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  RATE_LIMIT_REFILL_RATE: number = 1;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_USERNAME: string;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_PASSWORD: string;
 }
 
 export default (): Record<string, any> => ({
@@ -188,33 +214,16 @@ export default (): Record<string, any> => ({
 
   // Sentry
   SENTRY_DSN: process.env.SENTRY_DSN,
+
+  // CORS & rate limit & Swagger
+  CORS_ORIGINS: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+    : [],
+  RATE_LIMIT_CAPACITY: parseInt(process.env.RATE_LIMIT_CAPACITY || "60", 10),
+  RATE_LIMIT_REFILL_RATE: parseFloat(process.env.RATE_LIMIT_REFILL_RATE || "1"),
+  SWAGGER_USERNAME: process.env.SWAGGER_USERNAME,
+  SWAGGER_PASSWORD: process.env.SWAGGER_PASSWORD,
 });
-
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }: { value: string }) =>
-    Array.isArray(value) ? value : value.split(",").map((o) => o.trim()),
-  )
-  CORS_ORIGINS: string[];
-
-  @IsOptional()
-  @IsNumber()
-  @Transform(({ value }: { value: string }) => parseInt(value, 10))
-  RATE_LIMIT_CAPACITY: number = 60;
-
-  @IsOptional()
-  @IsNumber()
-  @Transform(({ value }: { value: string }) => parseFloat(value))
-  RATE_LIMIT_REFILL_RATE: number = 1;
-
-  @IsOptional()
-  @IsString()
-  SWAGGER_USERNAME: string;
-
-  @IsOptional()
-  @IsString()
-  SWAGGER_PASSWORD: string;
-}
 
 export const validateConfig = (
   config: Record<string, unknown>,
