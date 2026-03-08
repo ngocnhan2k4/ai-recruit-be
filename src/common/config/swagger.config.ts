@@ -60,7 +60,7 @@ export const generateDocumentBuilder = ({ name }: AppConfigProps) => {
 
 export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-  console.log("App Configs: ", appConfigs.nodeEnv);
+
   if (appConfigs.nodeEnv === Environment.Production) return;
 
   const swaggerConfig = generateDocumentBuilder(appConfigs);
