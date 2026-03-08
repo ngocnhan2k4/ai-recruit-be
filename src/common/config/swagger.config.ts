@@ -60,11 +60,23 @@ export const generateDocumentBuilder = ({ name }: AppConfigProps) => {
 
 export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-
+  console.log("App Configs: ", appConfigs.nodeEnv);
   if (appConfigs.nodeEnv === Environment.Production) return;
+
+  const swaggerConfig = generateDocumentBuilder(appConfigs);
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+
+  SwaggerModule.setup("docs", app, document, {
+    jsonDocumentUrl: "docs/json",
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+    useGlobalPrefix: true,
+  });
 
   if (appConfigs.nodeEnv !== Environment.Local) {
     const fastify = app.getHttpAdapter().getInstance();
+
     await fastify.register(fastifyBasicAuth, {
       validate: async (username, password, _req, _reply) => {
         if (
@@ -77,17 +89,12 @@ export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
       authenticate: true,
     });
 
-    fastify.addHook("onRequest", fastify.basicAuth);
+    fastify.addHook("onRequest", (req, reply, done) => {
+      if (req.url.startsWith(`${appConfigs.globalPrefix}/docs`)) {
+        fastify.basicAuth(req, reply, done);
+      } else {
+        done();
+      }
+    });
   }
-
-  const swaggerConfig = generateDocumentBuilder(appConfigs);
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-
-  SwaggerModule.setup("docs", app, document, {
-    jsonDocumentUrl: "docs/json",
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-    useGlobalPrefix: true,
-  });
 };
