@@ -240,11 +240,6 @@ export class OrganizationRepository
       );
     }
 
-    const usePage = query.page != null && query.page >= 1;
-    if (!usePage && query.cursor) {
-      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
-    }
-
     const baseSelect = {
       id: organizations.id,
       name: organizations.name,
@@ -268,63 +263,72 @@ export class OrganizationRepository
         }
       : baseSelect;
 
-    // Count total with same filters (for page-based pagination)
-    const countResult = await this.db
-      .select({ count: sql<number>`count(distinct ${organizations.id})` })
-      .from(organizations)
-      .leftJoin(
-        organizationLocations,
-        eq(organizations.id, organizationLocations.organizationId),
-      )
-      .where(and(...whereConditions));
-    const total = Number(countResult[0]?.count ?? 0);
+    const baseQuery = () =>
+      this.db
+        .select(selectFields)
+        .from(organizations)
+        .leftJoin(
+          organizationLocations,
+          eq(organizations.id, organizationLocations.organizationId),
+        )
+        .leftJoin(
+          organizationMembers,
+          eq(organizations.id, organizationMembers.organizationId),
+        )
+        .where(and(...whereConditions))
+        .orderBy(desc(organizations.createdAt))
+        .groupBy(organizations.id);
 
-    const limit = query.limit + (usePage ? 0 : 1); // when cursor-based, request limit+1 to detect hasNext
-    const offset = usePage ? (query.page! - 1) * query.limit : 0;
+    // 1) Page-based: client sends page (>= 1). Need total for hasNextPage and UI.
+    const isPageBased =
+      query.page != null && Number.isFinite(query.page) && query.page >= 1;
+    if (isPageBased) {
+      const countResult = await this.db
+        .select({ count: sql<number>`count(distinct ${organizations.id})` })
+        .from(organizations)
+        .leftJoin(
+          organizationLocations,
+          eq(organizations.id, organizationLocations.organizationId),
+        )
+        .where(and(...whereConditions));
+      const total = Number(countResult[0]?.count ?? 0);
 
-    const baseQuery = this.db
-      .select(selectFields)
-      .from(organizations)
-      .leftJoin(
-        organizationLocations,
-        eq(organizations.id, organizationLocations.organizationId),
-      )
-      .leftJoin(
-        organizationMembers,
-        eq(organizations.id, organizationMembers.organizationId),
-      )
-      .where(and(...whereConditions))
-      .orderBy(desc(organizations.createdAt))
-      .groupBy(organizations.id);
+      const offset = (query.page! - 1) * query.limit;
+      const results = await baseQuery().offset(offset).limit(query.limit);
 
-    const results =
-      offset > 0
-        ? await baseQuery.offset(offset).limit(limit)
-        : await baseQuery.limit(limit);
+      const hasNextPage = query.page! * query.limit < total;
+      return {
+        data: results,
+        pagination: {
+          nextCursor: null,
+          hasNextPage,
+          total,
+        },
+      };
+    }
 
-    const hasNextPage = usePage
-      ? query.page! * query.limit < total
-      : results.length > query.limit;
-    const data = usePage
-      ? results
-      : hasNextPage
-        ? results.slice(0, query.limit)
-        : results;
+    // 2) Cursor-based: no total query. Use limit+1 to detect hasNextPage.
+    if (query.cursor) {
+      whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
+    }
+    const fetchLimit = query.limit + 1;
+    const results = await baseQuery().limit(fetchLimit);
 
+    const hasNextPage = results.length > query.limit;
+    const data = hasNextPage ? results.slice(0, query.limit) : results;
     const nextCursor =
-      !usePage && hasNextPage && data.length > 0
+      hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    const resultToSend = {
+    return {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
-        total,
+        total: undefined,
       },
     };
-    return resultToSend;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
