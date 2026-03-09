@@ -11,3 +11,13 @@ export interface OrganizationQuery extends GeneralQuery {
 export interface MyOrganizationQuery extends GeneralQuery {
   userId?: string;
 }
+
+export interface OrganizationTrends {
+  date: string;
+  count: number;
+}
+
+export interface OrganizationTrendsQuery {
+  fromDate?: string;
+  toDate?: string;
+}

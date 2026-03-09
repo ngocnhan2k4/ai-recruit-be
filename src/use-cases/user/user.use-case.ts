@@ -33,6 +33,8 @@ import {
   UserOnboardingDto,
   GetAllUserResponseDto,
   AdminUpdateUserRequestDto,
+  UserTrendsResponseDto,
+  UserTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { TokenPayload } from "@/common/types";
@@ -902,6 +904,23 @@ export class UserUseCases implements OnModuleInit {
       message: "User account deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: true,
+    };
+  }
+
+  async getUserTrends(
+    query: UserTrendsQueryDto,
+  ): Promise<ApiResponse<UserTrendsResponseDto>> {
+    const trends = await this.userRepository.getUserTrends({
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: trends,
+      },
     };
   }
 }

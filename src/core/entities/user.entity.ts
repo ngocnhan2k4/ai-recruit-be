@@ -62,3 +62,13 @@ export interface UserCvData {
   experiences: UserCvExperience[];
   educations: UserCvEducation[];
 }
+
+export interface UserTrends {
+  date: string;
+  count: number;
+}
+
+export interface UserTrendsQuery {
+  fromDate?: string;
+  toDate?: string;
+}
