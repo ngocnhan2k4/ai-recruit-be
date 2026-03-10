@@ -128,3 +128,16 @@ export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
   "save",
   "hide",
 ]);
+
+export const BillingCycleSubscriptionEnum = pgEnum(
+  "billing_cycle_subscription",
+  ["monthly", "yearly"],
+);
+
+export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
+  "incomplete",
+  "active",
+  "canceled",
+  "expired",
+  "past_due",
+]);
