@@ -32,6 +32,8 @@ import {
   UpdateOrganizationAdditionalInfoDto,
   SendEmailVerificationDto,
   VerifyOrganizationEmailDto,
+  JobPaginationResponseDto,
+  OrganizationJobQueryDto,
 } from "../../dtos";
 import { GetUser, UploadFileAndBody } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
@@ -325,5 +327,20 @@ export class OrganizationController {
       orgId,
       uploadFile.file,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("/:orgId/jobs")
+  @ApiOperation({
+    summary: "Get jobs of an organization",
+    description:
+      "Retrieve a paginated list of jobs belonging to a specific organization with filters for status, date range, keyword, and categories.",
+  })
+  @ApiResponseDto(JobPaginationResponseDto)
+  async getOrganizationJobs(
+    @Param("orgId") orgId: string,
+    @Query() query: OrganizationJobQueryDto,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    return await this.organizationUseCase.getOrganizationJobs(orgId, query);
   }
 }

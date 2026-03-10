@@ -194,9 +194,12 @@ export class JobRepository
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
-    //apply status filter for only employer and admin
     if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
+    }
+
+    if (filters?.categoryIds?.length) {
+      whereConditions.push(inArray(jobs.categoryId, filters.categoryIds));
     }
 
     if (filters?.createdAtStart) {

@@ -8,6 +8,7 @@ import {
 import {
   EmailJobType,
   ICompanyRepository,
+  IJobRepository,
   IOrganizationMemberInvitationRepository,
   IOrganizationMembersRepository,
   IOrganizationRepository,
@@ -22,6 +23,9 @@ import {
   ApiResponse,
   CreateOrganizationDto,
   GeneralQueryDto,
+  JobDto,
+  JobPaginationResponseDto,
+  OrganizationJobQueryDto,
   OrganizationWithDetailsDto,
   PaginatedResultDto,
   OrganizationTrendsResponseDto,
@@ -54,6 +58,7 @@ export class OrganizationUseCase {
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly casbinService: CasbinService,
+    private readonly jobRepository: IJobRepository,
   ) {}
 
   /**
@@ -888,6 +893,44 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         data: trends,
+      },
+    };
+  }
+
+  async getOrganizationJobs(
+    orgId: string,
+    query: OrganizationJobQueryDto,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    const result = await this.jobRepository.getJobsByAdmin({
+      organizationId: orgId,
+      keyword: query.keyword,
+      status: query.status,
+      createdAtStart: query.fromDate ? new Date(query.fromDate) : undefined,
+      createdAtEnd: query.toDate ? new Date(query.toDate) : undefined,
+      categoryIds: query.categoryIds,
+      limit: query.limit,
+      page: query.page,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+    });
+
+    const transformedJobData = result.data.map((item) => ({
+      ...item,
+      job: {
+        ...item.job,
+        organizationId: item.organization.id,
+      } as JobDto,
+      organization: {
+        ...item.organization,
+      } as OrganizationWithDetailsDto,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: transformedJobData,
+        pagination: result.pagination,
       },
     };
   }
