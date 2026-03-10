@@ -4,3 +4,4 @@ export * from "./user-experience.dto";
 export * from "./user-skill.dto";
 export * from "./user-onboarding.dto";
 export * from "./user-education.dto";
+export * from "./user-trends.dto";

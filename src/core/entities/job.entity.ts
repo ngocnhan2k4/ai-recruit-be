@@ -87,3 +87,19 @@ export enum JobEventType {
   UPSERT = "upsert",
   DELETE = "delete",
 }
+
+export enum JobTrendTypeEnum {
+  CREATED = "created",
+  CRAWLED = "crawled",
+}
+
+export interface JobTrends {
+  date: string;
+  count: number;
+}
+
+export interface JobTrendsQuery {
+  fromDate?: string;
+  toDate?: string;
+  type?: JobTrendTypeEnum;
+}

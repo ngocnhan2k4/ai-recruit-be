@@ -64,14 +64,13 @@ import {
   JobAnswer,
   JobCounts,
   TopInMarketResponse,
-} from "@/core/entities/job.entity";
+  JobTrendTypeEnum,
+  JobTrendsQuery,
+  JobTrends,
+} from "@/core";
 import { PaginatedResult, GeneralQuery } from "@/common/types";
 import { organizations } from "../models/organization.model";
-import {
-  JobFilters,
-  JobResponse,
-  StatisticsJobFilter,
-} from "@/core/entities/job.entity";
+import { JobFilters, JobResponse, StatisticsJobFilter } from "@/core";
 import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -2174,5 +2173,39 @@ export class JobRepository
     });
 
     return statusMap;
+  }
+
+  async getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]> {
+    const { fromDate, toDate, type } = params;
+
+    const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
+
+    if (fromDate) {
+      whereConditions.push(gte(jobs.createdAt, new Date(fromDate)));
+    }
+    if (toDate) {
+      whereConditions.push(lte(jobs.createdAt, new Date(toDate)));
+    }
+
+    if (type === JobTrendTypeEnum.CREATED) {
+      whereConditions.push(isNull(jobs.jobRawId));
+    } else if (type === JobTrendTypeEnum.CRAWLED) {
+      whereConditions.push(isNotNull(jobs.jobRawId));
+    }
+
+    const result = await this.db
+      .select({
+        date: jobs.createdAt,
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .groupBy(jobs.createdAt)
+      .orderBy(asc(jobs.createdAt));
+
+    return result.map((r) => ({
+      date: convertDateToStr(r.date),
+      count: Number(r.count),
+    }));
   }
 }

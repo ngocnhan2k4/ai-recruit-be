@@ -1,6 +1,7 @@
-import { AppConfigProps, getAppConfigs } from "@/common/config";
+import { AppConfigProps, Environment, getAppConfigs } from "@/common/config";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import fastifyBasicAuth from "@fastify/basic-auth";
 
 const tags: string[] = ["Users", "File Upload"];
 
@@ -57,8 +58,11 @@ export const generateDocumentBuilder = ({ name }: AppConfigProps) => {
   return document.build();
 };
 
-export const enableSwaggerDoc = (app: NestFastifyApplication) => {
+export const enableSwaggerDoc = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
+
+  if (appConfigs.nodeEnv === Environment.Production) return;
+
   const swaggerConfig = generateDocumentBuilder(appConfigs);
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
@@ -69,4 +73,28 @@ export const enableSwaggerDoc = (app: NestFastifyApplication) => {
     },
     useGlobalPrefix: true,
   });
+
+  if (appConfigs.nodeEnv !== Environment.Local) {
+    const fastify = app.getHttpAdapter().getInstance();
+
+    await fastify.register(fastifyBasicAuth, {
+      validate: async (username, password, _req, _reply) => {
+        if (
+          username !== appConfigs.swaggerUsername ||
+          password !== appConfigs.swaggerPassword
+        ) {
+          throw new Error("Unauthorized");
+        }
+      },
+      authenticate: true,
+    });
+
+    fastify.addHook("onRequest", (req, reply, done) => {
+      if (req.url.startsWith(`${appConfigs.globalPrefix}/docs`)) {
+        fastify.basicAuth(req, reply, done);
+      } else {
+        done();
+      }
+    });
+  }
 };

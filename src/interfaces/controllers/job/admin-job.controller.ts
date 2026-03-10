@@ -11,13 +11,15 @@ import {
   Delete,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiResponse, ApiResponseDto } from "../../dtos";
+import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobCountsDto,
   JobPaginationResponseDto,
   JobResponseDto,
+  JobTrendsQueryDto,
+  JobTrendsResponseDto,
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators";
@@ -110,5 +112,18 @@ export class JobAdminController {
   @Get("counts")
   async getJobCounts(): Promise<ApiResponse<JobCountsDto>> {
     return await this.jobUseCases.getJobCounts();
+  }
+
+  @ApiOperation({
+    summary: "Get job trends",
+    description:
+      "Get job creation trends over time. Can filter by type: total, created (manual), or crawled.",
+  })
+  @ApiResponseDto(JobTrendsResponseDto)
+  @Get("trends")
+  async getJobTrends(
+    @Query() query: JobTrendsQueryDto,
+  ): Promise<ApiResponse<JobTrendsResponseDto>> {
+    return this.jobUseCases.getJobTrends(query);
   }
 }

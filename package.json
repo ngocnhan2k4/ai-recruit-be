@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "8",
+    "@fastify/basic-auth": "^6.2.0",
     "@fastify/compress": "^8.1.0",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.0.1",

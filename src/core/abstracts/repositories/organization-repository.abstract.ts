@@ -4,8 +4,12 @@ import {
   NewOrganizationWithDetails,
   OrganizationTypeEnum,
   OrganizationWithDetails,
-} from "@/core/entities";
-import { OrganizationQuery } from "@/core/entities/organization.entity";
+} from "@/core";
+import {
+  OrganizationQuery,
+  OrganizationTrends,
+  OrganizationTrendsQuery,
+} from "@/core";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
@@ -54,4 +58,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   ): Promise<OrganizationWithDetails[]>;
 
   abstract getMemberIdsOfOrganization(orgId: string): Promise<{ id: string }[]>;
+
+  abstract getOrganizationTrends(
+    params: OrganizationTrendsQuery,
+  ): Promise<OrganizationTrends[]>;
 }

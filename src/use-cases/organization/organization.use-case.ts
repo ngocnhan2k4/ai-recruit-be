@@ -24,6 +24,8 @@ import {
   GeneralQueryDto,
   OrganizationWithDetailsDto,
   PaginatedResultDto,
+  OrganizationTrendsResponseDto,
+  OrganizationTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
@@ -871,5 +873,22 @@ export class OrganizationUseCase {
     const shortTime = time.getTime().toString(36).slice(-5);
 
     return `${baseSlug}-${shortTime}`;
+  }
+
+  async getOrganizationTrends(
+    query: OrganizationTrendsQueryDto,
+  ): Promise<ApiResponse<OrganizationTrendsResponseDto>> {
+    const trends = await this.organizationRepository.getOrganizationTrends({
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: trends,
+      },
+    };
   }
 }

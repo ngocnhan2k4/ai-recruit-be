@@ -142,6 +142,14 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
   RATE_LIMIT_REFILL_RATE: number = 1;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_USERNAME: string;
+
+  @IsOptional()
+  @IsString()
+  SWAGGER_PASSWORD: string;
 }
 
 export const validateConfig = (
