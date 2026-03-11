@@ -65,8 +65,10 @@ export class EnvironmentVariables {
   @IsString()
   REDIS_PASSWORD: string;
 
-  // @IsNumber()
-  // REDIS_DB: number;
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  REDIS_DB: number = 0;
 
   @IsString()
   FIREBASE_STORAGE_BUCKET: string;
@@ -126,11 +128,6 @@ export class EnvironmentVariables {
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
 
-  @IsOptional()
-  @IsString()
-  SENTRY_DSN: string;
-
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @Transform(({ value }: { value: string }) =>
@@ -155,75 +152,15 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SWAGGER_PASSWORD: string;
+
+  @IsOptional()
+  @IsString()
+  SLACK_ERROR_WEBHOOK_URL: string;
+
+  @IsOptional()
+  @IsString()
+  SENTRY_DSN: string;
 }
-
-export default (): Record<string, any> => ({
-  // Server
-  NAME: process.env.NAME || "AI Recruit",
-  PORT: parseInt(process.env.PORT || "3000", 10),
-  NODE_ENV: process.env.NODE_ENV || "local",
-  GLOBAL_PREFIX: process.env.GLOBAL_PREFIX || "/api/v1",
-
-  // PostgreSQL
-  DATABASE_URL: process.env.DATABASE_URL,
-  DATABASE_ADAPTER_URL: process.env.DATABASE_ADAPTER_URL,
-
-  JWT_SECRET: process.env.JWT_SECRET,
-  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
-  FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
-  REFRESH_EXPIRES_IN: Number(process.env.REFRESH_EXPIRES_IN) || 7,
-
-  // Redis
-  REDIS_HOST: process.env.REDIS_HOST,
-  REDIS_PORT: process.env.REDIS_PORT,
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
-  REDIS_DB: process.env.REDIS_DB,
-
-  FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
-
-  // Slack
-  ERROR_WEBHOOK_URL: process.env.ERROR_WEBHOOK_URL,
-
-  AI_SERVICE_URL: process.env.AI_SERVICE_URL,
-  AI_SERVICE_TIMEOUT: Number(process.env.AI_SERVICE_TIMEOUT) || 120000,
-  AI_SERVICE_MAX_RETRIES: Number(process.env.AI_SERVICE_MAX_RETRIES) || 3,
-  AI_API_KEY: process.env.AI_API_KEY,
-  FRONTEND_URL: process.env.FRONTEND_URL,
-
-  MAIL_USER: process.env.MAIL_USER,
-  MAIL_PASSWORD: process.env.MAIL_PASSWORD,
-  MAIL_FROM: process.env.MAIL_FROM,
-  MAIL_HOST: process.env.MAIL_HOST,
-
-  // Elasticsearch
-  ELASTICSEARCH_NODE: process.env.ELASTICSEARCH_NODE,
-  ELASTICSEARCH_USERNAME: process.env.ELASTICSEARCH_USERNAME,
-  ELASTICSEARCH_PASSWORD: process.env.ELASTICSEARCH_PASSWORD,
-  ELASTICSEARCH_INDEX_JOBS: process.env.ELASTICSEARCH_INDEX_JOBS,
-
-  // Performance
-  SLOW_API_THRESHOLD_MS: parseInt(
-    process.env.SLOW_API_THRESHOLD_MS || "1000",
-    10,
-  ),
-
-  // Sentry
-  SENTRY_DSN: process.env.SENTRY_DSN,
-
-  // CORS & rate limit & Swagger
-  CORS_ORIGINS: process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-    : [],
-  RATE_LIMIT_CAPACITY: parseInt(process.env.RATE_LIMIT_CAPACITY || "60", 10),
-  RATE_LIMIT_REFILL_RATE: parseFloat(process.env.RATE_LIMIT_REFILL_RATE || "1"),
-  SWAGGER_USERNAME: process.env.SWAGGER_USERNAME,
-  SWAGGER_PASSWORD: process.env.SWAGGER_PASSWORD,
-});
 
 export const validateConfig = (
   config: Record<string, unknown>,
