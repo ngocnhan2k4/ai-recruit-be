@@ -766,7 +766,7 @@ export class OrganizationUseCase {
     };
   }
 
-  async getAllOrganizations(
+  async getOrganizations(
     query: OrganizationQuery,
   ): Promise<
     ApiResponse<
@@ -787,7 +787,37 @@ export class OrganizationUseCase {
       >
     >
   > {
-    const result = await this.organizationRepository.getAllOrganizations(query);
+    const result = await this.organizationRepository.getOrganizations(query);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async getOrganizationsByAdmin(
+    query: OrganizationQuery,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<
+        Pick<
+          OrganizationWithDetails,
+          | "id"
+          | "name"
+          | "type"
+          | "description"
+          | "logoUrl"
+          | "email"
+          | "phone"
+          | "foundedYear"
+          | "verifiedAt"
+          | "createdAt"
+        >
+      >
+    >
+  > {
+    const result =
+      await this.organizationRepository.getOrganizationsByAdmin(query);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

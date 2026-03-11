@@ -34,7 +34,7 @@ export class OrganizationAdminController {
   })
   @ApiResponseDto(String)
   async getAllOrganizations(@Query() query: OrganizationQueryDto) {
-    return await this.organizationUseCase.getAllOrganizations(query);
+    return await this.organizationUseCase.getOrganizationsByAdmin(query);
   }
 
   @Get(":orgId")

@@ -213,40 +213,75 @@ export class OrganizationRepository
     );
   }
 
-  async getAllOrganizations(query: OrganizationQuery) {
-    const limit = Math.max(query.limit ?? 10, 1);
-    const page = Math.max(query.page ?? 1, 1);
+  async getOrganizations(query: OrganizationQuery) {
+    const limit = query.limit;
 
-    const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
+    const whereConditions: SQL<unknown>[] = this.buildOrganizationQuery(query);
 
-    if (query.keyword) {
-      whereConditions.push(
-        sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword})) > 0.22`,
-      );
-    }
-
-    if (query.employeeMin !== undefined) {
-      whereConditions.push(gte(organizations.employeesMin, query.employeeMin));
-    }
-
-    if (query.employeeMax !== undefined) {
-      whereConditions.push(lte(organizations.employeesMax, query.employeeMax));
-    }
-
-    if (query.verified) {
-      whereConditions.push(isNotNull(organizations.verifiedAt));
-    }
-
-    if (query.provinceIds?.length) {
-      whereConditions.push(
-        inArray(organizationLocations.provinceId, query.provinceIds),
-      );
-    }
-
-    // Cursor-based: FE gửi cursor → thêm điều kiện lọc, không query total
-    if (query.cursor && !query.page) {
+    if (query.cursor) {
       whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
+
+    const baseSelect = {
+      id: organizations.id,
+      name: organizations.name,
+      type: organizations.type,
+      logoUrl: organizations.logoUrl,
+      description: organizations.description,
+      email: organizations.email,
+      phone: organizations.phone,
+      foundedYear: organizations.foundedYear,
+      verifiedAt: organizations.verifiedAt,
+      createdAt: organizations.createdAt,
+    } as const;
+
+    const selectFields = query.keyword
+      ? {
+          ...baseSelect,
+          similarity:
+            sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword}))`.as(
+              "similarity",
+            ),
+        }
+      : baseSelect;
+
+    const results = await this.db
+      .select(selectFields)
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .leftJoin(
+        organizationMembers,
+        eq(organizations.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
+      .groupBy(organizations.id)
+      .limit(limit + 1);
+
+    const hasNextPage = results.length > limit;
+    const data = hasNextPage ? results.slice(0, limit) : results;
+    const nextCursor =
+      !query.page && hasNextPage && data.length > 0
+        ? data[data.length - 1].createdAt.toISOString()
+        : null;
+
+    return {
+      data,
+      pagination: {
+        nextCursor,
+        hasNextPage,
+      },
+    };
+  }
+
+  async getOrganizationsByAdmin(query: OrganizationQuery) {
+    const limit = query.limit;
+    const page = Math.max(query.page ?? 1, 1);
+
+    const whereConditions: SQL<unknown>[] = this.buildOrganizationQuery(query);
 
     const baseSelect = {
       id: organizations.id,
@@ -290,35 +325,56 @@ export class OrganizationRepository
       .offset(offset)
       .limit(limit + 1);
 
-    // Page-based: FE gửi page → query total để trả về
-    let total: number | undefined = undefined;
-    if (query.page) {
-      const countResult = await this.db
-        .select({ count: sql<number>`count(distinct ${organizations.id})` })
-        .from(organizations)
-        .leftJoin(
-          organizationLocations,
-          eq(organizations.id, organizationLocations.organizationId),
-        )
-        .where(and(...whereConditions));
-      total = Number(countResult[0]?.count ?? 0);
-    }
+    const countResult = await this.db
+      .select({ count: sql<number>`count(distinct ${organizations.id})` })
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .where(and(...whereConditions));
+    const total = Number(countResult[0]?.count ?? 0);
 
     const hasNextPage = results.length > limit;
     const data = hasNextPage ? results.slice(0, limit) : results;
-    const nextCursor =
-      !query.page && hasNextPage && data.length > 0
-        ? data[data.length - 1].createdAt.toISOString()
-        : null;
 
     return {
       data,
       pagination: {
-        nextCursor,
         hasNextPage,
         total,
       },
     };
+  }
+
+  private buildOrganizationQuery(query: OrganizationQuery) {
+    const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
+
+    if (query.keyword) {
+      whereConditions.push(
+        sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword})) > 0.22`,
+      );
+    }
+
+    if (query.employeeMin !== undefined) {
+      whereConditions.push(gte(organizations.employeesMin, query.employeeMin));
+    }
+
+    if (query.employeeMax !== undefined) {
+      whereConditions.push(lte(organizations.employeesMax, query.employeeMax));
+    }
+
+    if (query.verified) {
+      whereConditions.push(isNotNull(organizations.verifiedAt));
+    }
+
+    if (query.provinceIds?.length) {
+      whereConditions.push(
+        inArray(organizationLocations.provinceId, query.provinceIds),
+      );
+    }
+
+    return whereConditions;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
