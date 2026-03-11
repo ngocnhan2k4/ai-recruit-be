@@ -104,8 +104,10 @@ export interface PreviewRoadmapResponse {
   }>;
 }
 
-export interface LearningRoadmapWithEnrichedSkills
-  extends Omit<LearningRoadmap, "currentSkills"> {
+export interface LearningRoadmapWithEnrichedSkills extends Omit<
+  LearningRoadmap,
+  "currentSkills"
+> {
   currentSkills: SkillLevel[];
 }
 
@@ -118,8 +120,10 @@ export interface LearningRoadmapWithDetails extends LearningRoadmap {
   currentWeek?: number;
 }
 
-export interface LearningRoadmapWithDetailsEnriched
-  extends Omit<LearningRoadmapWithDetails, "currentSkills"> {
+export interface LearningRoadmapWithDetailsEnriched extends Omit<
+  LearningRoadmapWithDetails,
+  "currentSkills"
+> {
   currentSkills: SkillLevel[];
 }
 
