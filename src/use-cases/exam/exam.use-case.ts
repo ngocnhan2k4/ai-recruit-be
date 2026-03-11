@@ -495,16 +495,17 @@ export class ExamUseCases {
   }
 
   async getUserTests(userId: string) {
-    const tests = await this.userTestRepo.getUserTests(userId);
+    const testsWithSkills =
+      await this.userTestRepo.getUserTestsWithSkills(userId);
     return {
       success: true,
       message: "User tests fetched successfully",
-      data: tests,
+      data: testsWithSkills,
     };
   }
 
   async getTestDetails(userId: string, testId: string) {
-    const test = await this.userTestRepo.get(testId);
+    const test = await this.userTestRepo.getWithSkills(testId);
     if (!test) {
       throw new NotFoundException("Test not found");
     }
@@ -543,21 +544,25 @@ export class ExamUseCases {
   }
 
   async getIncompleteExams(userId: string) {
-    const allTests = await this.userTestRepo.getUserTests(userId);
+    const allTests = await this.userTestRepo.getUserTestsWithSkills(userId);
     const incompleteTests = allTests.filter(
       (test) => test.totalScore == null || test.totalScore < 0,
     );
 
+    const data = incompleteTests.map((test) => ({
+      id: test.id,
+      userTestId: test.id,
+      selectedSkillIds: test.selectedSkillIds,
+      selectedSkills: test.selectedSkills,
+      selectedDifficultyLevels: test.selectedDifficultyLevels,
+      questionCount: test.questionIds?.length ?? 0,
+      createdAt: test.createdAt,
+    }));
+
     return {
       success: true,
       message: "Incomplete exams fetched successfully",
-      data: incompleteTests.map((test) => ({
-        id: test.id,
-        selectedSkillIds: test.selectedSkillIds,
-        selectedDifficultyLevels: test.selectedDifficultyLevels,
-        questionCount: test.questionIds?.length ?? 0,
-        createdAt: test.createdAt,
-      })),
+      data,
     };
   }
 

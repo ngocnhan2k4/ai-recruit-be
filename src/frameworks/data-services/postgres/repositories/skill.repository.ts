@@ -5,6 +5,7 @@ import { type DBDrizzle } from "../types";
 import { skills, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { count, ilike, and, SQL, sql, isNotNull } from "drizzle-orm";
+
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
