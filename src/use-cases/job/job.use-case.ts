@@ -13,6 +13,8 @@ import {
   TopInMarketDtoResponse,
   CompareStatisticsResponseDto,
   CompareTopInMarketResponseDto,
+  JobTrendsResponseDto,
+  JobTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { omit } from "lodash";
@@ -818,6 +820,24 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: transformedData,
+    };
+  }
+
+  async getJobTrends(
+    query: JobTrendsQueryDto,
+  ): Promise<ApiResponse<JobTrendsResponseDto>> {
+    const trends = await this.jobRepository.getJobTrends({
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+      type: query.type,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: trends,
+      },
     };
   }
 }

@@ -1,4 +1,4 @@
-import { GetUserQuery } from "@/core/entities/user.entity";
+import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { NewUser, User } from "@/core/entities";
 import { PaginatedResult } from "@/common/types";
@@ -50,4 +50,6 @@ export abstract class IUserRepository extends IGenericRepository<User> {
       >
     >
   >;
+
+  abstract getUserTrends(params: UserTrendsQuery): Promise<UserTrends[]>;
 }

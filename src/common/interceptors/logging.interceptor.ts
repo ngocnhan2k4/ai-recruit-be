@@ -67,7 +67,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const durationStr = duration.toFixed(1);
 
     if (duration > this.slowApiThreshold) {
-      this.logger.error(
+      this.logger.warn(
         `🐌 ${method} ${url} -> ${statusCode} (${durationStr}ms)`,
       );
 

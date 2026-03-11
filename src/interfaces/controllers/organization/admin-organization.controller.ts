@@ -13,13 +13,13 @@ import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import {
-  ApiResponseDto,
   GetCompanyDto,
   OrganizationQueryDto,
   AdminUpdateOrganizationUpsertDTO,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
-import { ApiResponse } from "@/interfaces/dtos/common/api-response.dto";
+import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
+import { ApiResponse } from "@/interfaces/dtos";
 
 @ApiTags("Organization Admin")
 @Controller("admin/organizations")
