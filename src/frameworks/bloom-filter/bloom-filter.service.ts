@@ -61,7 +61,7 @@ export class BloomFilterService implements IBloomFilterService, OnModuleInit {
 
   deserialize(data: string): void {
     const parsed = JSON.parse(data);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     this.bloomFilter = BloomFilter.fromJSON(parsed);
   }
 

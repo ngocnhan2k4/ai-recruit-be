@@ -137,7 +137,6 @@ export class ElasticsearchService
     indexName: string,
     documents: Array<{ id: string; document: any }>,
   ): Promise<{ success: number; failed: number }> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     const body = documents.flatMap(({ id, document }) => [
       { index: { _index: indexName, _id: id } },
       document,
@@ -177,5 +176,50 @@ export class ElasticsearchService
       id,
       refresh: true,
     });
+  }
+
+  /**
+   * Reindex from remote Elasticsearch using Reindex API
+   * This is the recommended method as it's faster and more efficient
+   */
+  async reindexFromRemote(
+    sourceNode: string,
+    sourceIndex: string,
+    targetIndex: string,
+    sourceAuth?: { username: string; password: string },
+    query?: any,
+  ): Promise<{ total: number; took: number }> {
+    const remote = {
+      host: sourceNode,
+      ...(sourceAuth && {
+        auth: {
+          username: sourceAuth.username,
+          password: sourceAuth.password,
+        },
+      }),
+    };
+
+    const source: any = {
+      remote,
+      index: sourceIndex,
+    };
+
+    if (query) {
+      source.query = query;
+    }
+
+    const response = await this.client.reindex({
+      source,
+      dest: {
+        index: targetIndex,
+      },
+      refresh: true,
+      wait_for_completion: true,
+    });
+
+    return {
+      total: response.total || 0,
+      took: response.took || 0,
+    };
   }
 }

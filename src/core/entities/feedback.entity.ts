@@ -7,3 +7,13 @@ export interface FeedbackFilter extends GeneralQuery {
   endDate?: Date;
   status?: FeedbackStatusEnum;
 }
+
+export interface FeedbackTrends {
+  date: string;
+  count: number;
+}
+
+export interface FeedbackTrendsQuery {
+  fromDate?: string;
+  toDate?: string;
+}

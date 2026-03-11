@@ -65,6 +65,7 @@ export const RESPONSE_CODE = {
   AI_CV_NOT_DELETED: "AI_CV_NOT_DELETED",
   ROADMAP_NOT_FOUND: "ROADMAP_NOT_FOUND",
   SKILL_NOT_FOUND_IN_ROADMAP: "SKILL_NOT_FOUND_IN_ROADMAP",
+  TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
 };
 
 export const RESPONSE_MESSAGE = {
@@ -117,4 +118,5 @@ export const RESPONSE_MESSAGE = {
   AI_CV_NOT_FOUND: "CV generated from the CV is not found.",
   AI_CV_NOT_UPDATED: "Failed to update AI CV",
   AI_CV_NOT_DELETED: "Failed to delete AI CV from database",
+  TOO_MANY_REQUESTS: "Too many requests. Please slow down.",
 };

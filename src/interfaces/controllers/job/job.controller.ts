@@ -9,7 +9,11 @@ import {
   Put,
   Delete,
   Param,
+  UseInterceptors,
 } from "@nestjs/common";
+import { CacheTTL } from "@nestjs/cache-manager";
+import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
+import { LONG_TTL } from "@/common/constants";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import {
   ApiResponse,
@@ -80,6 +84,8 @@ export class JobController {
     description:
       "Retrieve job statistics including frequently posted jobs, count of open jobs, and salary statistics based on experience.",
   })
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LONG_TTL)
   @Get("statistics")
   async getJobStatistics(
     @Query() filter: StatisticsJobFilterRequestDto,
@@ -92,6 +98,8 @@ export class JobController {
     description:
       "Retrieve top applied jobs, top employers, and top job categories in the market.",
   })
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LONG_TTL)
   @Get("statistics/top-in-market")
   async getTopInMarket(
     @Query() filter: StatisticsJobFilterRequestDto,
@@ -104,6 +112,8 @@ export class JobController {
     description:
       "Retrieve job statistics for multiple categories in a single request for comparison.",
   })
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LONG_TTL)
   @Get("statistics/compare")
   async getCompareStatistics(
     @Query() filter: CompareStatisticsFilterRequestDto,
@@ -116,6 +126,8 @@ export class JobController {
     description:
       "Retrieve top-in-market data for multiple categories in a single request for comparison.",
   })
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LONG_TTL)
   @Get("statistics/top-in-market/compare")
   @ApiResponseDto(CompareTopInMarketResponseDto)
   async getCompareTopInMarket(

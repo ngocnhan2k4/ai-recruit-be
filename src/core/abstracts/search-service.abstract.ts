@@ -57,4 +57,20 @@ export abstract class ISearchService {
    * @param id - Document ID to delete
    */
   abstract deleteDocument(indexName: string, id: string): Promise<void>;
+
+  /**
+   * Reindex from remote Elasticsearch using Reindex API
+   * @param sourceNode - Source Elasticsearch node URL
+   * @param sourceIndex - Source index name
+   * @param targetIndex - Target index name
+   * @param sourceAuth - Source authentication credentials
+   * @param query - Search query (implementation-specific format)
+   */
+  abstract reindexFromRemote(
+    sourceNode: string,
+    sourceIndex: string,
+    targetIndex: string,
+    sourceAuth?: { username: string; password: string },
+    query?: any,
+  ): Promise<{ total: number; took: number }>;
 }

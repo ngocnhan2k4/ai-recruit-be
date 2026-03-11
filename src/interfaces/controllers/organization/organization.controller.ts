@@ -77,7 +77,7 @@ export class OrganizationController {
     return await this.organizationUseCase.checkOrganizationName(name);
   }
 
-  @UseGuards(OptionalJwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId")
   @ApiOperation({
     summary: "Get organization by ID",
@@ -120,7 +120,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(OrganizationWithDetailsDto)
   async updateOrganizationBasicInfo(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationBasicInfoDto,
   ) {
@@ -139,7 +138,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String, { isArray: true })
   async updateOrganizationLocations(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: UpdateOrganizationLocationDto,
   ) {
@@ -218,7 +216,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async sendEmailVerificationOtp(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: SendEmailVerificationDto,
   ): Promise<ApiResponse<{ message: string; expiryMinutes: number }>> {
@@ -237,7 +234,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async verifyOrganizationEmail(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Body() data: VerifyOrganizationEmailDto,
   ): Promise<ApiResponse<{ verifiedAt: Date }>> {
@@ -317,7 +313,6 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async updateOrganizationLogo(
-    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @UploadFileAndBody()
     uploadFile: { file: MultipartFile },

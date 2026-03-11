@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.DEV_SERVER_USER }}
           key: ${{ secrets.DEV_SERVER_SSH_KEY }}
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
-          source: "./docker-compose-main.yaml"
+          source: "./docker-compose.yaml"
           target: "/var/www/my-app-main/"
 
       - name: Deploy to Production Server
@@ -46,9 +46,10 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app-main/
-            docker-compose -f docker-compose-main.yaml down
-            docker rmi -f $(docker images -aq)
-            docker-compose -f docker-compose-main.yaml up -d
+            docker compose -f docker-compose.yaml down
+            docker image prune -f
+            docker compose -f docker-compose.yaml pull
+            docker compose -f docker-compose.yaml up -d
 
       # - name: Health Check After Deployment
       #   id: healthcheck
@@ -185,9 +186,10 @@ jobs:
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
             cd /var/www/my-app
-            docker-compose -f docker-compose-dev.yaml down
-            docker rmi -f $(docker images -aq)
-            docker-compose -f docker-compose-dev.yaml up -d
+            docker compose -f docker-compose-dev.yaml down
+            docker image prune -f
+            docker compose -f docker-compose-dev.yaml pull
+            docker compose -f docker-compose-dev.yaml up -d
 
       # - name: Health Check After Deployment
       #   id: healthcheck

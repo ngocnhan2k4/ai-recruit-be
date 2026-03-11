@@ -5,6 +5,8 @@ import {
   Notification,
   ApplyStatusEnum,
   User,
+  JobTrends,
+  JobTrendsQuery,
 } from "@/core/entities";
 import {
   JobResponse,
@@ -15,7 +17,7 @@ import {
   UserInteractionResponse,
   JobCounts,
   TopInMarketResponse,
-} from "@/core/entities/job.entity";
+} from "@/core";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 
 export abstract class IJobRepository extends IGenericRepository<Job> {
@@ -103,13 +105,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     filter: StatisticsJobFilter,
   ): Promise<TopInMarketResponse[]>;
 
-  abstract applyJob(
-    jobId: string,
-    userCvId: string,
-    sendNotifications: boolean,
-    senderUserId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
+  abstract applyJob({
+    jobId,
+    userCvId,
+    sendNotifications,
+    senderUserId,
+    answers,
+  }: {
+    jobId: string;
+    userCvId: string;
+    sendNotifications: boolean;
+    senderUserId: string;
+    answers?: JobAnswer[];
+  }): Promise<
     | ApplyJobResponse
     | {
         application: ApplyJobResponse;
@@ -178,7 +186,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     },
     userId: string,
   ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
-  abstract deleteJob(jobId: string): Promise<boolean>;
 
   abstract getFullJobById(
     jobId: string,
@@ -267,4 +274,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       }
     >
   >;
+
+  abstract getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]>;
 }
