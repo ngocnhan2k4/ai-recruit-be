@@ -125,4 +125,56 @@ export class AdminExamController {
   async getImportLogs(@Query("limit") limit?: number) {
     return this.examUseCases.getImportLogs(limit || 10);
   }
+
+  @ApiOperation({
+    summary: "Get skills with question count (paginated)",
+    description:
+      "List skills that have at least one question, with count. Supports keyword, sort by name or questionCount.",
+  })
+  @Get("skills")
+  async getSkillsWithQuestionCount(
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+    @Query("keyword") keyword?: string,
+    @Query("sortBy") sortBy?: "name" | "questionCount",
+    @Query("sortDirection") sortDirection?: "asc" | "desc",
+  ) {
+    return this.examUseCases.getAdminSkillsWithQuestionCount({
+      page,
+      limit,
+      keyword,
+      sortBy,
+      sortDirection,
+    });
+  }
+
+  @ApiOperation({
+    summary: "Get questions for a skill (paginated)",
+    description:
+      "List questions that belong to the given skill. Supports page, limit, keyword.",
+  })
+  @Get("skills/:skillId/questions")
+  async getSkillQuestions(
+    @Param("skillId") skillId: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+    @Query("keyword") keyword?: string,
+  ) {
+    return this.examUseCases.getQuestions({
+      skillId,
+      page,
+      limit,
+      keyword,
+    });
+  }
+
+  @ApiOperation({
+    summary: "Get skill by ID with question count",
+    description:
+      "Returns a single skill by id with question count. 404 if not found.",
+  })
+  @Get("skills/:id")
+  async getSkillById(@Param("id") id: string) {
+    return this.examUseCases.getAdminSkillById(id);
+  }
 }

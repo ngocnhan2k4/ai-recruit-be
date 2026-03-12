@@ -543,6 +543,51 @@ export class ExamUseCases {
     };
   }
 
+  /** Admin: skills with question count, pagination and sort (name | questionCount). */
+  async getAdminSkillsWithQuestionCount(query: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    sortBy?: "name" | "questionCount";
+    sortDirection?: "asc" | "desc";
+  }) {
+    const result = await this.skillRepo.getSkillsWithQuestionCount({
+      limit: query.limit ?? 10,
+      page: query.page,
+      keyword: query.keyword,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+    });
+    // Drizzle với casing snake_case trả về question_count; chuẩn hóa sang questionCount cho client
+    const data = result.data.map((row: Record<string, unknown>) => ({
+      ...row,
+      questionCount: row.questionCount ?? row.question_count ?? 0,
+    }));
+    return {
+      success: true,
+      message: "Skills with question count fetched successfully",
+      data: { data, pagination: result.pagination },
+    };
+  }
+
+  /** Admin: get a single skill by id with question count. */
+  async getAdminSkillById(id: string) {
+    const skill = await this.skillRepo.getSkillWithQuestionCount(id);
+    if (!skill) {
+      throw new NotFoundException("Skill not found");
+    }
+    const row = skill as Record<string, unknown>;
+    const data = {
+      ...skill,
+      questionCount: row.questionCount ?? row.question_count ?? 0,
+    };
+    return {
+      success: true,
+      message: "Skill fetched successfully",
+      data,
+    };
+  }
+
   async getIncompleteExams(userId: string) {
     const allTests = await this.userTestRepo.getUserTestsWithSkills(userId);
     const incompleteTests = allTests.filter(
