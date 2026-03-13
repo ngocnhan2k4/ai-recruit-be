@@ -1,3 +1,4 @@
+import { SentryModule } from "@sentry/nestjs/setup";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import {
   UserController,
@@ -76,6 +77,8 @@ import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 import { RateLimitMiddleware } from "./common/middlewares";
 @Module({
   imports: [
+    // SentryModule must be the first import so Sentry can instrument all other modules
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
