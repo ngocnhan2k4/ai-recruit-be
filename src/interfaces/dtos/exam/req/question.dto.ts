@@ -144,3 +144,50 @@ export class QueryQuestionsDto {
   @IsString()
   keyword?: string;
 }
+
+/** Query cho GET skills/:skillId/questions — chỉ pagination + filter (skillId từ param). */
+export class QuerySkillQuestionsDto {
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["easy", "medium"],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(["easy", "medium", "hard", "advanced", "expert"], { each: true })
+  difficultyLevels?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isNaN(n) ? undefined : Math.max(1, Math.floor(n));
+  })
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const n = Number(value);
+    return Number.isNaN(n) ? undefined : Math.max(1, Math.floor(n));
+  })
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+}
+
+/** Query cho GET skills/:skillId/questions/available — chỉ pagination + filter (excludeSkillId = skillId từ param). */
+export class QueryAvailableQuestionsDto extends QuerySkillQuestionsDto {}

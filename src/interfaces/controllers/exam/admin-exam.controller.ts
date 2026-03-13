@@ -25,6 +25,8 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  QuerySkillQuestionsDto,
+  QueryAvailableQuestionsDto,
   AddQuestionsToSkillDto,
 } from "@/interfaces/dtos/exam";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -69,7 +71,7 @@ export class AdminExamController {
   @Get("skills/:skillId/questions/available")
   async getAvailableQuestionsForSkill(
     @Param("skillId") skillId: string,
-    @Query() query: Omit<QueryQuestionsDto, "skillId" | "excludeSkillId">,
+    @Query() query: QueryAvailableQuestionsDto,
   ) {
     return this.examUseCases.getQuestions({
       ...query,
@@ -84,7 +86,7 @@ export class AdminExamController {
   @Get("skills/:skillId/questions")
   async getSkillQuestions(
     @Param("skillId") skillId: string,
-    @Query() query: Omit<QueryQuestionsDto, "skillId">,
+    @Query() query: QuerySkillQuestionsDto,
   ) {
     return this.examUseCases.getQuestions({ ...query, skillId });
   }
