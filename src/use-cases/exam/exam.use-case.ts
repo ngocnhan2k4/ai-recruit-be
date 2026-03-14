@@ -21,6 +21,7 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  AddQuestionsToSkillDto,
   CreateLevelDto,
   UpdateLevelDto,
   StartExamDto,
@@ -180,14 +181,105 @@ export class ExamUseCases {
   }
 
   async getQuestions(query: QueryQuestionsDto) {
+    const rawKeyword = query.keyword ?? "";
+    const keyword =
+      typeof rawKeyword === "string" &&
+      (rawKeyword === "undefined" || rawKeyword === "null")
+        ? ""
+        : rawKeyword;
+
     const result = await this.questionRepo.getPaginatedQuestions({
       ...query,
+      keyword,
       limit: query.limit ?? 20,
     });
     return {
       success: true,
       message: "Questions fetched successfully",
       data: result,
+    };
+  }
+
+  // ==================== ADMIN: SKILL-CENTRIC EXAM MANAGEMENT ====================
+
+  /** List skills with question count for admin (manage by skills). */
+  async getSkillsWithQuestionCount(query: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    sortBy?: string;
+    sortDirection?: "asc" | "desc";
+  }) {
+    const page =
+      query.page !== undefined && query.page !== null
+        ? Math.max(1, Number(query.page) || 1)
+        : 1;
+    const limit =
+      query.limit !== undefined && query.limit !== null
+        ? Math.min(100, Math.max(1, Number(query.limit) || 20))
+        : 20;
+    const rawKeyword = query.keyword ?? "";
+    const keyword =
+      typeof rawKeyword === "string" &&
+      (rawKeyword === "undefined" || rawKeyword === "null")
+        ? ""
+        : rawKeyword;
+    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
+    const sortDirection = query.sortDirection === "desc" ? "desc" : "asc";
+
+    const result = await this.skillRepo.getSkillsWithQuestionCount({
+      page,
+      limit,
+      keyword,
+      sortBy,
+      sortDirection,
+    });
+    return {
+      success: true,
+      message: "Skills with question count fetched successfully",
+      data: {
+        data: result.data ?? [],
+        pagination: result.pagination ?? { hasNextPage: false, total: 0 },
+      },
+    };
+  }
+
+  /** Assign selected questions to a skill (move questions to this skill). */
+  async assignQuestionsToSkill(skillId: string, dto: AddQuestionsToSkillDto) {
+    const skill = await this.skillRepo.get(skillId);
+    if (!skill) {
+      throw new NotFoundException("Skill not found");
+    }
+
+    for (const questionId of dto.questionIds) {
+      const question = await this.questionRepo.get(questionId);
+      if (!question) {
+        throw new NotFoundException(`Question not found: ${questionId}`);
+      }
+    }
+
+    const updated: Question[] = await this.questionRepo.executeWithTransaction(
+      async (tx) => {
+        const result: Question[] = [];
+        for (const questionId of dto.questionIds) {
+          const [q] = await this.questionRepo.update(
+            { id: questionId },
+            { skillId } as Partial<Question>,
+            tx,
+          );
+          if (q) result.push(q);
+        }
+        return result;
+      },
+    );
+
+    this.logger.log(
+      `Assigned ${updated.length} question(s) to skill ${skillId} (${skill.name})`,
+    );
+    return {
+      success: true,
+      message: `Assigned ${updated.length} question(s) to skill successfully`,
+      data: { skill, assignedCount: updated.length, questions: updated },
     };
   }
 

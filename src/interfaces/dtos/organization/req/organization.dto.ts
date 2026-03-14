@@ -2,6 +2,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
@@ -369,4 +371,37 @@ export class UpdateOrganizationAdditionalInfoDto {
   @IsString()
   @MaxLength(500, { message: "Benefits must not exceed 500 characters" })
   benefits?: string;
+}
+
+export class AdminUpdateOrganizationUpsertDTO {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @IsUrl({}, { message: "Invalid URL format" })
+  websiteUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Set verifiedAt (ISO 8601 date string) to verify organization, null to unverify",
+  })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsISO8601({}, { message: "verifiedAt must be a valid ISO 8601 date string" })
+  @IsOptional()
+  verifiedAt?: string | null;
 }

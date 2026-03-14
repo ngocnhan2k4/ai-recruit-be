@@ -27,6 +27,19 @@ export class SkillUseCases {
       data: data.map((skill: Skill) => ({ id: skill.id, name: skill.name })),
     };
   }
+
+  async getSkills(): Promise<ApiResponse<SkillDto[]>> {
+    const { data } = await this.skillRepository.getPaginatedSkills({
+      limit: 10_000,
+      page: 1,
+    });
+    return {
+      message: "Skills fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: data.map((skill: Skill) => ({ id: skill.id, name: skill.name })),
+    };
+  }
+
   async getPaginatedSkills(
     query: GetSkillsQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SkillDto>>> {

@@ -9,7 +9,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { count, ilike, and, SQL, eq, inArray, sql } from "drizzle-orm";
+import { count, ilike, and, SQL, eq, ne, inArray, sql } from "drizzle-orm";
 
 @Injectable()
 export class QuestionRepository
@@ -39,6 +39,10 @@ export class QuestionRepository
 
     if (query.skillIds && query.skillIds.length > 0) {
       whereConditions.push(inArray(questions.skillId, query.skillIds));
+    }
+
+    if (query.excludeSkillId) {
+      whereConditions.push(ne(questions.skillId, query.excludeSkillId));
     }
 
     if (query.difficultyLevels && query.difficultyLevels.length > 0) {
