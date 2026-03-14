@@ -71,6 +71,7 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+export type UserTestSkill = Pick<Skill, "id" | "name">;
 
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
@@ -173,7 +174,9 @@ export type NewLevel = InferInsertModel<typeof levels>;
 export type Level = InferSelectModel<typeof levels>;
 
 export type NewUserTest = InferInsertModel<typeof userTests>;
-export type UserTest = InferSelectModel<typeof userTests>;
+export type UserTest = InferSelectModel<typeof userTests> & {
+  selectedSkills?: UserTestSkill[];
+};
 
 export type NewUserAnswer = InferInsertModel<typeof userAnswers>;
 export type UserAnswer = InferSelectModel<typeof userAnswers>;
