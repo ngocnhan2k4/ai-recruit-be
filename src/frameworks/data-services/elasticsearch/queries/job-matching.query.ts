@@ -28,6 +28,7 @@ export class JobMatchingQuery {
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
+      skillId: filterSkill,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -80,6 +81,14 @@ export class JobMatchingQuery {
           salaryMin: {
             lte: salaryMax,
           },
+        },
+      });
+    }
+
+    if (filterSkill) {
+      mustQueries.push({
+        term: {
+          skillIds: filterSkill,
         },
       });
     }
@@ -149,14 +158,7 @@ export class JobMatchingQuery {
                               }
                             }
                             
-                            double score = (matchedSkills / totalSkills) * 100;
-                            
-                            // Bonus cho nhiều skills match
-                            if (matchedSkills == totalSkills) {
-                              score += 20; // Perfect match bonus
-                            }
-                            
-                            return Math.min(score, 100);
+                            return (matchedSkills / totalSkills) * 100;
                           `,
                           params: {
                             userSkillIds: skillIds,
@@ -320,17 +322,28 @@ export class JobMatchingQuery {
   }
 
   /**
-   * Build simple search query (không có user profile)
+   * Build simple search query
    */
-  buildSearchQuery(searchTerm: string, filters: JobFilters): any {
+  buildSearchQuery(filters: JobFilters): any {
     const {
-      page = 1,
+      cursor,
       limit = 20,
       status = "active",
       workType,
       provinceIds,
       categoryId,
+      keyword,
+      skillId,
     } = filters;
+
+    let searchAfter: any[] | undefined;
+    if (cursor) {
+      try {
+        searchAfter = JSON.parse(Buffer.from(cursor, "base64").toString());
+      } catch {
+        this.logger.warn("Invalid cursor");
+      }
+    }
 
     const mustQueries: any[] = [
       { term: { status } },
@@ -357,14 +370,22 @@ export class JobMatchingQuery {
       mustQueries.push({ terms: { categoryId } });
     }
 
+    if (skillId) {
+      mustQueries.push({
+        term: {
+          skillIds: skillId,
+        },
+      });
+    }
+
     const shouldQueries: any[] = [];
 
-    if (searchTerm) {
+    if (keyword) {
       shouldQueries.push(
         {
           match: {
             title: {
-              query: searchTerm,
+              query: keyword,
               boost: 3.0,
             },
           },
@@ -372,7 +393,7 @@ export class JobMatchingQuery {
         {
           match: {
             description: {
-              query: searchTerm,
+              query: keyword,
               boost: 1.0,
             },
           },
@@ -380,7 +401,7 @@ export class JobMatchingQuery {
         {
           match: {
             skillNames: {
-              query: searchTerm,
+              query: keyword,
               boost: 2.0,
             },
           },
@@ -395,7 +416,7 @@ export class JobMatchingQuery {
           bool: {
             must: mustQueries,
             should: shouldQueries,
-            minimum_should_match: searchTerm ? 1 : 0,
+            minimum_should_match: keyword ? 1 : 0,
           },
         },
         sort: [
@@ -410,8 +431,8 @@ export class JobMatchingQuery {
             },
           },
         ],
-        size: limit,
-        from: (page - 1) * limit,
+        size: limit + 1,
+        ...(searchAfter && { search_after: searchAfter }),
       },
     };
   }

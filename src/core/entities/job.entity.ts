@@ -24,7 +24,8 @@ export interface JobFilters extends GeneralQuery {
   user?: TokenPayload;
   createdAtStart?: Date;
   createdAtEnd?: Date;
-  isJobSystem?: boolean;
+  isJobSystem?: boolean; // use for admin
+  skillId?: Skill["id"];
 }
 
 export interface StatisticsJobFilter {

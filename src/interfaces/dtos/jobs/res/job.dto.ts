@@ -1,7 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ApplyStatusEnum, WorkTypeEnum } from "@/core";
 import { PaginationResponseDto } from "../../common/query";
-import { Skill } from "@/core";
 import { SkillDto } from "@/interfaces/dtos/skills/res/skill.dto";
 import { ProvinceDto } from "@/interfaces/dtos/provinces/res/province.dto";
 import { IsBoolean } from "class-validator";
@@ -35,7 +34,8 @@ export class JobResponseDto {
   organization: OrganizationWithDetailsDto;
 
   @ApiProperty({ type: [SkillDto] })
-  skills: Skill[];
+  skills: SkillDto[];
+
   @ApiProperty({
     example: false,
     required: false,

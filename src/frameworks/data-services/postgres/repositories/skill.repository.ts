@@ -29,8 +29,8 @@ export class SkillRepository
   async getPaginatedSkills(
     query: GeneralQuery,
   ): Promise<PaginatedResult<Skill>> {
-    const limit = Math.max(query.limit ?? 20, 1);
-    const page = Math.max(query.page ?? 1, 1);
+    const limit = query.limit;
+    const page = query.page ?? 1;
     const keyword = query.keyword ?? "";
 
     const whereConditions: SQL[] = [isNotNull(skills.description)];
@@ -41,17 +41,22 @@ export class SkillRepository
 
     const offset = (page - 1) * limit;
 
-    const items = await this.db
-      .select()
-      .from(skills)
-      .where(and(...whereConditions))
-      .limit(limit)
-      .offset(offset);
+    const [items, totalRow] = await Promise.all([
+      this.db
+        .select({
+          id: skills.id,
+          name: skills.name,
+        })
+        .from(skills)
+        .where(and(...whereConditions))
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: count(skills.id) })
+        .from(skills)
+        .where(and(...whereConditions)),
+    ]);
 
-    const totalRow = await this.db
-      .select({ count: count(skills.id) })
-      .from(skills)
-      .where(and(...whereConditions));
     const total = Number(totalRow[0]?.count ?? 0);
 
     const hasNext = offset + items.length < total;

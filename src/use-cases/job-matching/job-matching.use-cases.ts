@@ -7,6 +7,7 @@ import {
   IUserExperienceRepository,
   ISearchService,
   IUserOnboardingRepository,
+  IOrganizationRepository,
 } from "@/core";
 import {
   EmailJobType,
@@ -14,9 +15,8 @@ import {
   Province,
   Skill,
   Category,
-  OrganizationRoleEnum,
   UserProfile,
-  OrganizationTypeEnum,
+  OrganizationWithDetails,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
@@ -31,6 +31,7 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
+import { Dictionary, keyBy } from "lodash";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -45,6 +46,7 @@ export class JobMatchingUseCases {
     private readonly userExperienceRepository: IUserExperienceRepository,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   async sendJobRecommendationsToUsers(): Promise<void> {
@@ -180,28 +182,83 @@ export class JobMatchingUseCases {
     const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
 
     // Extract job IDs for batch query
-    const jobIds: string[] = actualHits
-      .map((hit: any) => hit._source?.id as string | undefined)
-      .filter(
-        (id: string | undefined): id is string =>
-          typeof id === "string" && id.length > 0,
-      );
+    const jobIds: string[] = [];
+    const orgIds: string[] = [];
 
-    const userJobStatusMap =
-      jobIds.length > 0
-        ? await this.jobRepository.getUserJobStatuses(userId, jobIds)
-        : new Map<
-            string,
-            {
-              isSaved: boolean;
-              isApplied: boolean;
-              applyStatus: string | null;
-              applyId: string | null;
-            }
-          >();
+    for (const hit of actualHits) {
+      const source = hit._source;
+      jobIds.push(source.id);
+      const orgId = source.organizationId;
+      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
+    }
+
+    const uniqueOrgIds = [...new Set<string>(orgIds)];
+
+    const [userJobStatusMap, organizations] = await Promise.all([
+      jobIds.length > 0 && filters.user?.userId
+        ? await this.jobRepository.getUserJobStatuses(
+            filters.user?.userId,
+            jobIds,
+          )
+        : Promise.resolve(new Map()),
+      this.organizationRepository.getByIds(uniqueOrgIds, [
+        "id",
+        "name",
+        "description",
+        "websiteUrl",
+        "employeesMin",
+        "employeesMax",
+        "logoUrl",
+      ]),
+    ]);
+    const organizationMap = keyBy(organizations, "id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs: JobMatchResultDto[] = actualHits.map((hit: any) => {
+    const jobs = this.convertHitToDto(
+      actualHits,
+      organizationMap,
+      userJobStatusMap,
+    );
+
+    // Generate next cursor if there are more results
+    let nextCursor: string | undefined;
+    if (hasMore) {
+      const lastHit = actualHits[actualHits.length - 1];
+      const searchAfter = lastHit.sort;
+      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
+    }
+
+    this.logger.log(
+      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
+    );
+
+    return {
+      data: {
+        data: jobs,
+        pagination: {
+          nextCursor,
+          hasNextPage: hasMore,
+        },
+      },
+      message: "Successfully retrieved matched jobs",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  private convertHitToDto(
+    actualHits: any,
+    organizationMap: Dictionary<OrganizationWithDetails>,
+    userJobStatusMap: Map<
+      string,
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >,
+  ): JobMatchResultDto[] {
+    return actualHits.map((hit: any) => {
       const source = hit._source;
 
       // Transform provinces
@@ -221,33 +278,9 @@ export class JobMatchingUseCases {
       );
 
       // Transform organization
-      const organization: OrganizationWithDetailsDto = {
+      const organization = organizationMap[source.organizationId] || {
         id: source.organizationId,
         name: source.organizationName || "",
-        slug: "",
-        type: OrganizationTypeEnum.COMPANY,
-        description: null,
-        address: null,
-        logoUrl: null,
-        about: null,
-        websiteUrl: null,
-        email: null,
-        phone: null,
-        foundedYear: null,
-        verifiedAt: null,
-        employeesMin: null,
-        employeesMax: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        companySize: null,
-        taxCode: null,
-        benefits: null,
-        companyRawId: null,
-        schoolType: null,
-        culture: null,
-        locations: [],
-        role: OrganizationRoleEnum.ANONYMOUSLY,
       };
 
       const category: Category = {
@@ -292,7 +325,7 @@ export class JobMatchingUseCases {
       return {
         job,
         provinces,
-        organization,
+        organization: organization as OrganizationWithDetailsDto,
         skills,
         category,
         isSaved: jobStatus.isSaved,
@@ -302,32 +335,5 @@ export class JobMatchingUseCases {
         score: hit._score,
       } as JobMatchResultDto;
     });
-
-    // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
-    if (hasMore) {
-      const lastHit = actualHits[actualHits.length - 1];
-      const searchAfter = lastHit.sort;
-      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
-    }
-
-    const total = response.hits.total?.value || 0;
-
-    this.logger.log(
-      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
-    );
-
-    return {
-      data: {
-        data: jobs,
-        pagination: {
-          total,
-          nextCursor,
-          hasNextPage: hasMore,
-        },
-      },
-      message: "Successfully retrieved matched jobs",
-      code: RESPONSE_CODE.SUCCESS,
-    };
   }
 }

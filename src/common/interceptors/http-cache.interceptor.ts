@@ -59,7 +59,7 @@ export class HttpCacheInterceptor extends CacheInterceptor {
     const path = url.split("?")[0];
 
     const sortedQuery = Object.entries(query || {})
-      .filter(([_, v]) => v !== undefined && v !== "")
+      .filter(([key, v]) => key !== "keyword" && v !== undefined && v !== "") // [TODO]: Hardcode here keyword to not be included in cache key, since it can be very dynamic and may not benefit from caching
       .sort()
       .map(([key, value]) => `${key}=${decodeURIComponent(value)}`)
       .join("&");

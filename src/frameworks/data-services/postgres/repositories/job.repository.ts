@@ -19,7 +19,6 @@ import {
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   jobs,
-  companies,
   skills,
   jobSkills,
   categories,
@@ -211,7 +210,7 @@ export class JobRepository
       whereConditions.push(isNull(jobs.jobRawId));
     }
 
-    const offset = (Math.max(page || 1, 1) - 1) * limit;
+    const offset = ((page || 1) - 1) * limit;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -228,7 +227,6 @@ export class JobRepository
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(companies, eq(organizations.id, companies.organizationId))
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
@@ -240,7 +238,12 @@ export class JobRepository
       )
       .leftJoin(
         sql`LATERAL (
-          SELECT json_agg(s) AS skills
+          SELECT json_agg(
+            json_build_object(
+              'id', s.id,
+              'name', s.name
+            )
+          ) AS skills
           FROM ${jobSkills} js
           INNER JOIN ${skills} s ON js.skill_id = s.id
           WHERE js.job_id = ${jobs.id}
@@ -350,11 +353,31 @@ export class JobRepository
     const result = (await this.db
       .select({
         job: {
-          ...jobs,
+          id: jobs.id,
+          title: jobs.title,
+          description: jobs.description,
+          datePosted: jobs.datePosted,
+          salaryMin: jobs.salaryMin,
+          salaryMax: jobs.salaryMax,
+          experienceMin: jobs.experienceMin,
+          experienceMax: jobs.experienceMax,
+          questions: jobs.questions,
+          workType: jobs.workType,
+          status: jobs.status,
+          createdAt: jobs.createdAt,
+          organizationId: jobs.organizationId,
           applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
         },
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
-        organization: organizations,
+        organization: {
+          id: organizations.id,
+          name: organizations.name,
+          description: organizations.description,
+          websiteUrl: organizations.websiteUrl,
+          employeesMin: organizations.employeesMin,
+          employeesMax: organizations.employeesMax,
+          logoUrl: organizations.logoUrl,
+        },
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         isSaved: filters?.user?.userId
           ? sql`EXISTS (
@@ -395,7 +418,6 @@ export class JobRepository
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .leftJoin(companies, eq(organizations.id, companies.organizationId))
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
@@ -407,7 +429,12 @@ export class JobRepository
       )
       .leftJoin(
         sql`LATERAL (
-          SELECT json_agg(s) AS skills
+          SELECT json_agg(
+            json_build_object(
+              'id', s.id,
+              'name', s.name
+            )
+          ) AS skills
           FROM ${jobSkills} js
           INNER JOIN ${skills} s ON js.skill_id = s.id
           WHERE js.job_id = ${jobs.id}
@@ -420,9 +447,9 @@ export class JobRepository
         filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt),
       )
       .limit(limit + 1)) as {
-      job: Job;
+      job: any;
       provinces: Province[];
-      organization: OrganizationWithDetails;
+      organization: any;
       skills: Skill[];
       category: Category;
     }[];
@@ -2074,19 +2101,6 @@ export class JobRepository
     });
 
     return recommendedJobs;
-  }
-
-  async getJobIdsActive(query: GeneralQuery): Promise<string[]> {
-    const activeJobs = await this.db
-      .select({
-        id: jobs.id,
-      })
-      .from(jobs)
-      .where(and(isNull(jobs.deletedAt), eq(jobs.status, JobStatusEnum.ACTIVE)))
-      .limit(query.limit)
-      .offset((query.page! - 1) * query.limit);
-
-    return activeJobs.map((job) => job.id);
   }
 
   async getUserJobStatuses(
