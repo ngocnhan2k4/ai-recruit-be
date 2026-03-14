@@ -400,6 +400,7 @@ export class OrganizationRepository
         foundedYear: organizations.foundedYear,
         verifiedAt: organizations.verifiedAt,
         createdAt: organizations.createdAt,
+        role: organizationMembers.role,
       })
       .from(organizations)
       .innerJoin(

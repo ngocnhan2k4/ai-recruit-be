@@ -758,7 +758,7 @@ export class OrganizationUseCase {
           | "description"
           | "foundedYear"
           | "verifiedAt"
-        >
+        > & { role: string }
       >
     >
   > {

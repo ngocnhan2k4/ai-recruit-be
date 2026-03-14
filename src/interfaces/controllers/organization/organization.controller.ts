@@ -48,7 +48,7 @@ import { MultipartFile } from "@fastify/multipart";
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(JwtAuthGuard)
   @Get("/me")
   @ApiOperation({
     summary: "Get organizations by user ID with cursor pagination",
@@ -69,7 +69,7 @@ export class OrganizationController {
   }
 
   @UseGuards(OrganizationAuthorizeGuard)
-  @Get("/check-name/:name")
+  @Get("/name/:name")
   @ApiOperation({
     summary: "Check if a company name exists",
     description: "Check if a company name exists",
@@ -329,7 +329,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(JwtAuthGuard)
   @Get("/:orgId/jobs")
   @ApiOperation({
     summary: "Get jobs of an organization",
