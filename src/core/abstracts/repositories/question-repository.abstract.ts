@@ -5,6 +5,8 @@ import { GeneralQuery, PaginatedResult } from "@/common/types";
 export interface QuestionFilters {
   skillId?: string;
   skillIds?: string[];
+  /** Exclude questions that belong to this skill (e.g. for "add to skill" picker) */
+  excludeSkillId?: string;
   difficultyLevels?: string[];
   isActive?: boolean;
 }

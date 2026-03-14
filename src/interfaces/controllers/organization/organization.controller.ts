@@ -284,7 +284,7 @@ export class OrganizationController {
       >
     >
   > {
-    return await this.organizationUseCase.getAllOrganizations(query);
+    return await this.organizationUseCase.getOrganizations(query);
   }
 
   @Get(":orgId/users-to-invite")
