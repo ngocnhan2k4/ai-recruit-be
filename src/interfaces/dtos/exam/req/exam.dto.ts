@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsUUID,
   IsNotEmpty,
@@ -71,4 +71,14 @@ export class SavePartialAnswersDto {
   @ValidateNested({ each: true })
   @Type(() => AnswerDto)
   answers: AnswerDto[];
+}
+
+export class GetUserTestsQueryDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Filter user tests by selected skill ID",
+  })
+  @IsOptional()
+  @IsUUID("4")
+  skillId?: string;
 }

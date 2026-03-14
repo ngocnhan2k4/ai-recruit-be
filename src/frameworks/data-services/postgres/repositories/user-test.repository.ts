@@ -1,10 +1,10 @@
-import { IUserTestRepository, UserTest } from "@/core";
+import { IUserTestRepository, UserTest, UserTestSkill } from "@/core";
 import { NotFoundException } from "@nestjs/common";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle, DBDrizzleTransaction } from "../types";
-import { userTests } from "../models";
-import { eq, desc } from "drizzle-orm";
+import { skills, userTests } from "../models";
+import { eq, desc, inArray } from "drizzle-orm";
 
 @Injectable()
 export class UserTestRepository
@@ -16,13 +16,23 @@ export class UserTestRepository
   }
 
   async getUserTests(userId: string): Promise<UserTest[]> {
-    const result = await this.db
+    const tests = (await this.db
       .select()
       .from(userTests)
       .where(eq(userTests.userId, userId))
-      .orderBy(desc(userTests.createdAt));
+      .orderBy(desc(userTests.createdAt))) as UserTest[];
+    return this.attachSkillNames(tests);
+  }
 
-    return result as unknown as UserTest[];
+  async getUserTestWithSkills(testId: string): Promise<UserTest | null> {
+    const result = (await this.db
+      .select()
+      .from(userTests)
+      .where(eq(userTests.id, testId))
+      .limit(1)) as UserTest[];
+
+    const [test] = await this.attachSkillNames(result);
+    return test ?? null;
   }
 
   async updateTestResult(
@@ -45,5 +55,41 @@ export class UserTestRepository
     }
 
     return updated;
+  }
+
+  private async attachSkillNames(tests: UserTest[]): Promise<UserTest[]> {
+    if (tests.length === 0) {
+      return tests;
+    }
+
+    const skillIds = Array.from(
+      new Set(tests.flatMap((test) => test.selectedSkillIds ?? [])),
+    );
+
+    if (skillIds.length === 0) {
+      return tests.map((test) => ({
+        ...test,
+        selectedSkills: [] as UserTestSkill[],
+      }));
+    }
+
+    const skillRows = await this.db
+      .select({ id: skills.id, name: skills.name })
+      .from(skills)
+      .where(inArray(skills.id, skillIds));
+
+    const skillMap = new Map<string, string>(
+      skillRows.map((row) => [row.id, row.name]),
+    );
+
+    return tests.map((test) => ({
+      ...test,
+      selectedSkills: (test.selectedSkillIds ?? [])
+        .map((id) => {
+          const name = skillMap.get(id);
+          return name ? ({ id, name } as UserTestSkill) : null;
+        })
+        .filter((skill): skill is UserTestSkill => skill !== null),
+    }));
   }
 }

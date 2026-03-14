@@ -5,6 +5,8 @@ import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types"
 export abstract class IUserTestRepository extends IGenericRepository<UserTest> {
   abstract getUserTests(userId: string): Promise<UserTest[]>;
 
+  abstract getUserTestWithSkills(testId: string): Promise<UserTest | null>;
+
   abstract updateTestResult(
     testId: string,
     totalScore: number,

@@ -586,17 +586,20 @@ export class ExamUseCases {
     };
   }
 
-  async getUserTests(userId: string) {
+  async getUserTests(userId: string, skillId?: string) {
     const tests = await this.userTestRepo.getUserTests(userId);
+    const filteredTests = skillId
+      ? tests.filter((test) => (test.selectedSkillIds ?? []).includes(skillId))
+      : tests;
     return {
       success: true,
       message: "User tests fetched successfully",
-      data: tests,
+      data: filteredTests,
     };
   }
 
   async getTestDetails(userId: string, testId: string) {
-    const test = await this.userTestRepo.get(testId);
+    const test = await this.userTestRepo.getUserTestWithSkills(testId);
     if (!test) {
       throw new NotFoundException("Test not found");
     }
@@ -645,6 +648,7 @@ export class ExamUseCases {
       message: "Incomplete exams fetched successfully",
       data: incompleteTests.map((test) => ({
         id: test.id,
+        selectedSkills: test.selectedSkills ?? [],
         selectedSkillIds: test.selectedSkillIds,
         selectedDifficultyLevels: test.selectedDifficultyLevels,
         questionCount: test.questionIds?.length ?? 0,
