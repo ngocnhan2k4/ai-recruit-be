@@ -16,4 +16,6 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
   abstract getSkillsWithQuestionCount(
     query: GeneralQuery,
   ): Promise<PaginatedResult<SkillWithQuestionCount>>;
+
+  abstract getSkillById(id: string): Promise<Skill | null>;
 }

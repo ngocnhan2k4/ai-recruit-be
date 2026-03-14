@@ -325,6 +325,19 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
+    if (filters?.skillIds?.length) {
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobSkills} js 
+          WHERE js.job_id = ${jobs.id} 
+          AND js.skill_id IN (${sql.join(
+            filters.skillIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
+        )`,
+      );
+    }
+
     if (filters?.user?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (

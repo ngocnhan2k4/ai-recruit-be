@@ -14,6 +14,7 @@ import {
   inArray,
   asc,
   desc,
+  eq,
 } from "drizzle-orm";
 @Injectable()
 export class SkillRepository
@@ -234,5 +235,15 @@ export class SkillRepository
         total,
       },
     } as PaginatedResult<SkillWithQuestionCount>;
+  }
+
+  async getSkillById(id: string): Promise<Skill | null> {
+    const skill = await this.db
+      .select()
+      .from(skills)
+      .where(eq(skills.id, id))
+      .limit(1);
+
+    return skill[0] ?? null;
   }
 }
