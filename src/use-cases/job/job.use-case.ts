@@ -40,7 +40,6 @@ import {
   JobStatusEnum,
   WorkTypeEnum,
   OrganizationWithDetails,
-  UpdateJobTypeEnum,
   Notification,
   Category,
 } from "@/core";
@@ -719,7 +718,7 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+    await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
       jobId: newJob.id,
     });
     return {
@@ -729,10 +728,11 @@ export class JobUseCases {
     };
   }
 
+  // [TODO]: Recheck logic here and push message when job update
   async updateJob(
     jobId: string,
-    updateJobDto: UpdateJobDto & { userId: string },
-    user?: TokenPayload,
+    updateJobDto: UpdateJobDto,
+    user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
@@ -771,14 +771,14 @@ export class JobUseCases {
     }
 
     if (
-      updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL ||
-      updateJobDto.updateType === UpdateJobTypeEnum.REJECTED
+      updateJobDto.updateType === JobStatusEnum.ACTIVE ||
+      updateJobDto.updateType === JobStatusEnum.REJECTED
     ) {
       const { newNotifications } =
         await this.jobRepository.updateJobWithNotifications(
           jobId,
           updateData,
-          updateJobDto.userId,
+          user.userId,
         );
 
       if (newNotifications && newNotifications.length > 0) {
@@ -797,9 +797,9 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT, {
-      jobId: jobId,
-    });
+    // await this.messageQueueService.addJob(JobEventType.UPSERT, {
+    //   jobId: jobId,
+    // });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -855,7 +855,7 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.addJob(JobEventType.DELETE, {
+    await this.messageQueueService.addJob(JobEventType.DELETE_JOB, {
       jobId: jobId,
     });
     return {

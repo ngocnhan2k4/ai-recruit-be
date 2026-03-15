@@ -8,10 +8,12 @@ import {
 import {
   EmailJobType,
   ICompanyRepository,
+  IMessageQueueService,
   IOrganizationMemberInvitationRepository,
   IOrganizationMembersRepository,
   IOrganizationRepository,
   ISchoolRepository,
+  JobEventType,
   OrganizationLocation,
   OrganizationRoleEnum,
   OrganizationTypeEnum,
@@ -54,6 +56,7 @@ export class OrganizationUseCase {
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly casbinService: CasbinService,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   /**
@@ -275,6 +278,12 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    if (data.name)
+      await this.messageQueueService.addJob(JobEventType.UPDATE_ORG, {
+        organizationId: orgId,
+        organizationName: data.name,
+      });
 
     return {
       data: updatedOrg,
@@ -699,6 +708,10 @@ export class OrganizationUseCase {
     // Soft delete
     await this.organizationRepository.delete({
       id: orgId,
+    });
+    // [TODO]: This action shouldn't block main thread, but current design, it not support retry sync data from es -> DB
+    await this.messageQueueService.addJob(JobEventType.DELETE_ORG, {
+      organizationId: orgId,
     });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

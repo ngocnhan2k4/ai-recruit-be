@@ -102,11 +102,6 @@ export enum DomainTypeEnum {
   ALL = "*",
 }
 
-export enum UpdateJobTypeEnum {
-  UPDATE = "update",
-  APPROVAL = "approval",
-  REJECTED = "rejected",
-}
 export enum FeedbackStatusEnum {
   PENDING = "pending",
   READ = "read",

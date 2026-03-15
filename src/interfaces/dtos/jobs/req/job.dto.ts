@@ -9,7 +9,7 @@ import {
   IsEnum,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { JobStatusEnum, UpdateJobTypeEnum, WorkTypeEnum } from "@/core";
+import { JobStatusEnum, WorkTypeEnum } from "@/core";
 import { GeneralQueryDto } from "../../common/query";
 
 export class QueryJobDto extends GeneralQueryDto {
@@ -351,5 +351,5 @@ export class UpdateJobDto {
   })
   @IsOptional()
   @IsString()
-  updateType?: UpdateJobTypeEnum | null;
+  updateType?: JobStatusEnum | null;
 }

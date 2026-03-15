@@ -85,8 +85,10 @@ export interface TopInMarketResponse {
 }
 
 export enum JobEventType {
-  UPSERT = "upsert",
-  DELETE = "delete",
+  UPSERT_JOB = "upsert.job",
+  DELETE_JOB = "delete.job",
+  UPDATE_ORG = "update.org",
+  DELETE_ORG = "delete.org",
 }
 
 export enum JobTrendTypeEnum {
