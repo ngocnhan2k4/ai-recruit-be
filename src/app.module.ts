@@ -59,6 +59,7 @@ import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "@/use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "@/use-cases/casbin/casbin-use-cases.module";
 import { JobAdminController } from "@/interfaces/controllers/job/admin-job.controller";
+import { OrganizationJobController } from "@/interfaces/controllers/job/organization-job-controller";
 import { OrganizationMemberUseCasesModule } from "@/use-cases/organization-member/organization-member-use-case.module";
 import { OrganizationInvitationUseCaseModule } from "@/use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "@/use-cases/feedback/feedback.module";
@@ -140,6 +141,7 @@ import { RateLimitMiddleware } from "./common/middlewares";
     UserController,
     AuthController,
     JobController,
+    OrganizationJobController,
     JobAdminController,
     JobMatchingController,
     CategoryController,

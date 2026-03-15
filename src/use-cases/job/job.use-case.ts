@@ -728,12 +728,24 @@ export class JobUseCases {
     };
   }
 
-  // [TODO]: Recheck logic here and push message when job update
-  async updateJob(
+  private readonly organizationAllowedStatuses = new Set<JobStatusEnum>([
+    JobStatusEnum.ACTIVE,
+    JobStatusEnum.CLOSED,
+    JobStatusEnum.PAUSED,
+  ]);
+
+  private async processJobUpdate(
     jobId: string,
     updateJobDto: UpdateJobDto,
-    user: TokenPayload,
-  ): Promise<ApiResponse<JobDto>> {
+    executeUpdate: (
+      updateData: Partial<Job>,
+    ) => Promise<{ updatedJob: Job | null; notifications?: Notification[] }>,
+  ): Promise<{
+    transformedJob: JobDto;
+    updatedJob: Job;
+    notifications?: Notification[];
+  }> {
+    const { status: targetStatus } = updateJobDto;
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
       throw new BadRequestException({
@@ -742,15 +754,13 @@ export class JobUseCases {
       });
     }
 
-    // Only admin can update job status
     if (
-      updateJobDto.status !== undefined &&
-      user &&
-      !user.roles.includes(RoleEnum.ADMIN) &&
-      !user.roles.includes(RoleEnum.SUPER_ADMIN)
+      !this.organizationAllowedStatuses.has(targetStatus) &&
+      !this.organizationAllowedStatuses.has(job.status as JobStatusEnum)
     ) {
       throw new ForbiddenException({
-        message: "Only admin can update job status",
+        message:
+          "Organizations can only set status to active, closed, or paused",
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
@@ -762,7 +772,7 @@ export class JobUseCases {
       workType: updateJobDto.workType,
     };
 
-    const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
+    const { updatedJob, notifications } = await executeUpdate(updateData);
     if (!updatedJob) {
       throw new BadRequestException({
         message: "Failed to update job",
@@ -770,25 +780,6 @@ export class JobUseCases {
       });
     }
 
-    if (
-      updateJobDto.updateType === JobStatusEnum.ACTIVE ||
-      updateJobDto.updateType === JobStatusEnum.REJECTED
-    ) {
-      const { newNotifications } =
-        await this.jobRepository.updateJobWithNotifications(
-          jobId,
-          updateData,
-          user.userId,
-        );
-
-      if (newNotifications && newNotifications.length > 0) {
-        this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
-        this.logger.log(
-          `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${newNotifications.length} notifications created in DB)`,
-        );
-      }
-    }
-    // Transform questions field
     const transformedJob: JobDto = {
       ...updatedJob,
       questions: updatedJob.questions || null,
@@ -797,9 +788,61 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    // await this.messageQueueService.addJob(JobEventType.UPSERT, {
-    //   jobId: jobId,
-    // });
+    if (
+      this.organizationAllowedStatuses.has(updatedJob.status as JobStatusEnum)
+    ) {
+      await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
+        jobId: jobId,
+      });
+    }
+
+    return { transformedJob, updatedJob, notifications };
+  }
+
+  async updateJob(
+    jobId: string,
+    updateJobDto: UpdateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
+    const { transformedJob } = await this.processJobUpdate(
+      jobId,
+      updateJobDto,
+      async (updateData) => {
+        const updatedJob = await this.jobRepository.updateJob(
+          jobId,
+          updateData,
+        );
+        return { updatedJob };
+      },
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
+  }
+
+  async adminUpdateJob(
+    jobId: string,
+    updateJobDto: UpdateJobDto,
+    user: TokenPayload,
+  ): Promise<ApiResponse<JobDto>> {
+    const { transformedJob, updatedJob, notifications } =
+      await this.processJobUpdate(jobId, updateJobDto, async (updateData) => {
+        const { job, newNotifications } =
+          await this.jobRepository.updateJobWithNotifications(
+            jobId,
+            updateData,
+            user.userId,
+          );
+        return { updatedJob: job, notifications: newNotifications };
+      });
+
+    if (notifications && notifications.length > 0) {
+      this.webSocketGateway.sendToRoom("admin", notifications[0]);
+      this.logger.log(
+        `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
+      );
+    }
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
