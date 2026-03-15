@@ -246,8 +246,6 @@ export class AiCvUseCases {
     request: OptimizeAtsUploadDto,
     user?: TokenPayload,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    this.logger.log("Starting CV optimization for ATS");
-
     // Call AI service to optimize CV
     try {
       let cvText = "";
