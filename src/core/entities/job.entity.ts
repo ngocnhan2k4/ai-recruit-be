@@ -77,6 +77,7 @@ export interface JobCounts {
 }
 
 export interface TopInMarketResponse {
+  id?: string;
   name: string;
   logoUrl?: string;
   count?: number;

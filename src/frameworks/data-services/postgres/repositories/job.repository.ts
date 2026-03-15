@@ -321,6 +321,10 @@ export class JobRepository
       whereConditions.push(eq(jobs.organizationId, filters.companyId));
     }
 
+    if (filters?.categoryId) {
+      whereConditions.push(eq(jobs.categoryId, filters.categoryId));
+    }
+
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
@@ -936,6 +940,7 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: organizations.id,
         name: organizations.name,
         logoUrl: organizations.logoUrl,
         count: countDistinct(jobs.id).as("count"),
@@ -943,13 +948,14 @@ export class JobRepository
       .from(jobs)
       .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
       .where(and(...conditions, isNotNull(organizations.name)))
-      .groupBy(organizations.name, organizations.logoUrl)
+      .groupBy(organizations.id, organizations.name, organizations.logoUrl)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
     const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       logoUrl: item.logoUrl!,
       percentage:
@@ -969,13 +975,14 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: categories.id,
         name: categories.name,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(...conditions, isNotNull(categories.name)))
-      .groupBy(categories.name)
+      .groupBy(categories.id, categories.name)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
@@ -985,6 +992,7 @@ export class JobRepository
     );
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       count: Number(item.count),
       percentage:
