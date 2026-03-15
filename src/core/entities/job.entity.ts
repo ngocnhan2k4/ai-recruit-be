@@ -24,6 +24,8 @@ export interface JobFilters extends GeneralQuery {
   user?: TokenPayload;
   createdAtStart?: Date;
   createdAtEnd?: Date;
+  fromDate?: string;
+  toDate?: string;
   isJobSystem?: boolean;
 }
 

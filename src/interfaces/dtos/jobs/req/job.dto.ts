@@ -105,6 +105,24 @@ export class QueryJobDto extends GeneralQueryDto {
   @IsOptional()
   @IsEnum(JobStatusEnum)
   status?: JobStatusEnum;
+
+  @ApiProperty({
+    example: "2024-01-01",
+    required: false,
+    description: "Filter jobs created on or after this date (ISO string)",
+  })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiProperty({
+    example: "2024-12-31",
+    required: false,
+    description: "Filter jobs created on or before this date (ISO string)",
+  })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
 }
 
 export class CreateJobDto {

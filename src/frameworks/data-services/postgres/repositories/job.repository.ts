@@ -329,6 +329,16 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
+    if (filters?.fromDate) {
+      whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
+    }
+
+    if (filters?.toDate) {
+      const toDate = new Date(filters.toDate);
+      toDate.setHours(23, 59, 59, 999);
+      whereConditions.push(lte(jobs.createdAt, toDate));
+    }
+
     if (filters?.user?.userId) {
       whereConditions.push(
         sql`NOT EXISTS (
