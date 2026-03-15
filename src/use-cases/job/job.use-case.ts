@@ -108,10 +108,7 @@ export class JobUseCases {
 
     const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
-        ? await this.jobRepository.getUserJobStatuses(
-            filters.user?.userId,
-            jobIds,
-          )
+        ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
       this.organizationRepository.getByIds(uniqueOrgIds, [
         "id",
