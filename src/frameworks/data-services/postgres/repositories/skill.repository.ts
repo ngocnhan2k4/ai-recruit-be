@@ -4,6 +4,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { skills, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { SkillQuery } from "@/core/entities";
 import {
   count,
   ilike,
@@ -37,17 +38,20 @@ export class SkillRepository
     return result;
   }
 
-  async getPaginatedSkills(
-    query: GeneralQuery,
-  ): Promise<PaginatedResult<Skill>> {
+  async getPaginatedSkills(query: SkillQuery): Promise<PaginatedResult<Skill>> {
     const limit = Math.max(query.limit ?? 20, 1);
     const page = Math.max(query.page ?? 1, 1);
     const keyword = query.keyword ?? "";
 
+    const skillIds = query.skillIds ?? [];
     const whereConditions: SQL[] = [isNotNull(skills.description)];
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
+    }
+
+    if (skillIds.length > 0) {
+      whereConditions.push(inArray(skills.id, skillIds));
     }
 
     const offset = (page - 1) * limit;

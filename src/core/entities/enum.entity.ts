@@ -160,7 +160,6 @@ export enum OtpPurpose {
 
 export enum UserInteractionEnum {
   SAVE = "save",
-  HIDE = "hide",
 }
 export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
