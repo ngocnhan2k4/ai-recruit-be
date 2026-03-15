@@ -160,6 +160,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract createJob(
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     sendNotifications?: boolean,
@@ -175,6 +176,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null>;
@@ -182,6 +184,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     userId: string,

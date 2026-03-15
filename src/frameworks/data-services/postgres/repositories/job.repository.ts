@@ -1376,6 +1376,7 @@ export class JobRepository
   async createJob(
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     sendNotifications = false,
@@ -1408,13 +1409,20 @@ export class JobRepository
     const result = await this.db.transaction(async (tx) => {
       const [newJob] = await tx.insert(jobs).values(jobData).returning();
 
-      // Handle skill associations if skillIds provided
-      if (job.skillIds && job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      // Handle skill associations: resolve skillNames to IDs, then combine with existing skillIds
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: newJob.id,
-          skillId: skillId,
+          skillId,
         }));
-
         await tx.insert(jobSkills).values(skillAssociations);
       }
 
@@ -1474,6 +1482,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1487,6 +1496,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1498,13 +1508,21 @@ export class JobRepository
       .where(eq(jobs.id, jobId))
       .returning();
 
-    if (job.skillIds !== undefined) {
+    if (job.skillIds !== undefined || job.skillNames !== undefined) {
       await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-      if (job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: jobId,
-          skillId: skillId,
+          skillId,
         }));
 
         await tx.insert(jobSkills).values(skillAssociations);
@@ -1540,6 +1558,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     userId: string,
@@ -1557,17 +1576,24 @@ export class JobRepository
         return { job: null, newNotifications: [] };
       }
 
-      if (job.skillIds !== undefined) {
+      if (job.skillIds !== undefined || job.skillNames !== undefined) {
         // Remove existing skill associations
         await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-        // Add new skill associations if any
-        if (job.skillIds.length > 0) {
-          const skillAssociations = job.skillIds.map((skillId) => ({
+        // Resolve skillNames to IDs, then combine with existing skillIds
+        const allSkillIds = [...(job.skillIds ?? [])];
+        if (job.skillNames && job.skillNames.length > 0) {
+          const newSkills = await tx
+            .insert(skills)
+            .values(job.skillNames.map((name) => ({ name })))
+            .returning();
+          allSkillIds.push(...newSkills.map((s) => s.id));
+        }
+        if (allSkillIds.length > 0) {
+          const skillAssociations = allSkillIds.map((skillId) => ({
             jobId: jobId,
             skillId: skillId,
           }));
-
           await tx.insert(jobSkills).values(skillAssociations);
         }
       }

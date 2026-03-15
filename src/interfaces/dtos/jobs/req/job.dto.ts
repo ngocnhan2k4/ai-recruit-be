@@ -195,6 +195,18 @@ export class CreateJobDto {
   @IsUUID("4", { each: true })
   skillIds: string[] | null;
 
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description:
+      "Array of new skill names to create and associate with the job",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skillNames?: string[] | null;
+
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsUUID()
   categoryId: string | null;
@@ -336,6 +348,18 @@ export class UpdateJobDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds?: string[] | null;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description:
+      "Array of new skill names to create and associate with the job",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skillNames?: string[] | null;
 
   @ApiProperty({
     type: "string",
