@@ -1,10 +1,20 @@
-import { ISkillRepository, Skill } from "@/core";
+import { ISkillRepository, Skill, SkillWithQuestionCount } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { skills, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { count, ilike, and, SQL, sql, isNotNull } from "drizzle-orm";
+import {
+  count,
+  ilike,
+  and,
+  SQL,
+  sql,
+  isNotNull,
+  inArray,
+  asc,
+  desc,
+} from "drizzle-orm";
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
@@ -112,5 +122,122 @@ export class SkillRepository
         total,
       },
     } as PaginatedResult<Skill>;
+  }
+
+  async getSkillsWithQuestionCount(
+    query: GeneralQuery,
+  ): Promise<PaginatedResult<SkillWithQuestionCount>> {
+    const limit = Math.max(query.limit ?? 20, 1);
+    const page = Math.max(query.page ?? 1, 1);
+    const keyword = query.keyword ?? "";
+    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
+    const sortDirection = query.sortDirection === "desc" ? "desc" : "asc";
+
+    const whereConditions: SQL[] = [isNotNull(skills.description)];
+
+    if (keyword) {
+      whereConditions.push(ilike(skills.name, `%${keyword}%`));
+    }
+
+    const totalRow = await this.db
+      .select({ count: count(skills.id) })
+      .from(skills)
+      .where(and(...whereConditions));
+    const total = Number(totalRow[0]?.count ?? 0);
+
+    if (total === 0) {
+      return {
+        data: [],
+        pagination: { hasNextPage: false, total: 0 },
+      } as PaginatedResult<SkillWithQuestionCount>;
+    }
+
+    if (sortBy === "questionCount") {
+      const offset = (page - 1) * limit;
+      const orderByCount =
+        sortDirection === "desc"
+          ? sql`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id}) DESC`
+          : sql`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id}) ASC`;
+
+      const rows = await this.db
+        .select({
+          id: skills.id,
+          slug: skills.slug,
+          name: skills.name,
+          description: skills.description,
+          proficiencyLevels: skills.proficiencyLevels,
+          createdAt: skills.createdAt,
+          updatedAt: skills.updatedAt,
+          deletedAt: skills.deletedAt,
+          questionCount:
+            sql<number>`(SELECT count(*)::int FROM questions WHERE questions.skill_id = ${skills.id})`.as(
+              "question_count",
+            ),
+        })
+        .from(skills)
+        .where(and(...whereConditions))
+        .orderBy(orderByCount)
+        .limit(limit)
+        .offset(offset);
+
+      const data: SkillWithQuestionCount[] = rows.map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        description: r.description,
+        proficiencyLevels: r.proficiencyLevels,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        deletedAt: r.deletedAt,
+        questionCount: Number(r.questionCount ?? 0),
+      }));
+      const hasNext = offset + data.length < total;
+
+      return {
+        data,
+        pagination: { hasNextPage: hasNext, total },
+      } as PaginatedResult<SkillWithQuestionCount>;
+    }
+
+    const offset = (page - 1) * limit;
+    const orderBy =
+      sortDirection === "desc" ? desc(skills.name) : asc(skills.name);
+
+    const items = await this.db
+      .select()
+      .from(skills)
+      .where(and(...whereConditions))
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    const skillIds = items.map((s) => s.id);
+    const countRows = await this.db
+      .select({
+        skillId: questions.skillId,
+        questionCount: count(questions.id),
+      })
+      .from(questions)
+      .where(inArray(questions.skillId, skillIds))
+      .groupBy(questions.skillId);
+
+    const countMap = new Map(
+      countRows.map((r) => [r.skillId, Number(r.questionCount)]),
+    );
+
+    const data: SkillWithQuestionCount[] = items.map((s) => ({
+      ...s,
+      questionCount: countMap.get(s.id) ?? 0,
+    }));
+
+    const hasNext = offset + items.length < total;
+
+    return {
+      data,
+      pagination: {
+        hasNextPage: hasNext,
+        total,
+      },
+    } as PaginatedResult<SkillWithQuestionCount>;
   }
 }
