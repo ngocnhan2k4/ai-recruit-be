@@ -14,6 +14,7 @@ import {
   StartExamDto,
   SubmitExamDto,
   SavePartialAnswersDto,
+  GetUserTestsQueryDto,
 } from "@/interfaces/dtos/exam";
 import { GetUser } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
@@ -54,8 +55,11 @@ export class ExamController {
   })
   @Get("my-tests")
   @ApiBearerAuth()
-  async getMyTests(@GetUser() user: TokenPayload) {
-    return this.examUseCases.getUserTests(user.userId);
+  async getMyTests(
+    @GetUser() user: TokenPayload,
+    @Query() query: GetUserTestsQueryDto,
+  ) {
+    return this.examUseCases.getUserTests(user.userId, query.skillId);
   }
 
   @ApiOperation({
