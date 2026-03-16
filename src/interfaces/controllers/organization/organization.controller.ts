@@ -96,7 +96,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiOperation({
     summary: "Create a new organization",
