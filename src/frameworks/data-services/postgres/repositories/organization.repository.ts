@@ -125,7 +125,9 @@ export class OrganizationRepository
     return data;
   }
 
-  getOrganizationById(id: string): Promise<OrganizationWithDetails | null> {
+  async getOrganizationById(
+    id: string,
+  ): Promise<OrganizationWithDetails | null> {
     const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
     return cacheWithDedup<OrganizationWithDetails | null>(
       cacheKey,

@@ -375,26 +375,18 @@ export class OrganizationUseCase {
       };
     }
 
-    await this.companyRepository.update(
+    const updatedCompany = await this.companyRepository.update(
       { organizationId: orgId },
       {
         culture: data.culture,
         benefits: data.benefits,
       },
     );
-
-    // Get updated organization with details
-    const updatedOrg = await this.organizationRepository.get(orgId);
-
-    if (!updatedOrg) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
-        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
-      });
-    }
-
     return {
-      data: updatedOrg,
+      data: {
+        ...org,
+        ...updatedCompany,
+      },
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
