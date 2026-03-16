@@ -1622,6 +1622,25 @@ export class JobRepository
       const recipients = orgUsers.map((ou) => {
         return { receiverId: ou.id, organizationId: updatedJob.organizationId };
       });
+      const [senderInfo] = await tx
+        .select({ avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      const notificationPayload: {
+        jobId: string;
+        orgId: string;
+        avatarUrl?: string;
+      } = {
+        jobId: updatedJob.id,
+        orgId: updatedJob.organizationId,
+      };
+
+      if (senderInfo?.avatarUrl) {
+        notificationPayload.avatarUrl = senderInfo.avatarUrl;
+      }
+
       const notifications =
         await this.notificationRepository.preCreateNotifications(
           tx,
@@ -1633,10 +1652,7 @@ export class JobRepository
                 ? NotificationType.ADMIN_JOB_APPROVED
                 : NotificationType.ADMIN_JOB_REJECTED,
             senderId: userId,
-            payload: {
-              jobId: updatedJob.id,
-              orgId: updatedJob.organizationId,
-            },
+            payload: notificationPayload,
           },
           recipients,
         );

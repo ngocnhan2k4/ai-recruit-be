@@ -838,9 +838,12 @@ export class JobUseCases {
       });
 
     if (notifications && notifications.length > 0) {
-      this.webSocketGateway.sendToRoom("admin", notifications[0]);
+      const orgRoom = ROOM_NOTIFICATIONS.org({
+        orgId: updatedJob.organizationId,
+      });
+      this.webSocketGateway.sendToRoom(orgRoom, notifications[0]);
       this.logger.log(
-        `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
+        `Broadcast job-updated notification to org room ${orgRoom} for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
       );
     }
     return {

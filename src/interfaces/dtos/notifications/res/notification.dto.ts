@@ -30,6 +30,7 @@ export class NotificationDto {
     userId?: string;
     applyId?: string;
     orgInvitationId?: string;
+    avatarUrl?: string;
   } | null;
 
   @ApiProperty({ type: "string", nullable: true })
