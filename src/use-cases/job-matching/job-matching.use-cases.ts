@@ -17,6 +17,7 @@ import {
   Category,
   UserProfile,
   OrganizationWithDetails,
+  JobStatusEnum,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
@@ -167,6 +168,8 @@ export class JobMatchingUseCases {
         ? Number(userOnboarding[0].expectedSalary)
         : undefined,
     };
+
+    filters.status = JobStatusEnum.ACTIVE;
 
     const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
 

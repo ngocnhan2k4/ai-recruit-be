@@ -93,6 +93,16 @@ export class JobUseCases {
           },
         };
     }
+
+    // If it's role user, only get status active, close and paused
+    if (!filters.organizationId) {
+      filters.statuses = [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.CLOSED,
+        JobStatusEnum.PAUSED,
+      ];
+    }
+
     const esQuery = this.jobMatchingQuery.buildSearchQuery(filters);
 
     // Execute query
@@ -737,23 +747,24 @@ export class JobUseCases {
     };
   }
 
-  private readonly organizationAllowedStatuses = new Set<JobStatusEnum>([
-    JobStatusEnum.ACTIVE,
-    JobStatusEnum.CLOSED,
-    JobStatusEnum.PAUSED,
-  ]);
-
   private async processJobUpdate(
     jobId: string,
     updateJobDto: UpdateJobDto,
     executeUpdate: (
       updateData: Partial<Job>,
     ) => Promise<{ updatedJob: Job | null; notifications?: Notification[] }>,
+    isAdminUpdate = false,
   ): Promise<{
     transformedJob: JobDto;
     updatedJob: Job;
     notifications?: Notification[];
   }> {
+    const organizationAllowedStatuses = [
+      JobStatusEnum.ACTIVE,
+      JobStatusEnum.CLOSED,
+      JobStatusEnum.PAUSED,
+    ];
+
     const { status: targetStatus } = updateJobDto;
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
@@ -764,8 +775,9 @@ export class JobUseCases {
     }
 
     if (
-      !this.organizationAllowedStatuses.has(targetStatus) &&
-      !this.organizationAllowedStatuses.has(job.status as JobStatusEnum)
+      !isAdminUpdate &&
+      organizationAllowedStatuses.includes(targetStatus) &&
+      !organizationAllowedStatuses.includes(job.status as JobStatusEnum)
     ) {
       throw new ForbiddenException({
         message:
@@ -773,7 +785,6 @@ export class JobUseCases {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
-
     const updateData: Partial<Job> = {
       ...updateJobDto,
       status: updateJobDto.status || undefined,
@@ -798,7 +809,9 @@ export class JobUseCases {
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
     if (
-      this.organizationAllowedStatuses.has(updatedJob.status as JobStatusEnum)
+      [...organizationAllowedStatuses, JobStatusEnum.REJECTED].includes(
+        updatedJob.status as JobStatusEnum,
+      )
     ) {
       await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
         jobId: jobId,
@@ -836,15 +849,20 @@ export class JobUseCases {
     user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
     const { transformedJob, updatedJob, notifications } =
-      await this.processJobUpdate(jobId, updateJobDto, async (updateData) => {
-        const { job, newNotifications } =
-          await this.jobRepository.updateJobWithNotifications(
-            jobId,
-            updateData,
-            user.userId,
-          );
-        return { updatedJob: job, notifications: newNotifications };
-      });
+      await this.processJobUpdate(
+        jobId,
+        updateJobDto,
+        async (updateData) => {
+          const { job, newNotifications } =
+            await this.jobRepository.updateJobWithNotifications(
+              jobId,
+              updateData,
+              user.userId,
+            );
+          return { updatedJob: job, notifications: newNotifications };
+        },
+        true,
+      );
 
     if (notifications && notifications.length > 0) {
       const orgRoom = ROOM_NOTIFICATIONS.org({

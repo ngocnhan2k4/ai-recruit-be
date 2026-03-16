@@ -14,6 +14,7 @@ export interface JobFilters extends GeneralQuery {
   categoryId?: Category["id"];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
+  statuses?: JobStatusEnum[];
   user?: TokenPayload;
   createdAtStart?: Date;
   createdAtEnd?: Date;

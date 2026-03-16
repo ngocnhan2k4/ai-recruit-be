@@ -22,13 +22,14 @@ export class JobMatchingQuery {
     const {
       cursor,
       limit = 20,
-      status = "active",
+      status,
       workType,
       provinceId: filterProvinceId,
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
       skillId: filterSkill,
+      statuses,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -41,7 +42,6 @@ export class JobMatchingQuery {
     }
 
     const mustQueries: any[] = [
-      { term: { status } },
       // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
         bool: {
@@ -52,6 +52,14 @@ export class JobMatchingQuery {
         },
       },
     ];
+
+    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
+
+    if (statusFilters.length) {
+      mustQueries.push({
+        terms: { status: statusFilters },
+      });
+    }
 
     if (workType) {
       mustQueries.push({ terms: { workType } });
@@ -328,7 +336,8 @@ export class JobMatchingQuery {
     const {
       cursor,
       limit = 20,
-      status = "active",
+      status,
+      statuses,
       workType,
       provinceId,
       categoryId,
@@ -351,7 +360,6 @@ export class JobMatchingQuery {
     }
 
     const mustQueries: any[] = [
-      { term: { status } },
       // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
         bool: {
@@ -363,6 +371,14 @@ export class JobMatchingQuery {
         },
       },
     ];
+
+    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
+
+    if (statusFilters.length) {
+      mustQueries.push({
+        terms: { status: statusFilters },
+      });
+    }
 
     if (workType) {
       mustQueries.push({ term: { workType } });
