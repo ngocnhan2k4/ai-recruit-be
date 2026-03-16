@@ -104,11 +104,13 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async createOrganization(
-    @Body() data: CreateOrganizationDto,
+    @UploadFileAndBody()
+    upload: { file: MultipartFile; body: CreateOrganizationDto },
     @GetUser() user: TokenPayload,
   ) {
-    return await this.organizationUseCase.createOrganization(
-      data,
+    return await this.organizationUseCase.createOrganizationWithLogo(
+      upload.body,
+      upload.file,
       user?.userId,
     );
   }

@@ -243,6 +243,39 @@ export class OrganizationUseCase {
     };
   }
 
+  async createOrganizationWithLogo(
+    data: CreateOrganizationDto,
+    file: MultipartFile,
+    userId: string,
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    if (!file) {
+      throw new BadRequestException({
+        message: "No logo file provided",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+    await this.cloudinaryService.validateFile(file, {
+      maxSize: 5 * 1024 * 1024,
+      allowedTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
+    });
+
+    const uploadResult = await this.cloudinaryService.uploadFile(file);
+
+    if (!uploadResult || !uploadResult.secure_url) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ERROR_UPLOADING_FILE,
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
+      });
+    }
+
+    const payload: CreateOrganizationDto = {
+      ...data,
+      logoUrl: uploadResult.secure_url,
+    } as CreateOrganizationDto;
+
+    return this.createOrganization(payload, userId);
+  }
+
   async updateOrganizationBasicInfo(
     orgId: string,
     data: {
