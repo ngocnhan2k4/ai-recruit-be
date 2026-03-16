@@ -335,7 +335,8 @@ export class JobRepository
 
     if (filters?.toDate) {
       const toDate = new Date(filters.toDate);
-      whereConditions.push(lte(jobs.createdAt, filters.toDate));
+      toDate.setHours(23, 59, 59, 999);
+      whereConditions.push(lte(jobs.createdAt, toDate));
     }
 
     if (filters?.skillIds?.length) {
@@ -350,6 +351,17 @@ export class JobRepository
         )`,
       );
     }
+    // [TODO] remove later
+    // if (filters?.user?.userId) {
+    //   whereConditions.push(
+    //     sql`NOT EXISTS (
+    //       SELECT 1 FROM ${userInteractions} ui
+    //       WHERE ui.job_id = ${jobs.id}
+    //       AND ui.user_id = ${filters.user?.userId}
+    //       AND ui.type = 'hide'
+    //     )`,
+    //   );
+    // }
 
     if (cursor) {
       // return empty array if user not logged in
