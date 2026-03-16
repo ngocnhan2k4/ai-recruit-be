@@ -27,4 +27,3 @@ export * from "./question-repository.abstract";
 export * from "./level-repository.abstract";
 export * from "./user-test-repository.abstract";
 export * from "./user-answer-repository.abstract";
-export * from "./import-log-repository.abstract";

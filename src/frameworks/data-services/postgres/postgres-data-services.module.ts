@@ -29,7 +29,6 @@ import {
   ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
-  IImportLogRepository,
   IWeeklyProgressRepository,
 } from "@/core";
 import { AuthRepository } from "./repositories/auth.repository";
@@ -68,7 +67,6 @@ import { QuestionRepository } from "./repositories/question.repository";
 import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
-import { ImportLogRepository } from "./repositories/import-log.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
 
 @Global()
@@ -245,10 +243,6 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
       useClass: UserAnswerRepository,
     },
     {
-      provide: IImportLogRepository,
-      useClass: ImportLogRepository,
-    },
-    {
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
@@ -288,7 +282,6 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
     ILevelRepository,
     IUserTestRepository,
     IUserAnswerRepository,
-    IImportLogRepository,
     IAiCvRepository,
     IWeeklyProgressRepository,
   ],
