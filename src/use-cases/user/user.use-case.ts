@@ -410,10 +410,12 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
   ): Promise<ApiResponse<number>> {
-    const result = await this.userExperienceRepository.deletePermanently({
-      userId,
-      id,
-    });
+    const result =
+      await this.userExperienceRepository.deleteUserExperienceAndUserSkills(
+        userId,
+        id,
+      );
+
     if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",

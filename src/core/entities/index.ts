@@ -20,7 +20,6 @@ import {
   levels,
   userTests,
   userAnswers,
-  importLogs,
   applyJobs,
 } from "@/frameworks/data-services/postgres/models";
 import {
@@ -42,6 +41,7 @@ export * from "./user.entity";
 export * from "./job.entity";
 export * from "./organization.entity";
 export * from "./feedback.entity";
+export * from "./skill.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -180,9 +180,6 @@ export type UserTest = InferSelectModel<typeof userTests> & {
 
 export type NewUserAnswer = InferInsertModel<typeof userAnswers>;
 export type UserAnswer = InferSelectModel<typeof userAnswers>;
-
-export type NewImportLog = InferInsertModel<typeof importLogs>;
-export type ImportLog = InferSelectModel<typeof importLogs>;
 
 export type NewApplyJob = InferInsertModel<typeof applyJobs>;
 export type ApplyJob = InferSelectModel<typeof applyJobs>;
