@@ -1665,6 +1665,9 @@ export class JobRepository
       endedAt: string | null;
       provinceNames: string[];
       isApplied: boolean;
+      applyUrl: string | null;
+      applyId: string | null;
+      applyStatus: string | null;
     }>
   > {
     query.limit = query.limit ?? 10;
@@ -1688,12 +1691,15 @@ export class JobRepository
           WHERE jp.job_id = ${jobs.id}
         )`.as("provinceNames"),
         applyJobId: applyJobs.id,
+        applyStatus: applyJobs.status,
+        applyUrl: jobRaws.url,
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .leftJoin(applyJobs, eq(applyJobs.jobId, jobs.id))
       .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .where(
         and(
           eq(userInteractions.userId, userId),
@@ -1719,6 +1725,9 @@ export class JobRepository
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
         provinceNames: (item.provinceNames as string[]) || [],
+        applyUrl: item.applyUrl ?? null,
+        applyId: item.applyJobId ?? null,
+        applyStatus: item.applyStatus ?? null,
       })),
       pagination: {
         hasNextPage,
@@ -1738,7 +1747,10 @@ export class JobRepository
       async () => {
         const result = await this.db
           .select({
-            job: jobs,
+            job: {
+              ...jobs,
+              applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+            },
             provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
             organization: organizations,
             skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
@@ -1800,6 +1812,7 @@ export class JobRepository
             sql`TRUE`,
           )
           .leftJoin(categories, eq(jobs.categoryId, categories.id))
+          .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
           .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
           .limit(1);
 
@@ -1819,6 +1832,7 @@ export class JobRepository
           isApplied: (data.isApplied || undefined) as boolean | undefined,
           applyStatus: (data.applyStatus || undefined) as string | undefined,
           applyId: (data.applyId || undefined) as string | undefined,
+          applyUrl: (data.job as any).applyUrl as string | null | undefined,
           category: data.category as Category,
         };
       },

@@ -712,6 +712,7 @@ export class JobUseCases {
       isApplied?: boolean;
       applyStatus?: string;
       applyId?: string;
+      applyUrl?: string | null;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
       this.logger.error(

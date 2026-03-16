@@ -44,6 +44,7 @@ export interface JobResponse {
   isApplied?: boolean;
   applyStatus?: string;
   applyId?: string;
+  applyUrl?: string | null;
   category: Category;
 }
 
