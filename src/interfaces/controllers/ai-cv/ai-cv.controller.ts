@@ -76,12 +76,10 @@ export class AiCvController {
   async optimizeAts(
     @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     if (!request.file && !request.cvText) {
-      throw new BadRequestException({
-        message: "Either CV file or CV text must be provided",
-        code: RESPONSE_CODE.CV_NOT_UPLOADED,
-      });
+      return await this.aiCvUseCases.optimizeCvForAts(request, user);
     }
 
     if (request.file && request.cvText) {

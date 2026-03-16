@@ -3,10 +3,7 @@ import {
   IEmailQueueStorageService,
   IJobRepository,
   IUserRepository,
-  IUserSkillRepository,
-  IUserExperienceRepository,
   ISearchService,
-  IUserOnboardingRepository,
 } from "@/core";
 import {
   EmailJobType,
@@ -15,7 +12,6 @@ import {
   Skill,
   Category,
   OrganizationRoleEnum,
-  UserProfile,
   OrganizationTypeEnum,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
@@ -23,7 +19,6 @@ import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
 import { EmailJob } from "@/core/entities/email.entity";
 import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
-import { differenceInYears } from "date-fns";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import {
@@ -40,9 +35,6 @@ export class JobMatchingUseCases {
     private readonly jobRepository: IJobRepository,
     private readonly emailStorageService: IEmailQueueStorageService,
     private readonly userRepository: IUserRepository,
-    private readonly userSkillRepository: IUserSkillRepository,
-    private readonly userOnboardingRepository: IUserOnboardingRepository,
-    private readonly userExperienceRepository: IUserExperienceRepository,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
   ) {}
@@ -125,46 +117,13 @@ export class JobMatchingUseCases {
   ): Promise<ApiResponse<PaginatedResult<JobMatchResultDto>>> {
     this.logger.log(`Getting matched jobs for user ${userId}`);
 
-    const user = await this.userRepository.get(userId);
-    if (!user) {
+    const userProfile = await this.userRepository.getUserProfile(userId);
+    if (!userProfile) {
       throw new NotFoundException({
         message: `User ${userId} not found`,
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
-
-    // Get user skills
-    const [userSkills, userExperiences, userOnboarding] = await Promise.all([
-      this.userSkillRepository.getUserSkills(user.username),
-      this.userExperienceRepository.getUserExperiencesByUsername(user.username),
-      this.userOnboardingRepository.getByField({ userId }),
-    ]);
-    const skillIds = userSkills.map((skill) => skill.id);
-
-    let experienceYears = 0;
-    if (userExperiences.length > 0) {
-      // Calculate total years of experience
-      const totalMonths = userExperiences.reduce((sum, exp) => {
-        const startDate = new Date(exp.experience.startDate);
-        const endDate = exp.experience.endDate
-          ? new Date(exp.experience.endDate)
-          : new Date();
-        const months = differenceInYears(endDate, startDate);
-        return sum + months;
-      }, 0);
-      experienceYears = Math.max(0, totalMonths);
-    }
-
-    const userProfile: UserProfile = {
-      userId: user.id,
-      skillIds,
-      experienceYears,
-      provinceIds: userOnboarding[0]?.provinceIds || [],
-      categoryIds: userOnboarding[0]?.categoryIds || [],
-      expectedSalary: userOnboarding[0]?.expectedSalary
-        ? Number(userOnboarding[0].expectedSalary)
-        : undefined,
-    };
 
     const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
 

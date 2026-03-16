@@ -1,4 +1,4 @@
-import { IUserOnboardingRepository, IUserRepository } from "@/core";
+import { IUserOnboardingRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
@@ -11,10 +11,7 @@ export class UserOnboardingRepository
   extends GenericRepository<UserOnboarding, typeof userOnboardings>
   implements IUserOnboardingRepository
 {
-  constructor(
-    @Inject("DRIZZLE") protected db: DBDrizzle,
-    private readonly userRepository: IUserRepository,
-  ) {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, userOnboardings);
   }
   async createOnboardingForUser(

@@ -321,8 +321,22 @@ export class JobRepository
       whereConditions.push(eq(jobs.organizationId, filters.companyId));
     }
 
+    if (filters?.categoryId) {
+      whereConditions.push(eq(jobs.categoryId, filters.categoryId));
+    }
+
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
+    }
+
+    if (filters?.fromDate) {
+      whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
+    }
+
+    if (filters?.toDate) {
+      const toDate = new Date(filters.toDate);
+      toDate.setHours(23, 59, 59, 999);
+      whereConditions.push(lte(jobs.createdAt, toDate));
     }
 
     if (filters?.skillIds?.length) {
@@ -949,6 +963,7 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: organizations.id,
         name: organizations.name,
         logoUrl: organizations.logoUrl,
         count: countDistinct(jobs.id).as("count"),
@@ -956,13 +971,14 @@ export class JobRepository
       .from(jobs)
       .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
       .where(and(...conditions, isNotNull(organizations.name)))
-      .groupBy(organizations.name, organizations.logoUrl)
+      .groupBy(organizations.id, organizations.name, organizations.logoUrl)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
     const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       logoUrl: item.logoUrl!,
       percentage:
@@ -982,13 +998,14 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: categories.id,
         name: categories.name,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(...conditions, isNotNull(categories.name)))
-      .groupBy(categories.name)
+      .groupBy(categories.id, categories.name)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
@@ -998,6 +1015,7 @@ export class JobRepository
     );
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       count: Number(item.count),
       percentage:
@@ -1389,6 +1407,7 @@ export class JobRepository
   async createJob(
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     sendNotifications = false,
@@ -1421,13 +1440,20 @@ export class JobRepository
     const result = await this.db.transaction(async (tx) => {
       const [newJob] = await tx.insert(jobs).values(jobData).returning();
 
-      // Handle skill associations if skillIds provided
-      if (job.skillIds && job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      // Handle skill associations: resolve skillNames to IDs, then combine with existing skillIds
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: newJob.id,
-          skillId: skillId,
+          skillId,
         }));
-
         await tx.insert(jobSkills).values(skillAssociations);
       }
 
@@ -1487,6 +1513,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1500,6 +1527,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1511,13 +1539,21 @@ export class JobRepository
       .where(eq(jobs.id, jobId))
       .returning();
 
-    if (job.skillIds !== undefined) {
+    if (job.skillIds !== undefined || job.skillNames !== undefined) {
       await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-      if (job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: jobId,
-          skillId: skillId,
+          skillId,
         }));
 
         await tx.insert(jobSkills).values(skillAssociations);
@@ -1553,6 +1589,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     userId: string,
@@ -1570,17 +1607,24 @@ export class JobRepository
         return { job: null, newNotifications: [] };
       }
 
-      if (job.skillIds !== undefined) {
+      if (job.skillIds !== undefined || job.skillNames !== undefined) {
         // Remove existing skill associations
         await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-        // Add new skill associations if any
-        if (job.skillIds.length > 0) {
-          const skillAssociations = job.skillIds.map((skillId) => ({
+        // Resolve skillNames to IDs, then combine with existing skillIds
+        const allSkillIds = [...(job.skillIds ?? [])];
+        if (job.skillNames && job.skillNames.length > 0) {
+          const newSkills = await tx
+            .insert(skills)
+            .values(job.skillNames.map((name) => ({ name })))
+            .returning();
+          allSkillIds.push(...newSkills.map((s) => s.id));
+        }
+        if (allSkillIds.length > 0) {
+          const skillAssociations = allSkillIds.map((skillId) => ({
             jobId: jobId,
             skillId: skillId,
           }));
-
           await tx.insert(jobSkills).values(skillAssociations);
         }
       }

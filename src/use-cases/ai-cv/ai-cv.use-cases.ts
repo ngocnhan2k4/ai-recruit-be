@@ -1,9 +1,11 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { FileTextExtractor } from "@/common/utils";
+import { TokenPayload } from "@/common/types";
+import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
   IAIService,
+  IUserRepository,
   NewAiCv,
   OptimizeAtsResponse,
 } from "@/core";
@@ -34,8 +36,8 @@ export class AiCvUseCases {
   private readonly logger = new Logger(AiCvUseCases.name);
   constructor(
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
-    @Inject(IAIService)
-    private readonly aiService: IAIService,
+    @Inject(IAIService) private readonly aiService: IAIService,
+    @Inject(IUserRepository) private readonly userRepository: IUserRepository,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -242,9 +244,8 @@ export class AiCvUseCases {
 
   async optimizeCvForAts(
     request: OptimizeAtsUploadDto,
+    user?: TokenPayload,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    this.logger.log("Starting CV optimization for ATS");
-
     // Call AI service to optimize CV
     try {
       let cvText = "";
@@ -255,6 +256,13 @@ export class AiCvUseCases {
         this.logger.log(`Extracted ${cvText.length} chars from CV`);
       } else if (request?.cvText) {
         cvText = request.cvText;
+      } else if (user) {
+        // Generate CV text from user profile data
+        const userCvData = await this.userRepository.getUserCvData(user.userId);
+        if (userCvData) {
+          cvText = userCvDataToText(userCvData);
+          this.logger.log(`Generated ${cvText.length} chars from user profile`);
+        }
       }
 
       const optimizeRequest = {
