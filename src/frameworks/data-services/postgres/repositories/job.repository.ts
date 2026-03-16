@@ -335,18 +335,7 @@ export class JobRepository
 
     if (filters?.toDate) {
       const toDate = new Date(filters.toDate);
-      toDate.setHours(23, 59, 59, 999);
-      whereConditions.push(lte(jobs.createdAt, toDate));
-    }
-
-    if (filters?.fromDate) {
-      whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
-    }
-
-    if (filters?.toDate) {
-      const toDate = new Date(filters.toDate);
-      toDate.setHours(23, 59, 59, 999);
-      whereConditions.push(lte(jobs.createdAt, toDate));
+      whereConditions.push(lte(jobs.createdAt, filters.toDate));
     }
 
     if (filters?.skillIds?.length) {
