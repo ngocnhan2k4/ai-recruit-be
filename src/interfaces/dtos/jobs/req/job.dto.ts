@@ -8,7 +8,7 @@ import {
   IsArray,
   IsEnum,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { JobStatusEnum, UpdateJobTypeEnum, WorkTypeEnum } from "@/core";
 import { GeneralQueryDto } from "../../common/query";
 
@@ -123,6 +123,17 @@ export class QueryJobDto extends GeneralQueryDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: "Array of skill IDs",
+  })
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  @IsArray()
+  @IsUUID("4", { each: true })
+  skillIds?: string[];
 }
 
 export class CreateJobDto {

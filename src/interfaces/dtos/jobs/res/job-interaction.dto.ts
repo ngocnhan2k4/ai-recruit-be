@@ -63,7 +63,7 @@ export class UserInteractionResponseDto {
 
   @ApiProperty({
     example: "save",
-    description: "Interaction type (save or hide)",
+    description: "Interaction type",
   })
   type: string;
 }

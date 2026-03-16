@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ISkillRepository, Skill } from "@/core";
 import {
   ApiResponse,
@@ -49,6 +49,19 @@ export class SkillUseCases {
       message: "Paginated skills fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: data,
+    };
+  }
+
+  async getSkillById(id: string): Promise<ApiResponse<SkillDto>> {
+    const skill = await this.skillRepository.getSkillById(id);
+    if (!skill) {
+      throw new NotFoundException(`Skill with ID ${id} not found`);
+    }
+
+    return {
+      message: "Skill fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: skill,
     };
   }
 }
