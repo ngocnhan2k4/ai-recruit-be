@@ -25,7 +25,10 @@ export interface JobFilters extends GeneralQuery {
   user?: TokenPayload;
   createdAtStart?: Date;
   createdAtEnd?: Date;
+  fromDate?: string;
+  toDate?: string;
   isJobSystem?: boolean;
+  skillIds?: string[];
 }
 
 export interface StatisticsJobFilter {
@@ -45,6 +48,7 @@ export interface JobResponse {
   isApplied?: boolean;
   applyStatus?: string;
   applyId?: string;
+  applyUrl?: string | null;
   category: Category;
 }
 
@@ -78,6 +82,7 @@ export interface JobCounts {
 }
 
 export interface TopInMarketResponse {
+  id?: string;
   name: string;
   logoUrl?: string;
   count?: number;

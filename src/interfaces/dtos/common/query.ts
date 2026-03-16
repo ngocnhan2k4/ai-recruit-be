@@ -41,6 +41,8 @@ export class GeneralQueryDto {
     required: false,
     description: "Field to sort by",
   })
+  @IsOptional()
+  @IsString()
   sortBy?: string;
 
   @ApiProperty({
