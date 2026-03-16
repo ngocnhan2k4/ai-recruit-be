@@ -1,13 +1,6 @@
 import { TokenPayload, GeneralQuery } from "@/common/types";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
-import {
-  Category,
-  Company,
-  Job,
-  OrganizationWithDetails,
-  Province,
-  Skill,
-} from ".";
+import { Category, Job, OrganizationWithDetails, Province, Skill } from ".";
 
 export interface JobFilters extends GeneralQuery {
   organizationId?: OrganizationWithDetails["id"];
@@ -16,8 +9,8 @@ export interface JobFilters extends GeneralQuery {
   experienceMin?: number;
   experienceMax?: number;
   provinceId?: Province["id"];
-  provinceIds?: Province["id"][];
-  companyId?: Company["id"];
+  // provinceIds?: Province["id"][];
+  // companyId?: Company["id"];
   categoryId?: Category["id"];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;

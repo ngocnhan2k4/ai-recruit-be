@@ -81,6 +81,18 @@ export class JobUseCases {
   async getJobs(
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    if (filters.cursor) {
+      // return empty array if user not logged in
+      if (!filters?.user?.userId)
+        return {
+          message: RESPONSE_MESSAGE.SUCCESS,
+          code: RESPONSE_CODE.SUCCESS,
+          data: {
+            data: [],
+            pagination: { nextCursor: undefined, hasNextPage: false },
+          },
+        };
+    }
     const esQuery = this.jobMatchingQuery.buildSearchQuery(filters);
 
     // Execute query

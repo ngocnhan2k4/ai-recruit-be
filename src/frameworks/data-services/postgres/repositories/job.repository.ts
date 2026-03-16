@@ -320,10 +320,6 @@ export class JobRepository
       whereConditions.push(eq(jobs.organizationId, filters.organizationId));
     }
 
-    if (filters?.companyId) {
-      whereConditions.push(eq(jobs.organizationId, filters.companyId));
-    }
-
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }

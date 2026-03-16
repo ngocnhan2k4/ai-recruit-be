@@ -24,7 +24,7 @@ export class JobMatchingQuery {
       limit = 20,
       status = "active",
       workType,
-      provinceIds: filterProvinceIds,
+      provinceId: filterProvinceId,
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
@@ -57,8 +57,8 @@ export class JobMatchingQuery {
       mustQueries.push({ terms: { workType } });
     }
 
-    if (filterProvinceIds && filterProvinceIds.length > 0) {
-      mustQueries.push({ terms: { provinceIds: filterProvinceIds } });
+    if (filterProvinceId) {
+      mustQueries.push({ terms: { provinceIds: [filterProvinceId] } });
     }
 
     if (filterCategoryId) {
@@ -330,10 +330,15 @@ export class JobMatchingQuery {
       limit = 20,
       status = "active",
       workType,
-      provinceIds,
+      provinceId,
       categoryId,
       keyword,
       skillId,
+      organizationId,
+      salaryMin,
+      salaryMax,
+      experienceMin,
+      experienceMax,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -354,16 +359,17 @@ export class JobMatchingQuery {
             { range: { endDate: { gte: "now/d" } } },
             { bool: { must_not: { exists: { field: "endDate" } } } },
           ],
+          minimum_should_match: 1,
         },
       },
     ];
 
     if (workType) {
-      mustQueries.push({ terms: { workType } });
+      mustQueries.push({ term: { workType } });
     }
 
-    if (provinceIds && provinceIds.length > 0) {
-      mustQueries.push({ terms: { provinceIds: provinceIds } });
+    if (provinceId) {
+      mustQueries.push({ terms: { provinceIds: [provinceId] } });
     }
 
     if (categoryId) {
@@ -376,6 +382,50 @@ export class JobMatchingQuery {
           skillIds: skillId,
         },
       });
+    }
+
+    if (organizationId) {
+      mustQueries.push({
+        term: {
+          organizationId,
+        },
+      });
+    }
+
+    if (salaryMin !== undefined || salaryMax !== undefined) {
+      if (salaryMin !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMax: { gte: salaryMin },
+          },
+        });
+      }
+
+      if (salaryMax !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMin: { lte: salaryMax },
+          },
+        });
+      }
+    }
+
+    if (experienceMin !== undefined || experienceMax !== undefined) {
+      if (experienceMin !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMax: { gte: experienceMin },
+          },
+        });
+      }
+
+      if (experienceMax !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMin: { lte: experienceMax },
+          },
+        });
+      }
     }
 
     const shouldQueries: any[] = [];
@@ -416,7 +466,7 @@ export class JobMatchingQuery {
           bool: {
             must: mustQueries,
             should: shouldQueries,
-            minimum_should_match: keyword ? 1 : 0,
+            ...(keyword && { minimum_should_match: 1 }),
           },
         },
         sort: [
