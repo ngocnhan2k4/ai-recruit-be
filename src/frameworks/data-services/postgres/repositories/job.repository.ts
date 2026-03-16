@@ -325,16 +325,29 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    if (filters?.user?.userId) {
+    if (filters?.skillIds?.length) {
       whereConditions.push(
-        sql`NOT EXISTS (
-          SELECT 1 FROM ${userInteractions} ui 
-          WHERE ui.job_id = ${jobs.id} 
-          AND ui.user_id = ${filters.user?.userId} 
-          AND ui.type = 'hide'
+        sql`EXISTS (
+          SELECT 1 FROM ${jobSkills} js 
+          WHERE js.job_id = ${jobs.id} 
+          AND js.skill_id IN (${sql.join(
+            filters.skillIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
         )`,
       );
     }
+    // [TODO] remove later
+    // if (filters?.user?.userId) {
+    //   whereConditions.push(
+    //     sql`NOT EXISTS (
+    //       SELECT 1 FROM ${userInteractions} ui
+    //       WHERE ui.job_id = ${jobs.id}
+    //       AND ui.user_id = ${filters.user?.userId}
+    //       AND ui.type = 'hide'
+    //     )`,
+    //   );
+    // }
 
     if (cursor) {
       // return empty array if user not logged in
@@ -1318,60 +1331,60 @@ export class JobRepository
       return null; // No interaction exists after unsaving
     }
   }
+  // [TODO] remove later
+  // async hideJob(
+  //   userId: string,
+  //   jobId: string,
+  //   hide: boolean,
+  // ): Promise<UserInteractionResponse | null> {
+  //   // Check if user already has a hide interaction for this job
+  //   const existingInteraction = await this.db
+  //     .select()
+  //     .from(userInteractions)
+  //     .where(
+  //       and(
+  //         eq(userInteractions.userId, userId),
+  //         eq(userInteractions.jobId, jobId),
+  //         eq(userInteractions.type, "hide"),
+  //       ),
+  //     )
+  //     .limit(1);
 
-  async hideJob(
-    userId: string,
-    jobId: string,
-    hide: boolean,
-  ): Promise<UserInteractionResponse | null> {
-    // Check if user already has a hide interaction for this job
-    const existingInteraction = await this.db
-      .select()
-      .from(userInteractions)
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.jobId, jobId),
-          eq(userInteractions.type, "hide"),
-        ),
-      )
-      .limit(1);
+  //   if (hide) {
+  //     // User wants to hide the job
+  //     if (existingInteraction.length > 0) {
+  //       // Job already hidden, return existing interaction
+  //       return existingInteraction[0] as UserInteractionResponse;
+  //     }
 
-    if (hide) {
-      // User wants to hide the job
-      if (existingInteraction.length > 0) {
-        // Job already hidden, return existing interaction
-        return existingInteraction[0] as UserInteractionResponse;
-      }
+  //     // Create new hide interaction
+  //     const [newInteraction] = await this.db
+  //       .insert(userInteractions)
+  //       .values({
+  //         userId,
+  //         jobId,
+  //         type: "hide",
+  //       })
+  //       .returning();
 
-      // Create new hide interaction
-      const [newInteraction] = await this.db
-        .insert(userInteractions)
-        .values({
-          userId,
-          jobId,
-          type: "hide",
-        })
-        .returning();
-
-      return newInteraction as UserInteractionResponse;
-    } else {
-      // User wants to unhide the job
-      if (existingInteraction.length > 0) {
-        // Delete the existing interaction
-        await this.db
-          .delete(userInteractions)
-          .where(
-            and(
-              eq(userInteractions.userId, userId),
-              eq(userInteractions.jobId, jobId),
-              eq(userInteractions.type, "hide"),
-            ),
-          );
-      }
-      return null; // No interaction exists after unhiding
-    }
-  }
+  //     return newInteraction as UserInteractionResponse;
+  //   } else {
+  //     // User wants to unhide the job
+  //     if (existingInteraction.length > 0) {
+  //       // Delete the existing interaction
+  //       await this.db
+  //         .delete(userInteractions)
+  //         .where(
+  //           and(
+  //             eq(userInteractions.userId, userId),
+  //             eq(userInteractions.jobId, jobId),
+  //             eq(userInteractions.type, "hide"),
+  //           ),
+  //         );
+  //     }
+  //     return null; // No interaction exists after unhiding
+  //   }
+  // }
 
   async createJob(
     job: Partial<Job> & {

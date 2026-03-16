@@ -150,11 +150,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     save: boolean,
   ): Promise<UserInteractionResponse | null>;
 
-  abstract hideJob(
-    userId: string,
-    jobId: string,
-    hide: boolean,
-  ): Promise<UserInteractionResponse | null>;
+  // [TODO] remove later
+  // abstract hideJob(
+  //   userId: string,
+  //   jobId: string,
+  //   hide: boolean,
+  // ): Promise<UserInteractionResponse | null>;
 
   // CRUD operations
   abstract createJob(
