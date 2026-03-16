@@ -20,7 +20,7 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
+import { QueryJobDto, CreateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobPaginationResponseDto,
@@ -240,21 +240,6 @@ export class JobController {
     @Body() createJobDto: CreateJobDto,
   ): Promise<ApiResponse<JobDto>> {
     return await this.jobUseCases.createJob(user.userId, createJobDto);
-  }
-
-  @ApiOperation({
-    summary: "Update a job",
-    description: "Update an existing job posting",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(JobDto)
-  @Put(":id")
-  async updateJob(
-    @Param("id") jobId: string,
-    @Body() updateJobDto: UpdateJobDto,
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, updateJobDto, user);
   }
 
   @ApiOperation({

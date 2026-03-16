@@ -344,12 +344,4 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   rejectReason?: string | null;
-
-  @ApiProperty({
-    type: "string",
-    nullable: true,
-  })
-  @IsOptional()
-  @IsString()
-  updateType?: JobStatusEnum | null;
 }

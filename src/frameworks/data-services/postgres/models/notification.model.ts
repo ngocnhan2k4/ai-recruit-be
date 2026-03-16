@@ -28,6 +28,7 @@ export const notifications = pgTable("notifications", {
     userId?: string;
     applyId?: string;
     orgInvitationId?: string;
+    avatarUrl?: string;
   }>(),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
