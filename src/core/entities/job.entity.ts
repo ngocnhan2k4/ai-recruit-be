@@ -19,6 +19,7 @@ export interface JobFilters extends GeneralQuery {
   provinceIds?: Province["id"][];
   companyId?: Company["id"];
   categoryId?: Category["id"];
+  categoryIds?: Category["id"][];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   user?: TokenPayload;

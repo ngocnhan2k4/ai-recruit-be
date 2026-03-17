@@ -8,6 +8,7 @@ import {
 import {
   EmailJobType,
   ICompanyRepository,
+  IJobRepository,
   IOrganizationMemberInvitationRepository,
   IOrganizationMembersRepository,
   IOrganizationRepository,
@@ -22,6 +23,9 @@ import {
   ApiResponse,
   CreateOrganizationDto,
   GeneralQueryDto,
+  JobDto,
+  JobPaginationResponseDto,
+  OrganizationJobQueryDto,
   OrganizationWithDetailsDto,
   PaginatedResultDto,
   OrganizationTrendsResponseDto,
@@ -54,6 +58,7 @@ export class OrganizationUseCase {
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly casbinService: CasbinService,
+    private readonly jobRepository: IJobRepository,
   ) {}
 
   /**
@@ -238,6 +243,39 @@ export class OrganizationUseCase {
     };
   }
 
+  async createOrganizationWithLogo(
+    data: CreateOrganizationDto,
+    file: MultipartFile,
+    userId: string,
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    if (!file) {
+      throw new BadRequestException({
+        message: "No logo file provided",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+    await this.cloudinaryService.validateFile(file, {
+      maxSize: 5 * 1024 * 1024,
+      allowedTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
+    });
+
+    const uploadResult = await this.cloudinaryService.uploadFile(file);
+
+    if (!uploadResult || !uploadResult.secure_url) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ERROR_UPLOADING_FILE,
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
+      });
+    }
+
+    const payload: CreateOrganizationDto = {
+      ...data,
+      logoUrl: uploadResult.secure_url,
+    } as CreateOrganizationDto;
+
+    return this.createOrganization(payload, userId);
+  }
+
   async updateOrganizationBasicInfo(
     orgId: string,
     data: {
@@ -370,26 +408,18 @@ export class OrganizationUseCase {
       };
     }
 
-    await this.companyRepository.update(
+    const updatedCompany = await this.companyRepository.update(
       { organizationId: orgId },
       {
         culture: data.culture,
         benefits: data.benefits,
       },
     );
-
-    // Get updated organization with details
-    const updatedOrg = await this.organizationRepository.get(orgId);
-
-    if (!updatedOrg) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
-        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
-      });
-    }
-
     return {
-      data: updatedOrg,
+      data: {
+        ...org,
+        ...updatedCompany,
+      },
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -753,7 +783,7 @@ export class OrganizationUseCase {
           | "description"
           | "foundedYear"
           | "verifiedAt"
-        >
+        > & { role: string }
       >
     >
   > {
@@ -990,6 +1020,44 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         data: trends,
+      },
+    };
+  }
+
+  async getOrganizationJobs(
+    orgId: string,
+    query: OrganizationJobQueryDto,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    const result = await this.jobRepository.getJobsByAdmin({
+      organizationId: orgId,
+      keyword: query.keyword,
+      status: query.status,
+      createdAtStart: query.fromDate ? new Date(query.fromDate) : undefined,
+      createdAtEnd: query.toDate ? new Date(query.toDate) : undefined,
+      categoryIds: query.categoryIds,
+      limit: query.limit,
+      page: query.page,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+    });
+
+    const transformedJobData = result.data.map((item) => ({
+      ...item,
+      job: {
+        ...item.job,
+        organizationId: item.organization.id,
+      } as JobDto,
+      organization: {
+        ...item.organization,
+      } as OrganizationWithDetailsDto,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: transformedJobData,
+        pagination: result.pagination,
       },
     };
   }
