@@ -1,10 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import {
-  IQuestionRepository,
-  ISkillRepository,
-  IImportLogRepository,
-  Question,
-} from "@/core";
+import { IQuestionRepository, ISkillRepository, Question } from "@/core";
 import { ImportResultDto } from "@/interfaces/dtos/exam";
 
 export interface ImportRow {
@@ -22,13 +17,9 @@ export class QuestionImportService {
   constructor(
     private readonly questionRepo: IQuestionRepository,
     private readonly skillRepo: ISkillRepository,
-    private readonly importLogRepo: IImportLogRepository,
   ) {}
 
-  async importFromCSV(
-    fileContent: string,
-    fileName: string,
-  ): Promise<ImportResultDto> {
+  async importFromCSV(fileContent: string): Promise<ImportResultDto> {
     const lines = fileContent.split("\n").filter((line) => line.trim());
     const headers = lines[0].split(",").map((h) => h.trim());
 
@@ -42,20 +33,14 @@ export class QuestionImportService {
       rows.push(row as ImportRow);
     }
 
-    return await this.processImport(rows, fileName);
+    return await this.processImport(rows);
   }
 
-  async importFromJSON(
-    data: ImportRow[],
-    fileName: string,
-  ): Promise<ImportResultDto> {
-    return await this.processImport(data, fileName);
+  async importFromJSON(data: ImportRow[]): Promise<ImportResultDto> {
+    return await this.processImport(data);
   }
 
-  private async processImport(
-    rows: ImportRow[],
-    fileName: string,
-  ): Promise<ImportResultDto> {
+  private async processImport(rows: ImportRow[]): Promise<ImportResultDto> {
     const errors: string[] = [];
     const validQuestions: Partial<Question>[] = [];
     let successCount = 0;
@@ -201,14 +186,6 @@ export class QuestionImportService {
     if (validQuestions.length > 0) {
       await this.questionRepo.createMany(validQuestions);
     }
-
-    // Save import log
-    await this.importLogRepo.create({
-      fileName,
-      totalRows: rows.length,
-      successRows: successCount,
-      failedRows: rows.length - successCount,
-    });
 
     return {
       totalRows: rows.length,

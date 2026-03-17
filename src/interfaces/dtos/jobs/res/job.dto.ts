@@ -68,6 +68,14 @@ export class JobResponseDto {
       "Application ID if user has applied for this job (only present for authenticated users)",
   })
   applyId?: string;
+
+  @ApiProperty({
+    example: "https://company.com/apply/job-123",
+    required: false,
+    nullable: true,
+    description: "External application URL",
+  })
+  applyUrl?: string | null;
 }
 
 export class SavedJobsResponseDto {
@@ -144,6 +152,30 @@ export class SavedJobsResponseDto {
     required: true,
   })
   isApplied: boolean;
+
+  @ApiProperty({
+    example: "uuid-apply-id",
+    required: false,
+    nullable: true,
+    description: "Application ID if user has applied for this job",
+  })
+  applyId?: string | null;
+
+  @ApiProperty({
+    example: "pending",
+    required: false,
+    nullable: true,
+    description: "Application status if user has applied for this job",
+  })
+  applyStatus?: string | null;
+
+  @ApiProperty({
+    example: "https://company.com/apply/job-123",
+    required: false,
+    nullable: true,
+    description: "External application URL",
+  })
+  applyUrl?: string | null;
 }
 
 export class AppliedJobsResponseDto extends SavedJobsResponseDto {
@@ -152,7 +184,7 @@ export class AppliedJobsResponseDto extends SavedJobsResponseDto {
     description: "Application status for the job",
     required: true,
   })
-  applyStatus: ApplyStatusEnum;
+  declare applyStatus: ApplyStatusEnum;
 }
 
 export class JobPaginationResponseDto {

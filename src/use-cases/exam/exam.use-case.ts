@@ -10,7 +10,6 @@ import {
   ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
-  IImportLogRepository,
   ISkillRepository,
   Question,
 } from "@/core";
@@ -45,7 +44,6 @@ export class ExamUseCases {
     private readonly levelRepo: ILevelRepository,
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
-    private readonly importLogRepo: IImportLogRepository,
     private readonly skillRepo: ISkillRepository,
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
@@ -200,50 +198,6 @@ export class ExamUseCases {
     };
   }
 
-  // ==================== ADMIN: SKILL-CENTRIC EXAM MANAGEMENT ====================
-
-  /** List skills with question count for admin (manage by skills). */
-  async getSkillsWithQuestionCount(query: {
-    page?: number;
-    limit?: number;
-    keyword?: string;
-    sortBy?: string;
-    sortDirection?: "asc" | "desc";
-  }) {
-    const page =
-      query.page !== undefined && query.page !== null
-        ? Math.max(1, Number(query.page) || 1)
-        : 1;
-    const limit =
-      query.limit !== undefined && query.limit !== null
-        ? Math.min(100, Math.max(1, Number(query.limit) || 20))
-        : 20;
-    const rawKeyword = query.keyword ?? "";
-    const keyword =
-      typeof rawKeyword === "string" &&
-      (rawKeyword === "undefined" || rawKeyword === "null")
-        ? ""
-        : rawKeyword;
-    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
-    const sortDirection = query.sortDirection === "desc" ? "desc" : "asc";
-
-    const result = await this.skillRepo.getSkillsWithQuestionCount({
-      page,
-      limit,
-      keyword,
-      sortBy,
-      sortDirection,
-    });
-    return {
-      success: true,
-      message: "Skills with question count fetched successfully",
-      data: {
-        data: result.data ?? [],
-        pagination: result.pagination ?? { hasNextPage: false, total: 0 },
-      },
-    };
-  }
-
   /** Assign selected questions to a skill (move questions to this skill). */
   async assignQuestionsToSkill(skillId: string, dto: AddQuestionsToSkillDto) {
     const skill = await this.skillRepo.get(skillId);
@@ -300,12 +254,8 @@ export class ExamUseCases {
 
   async importQuestionsCSV(
     fileContent: string,
-    fileName: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromCSV(
-      fileContent,
-      fileName,
-    );
+    const result = await this.importService.importFromCSV(fileContent);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from CSV`,
     );
@@ -318,9 +268,8 @@ export class ExamUseCases {
 
   async importQuestionsJSON(
     data: ImportRow[],
-    fileName: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromJSON(data, fileName);
+    const result = await this.importService.importFromJSON(data);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from JSON`,
     );
@@ -328,15 +277,6 @@ export class ExamUseCases {
       success: true,
       message: "Questions imported successfully",
       data: result,
-    };
-  }
-
-  async getImportLogs(limit: number = 10) {
-    const logs = await this.importLogRepo.getRecentLogs(limit);
-    return {
-      success: true,
-      message: "Import logs fetched successfully",
-      data: logs,
     };
   }
 
@@ -617,23 +557,6 @@ export class ExamUseCases {
         test,
         answers,
       },
-    };
-  }
-
-  async getSkillsWithQuestions(query: {
-    page?: number;
-    limit?: number;
-    keyword?: string;
-  }) {
-    const result = await this.skillRepo.getSkillsWithQuestions({
-      page: query.page,
-      limit: query.limit ?? 20,
-      keyword: query.keyword,
-    });
-    return {
-      success: true,
-      message: "Skills with questions fetched successfully",
-      data: result,
     };
   }
 

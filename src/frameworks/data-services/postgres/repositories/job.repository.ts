@@ -193,9 +193,12 @@ export class JobRepository
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
-    //apply status filter for only employer and admin
     if (filters?.status) {
       whereConditions.push(eq(jobs.status, filters.status));
+    }
+
+    if (filters?.categoryIds?.length) {
+      whereConditions.push(inArray(jobs.categoryId, filters.categoryIds));
     }
 
     if (filters?.createdAtStart) {
@@ -320,20 +323,47 @@ export class JobRepository
       whereConditions.push(eq(jobs.organizationId, filters.organizationId));
     }
 
+    if (filters?.categoryId) {
+      whereConditions.push(eq(jobs.categoryId, filters.categoryId));
+    }
+
     if (filters?.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    if (filters?.user?.userId) {
+    if (filters?.fromDate) {
+      whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
+    }
+
+    if (filters?.toDate) {
+      const toDate = new Date(filters.toDate);
+      toDate.setHours(23, 59, 59, 999);
+      whereConditions.push(lte(jobs.createdAt, toDate));
+    }
+
+    if (filters?.skillIds?.length) {
       whereConditions.push(
-        sql`NOT EXISTS (
-          SELECT 1 FROM ${userInteractions} ui 
-          WHERE ui.job_id = ${jobs.id} 
-          AND ui.user_id = ${filters.user?.userId} 
-          AND ui.type = 'hide'
+        sql`EXISTS (
+          SELECT 1 FROM ${jobSkills} js 
+          WHERE js.job_id = ${jobs.id} 
+          AND js.skill_id IN (${sql.join(
+            filters.skillIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
         )`,
       );
     }
+    // [TODO] remove later
+    // if (filters?.user?.userId) {
+    //   whereConditions.push(
+    //     sql`NOT EXISTS (
+    //       SELECT 1 FROM ${userInteractions} ui
+    //       WHERE ui.job_id = ${jobs.id}
+    //       AND ui.user_id = ${filters.user?.userId}
+    //       AND ui.type = 'hide'
+    //     )`,
+    //   );
+    // }
 
     if (cursor) {
       // return empty array if user not logged in
@@ -959,6 +989,7 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: organizations.id,
         name: organizations.name,
         logoUrl: organizations.logoUrl,
         count: countDistinct(jobs.id).as("count"),
@@ -966,13 +997,14 @@ export class JobRepository
       .from(jobs)
       .leftJoin(organizations, eq(jobs.organizationId, organizations.id))
       .where(and(...conditions, isNotNull(organizations.name)))
-      .groupBy(organizations.name, organizations.logoUrl)
+      .groupBy(organizations.id, organizations.name, organizations.logoUrl)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
     const totalJobs = result.reduce((sum, item) => sum + Number(item.count), 0);
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       logoUrl: item.logoUrl!,
       percentage:
@@ -992,13 +1024,14 @@ export class JobRepository
 
     const result = await this.db
       .select({
+        id: categories.id,
         name: categories.name,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(and(...conditions, isNotNull(categories.name)))
-      .groupBy(categories.name)
+      .groupBy(categories.id, categories.name)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
@@ -1008,6 +1041,7 @@ export class JobRepository
     );
 
     return result.map((item) => ({
+      id: item.id!,
       name: item.name!,
       count: Number(item.count),
       percentage:
@@ -1341,64 +1375,65 @@ export class JobRepository
       return null; // No interaction exists after unsaving
     }
   }
+  // [TODO] remove later
+  // async hideJob(
+  //   userId: string,
+  //   jobId: string,
+  //   hide: boolean,
+  // ): Promise<UserInteractionResponse | null> {
+  //   // Check if user already has a hide interaction for this job
+  //   const existingInteraction = await this.db
+  //     .select()
+  //     .from(userInteractions)
+  //     .where(
+  //       and(
+  //         eq(userInteractions.userId, userId),
+  //         eq(userInteractions.jobId, jobId),
+  //         eq(userInteractions.type, "hide"),
+  //       ),
+  //     )
+  //     .limit(1);
 
-  async hideJob(
-    userId: string,
-    jobId: string,
-    hide: boolean,
-  ): Promise<UserInteractionResponse | null> {
-    // Check if user already has a hide interaction for this job
-    const existingInteraction = await this.db
-      .select()
-      .from(userInteractions)
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.jobId, jobId),
-          eq(userInteractions.type, "hide"),
-        ),
-      )
-      .limit(1);
+  //   if (hide) {
+  //     // User wants to hide the job
+  //     if (existingInteraction.length > 0) {
+  //       // Job already hidden, return existing interaction
+  //       return existingInteraction[0] as UserInteractionResponse;
+  //     }
 
-    if (hide) {
-      // User wants to hide the job
-      if (existingInteraction.length > 0) {
-        // Job already hidden, return existing interaction
-        return existingInteraction[0] as UserInteractionResponse;
-      }
+  //     // Create new hide interaction
+  //     const [newInteraction] = await this.db
+  //       .insert(userInteractions)
+  //       .values({
+  //         userId,
+  //         jobId,
+  //         type: "hide",
+  //       })
+  //       .returning();
 
-      // Create new hide interaction
-      const [newInteraction] = await this.db
-        .insert(userInteractions)
-        .values({
-          userId,
-          jobId,
-          type: "hide",
-        })
-        .returning();
-
-      return newInteraction as UserInteractionResponse;
-    } else {
-      // User wants to unhide the job
-      if (existingInteraction.length > 0) {
-        // Delete the existing interaction
-        await this.db
-          .delete(userInteractions)
-          .where(
-            and(
-              eq(userInteractions.userId, userId),
-              eq(userInteractions.jobId, jobId),
-              eq(userInteractions.type, "hide"),
-            ),
-          );
-      }
-      return null; // No interaction exists after unhiding
-    }
-  }
+  //     return newInteraction as UserInteractionResponse;
+  //   } else {
+  //     // User wants to unhide the job
+  //     if (existingInteraction.length > 0) {
+  //       // Delete the existing interaction
+  //       await this.db
+  //         .delete(userInteractions)
+  //         .where(
+  //           and(
+  //             eq(userInteractions.userId, userId),
+  //             eq(userInteractions.jobId, jobId),
+  //             eq(userInteractions.type, "hide"),
+  //           ),
+  //         );
+  //     }
+  //     return null; // No interaction exists after unhiding
+  //   }
+  // }
 
   async createJob(
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     sendNotifications = false,
@@ -1431,13 +1466,20 @@ export class JobRepository
     const result = await this.db.transaction(async (tx) => {
       const [newJob] = await tx.insert(jobs).values(jobData).returning();
 
-      // Handle skill associations if skillIds provided
-      if (job.skillIds && job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      // Handle skill associations: resolve skillNames to IDs, then combine with existing skillIds
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: newJob.id,
-          skillId: skillId,
+          skillId,
         }));
-
         await tx.insert(jobSkills).values(skillAssociations);
       }
 
@@ -1497,6 +1539,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1510,6 +1553,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null> {
@@ -1521,13 +1565,21 @@ export class JobRepository
       .where(eq(jobs.id, jobId))
       .returning();
 
-    if (job.skillIds !== undefined) {
+    if (job.skillIds !== undefined || job.skillNames !== undefined) {
       await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-      if (job.skillIds.length > 0) {
-        const skillAssociations = job.skillIds.map((skillId) => ({
+      const allSkillIds = [...(job.skillIds ?? [])];
+      if (job.skillNames && job.skillNames.length > 0) {
+        const newSkills = await tx
+          .insert(skills)
+          .values(job.skillNames.map((name) => ({ name })))
+          .returning();
+        allSkillIds.push(...newSkills.map((s) => s.id));
+      }
+      if (allSkillIds.length > 0) {
+        const skillAssociations = allSkillIds.map((skillId) => ({
           jobId: jobId,
-          skillId: skillId,
+          skillId,
         }));
 
         await tx.insert(jobSkills).values(skillAssociations);
@@ -1563,6 +1615,7 @@ export class JobRepository
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     userId: string,
@@ -1580,17 +1633,24 @@ export class JobRepository
         return { job: null, newNotifications: [] };
       }
 
-      if (job.skillIds !== undefined) {
+      if (job.skillIds !== undefined || job.skillNames !== undefined) {
         // Remove existing skill associations
         await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-        // Add new skill associations if any
-        if (job.skillIds.length > 0) {
-          const skillAssociations = job.skillIds.map((skillId) => ({
+        // Resolve skillNames to IDs, then combine with existing skillIds
+        const allSkillIds = [...(job.skillIds ?? [])];
+        if (job.skillNames && job.skillNames.length > 0) {
+          const newSkills = await tx
+            .insert(skills)
+            .values(job.skillNames.map((name) => ({ name })))
+            .returning();
+          allSkillIds.push(...newSkills.map((s) => s.id));
+        }
+        if (allSkillIds.length > 0) {
+          const skillAssociations = allSkillIds.map((skillId) => ({
             jobId: jobId,
             skillId: skillId,
           }));
-
           await tx.insert(jobSkills).values(skillAssociations);
         }
       }
@@ -1704,6 +1764,9 @@ export class JobRepository
       endedAt: string | null;
       provinceNames: string[];
       isApplied: boolean;
+      applyUrl: string | null;
+      applyId: string | null;
+      applyStatus: string | null;
     }>
   > {
     query.limit = query.limit ?? 10;
@@ -1727,12 +1790,15 @@ export class JobRepository
           WHERE jp.job_id = ${jobs.id}
         )`.as("provinceNames"),
         applyJobId: applyJobs.id,
+        applyStatus: applyJobs.status,
+        applyUrl: jobRaws.url,
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .leftJoin(applyJobs, eq(applyJobs.jobId, jobs.id))
       .leftJoin(cvs, and(eq(applyJobs.cvId, cvs.id), eq(cvs.userId, userId)))
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .where(
         and(
           eq(userInteractions.userId, userId),
@@ -1758,6 +1824,9 @@ export class JobRepository
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
         provinceNames: (item.provinceNames as string[]) || [],
+        applyUrl: item.applyUrl ?? null,
+        applyId: item.applyJobId ?? null,
+        applyStatus: item.applyStatus ?? null,
       })),
       pagination: {
         hasNextPage,
@@ -1777,7 +1846,10 @@ export class JobRepository
       async () => {
         const result = await this.db
           .select({
-            job: jobs,
+            job: {
+              ...jobs,
+              applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+            },
             provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
             organization: organizations,
             skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
@@ -1839,6 +1911,7 @@ export class JobRepository
             sql`TRUE`,
           )
           .leftJoin(categories, eq(jobs.categoryId, categories.id))
+          .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
           .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
           .limit(1);
 
@@ -1858,6 +1931,7 @@ export class JobRepository
           isApplied: (data.isApplied || undefined) as boolean | undefined,
           applyStatus: (data.applyStatus || undefined) as string | undefined,
           applyId: (data.applyId || undefined) as string | undefined,
+          applyUrl: (data.job as any).applyUrl as string | null | undefined,
           category: data.category as Category,
         };
       },

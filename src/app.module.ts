@@ -193,6 +193,9 @@ import { RateLimitMiddleware } from "./common/middlewares";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RateLimitMiddleware).exclude("/health").forRoutes("*");
+    consumer
+      .apply(RateLimitMiddleware)
+      .exclude("/health", "users/me", "auth/refresh")
+      .forRoutes("*");
   }
 }

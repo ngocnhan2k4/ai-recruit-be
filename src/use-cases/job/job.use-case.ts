@@ -677,20 +677,20 @@ export class JobUseCases {
       data: counts,
     };
   }
-
-  async hideJob(
-    userId: string,
-    jobId: string,
-    hide: boolean,
-  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const result = await this.jobRepository.hideJob(userId, jobId, hide);
-    this.logger.log(`User ${userId} ${hide ? "hid" : "unhid"} job ${jobId}`);
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: result,
-    };
-  }
+  // [TODO] remove later
+  // async hideJob(
+  //   userId: string,
+  //   jobId: string,
+  //   hide: boolean,
+  // ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+  //   const result = await this.jobRepository.hideJob(userId, jobId, hide);
+  //   this.logger.log(`User ${userId} ${hide ? "hid" : "unhid"} job ${jobId}`);
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: result,
+  //   };
+  // }
 
   async createJob(
     userId: string,
@@ -951,6 +951,7 @@ export class JobUseCases {
       isApplied?: boolean;
       applyStatus?: string;
       applyId?: string;
+      applyUrl?: string | null;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
       this.logger.error(

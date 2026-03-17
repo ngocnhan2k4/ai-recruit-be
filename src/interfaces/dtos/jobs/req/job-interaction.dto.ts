@@ -92,28 +92,28 @@ export class SaveJobDto {
   save?: boolean;
 }
 
-export class HideJobDto {
-  @ApiProperty({
-    example: "uuid-job-id",
-    description: "Job ID to hide",
-  })
-  @IsUUID()
-  jobId: string;
+// export class HideJobDto {
+//   @ApiProperty({
+//     example: "uuid-job-id",
+//     description: "Job ID to hide",
+//   })
+//   @IsUUID()
+//   jobId: string;
 
-  @ApiProperty({
-    example: true,
-    required: false,
-    description:
-      "Whether to hide (true) or unhide (false) the job. Defaults to true.",
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === undefined) return true;
-    return value as boolean;
-  })
-  hide?: boolean;
-}
+//   @ApiProperty({
+//     example: true,
+//     required: false,
+//     description:
+//       "Whether to hide (true) or unhide (false) the job. Defaults to true.",
+//   })
+//   @IsOptional()
+//   @IsBoolean()
+//   @Transform(({ value }) => {
+//     if (value === undefined) return true;
+//     return value as boolean;
+//   })
+//   hide?: boolean;
+// }
 
 export class ApplyJobQueryDto {
   @ApiProperty({

@@ -6,3 +6,4 @@ export * from "./api";
 export * from "./file-text-extractor";
 export * from "./calculate-week-number";
 export * from "./string";
+export * from "./user-profile";

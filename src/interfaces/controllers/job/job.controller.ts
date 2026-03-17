@@ -39,7 +39,7 @@ import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   SaveJobDto,
-  HideJobDto,
+  //HideJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
@@ -213,24 +213,24 @@ export class JobController {
       saveJobDto.save!,
     );
   }
-
-  @ApiOperation({
-    summary: "Hide a job",
-    description: "Hide a job from future search results",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(UserInteractionResponseDto)
-  @Post("hide")
-  async hideJob(
-    @GetUser() user: TokenPayload,
-    @Body() hideJobDto: HideJobDto,
-  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.hideJob(
-      user.userId,
-      hideJobDto.jobId,
-      hideJobDto.hide!,
-    );
-  }
+  // [TODO] remove later
+  // @ApiOperation({
+  //   summary: "Hide a job",
+  //   description: "Hide a job from future search results",
+  // })
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(UserInteractionResponseDto)
+  // @Post("hide")
+  // async hideJob(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() hideJobDto: HideJobDto,
+  // ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+  //   return await this.jobUseCases.hideJob(
+  //     user.userId,
+  //     hideJobDto.jobId,
+  //     hideJobDto.hide!,
+  //   );
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(JobDto)

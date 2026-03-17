@@ -39,30 +39,6 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 export class AdminExamController {
   constructor(private readonly examUseCases: ExamUseCases) {}
 
-  // ==================== SKILL-CENTRIC MANAGEMENT ====================
-
-  @ApiOperation({
-    summary: "List skills with question count",
-    description:
-      "Get all skills with question count for admin. Use this to manage exam by skills.",
-  })
-  @Get("skills")
-  async getSkillsWithQuestionCount(
-    @Query("page") page?: number,
-    @Query("limit") limit?: number,
-    @Query("keyword") keyword?: string,
-    @Query("sortBy") sortBy?: string,
-    @Query("sortDirection") sortDirection?: "asc" | "desc",
-  ) {
-    return this.examUseCases.getSkillsWithQuestionCount({
-      page,
-      limit,
-      keyword,
-      sortBy,
-      sortDirection,
-    });
-  }
-
   @ApiOperation({
     summary: "List questions available to add to this skill",
     description:
@@ -175,7 +151,7 @@ export class AdminExamController {
     }
 
     const fileContent = file.buffer.toString("utf-8");
-    return this.examUseCases.importQuestionsCSV(fileContent, file.originalname);
+    return this.examUseCases.importQuestionsCSV(fileContent);
   }
 
   @ApiOperation({
@@ -185,12 +161,6 @@ export class AdminExamController {
   })
   @Post("questions/import/json")
   async importQuestionsJSON(@Body() body: { data: any[]; fileName: string }) {
-    return this.examUseCases.importQuestionsJSON(body.data, body.fileName);
-  }
-
-  @ApiOperation({ summary: "Get import logs" })
-  @Get("questions/import/logs")
-  async getImportLogs(@Query("limit") limit?: number) {
-    return this.examUseCases.getImportLogs(limit || 10);
+    return this.examUseCases.importQuestionsJSON(body.data);
   }
 }

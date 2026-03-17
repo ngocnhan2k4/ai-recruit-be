@@ -1,9 +1,4 @@
-import {
-  IOrganizationRepository,
-  ISkillRepository,
-  IUserExperienceRepository,
-  IUserSkillRepository,
-} from "@/core";
+import { IOrganizationRepository, IUserExperienceRepository } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
@@ -28,8 +23,6 @@ export class UserExperienceRepository
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
     private readonly organizationRepository: IOrganizationRepository,
-    private readonly skillRepository: ISkillRepository,
-    private readonly userSkillRepository: IUserSkillRepository,
   ) {
     super(db, userExperiences);
   }
@@ -128,10 +121,12 @@ export class UserExperienceRepository
     userId: string,
     data: CreateUserExperience,
   ) {
-    let organizationId;
+    let organizationId = data.organizationId;
+
     const organizationExists = organizationId
       ? await this.organizationRepository.get(organizationId)
       : null;
+
     if (!organizationExists) {
       const [organization] = await tx
         .insert(organizations)
@@ -243,5 +238,51 @@ export class UserExperienceRepository
       return result;
     });
     return tx;
+  }
+
+  async deleteUserExperienceAndUserSkills(
+    userId: string,
+    experienceId: number,
+  ): Promise<boolean> {
+    return await this.db.transaction(async (tx) => {
+      // Get the experience first to find which organization it was tied to
+      const [experience] = await tx
+        .select()
+        .from(userExperiences)
+        .where(
+          and(
+            eq(userExperiences.id, experienceId),
+            eq(userExperiences.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!experience) return false;
+
+      // Delete associated skills
+      if (experience.organizationId) {
+        await tx
+          .delete(userSkills)
+          .where(
+            and(
+              eq(userSkills.userId, userId),
+              eq(userSkills.organizationId, experience.organizationId),
+            ),
+          );
+      }
+
+      // Delete the experience itself
+      const result = await tx
+        .delete(userExperiences)
+        .where(
+          and(
+            eq(userExperiences.id, experienceId),
+            eq(userExperiences.userId, userId),
+          ),
+        )
+        .returning();
+
+      return result.length > 0;
+    });
   }
 }

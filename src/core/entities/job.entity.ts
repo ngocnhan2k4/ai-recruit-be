@@ -12,14 +12,17 @@ export interface JobFilters extends GeneralQuery {
   // provinceIds?: Province["id"][];
   // companyId?: Company["id"];
   categoryId?: Category["id"];
+  categoryIds?: Category["id"][];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
   createdAtStart?: Date;
   createdAtEnd?: Date;
-  isJobSystem?: boolean; // use for admin
-  skillId?: Skill["id"];
+  fromDate?: string;
+  toDate?: string;
+  isJobSystem?: boolean;
+  skillIds?: string[];
 }
 
 export interface StatisticsJobFilter {
@@ -39,6 +42,7 @@ export interface JobResponse {
   isApplied?: boolean;
   applyStatus?: string;
   applyId?: string;
+  applyUrl?: string | null;
   category: Category;
 }
 
@@ -72,6 +76,7 @@ export interface JobCounts {
 }
 
 export interface TopInMarketResponse {
+  id?: string;
   name: string;
   logoUrl?: string;
   count?: number;

@@ -28,7 +28,7 @@ export class JobMatchingQuery {
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
-      skillId: filterSkill,
+      skillIds: filterSkill,
       statuses,
     } = filters;
 
@@ -95,7 +95,7 @@ export class JobMatchingQuery {
 
     if (filterSkill) {
       mustQueries.push({
-        term: {
+        terms: {
           skillIds: filterSkill,
         },
       });
@@ -342,7 +342,7 @@ export class JobMatchingQuery {
       provinceId,
       categoryId,
       keyword,
-      skillId,
+      skillIds,
       organizationId,
       salaryMin,
       salaryMax,
@@ -392,10 +392,10 @@ export class JobMatchingQuery {
       mustQueries.push({ terms: { categoryId } });
     }
 
-    if (skillId) {
+    if (skillIds && skillIds.length > 0) {
       mustQueries.push({
-        term: {
-          skillIds: skillId,
+        terms: {
+          skillIds: skillIds,
         },
       });
     }
