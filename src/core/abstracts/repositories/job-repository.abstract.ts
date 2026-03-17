@@ -262,8 +262,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     limit?: number,
   ): Promise<JobResponse[]>;
 
-  abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
-
   abstract getUserJobStatuses(
     userId: User["id"],
     jobIds: Job["id"][],

@@ -43,7 +43,7 @@ export class JobAdminController {
     @Query() query: QueryJobDto,
     @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
-    return this.jobUseCases.getJobs({ ...query, user });
+    return this.jobUseCases.getJobsByAdmin({ ...query, user });
   }
 
   @ApiOperation({
@@ -82,14 +82,7 @@ export class JobAdminController {
     @Body() updateJobDto: UpdateJobDto,
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(
-      jobId,
-      {
-        ...updateJobDto,
-        userId: user.userId,
-      },
-      user,
-    );
+    return await this.jobUseCases.adminUpdateJob(jobId, updateJobDto, user);
   }
 
   @ApiOperation({
