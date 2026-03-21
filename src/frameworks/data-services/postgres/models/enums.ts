@@ -139,5 +139,15 @@ export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
   "active",
   "canceled",
   "expired",
-  "past_due",
+]);
+
+export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [
+  "learning_path",
+  "cv",
+]);
+
+export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
+  "FREE",
+  "BASIC",
+  "RPO",
 ]);
