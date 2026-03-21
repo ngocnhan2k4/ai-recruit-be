@@ -9,6 +9,7 @@ import {
 } from "class-validator";
 import { BillingCycleSubscriptionEnum, SubscriptionEnum } from "@/core";
 import { GeneralQueryDto } from "../../common";
+import { Transform } from "class-transformer";
 
 export class CreateSubscriptionRequestDto {
   @ApiProperty({ example: "PRO" })
@@ -75,5 +76,8 @@ export class SubscriptionFilterDto extends GeneralQueryDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }: { value: string }) =>
+    Array.isArray(value) ? value : [value],
+  )
   fields?: string[];
 }
