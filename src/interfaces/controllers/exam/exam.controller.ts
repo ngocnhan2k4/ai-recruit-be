@@ -14,10 +14,10 @@ import {
   StartExamDto,
   SubmitExamDto,
   SavePartialAnswersDto,
+  GetUserTestsQueryDto,
 } from "@/interfaces/dtos/exam";
 import { GetUser } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
-import { GetSkillsQueryDto } from "@/interfaces/dtos/skills";
 
 @ApiTags("Exam")
 @Controller("exam")
@@ -54,8 +54,11 @@ export class ExamController {
   })
   @Get("my-tests")
   @ApiBearerAuth()
-  async getMyTests(@GetUser() user: TokenPayload) {
-    return this.examUseCases.getUserTests(user.userId);
+  async getMyTests(
+    @GetUser() user: TokenPayload,
+    @Query() query: GetUserTestsQueryDto,
+  ) {
+    return this.examUseCases.getUserTests(user.userId, query.skillId);
   }
 
   @ApiOperation({
@@ -70,17 +73,6 @@ export class ExamController {
     @Param("testId") testId: string,
   ) {
     return this.examUseCases.getTestDetails(user.userId, testId);
-  }
-
-  @ApiOperation({
-    summary: "Get skills with questions",
-    description:
-      "Get all skills that have at least 1 question. Supports search by skill name and pagination.",
-  })
-  @Get("skills")
-  @ApiBearerAuth()
-  async getSkillsWithQuestions(@Query() query: GetSkillsQueryDto) {
-    return this.examUseCases.getSkillsWithQuestions(query);
   }
 
   @ApiOperation({

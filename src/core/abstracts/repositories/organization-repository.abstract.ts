@@ -17,13 +17,42 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     id: string,
   ): Promise<OrganizationWithDetails | null>;
 
-  abstract getAllOrganizations(
+  abstract getOrganizations(
     query: OrganizationQuery,
   ): Promise<
     PaginatedResult<
       Pick<
         OrganizationWithDetails,
-        "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
+        | "id"
+        | "name"
+        | "type"
+        | "logoUrl"
+        | "description"
+        | "email"
+        | "phone"
+        | "foundedYear"
+        | "verifiedAt"
+        | "createdAt"
+      >
+    >
+  >;
+
+  abstract getOrganizationsByAdmin(
+    query: OrganizationQuery,
+  ): Promise<
+    PaginatedResult<
+      Pick<
+        OrganizationWithDetails,
+        | "id"
+        | "name"
+        | "type"
+        | "logoUrl"
+        | "description"
+        | "email"
+        | "phone"
+        | "foundedYear"
+        | "verifiedAt"
+        | "createdAt"
       >
     >
   >;
@@ -36,7 +65,7 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
       Pick<
         OrganizationWithDetails,
         "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
-      >
+      > & { role: string }
     >
   >;
 

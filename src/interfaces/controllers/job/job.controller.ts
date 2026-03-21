@@ -20,7 +20,7 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
+import { QueryJobDto, CreateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobPaginationResponseDto,
@@ -39,7 +39,7 @@ import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   SaveJobDto,
-  HideJobDto,
+  //HideJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
@@ -213,24 +213,24 @@ export class JobController {
       saveJobDto.save!,
     );
   }
-
-  @ApiOperation({
-    summary: "Hide a job",
-    description: "Hide a job from future search results",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(UserInteractionResponseDto)
-  @Post("hide")
-  async hideJob(
-    @GetUser() user: TokenPayload,
-    @Body() hideJobDto: HideJobDto,
-  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.hideJob(
-      user.userId,
-      hideJobDto.jobId,
-      hideJobDto.hide!,
-    );
-  }
+  // [TODO] remove later
+  // @ApiOperation({
+  //   summary: "Hide a job",
+  //   description: "Hide a job from future search results",
+  // })
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(UserInteractionResponseDto)
+  // @Post("hide")
+  // async hideJob(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() hideJobDto: HideJobDto,
+  // ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+  //   return await this.jobUseCases.hideJob(
+  //     user.userId,
+  //     hideJobDto.jobId,
+  //     hideJobDto.hide!,
+  //   );
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(JobDto)
@@ -240,28 +240,6 @@ export class JobController {
     @Body() createJobDto: CreateJobDto,
   ): Promise<ApiResponse<JobDto>> {
     return await this.jobUseCases.createJob(user.userId, createJobDto);
-  }
-
-  @ApiOperation({
-    summary: "Update a job",
-    description: "Update an existing job posting",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(JobDto)
-  @Put(":id")
-  async updateJob(
-    @Param("id") jobId: string,
-    @Body() updateJobDto: UpdateJobDto,
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(
-      jobId,
-      {
-        ...updateJobDto,
-        userId: user.userId,
-      },
-      user,
-    );
   }
 
   @ApiOperation({

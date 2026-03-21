@@ -30,30 +30,28 @@ This directory contains templates for importing questions into the exam system.
 
 **Format**: JSON array of question objects
 
-**Object Structure**:
+**Object Structure** (use `skill` name + `difficultyLevels` array for import API):
 ```json
 {
-  "area": "Programming",
-  "areaId": "",
   "skill": "JavaScript",
-  "skillId": "",
   "questionText": "What is JavaScript?",
-  "options": [
-    "A programming language",
-    "A framework",
-    "A database",
-    "An operating system"
-  ],
+  "options": ["A programming language", "A framework", "A database", "An operating system"],
   "correctAnswer": "A programming language",
   "point": 10,
-  "difficulty": "easy"
+  "difficultyLevels": ["easy"]
 }
 ```
 
 **Notes**:
-- Options is a native JSON array (not a string)
-- Either provide area name OR areaId (leave the other as empty string)
-- Either provide skill name OR skillId (leave the other as empty string)
+- Use `skill` (skill name, e.g. "JavaScript", "React") so the server resolves skill by name. Or use `skillId` (UUID) if you have it.
+- `difficultyLevels`: array of 1–3 values from: "easy", "medium", "hard", "advanced", "expert".
+- Options is a native JSON array (not a string).
+
+### 3. Full exam questions (`exam-questions-full.json`)
+
+- **Nội dung**: Toàn bộ câu hỏi từ exam-seed + add-exam-questions (JavaScript, TypeScript, React, Node.js, Python, SQL, Git).
+- **Dùng**: Import qua API JSON (không cần chạy seed). Skills phải đã tồn tại trong DB (tạo trước bằng main seed hoặc admin).
+- **Import**: `POST /api/v1/admin/exam/questions/import/json` với body `{ "data": <array từ file>, "fileName": "exam-questions-full.json" }`.
 
 ## Import Methods
 

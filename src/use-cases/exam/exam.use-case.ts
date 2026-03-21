@@ -10,7 +10,6 @@ import {
   ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
-  IImportLogRepository,
   ISkillRepository,
   Question,
 } from "@/core";
@@ -21,6 +20,7 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  AddQuestionsToSkillDto,
   CreateLevelDto,
   UpdateLevelDto,
   StartExamDto,
@@ -44,7 +44,6 @@ export class ExamUseCases {
     private readonly levelRepo: ILevelRepository,
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
-    private readonly importLogRepo: IImportLogRepository,
     private readonly skillRepo: ISkillRepository,
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
@@ -180,14 +179,61 @@ export class ExamUseCases {
   }
 
   async getQuestions(query: QueryQuestionsDto) {
+    const rawKeyword = query.keyword ?? "";
+    const keyword =
+      typeof rawKeyword === "string" &&
+      (rawKeyword === "undefined" || rawKeyword === "null")
+        ? ""
+        : rawKeyword;
+
     const result = await this.questionRepo.getPaginatedQuestions({
       ...query,
+      keyword,
       limit: query.limit ?? 20,
     });
     return {
       success: true,
       message: "Questions fetched successfully",
       data: result,
+    };
+  }
+
+  /** Assign selected questions to a skill (move questions to this skill). */
+  async assignQuestionsToSkill(skillId: string, dto: AddQuestionsToSkillDto) {
+    const skill = await this.skillRepo.get(skillId);
+    if (!skill) {
+      throw new NotFoundException("Skill not found");
+    }
+
+    for (const questionId of dto.questionIds) {
+      const question = await this.questionRepo.get(questionId);
+      if (!question) {
+        throw new NotFoundException(`Question not found: ${questionId}`);
+      }
+    }
+
+    const updated: Question[] = await this.questionRepo.executeWithTransaction(
+      async (tx) => {
+        const result: Question[] = [];
+        for (const questionId of dto.questionIds) {
+          const [q] = await this.questionRepo.update(
+            { id: questionId },
+            { skillId } as Partial<Question>,
+            tx,
+          );
+          if (q) result.push(q);
+        }
+        return result;
+      },
+    );
+
+    this.logger.log(
+      `Assigned ${updated.length} question(s) to skill ${skillId} (${skill.name})`,
+    );
+    return {
+      success: true,
+      message: `Assigned ${updated.length} question(s) to skill successfully`,
+      data: { skill, assignedCount: updated.length, questions: updated },
     };
   }
 
@@ -208,12 +254,8 @@ export class ExamUseCases {
 
   async importQuestionsCSV(
     fileContent: string,
-    fileName: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromCSV(
-      fileContent,
-      fileName,
-    );
+    const result = await this.importService.importFromCSV(fileContent);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from CSV`,
     );
@@ -226,9 +268,8 @@ export class ExamUseCases {
 
   async importQuestionsJSON(
     data: ImportRow[],
-    fileName: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromJSON(data, fileName);
+    const result = await this.importService.importFromJSON(data);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from JSON`,
     );
@@ -236,15 +277,6 @@ export class ExamUseCases {
       success: true,
       message: "Questions imported successfully",
       data: result,
-    };
-  }
-
-  async getImportLogs(limit: number = 10) {
-    const logs = await this.importLogRepo.getRecentLogs(limit);
-    return {
-      success: true,
-      message: "Import logs fetched successfully",
-      data: logs,
     };
   }
 
@@ -494,17 +526,20 @@ export class ExamUseCases {
     };
   }
 
-  async getUserTests(userId: string) {
+  async getUserTests(userId: string, skillId?: string) {
     const tests = await this.userTestRepo.getUserTests(userId);
+    const filteredTests = skillId
+      ? tests.filter((test) => (test.selectedSkillIds ?? []).includes(skillId))
+      : tests;
     return {
       success: true,
       message: "User tests fetched successfully",
-      data: tests,
+      data: filteredTests,
     };
   }
 
   async getTestDetails(userId: string, testId: string) {
-    const test = await this.userTestRepo.get(testId);
+    const test = await this.userTestRepo.getUserTestWithSkills(testId);
     if (!test) {
       throw new NotFoundException("Test not found");
     }
@@ -525,23 +560,6 @@ export class ExamUseCases {
     };
   }
 
-  async getSkillsWithQuestions(query: {
-    page?: number;
-    limit?: number;
-    keyword?: string;
-  }) {
-    const result = await this.skillRepo.getSkillsWithQuestions({
-      page: query.page,
-      limit: query.limit ?? 20,
-      keyword: query.keyword,
-    });
-    return {
-      success: true,
-      message: "Skills with questions fetched successfully",
-      data: result,
-    };
-  }
-
   async getIncompleteExams(userId: string) {
     const allTests = await this.userTestRepo.getUserTests(userId);
     const incompleteTests = allTests.filter(
@@ -553,6 +571,7 @@ export class ExamUseCases {
       message: "Incomplete exams fetched successfully",
       data: incompleteTests.map((test) => ({
         id: test.id,
+        selectedSkills: test.selectedSkills ?? [],
         selectedSkillIds: test.selectedSkillIds,
         selectedDifficultyLevels: test.selectedDifficultyLevels,
         questionCount: test.questionIds?.length ?? 0,

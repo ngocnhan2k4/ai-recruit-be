@@ -11,7 +11,11 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { JobEventType } from "@/core";
 
-type JobIndexData = { jobId: string };
+type JobIndexData = {
+  jobId: string;
+  organizationId: string;
+  organizationName: string;
+};
 
 @Processor(JOB_INDEX_QUEUE)
 export class JobIndexWorker extends WorkerHost {
@@ -54,10 +58,14 @@ export class JobIndexWorker extends WorkerHost {
     )!;
 
     switch (type) {
-      case JobEventType.DELETE: {
+      case JobEventType.DELETE_JOB: {
         const jobId = data.jobId;
         if (jobId) {
-          await this.searchService.deleteDocument(indexName, jobId);
+          await this.searchService.deleteByQuery(indexName, {
+            term: {
+              id: jobId,
+            },
+          });
           this.logger.log(`[processEvent] Deleted job ${jobId} from index`);
         } else {
           this.logger.warn("[processEvent] Delete event missing jobId");
@@ -65,7 +73,7 @@ export class JobIndexWorker extends WorkerHost {
         }
         return;
       }
-      case JobEventType.UPSERT: {
+      case JobEventType.UPSERT_JOB: {
         const job = await this.jobRepository.getFullJobById(data.jobId);
         if (!job) {
           this.logger.warn(`[processEvent] Job ${data.jobId} not found`);
@@ -76,6 +84,36 @@ export class JobIndexWorker extends WorkerHost {
         await this.searchService.indexDocument(indexName, job.job.id, document);
         this.logger.log(`[processEvent] Indexed job ${job.job.id}`);
         return;
+      }
+      case JobEventType.UPDATE_ORG: {
+        await this.searchService.updateByQuery(
+          indexName,
+          {
+            term: {
+              organizationId: data.organizationId,
+            },
+          },
+          {
+            source: "ctx._source.organizationName = params.name",
+            params: {
+              name: data.organizationName,
+            },
+          },
+        );
+        this.logger.log(
+          `[processEvent] update job of org ${data.organizationId}`,
+        );
+        return;
+      }
+      case JobEventType.DELETE_ORG: {
+        await this.searchService.deleteByQuery(indexName, {
+          term: {
+            organizationId: data.organizationId,
+          },
+        });
+        this.logger.log(
+          `[processEvent] delete job of org ${data.organizationId}`,
+        );
       }
     }
   }

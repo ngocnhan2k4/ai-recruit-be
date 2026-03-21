@@ -1,11 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsArray,
-  IsEnum,
-} from "class-validator";
+import { IsString, IsOptional, IsNumber, IsEnum } from "class-validator";
 import { Type } from "class-transformer";
 import { WorkTypeEnum } from "@/core";
 import { GeneralQueryDto } from "../../common/query";
@@ -39,9 +33,8 @@ export class QueryMatchedJobsDto extends GeneralQueryDto {
     type: [String],
   })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  provinceIds?: string[];
+  @IsString()
+  provinceId?: string;
 
   @ApiProperty({
     example: "uuid-category-id",

@@ -4,12 +4,12 @@ import {
   NestMiddleware,
   HttpStatus,
   Inject,
+  HttpException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
-import { IncomingMessage, ServerResponse } from "http";
+import { FastifyRequest, FastifyReply } from "fastify";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "../constants";
-import { ApiResponse } from "@/interfaces/dtos";
 
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
@@ -29,19 +29,25 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   async use(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: FastifyRequest,
+    _: FastifyReply,
     next: () => void,
   ): Promise<void> {
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     const ip = this.getClientIp(req);
     const key = `rl:${ip}`;
-    const now = Date.now() / 1000;
+
+    let allowed = false;
 
     try {
-      const bucket = await (this.cacheService as any).hgetall(key);
+      const bucket = await this.cacheService.hgetall(key);
 
       let tokens: number;
       let lastRefill: number;
+      const now = Date.now() / 1000;
 
       if (!bucket || Object.keys(bucket).length === 0) {
         tokens = this.capacity;
@@ -55,44 +61,37 @@ export class RateLimitMiddleware implements NestMiddleware {
       tokens = Math.min(this.capacity, tokens + elapsed * this.refillRate);
       lastRefill = now;
 
-      let allowed = false;
       if (tokens >= 1) {
         tokens -= 1;
         allowed = true;
       }
 
-      await (this.cacheService as any).hset(key, {
+      await this.cacheService.hset(key, {
         tokens: tokens.toString(),
         lastRefill: lastRefill.toString(),
       });
-      await (this.cacheService as any).expire(key, this.ttlSeconds);
-
-      if (!allowed) {
-        this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
-        const body: ApiResponse<never> = {
-          code: RESPONSE_CODE.TOO_MANY_REQUESTS,
-          message: RESPONSE_MESSAGE.TOO_MANY_REQUESTS,
-        };
-
-        res.statusCode = HttpStatus.TOO_MANY_REQUESTS;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify(body));
-        return;
-      }
-
-      next();
+      await this.cacheService.expire(key, this.ttlSeconds);
     } catch (err) {
       this.logger.error("Rate limiter error — failing open:", err);
-      next();
+      return next();
     }
+
+    if (!allowed) {
+      this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
+
+      throw new HttpException(
+        {
+          code: RESPONSE_CODE.TOO_MANY_REQUESTS,
+          message: RESPONSE_MESSAGE.TOO_MANY_REQUESTS,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    next();
   }
 
-  private getClientIp(req: IncomingMessage): string {
-    const forwarded = req.headers["x-forwarded-for"];
-    if (forwarded) {
-      const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-      return first.split(",")[0].trim();
-    }
-    return req.socket?.remoteAddress ?? "unknown";
+  private getClientIp(req: FastifyRequest): string {
+    return req.ip || "unknown";
   }
 }

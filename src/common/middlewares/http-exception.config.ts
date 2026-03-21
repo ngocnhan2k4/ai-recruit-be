@@ -1,18 +1,14 @@
 import { type AppConfigProps } from "@/common/config";
 import { ApiResponse } from "@/interfaces/dtos";
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  Logger,
-} from "@nestjs/common";
+import { Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common";
+import type { ArgumentsHost } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
 import { RESPONSE_CODE } from "@/common/constants";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "@/common/config";
 import { DrizzleQueryError } from "drizzle-orm";
+import { SentryExceptionCaptured } from "@sentry/nestjs";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -23,6 +19,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     private readonly loggerService: ILoggerServices,
   ) {}
 
+  @SentryExceptionCaptured()
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<FastifyReply>();

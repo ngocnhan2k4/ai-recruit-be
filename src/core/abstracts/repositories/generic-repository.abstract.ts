@@ -5,7 +5,7 @@ export abstract class IGenericRepository<T> {
 
   abstract get(id: ID): Promise<T | null>;
 
-  abstract getByIds(ids: ID[]): Promise<T[]>;
+  abstract getByIds(ids: ID[], fields: (keyof T)[]): Promise<T[]>;
 
   abstract getByField(field: Partial<T>, omit?: (keyof T)[]): Promise<T[]>;
 
