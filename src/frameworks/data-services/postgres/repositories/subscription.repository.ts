@@ -162,7 +162,7 @@ export class SubscriptionRepository
           sql`cast(${userSubscriptions.subscriptionId} as text) ilike ${`%${keyword}%`}`,
           ilike(users.name, `%${keyword}%`),
           ilike(users.email, `%${keyword}%`),
-          ilike(subscriptions.name, `%${keyword}%`),
+          sql`cast(${subscriptions.name} as text) ilike ${`%${keyword}%`}`,
         )!,
       );
     }
