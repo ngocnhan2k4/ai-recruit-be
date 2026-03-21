@@ -149,5 +149,6 @@ export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [
 export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
   "FREE",
   "BASIC",
-  "RPO",
+  "PRO",
+  "ENTERPISE",
 ]);
