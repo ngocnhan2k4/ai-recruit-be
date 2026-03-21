@@ -28,7 +28,7 @@ export class JobMatchingQuery {
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
-      skillIds: filterSkill,
+      skillIds: filterSkills,
       statuses,
     } = filters;
 
@@ -62,15 +62,15 @@ export class JobMatchingQuery {
     }
 
     if (workType) {
-      mustQueries.push({ terms: { workType } });
+      mustQueries.push({ term: { workType } });
     }
 
     if (filterProvinceId) {
-      mustQueries.push({ terms: { provinceIds: [filterProvinceId] } });
+      mustQueries.push({ term: { provinceIds: filterProvinceId } });
     }
 
     if (filterCategoryId) {
-      mustQueries.push({ terms: { categoryId: filterCategoryId } });
+      mustQueries.push({ term: { categoryId: filterCategoryId } });
     }
 
     if (salaryMin !== undefined) {
@@ -93,10 +93,10 @@ export class JobMatchingQuery {
       });
     }
 
-    if (filterSkill) {
+    if ((filterSkills?.length || 0) > 0) {
       mustQueries.push({
         terms: {
-          skillIds: filterSkill,
+          skillIds: filterSkills,
         },
       });
     }
@@ -116,7 +116,7 @@ export class JobMatchingQuery {
     if (userCategoryIds.length > 0) {
       shouldQueries.push({
         terms: {
-          categoryIds: userCategoryIds,
+          categoryId: userCategoryIds,
         },
       });
     }
@@ -131,8 +131,7 @@ export class JobMatchingQuery {
               bool: {
                 must: mustQueries,
                 should: shouldQueries,
-                // should queries only boost score, not filter
-                minimum_should_match: 0,
+                minimum_should_match: shouldQueries.length > 0 ? 1 : 0,
               },
             },
             functions: [
@@ -145,7 +144,7 @@ export class JobMatchingQuery {
                           skillIds: skillIds,
                         },
                       },
-                      weight: 0.4,
+                      weight: 40,
                       script_score: {
                         script: {
                           source: `
@@ -178,7 +177,7 @@ export class JobMatchingQuery {
                 : []),
               // 2. Experience Match Score (25%)
               {
-                weight: 0.25,
+                weight: 25,
                 script_score: {
                   script: {
                     source: `
@@ -228,7 +227,7 @@ export class JobMatchingQuery {
                     {
                       filter: {
                         terms: {
-                          categoryIds: userCategoryIds,
+                          categoryId: userCategoryIds,
                         },
                       },
                       weight: 15,
@@ -239,7 +238,7 @@ export class JobMatchingQuery {
               ...(userProfile.expectedSalary
                 ? [
                     {
-                      weight: 0.1,
+                      weight: 10,
                       script_score: {
                         script: {
                           source: `
@@ -308,7 +307,6 @@ export class JobMatchingQuery {
             "organizationName",
             "skillIds",
             "skillNames",
-            "categoryIds",
             "provinceIds",
             "provinceNames",
             "salaryMin",
@@ -385,11 +383,11 @@ export class JobMatchingQuery {
     }
 
     if (provinceId) {
-      mustQueries.push({ terms: { provinceIds: [provinceId] } });
+      mustQueries.push({ term: { provinceIds: provinceId } });
     }
 
     if (categoryId) {
-      mustQueries.push({ terms: { categoryId } });
+      mustQueries.push({ term: { categoryId } });
     }
 
     if (skillIds && skillIds.length > 0) {
