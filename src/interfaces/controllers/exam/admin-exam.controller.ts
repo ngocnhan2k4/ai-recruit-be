@@ -25,6 +25,9 @@ import {
   UpdateQuestionDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
+  QuerySkillQuestionsDto,
+  QueryAvailableQuestionsDto,
+  AddQuestionsToSkillDto,
 } from "@/interfaces/dtos/exam";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
@@ -35,6 +38,47 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 export class AdminExamController {
   constructor(private readonly examUseCases: ExamUseCases) {}
+
+  @ApiOperation({
+    summary: "List questions available to add to this skill",
+    description:
+      "Questions that belong to other skills. Use this list to pick questions and add them to the current skill via POST skills/:skillId/questions.",
+  })
+  @Get("skills/:skillId/questions/available")
+  async getAvailableQuestionsForSkill(
+    @Param("skillId") skillId: string,
+    @Query() query: QueryAvailableQuestionsDto,
+  ) {
+    return this.examUseCases.getQuestions({
+      ...query,
+      excludeSkillId: skillId,
+    });
+  }
+
+  @ApiOperation({
+    summary: "List questions in a skill",
+    description: "Get paginated questions that belong to the given skill.",
+  })
+  @Get("skills/:skillId/questions")
+  async getSkillQuestions(
+    @Param("skillId") skillId: string,
+    @Query() query: QuerySkillQuestionsDto,
+  ) {
+    return this.examUseCases.getQuestions({ ...query, skillId });
+  }
+
+  @ApiOperation({
+    summary: "Add questions to skill",
+    description:
+      "Assign selected questions to this skill (moves questions from their current skill to this one).",
+  })
+  @Post("skills/:skillId/questions")
+  async addQuestionsToSkill(
+    @Param("skillId") skillId: string,
+    @Body() dto: AddQuestionsToSkillDto,
+  ) {
+    return this.examUseCases.assignQuestionsToSkill(skillId, dto);
+  }
 
   // ==================== QUESTION MANAGEMENT ====================
 
@@ -107,7 +151,7 @@ export class AdminExamController {
     }
 
     const fileContent = file.buffer.toString("utf-8");
-    return this.examUseCases.importQuestionsCSV(fileContent, file.originalname);
+    return this.examUseCases.importQuestionsCSV(fileContent);
   }
 
   @ApiOperation({
@@ -117,12 +161,6 @@ export class AdminExamController {
   })
   @Post("questions/import/json")
   async importQuestionsJSON(@Body() body: { data: any[]; fileName: string }) {
-    return this.examUseCases.importQuestionsJSON(body.data, body.fileName);
-  }
-
-  @ApiOperation({ summary: "Get import logs" })
-  @Get("questions/import/logs")
-  async getImportLogs(@Query("limit") limit?: number) {
-    return this.examUseCases.getImportLogs(limit || 10);
+    return this.examUseCases.importQuestionsJSON(body.data);
   }
 }

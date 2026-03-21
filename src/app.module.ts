@@ -1,3 +1,4 @@
+import { SentryModule } from "@sentry/nestjs/setup";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import {
   UserController,
@@ -58,6 +59,7 @@ import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { OrganizationUseCasesModule } from "@/use-cases/organization/organization-use-cases.module";
 import { CasbinUseCasesModule } from "@/use-cases/casbin/casbin-use-cases.module";
 import { JobAdminController } from "@/interfaces/controllers/job/admin-job.controller";
+import { OrganizationJobController } from "@/interfaces/controllers/job/organization-job-controller";
 import { OrganizationMemberUseCasesModule } from "@/use-cases/organization-member/organization-member-use-case.module";
 import { OrganizationInvitationUseCaseModule } from "@/use-cases/organization-invitation/organization-intivation-use-case.module";
 import { FeedbackUseCasesModule } from "@/use-cases/feedback/feedback.module";
@@ -81,6 +83,8 @@ import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.mod
 
 @Module({
   imports: [
+    // SentryModule must be the first import so Sentry can instrument all other modules
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
@@ -144,6 +148,7 @@ import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.mod
     UserController,
     AuthController,
     JobController,
+    OrganizationJobController,
     JobAdminController,
     JobMatchingController,
     CategoryController,
@@ -197,6 +202,9 @@ import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.mod
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RateLimitMiddleware).exclude("/health").forRoutes("*");
+    consumer
+      .apply(RateLimitMiddleware)
+      .exclude("/health", "users/me", "auth/refresh")
+      .forRoutes("*");
   }
 }

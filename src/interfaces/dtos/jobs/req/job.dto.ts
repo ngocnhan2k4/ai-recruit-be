@@ -8,8 +8,8 @@ import {
   IsArray,
   IsEnum,
 } from "class-validator";
-import { Type } from "class-transformer";
-import { JobStatusEnum, UpdateJobTypeEnum, WorkTypeEnum } from "@/core";
+import { JobStatusEnum, WorkTypeEnum } from "@/core";
+import { Transform, Type } from "class-transformer";
 import { GeneralQueryDto } from "../../common/query";
 
 export class QueryJobDto extends GeneralQueryDto {
@@ -72,7 +72,15 @@ export class QueryJobDto extends GeneralQueryDto {
   companyId?: string;
 
   @ApiProperty({
-    example: "uuid-organization-id",
+    example: "uuid-category-id",
+    required: false,
+    description: "Category ID to filter by",
+  })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @ApiProperty({
     required: false,
     description: "Organization ID to filter by",
   })
@@ -97,6 +105,35 @@ export class QueryJobDto extends GeneralQueryDto {
   @IsOptional()
   @IsEnum(JobStatusEnum)
   status?: JobStatusEnum;
+
+  @ApiProperty({
+    example: "2024-01-01",
+    required: false,
+    description: "Filter jobs created on or after this date (ISO string)",
+  })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiProperty({
+    example: "2024-12-31",
+    required: false,
+    description: "Filter jobs created on or before this date (ISO string)",
+  })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: "Array of skill IDs",
+  })
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  @IsArray()
+  @IsUUID("4", { each: true })
+  skillIds?: string[];
 }
 
 export class CreateJobDto {
@@ -194,6 +231,18 @@ export class CreateJobDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds: string[] | null;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description:
+      "Array of new skill names to create and associate with the job",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skillNames?: string[] | null;
 
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsUUID()
@@ -338,12 +387,16 @@ export class UpdateJobDto {
   skillIds?: string[] | null;
 
   @ApiProperty({
-    type: "string",
+    type: [String],
+    required: false,
+    description:
+      "Array of new skill names to create and associate with the job",
     nullable: true,
   })
   @IsOptional()
-  @IsString()
-  rejectReason?: string | null;
+  @IsArray()
+  @IsString({ each: true })
+  skillNames?: string[] | null;
 
   @ApiProperty({
     type: "string",
@@ -351,5 +404,5 @@ export class UpdateJobDto {
   })
   @IsOptional()
   @IsString()
-  updateType?: UpdateJobTypeEnum | null;
+  rejectReason?: string | null;
 }

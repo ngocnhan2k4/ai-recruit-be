@@ -29,7 +29,6 @@ import {
   ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
-  IImportLogRepository,
   IWeeklyProgressRepository,
   ISubscriptionRepository,
   IFeatureRepository,
@@ -72,7 +71,6 @@ import { QuestionRepository } from "./repositories/question.repository";
 import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
-import { ImportLogRepository } from "./repositories/import-log.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
 import { SubscriptionRepository } from "./repositories/subscription.repository";
 import { FeatureRepository } from "./repositories/feature.repository";
@@ -256,10 +254,6 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
       useClass: UserAnswerRepository,
     },
     {
-      provide: IImportLogRepository,
-      useClass: ImportLogRepository,
-    },
-    {
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
@@ -323,7 +317,6 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
     ILevelRepository,
     IUserTestRepository,
     IUserAnswerRepository,
-    IImportLogRepository,
     IAiCvRepository,
     IWeeklyProgressRepository,
     ISubscriptionRepository,

@@ -18,5 +18,4 @@ export * from "./question.model";
 export * from "./level.model";
 export * from "./user-test.model";
 export * from "./user-answer.model";
-export * from "./import-log.model";
 export * from "./subscription.model";

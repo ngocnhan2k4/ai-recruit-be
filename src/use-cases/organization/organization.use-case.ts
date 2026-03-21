@@ -8,10 +8,13 @@ import {
 import {
   EmailJobType,
   ICompanyRepository,
+  IMessageQueueService,
+  IJobRepository,
   IOrganizationMemberInvitationRepository,
   IOrganizationMembersRepository,
   IOrganizationRepository,
   ISchoolRepository,
+  JobEventType,
   OrganizationLocation,
   OrganizationRoleEnum,
   OrganizationTypeEnum,
@@ -22,6 +25,9 @@ import {
   ApiResponse,
   CreateOrganizationDto,
   GeneralQueryDto,
+  JobDto,
+  JobPaginationResponseDto,
+  OrganizationJobQueryDto,
   OrganizationWithDetailsDto,
   PaginatedResultDto,
   OrganizationTrendsResponseDto,
@@ -54,6 +60,8 @@ export class OrganizationUseCase {
     private readonly otpService: IOtpService,
     private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly casbinService: CasbinService,
+    private readonly messageQueueService: IMessageQueueService,
+    private readonly jobRepository: IJobRepository,
   ) {}
 
   /**
@@ -238,6 +246,39 @@ export class OrganizationUseCase {
     };
   }
 
+  async createOrganizationWithLogo(
+    data: CreateOrganizationDto,
+    file: MultipartFile,
+    userId: string,
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    if (!file) {
+      throw new BadRequestException({
+        message: "No logo file provided",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+    await this.cloudinaryService.validateFile(file, {
+      maxSize: 5 * 1024 * 1024,
+      allowedTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
+    });
+
+    const uploadResult = await this.cloudinaryService.uploadFile(file);
+
+    if (!uploadResult || !uploadResult.secure_url) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ERROR_UPLOADING_FILE,
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
+      });
+    }
+
+    const payload: CreateOrganizationDto = {
+      ...data,
+      logoUrl: uploadResult.secure_url,
+    } as CreateOrganizationDto;
+
+    return this.createOrganization(payload, userId);
+  }
+
   async updateOrganizationBasicInfo(
     orgId: string,
     data: {
@@ -275,6 +316,12 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    if (data.name)
+      await this.messageQueueService.addJob(JobEventType.UPDATE_ORG, {
+        organizationId: orgId,
+        organizationName: data.name,
+      });
 
     return {
       data: updatedOrg,
@@ -370,26 +417,18 @@ export class OrganizationUseCase {
       };
     }
 
-    await this.companyRepository.update(
+    const updatedCompany = await this.companyRepository.update(
       { organizationId: orgId },
       {
         culture: data.culture,
         benefits: data.benefits,
       },
     );
-
-    // Get updated organization with details
-    const updatedOrg = await this.organizationRepository.get(orgId);
-
-    if (!updatedOrg) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.UPDATE_ORGANIZATION_FAILED,
-        code: RESPONSE_CODE.UPDATE_ORGANIZATION_FAILED,
-      });
-    }
-
     return {
-      data: updatedOrg,
+      data: {
+        ...org,
+        ...updatedCompany,
+      },
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
@@ -700,6 +739,10 @@ export class OrganizationUseCase {
     await this.organizationRepository.delete({
       id: orgId,
     });
+    // [TODO]: This action shouldn't block main thread, but current design, it not support retry sync data from es -> DB
+    await this.messageQueueService.addJob(JobEventType.DELETE_ORG, {
+      organizationId: orgId,
+    });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -753,7 +796,7 @@ export class OrganizationUseCase {
           | "description"
           | "foundedYear"
           | "verifiedAt"
-        >
+        > & { role: string }
       >
     >
   > {
@@ -768,7 +811,7 @@ export class OrganizationUseCase {
     };
   }
 
-  async getAllOrganizations(
+  async getOrganizations(
     query: OrganizationQuery,
   ): Promise<
     ApiResponse<
@@ -777,19 +820,121 @@ export class OrganizationUseCase {
           OrganizationWithDetails,
           | "id"
           | "name"
+          | "type"
           | "description"
           | "logoUrl"
+          | "email"
+          | "phone"
           | "foundedYear"
           | "verifiedAt"
+          | "createdAt"
         >
       >
     >
   > {
-    const result = await this.organizationRepository.getAllOrganizations(query);
+    const result = await this.organizationRepository.getOrganizations(query);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
+    };
+  }
+
+  async getOrganizationsByAdmin(
+    query: OrganizationQuery,
+  ): Promise<
+    ApiResponse<
+      PaginatedResult<
+        Pick<
+          OrganizationWithDetails,
+          | "id"
+          | "name"
+          | "type"
+          | "description"
+          | "logoUrl"
+          | "email"
+          | "phone"
+          | "foundedYear"
+          | "verifiedAt"
+          | "createdAt"
+        >
+      >
+    >
+  > {
+    const result =
+      await this.organizationRepository.getOrganizationsByAdmin(query);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async adminUpdateOrganization(
+    orgId: string,
+    data: {
+      name?: string;
+      description?: string;
+      websiteUrl?: string;
+      phone?: string;
+      verifiedAt?: string | null;
+    },
+  ): Promise<ApiResponse<OrganizationWithDetails>> {
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    const updatePayload: Partial<OrganizationWithDetails> = {};
+    if (data.name !== undefined) updatePayload.name = data.name;
+    if (data.description !== undefined)
+      updatePayload.description = data.description;
+    if (data.websiteUrl !== undefined)
+      updatePayload.websiteUrl = data.websiteUrl;
+    if (data.phone !== undefined) updatePayload.phone = data.phone;
+    if (data.verifiedAt !== undefined)
+      updatePayload.verifiedAt = data.verifiedAt
+        ? new Date(data.verifiedAt)
+        : null;
+
+    if (Object.keys(updatePayload).length === 0) {
+      return {
+        data: org,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+      };
+    }
+
+    const updated = await this.organizationRepository.updateOrganizationById(
+      orgId,
+      updatePayload,
+    );
+    return {
+      data: updated,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminDeleteOrganization(
+    orgId: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    await this.organizationRepository.delete({ id: orgId });
+    return {
+      data: { message: "Organization deleted successfully" },
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 
@@ -888,6 +1033,44 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         data: trends,
+      },
+    };
+  }
+
+  async getOrganizationJobs(
+    orgId: string,
+    query: OrganizationJobQueryDto,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    const result = await this.jobRepository.getJobsByAdmin({
+      organizationId: orgId,
+      keyword: query.keyword,
+      status: query.status,
+      createdAtStart: query.fromDate ? new Date(query.fromDate) : undefined,
+      createdAtEnd: query.toDate ? new Date(query.toDate) : undefined,
+      categoryIds: query.categoryIds,
+      limit: query.limit,
+      page: query.page,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+    });
+
+    const transformedJobData = result.data.map((item) => ({
+      ...item,
+      job: {
+        ...item.job,
+        organizationId: item.organization.id,
+      } as JobDto,
+      organization: {
+        ...item.organization,
+      } as OrganizationWithDetailsDto,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: transformedJobData,
+        pagination: result.pagination,
       },
     };
   }

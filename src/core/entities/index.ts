@@ -20,7 +20,6 @@ import {
   levels,
   userTests,
   userAnswers,
-  importLogs,
   applyJobs,
   organizationInvitations,
   organizationLocations,
@@ -43,6 +42,7 @@ export * from "./user.entity";
 export * from "./job.entity";
 export * from "./organization.entity";
 export * from "./feedback.entity";
+export * from "./skill.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -72,6 +72,7 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+export type UserTestSkill = Pick<Skill, "id" | "name">;
 
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
@@ -174,13 +175,12 @@ export type NewLevel = InferInsertModel<typeof levels>;
 export type Level = InferSelectModel<typeof levels>;
 
 export type NewUserTest = InferInsertModel<typeof userTests>;
-export type UserTest = InferSelectModel<typeof userTests>;
+export type UserTest = InferSelectModel<typeof userTests> & {
+  selectedSkills?: UserTestSkill[];
+};
 
 export type NewUserAnswer = InferInsertModel<typeof userAnswers>;
 export type UserAnswer = InferSelectModel<typeof userAnswers>;
-
-export type NewImportLog = InferInsertModel<typeof importLogs>;
-export type ImportLog = InferSelectModel<typeof importLogs>;
 
 export type NewApplyJob = InferInsertModel<typeof applyJobs>;
 export type ApplyJob = InferSelectModel<typeof applyJobs>;

@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpException,
   Injectable,
   Logger,
   NestInterceptor,
@@ -32,7 +33,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const req = ctx.getRequest<FastifyRequest>();
     const res = ctx.getResponse<FastifyReply>();
     const { method, originalUrl } = req;
-    const start = performance.now();
+    const start = req.raw["startTime"] ?? performance.now();
 
     return next.handle().pipe(
       tap({
@@ -41,9 +42,16 @@ export class LoggingInterceptor implements NestInterceptor {
           const statusCode = res.statusCode;
           this.logRequest(method, originalUrl, statusCode, duration);
         },
-        error: () => {
+        error: (err: unknown) => {
           const duration = performance.now() - start;
-          const statusCode = res.statusCode;
+          // When an exception is thrown, res.statusCode may not be set yet (exception filter runs after).
+          // Derive status from the exception so we log the real response status (e.g. 500, 404).
+          const statusCode =
+            err instanceof HttpException
+              ? err.getStatus()
+              : ((err as { statusCode?: number })?.statusCode ??
+                res.statusCode ??
+                500);
           this.logRequest(method, originalUrl, statusCode, duration);
         },
       }),

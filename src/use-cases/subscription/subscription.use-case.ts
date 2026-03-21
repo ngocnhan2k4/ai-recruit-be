@@ -130,7 +130,7 @@ export class SubscriptionUseCases {
     }
 
     const ids = dto.items.map((i) => i.featureId);
-    const found = await this.featureRepo.getByIds(ids);
+    const found = await this.featureRepo.getByIds(ids, ["id"]);
     if (found.length !== ids.length) {
       throw new BadRequestException({
         code: RESPONSE_CODE.BAD_REQUEST,
