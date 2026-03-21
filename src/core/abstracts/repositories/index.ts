@@ -28,3 +28,6 @@ export * from "./level-repository.abstract";
 export * from "./user-test-repository.abstract";
 export * from "./user-answer-repository.abstract";
 export * from "./import-log-repository.abstract";
+export * from "./subscription-repository.abstract";
+export * from "./feature-repository.abstract";
+export * from "./user-feature-usage-repository.abstract";

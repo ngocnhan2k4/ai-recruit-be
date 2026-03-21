@@ -1,5 +1,5 @@
 import { GenericRepository } from "./generic-repository";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { users } from "../models";
 import { NewUser, User } from "@/core/entities";
@@ -127,8 +127,11 @@ export class UserRepository
     };
   }
 
-  async createUser(user: NewUser): Promise<User> {
-    const userData = await this.db.insert(users).values(user).returning();
+  async createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User> {
+    const userData = await (tx || this.db)
+      .insert(users)
+      .values(user)
+      .returning();
     return userData[0];
   }
 

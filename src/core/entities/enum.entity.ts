@@ -167,3 +167,24 @@ export enum PhaseStatusEnum {
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
 }
+export enum FeatureCodeEnum {
+  LEARNING_PATH = "learning_path",
+  CV = "cv",
+}
+export enum BillingCycleSubscriptionEnum {
+  MONTHLY = "monthly",
+  YEARLY = "yearly",
+}
+export enum UserSubscriptionStatusEnum {
+  INCOMPLETE = "incomplete",
+  ACTIVE = "active",
+  CANCELED = "canceled",
+  EXPIRED = "expired",
+}
+
+export enum SubscriptionEnum {
+  FREE = "FREE",
+  BASIC = "BASIC",
+  PRO = "PRO",
+  ENTERPRISE = "ENTERPRISE",
+}

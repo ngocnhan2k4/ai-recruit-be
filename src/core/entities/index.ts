@@ -22,16 +22,17 @@ import {
   userAnswers,
   importLogs,
   applyJobs,
-} from "@/frameworks/data-services/postgres/models";
-import {
-  notifications,
-  userNotifications,
-} from "@/frameworks/data-services/postgres/models/notification.model";
-import {
   organizationInvitations,
   organizationLocations,
   organizations,
-} from "@/frameworks/data-services/postgres/models/organization.model";
+  notifications,
+  userNotifications,
+  features,
+  subscriptions,
+  userSubscriptions,
+  subscriptionFeatures,
+  userFeatureUsages,
+} from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
@@ -183,3 +184,20 @@ export type ImportLog = InferSelectModel<typeof importLogs>;
 
 export type NewApplyJob = InferInsertModel<typeof applyJobs>;
 export type ApplyJob = InferSelectModel<typeof applyJobs>;
+
+export type NewFeature = InferInsertModel<typeof features>;
+export type Feature = InferSelectModel<typeof features>;
+
+export type NewSubscription = InferInsertModel<typeof subscriptions>;
+export type Subscription = InferSelectModel<typeof subscriptions>;
+
+export type NewUserSubscription = InferInsertModel<typeof userSubscriptions>;
+export type UserSubscription = InferSelectModel<typeof userSubscriptions>;
+
+export type NewSubscriptionFeature = InferInsertModel<
+  typeof subscriptionFeatures
+>;
+export type SubscriptionFeature = InferSelectModel<typeof subscriptionFeatures>;
+
+export type NewUserFeatureUsage = InferInsertModel<typeof userFeatureUsages>;
+export type UserFeatureUsage = InferSelectModel<typeof userFeatureUsages>;
