@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsEnum, IsNumberString, IsOptional } from "class-validator";
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNumberString,
+  IsOptional,
+  IsString,
+} from "class-validator";
 import { BillingCycleSubscriptionEnum, SubscriptionEnum } from "@/core";
+import { GeneralQueryDto } from "../../common";
 
 export class CreateSubscriptionRequestDto {
   @ApiProperty({ example: "PRO" })
@@ -50,4 +58,22 @@ export class UpdateSubscriptionRequestDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+}
+
+export class SubscriptionFilterDto extends GeneralQueryDto {
+  @ApiProperty({ enum: SubscriptionEnum })
+  @IsOptional()
+  @IsEnum(SubscriptionEnum)
+  name?: SubscriptionEnum;
+
+  @ApiProperty({ type: "boolean" })
+  @IsOptional()
+  @IsBoolean()
+  skipCount?: boolean;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  fields?: string[];
 }

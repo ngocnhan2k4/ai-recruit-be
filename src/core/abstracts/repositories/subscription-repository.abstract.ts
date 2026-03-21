@@ -2,9 +2,10 @@ import { Subscription, UserSubscription } from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
 import { PaginatedResult } from "@/common/types";
 import {
+  GetListSubscriptionResponse,
   SubscriptionFilter,
   UserSubscriptionFilter,
-} from "@/core/entities/subscription.entity";
+} from "@/core/entities";
 
 export type UpsertSubscriptionFeatureInput = {
   featureId: number;
@@ -14,7 +15,7 @@ export type UpsertSubscriptionFeatureInput = {
 export abstract class ISubscriptionRepository extends IGenericRepository<Subscription> {
   abstract getListSubscriptions(
     query: SubscriptionFilter,
-  ): Promise<PaginatedResult<Subscription>>;
+  ): Promise<PaginatedResult<GetListSubscriptionResponse>>;
 
   abstract getListUserSubscriptions(
     query: UserSubscriptionFilter,

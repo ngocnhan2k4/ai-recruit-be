@@ -8,6 +8,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateSubscriptionRequestDto,
+  SubscriptionFilterDto,
   UpdateSubscriptionRequestDto,
   UpsertSubscriptionFeaturesRequestDto,
 } from "@/interfaces/dtos/subscription";
@@ -17,8 +18,11 @@ import {
   Subscription,
   UserSubscription,
 } from "@/core";
-import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { UserSubscriptionFilter } from "@/core/entities/subscription.entity";
+import { PaginatedResult } from "@/common/types";
+import {
+  GetListSubscriptionResponse,
+  UserSubscriptionFilter,
+} from "@/core/entities/subscription.entity";
 
 @Injectable()
 export class SubscriptionUseCases {
@@ -90,8 +94,8 @@ export class SubscriptionUseCases {
   }
 
   async getSubscriptions(
-    query: GeneralQuery,
-  ): Promise<ApiResponse<PaginatedResult<Subscription>>> {
+    query: SubscriptionFilterDto,
+  ): Promise<ApiResponse<PaginatedResult<GetListSubscriptionResponse>>> {
     const result = await this.subscriptionRepo.getListSubscriptions(query);
 
     return {

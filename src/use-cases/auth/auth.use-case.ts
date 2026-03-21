@@ -185,6 +185,7 @@ export class AuthUseCases {
       const freeSub = await this.subscriptionRepo.getListSubscriptions({
         limit: 1,
         name: SubscriptionEnum.FREE,
+        skipCount: true,
       });
 
       if (freeSub[0]) {

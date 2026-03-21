@@ -8,17 +8,19 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import {
+  features,
   subscriptionFeatures,
   subscriptions,
   users,
   userSubscriptions,
 } from "../models";
 import { PaginatedResult } from "@/common/types";
-import { and, count, ilike, isNull, or, SQL, sql } from "drizzle-orm";
+import { and, count, desc, ilike, isNull, or, SQL, sql } from "drizzle-orm";
 import {
+  GetListSubscriptionResponse,
   SubscriptionFilter,
   UserSubscriptionFilter,
-} from "@/core/entities/subscription.entity";
+} from "@/core/entities";
 import { eq } from "drizzle-orm";
 
 @Injectable()
@@ -32,22 +34,58 @@ export class SubscriptionRepository
 
   async getListSubscriptions(
     query: SubscriptionFilter,
-  ): Promise<PaginatedResult<Subscription>> {
+  ): Promise<PaginatedResult<GetListSubscriptionResponse>> {
     const limit = query.limit ?? 10;
     const page = query.page ?? 1;
     const keyword = query.keyword ?? "";
     const offset = (page - 1) * limit;
+    const fields = query.fields || [];
 
     const whereConditions: SQL[] = [isNull(subscriptions.deletedAt)];
     if (keyword) {
       whereConditions.push(ilike(subscriptions.name, `%${keyword}%`));
     }
 
+    const selectedField = {
+      id: subscriptions.id,
+      name: subscriptions.name,
+      price: subscriptions.price,
+      billingCycle: subscriptions.billingCycle,
+      isActive: subscriptions.isActive,
+      createdAt: subscriptions.createdAt,
+      updatedAt: subscriptions.updatedAt,
+    };
+    if (fields.includes("features")) {
+      selectedField["features"] = sql`
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', ${features.id},
+                  'code', ${features.code},
+                  'name', ${features.name},
+                  'limit', ${subscriptionFeatures.limit}
+                )
+              ) FILTER (WHERE ${features.id} IS NOT NULL),
+              '[]'
+            )
+          `.as("features");
+    }
+    let dbCtx: any = this.db.select(selectedField).from(subscriptions);
+
+    if (fields.includes("features")) {
+      dbCtx = dbCtx
+        .leftJoin(
+          subscriptionFeatures,
+          eq(subscriptions.id, subscriptionFeatures.subscriptionId),
+        )
+        .leftJoin(features, eq(subscriptionFeatures.featureId, features.id))
+        .groupBy(subscriptions.id);
+    }
+
     const [items, totalRow] = await Promise.all([
-      this.db
-        .select()
-        .from(subscriptions)
+      dbCtx
         .where(and(...whereConditions))
+        .orderBy(desc(subscriptions.createdAt))
         .limit(limit)
         .offset(offset),
       !query.skipCount
@@ -67,7 +105,7 @@ export class SubscriptionRepository
         hasNextPage: hasNext,
         total,
       },
-    } as PaginatedResult<Subscription>;
+    } as PaginatedResult<GetListSubscriptionResponse>;
   }
 
   async upsertSubscriptionFeatures(

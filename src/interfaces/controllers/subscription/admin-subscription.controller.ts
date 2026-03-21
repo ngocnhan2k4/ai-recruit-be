@@ -16,10 +16,10 @@ import { SubscriptionUseCases } from "@/use-cases/subscription/subscription.use-
 import {
   CreateSubscriptionRequestDto,
   GetUserSubscriptionsRequestDto,
+  SubscriptionFilterDto,
   UpdateSubscriptionRequestDto,
   UpsertSubscriptionFeaturesRequestDto,
-} from "@/interfaces/dtos/subscription";
-import { GeneralQueryDto } from "@/interfaces/dtos";
+} from "@/interfaces/dtos";
 
 @ApiTags("Admin - Subscriptions")
 @ApiBearerAuth()
@@ -30,7 +30,7 @@ export class AdminSubscriptionController {
 
   @ApiOperation({ summary: "List subscriptions" })
   @Get()
-  getSubscriptions(@Query() query: GeneralQueryDto) {
+  getSubscriptions(@Query() query: SubscriptionFilterDto) {
     return this.subscriptionUseCases.getSubscriptions(query);
   }
 
