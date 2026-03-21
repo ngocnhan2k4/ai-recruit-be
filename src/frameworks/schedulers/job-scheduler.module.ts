@@ -5,6 +5,7 @@ import { JobMatchingScheduler } from "./job.scheduler";
 import { JobIndexWorker } from "./job-index.worker";
 import { LoggerServiceModule } from "../logger-services/logger.module";
 import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching.use-cases.module";
+import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching
     MessageQueueModule,
     LoggerServiceModule,
     JobMatchingUseCasesModule,
+    JobSyncUseCaseModule,
   ],
   providers: [JobMatchingScheduler, JobIndexWorker],
 })

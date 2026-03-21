@@ -7,10 +7,9 @@ import {
 } from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
 
-export class GenericRepository<
-  T,
-  TTable extends object,
-> implements IGenericRepository<T> {
+export class GenericRepository<T, TTable extends object>
+  implements IGenericRepository<T>
+{
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
@@ -37,12 +36,20 @@ export class GenericRepository<
     return (result[0] as T) || null;
   }
 
-  async getByIds(ids: ID[]): Promise<T[]> {
+  async getByIds(ids: ID[], fields: (keyof T)[]): Promise<T[]> {
     if (ids.length === 0) return [];
+
+    const table: any = this._table;
+
+    const selectFields = fields.reduce((acc: any, field) => {
+      acc[field] = table[field];
+      return acc;
+    }, {});
+
     const result = await this.db
-      .select()
-      .from(this._table as any)
-      .where(inArray((this._table as any).id, ids));
+      .select(selectFields)
+      .from(table)
+      .where(inArray(table.id, ids));
     return result as T[];
   }
 

@@ -9,6 +9,8 @@ export class LoggerMiddleware implements NestMiddleware {
   constructor(private readonly configService: ConfigService) {}
 
   use(req: FastifyRequest, res: FastifyReply, next: () => void) {
+    req["startTime"] = performance.now();
+
     let bodyMsg: string = "";
     const { method, originalUrl, body } = req;
     if (

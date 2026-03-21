@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Client, ClientOptions } from "@elastic/elasticsearch";
+import { Client, ClientOptions, estypes } from "@elastic/elasticsearch";
 import { Environment } from "@/common/config";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { ISearchService } from "@/core/abstracts/search-service.abstract";
@@ -161,7 +161,10 @@ export class ElasticsearchService
     return { success, failed };
   }
 
-  async search(indexName: string, query: any): Promise<any> {
+  async search(
+    indexName: string,
+    query: estypes.QueryDslQueryContainer,
+  ): Promise<any> {
     const response = await this.client.search({
       index: indexName,
       body: query,
@@ -170,12 +173,25 @@ export class ElasticsearchService
     return response;
   }
 
-  async deleteDocument(indexName: string, id: string): Promise<void> {
-    await this.client.delete({
+  async deleteByQuery(
+    indexName: string,
+    query: estypes.QueryDslQueryContainer,
+  ): Promise<{ deleted: number; took: number }> {
+    const response = await this.client.deleteByQuery({
       index: indexName,
-      id,
-      refresh: true,
+      query,
+      conflicts: "proceed",
+      refresh: false,
     });
+
+    this.logger?.log?.(
+      `deleteByQuery completed: deleted=${response.deleted}, took=${response.took}ms`,
+    );
+
+    return {
+      deleted: response.deleted ?? 0,
+      took: response.took ?? 0,
+    };
   }
 
   /**
@@ -187,7 +203,7 @@ export class ElasticsearchService
     sourceIndex: string,
     targetIndex: string,
     sourceAuth?: { username: string; password: string },
-    query?: any,
+    query?: estypes.QueryDslQueryContainer,
   ): Promise<{ total: number; took: number }> {
     const remote = {
       host: sourceNode,
@@ -221,5 +237,25 @@ export class ElasticsearchService
       total: response.total || 0,
       took: response.took || 0,
     };
+  }
+
+  async updateByQuery(
+    indexName: string,
+    query: estypes.QueryDslQueryContainer,
+    script: estypes.Script,
+  ): Promise<void> {
+    const response = await this.client.updateByQuery({
+      index: indexName,
+      body: {
+        query,
+        script,
+      },
+      refresh: true, // đảm bảo search thấy dữ liệu mới ngay
+      conflicts: "proceed", // bỏ qua conflict version
+    });
+
+    this.logger.log(
+      `updateByQuery completed: updated=${response.updated}, took=${response.took}ms`,
+    );
   }
 }

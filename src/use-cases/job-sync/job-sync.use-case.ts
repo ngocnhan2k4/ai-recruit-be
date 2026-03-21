@@ -118,9 +118,13 @@ export class JobSyncUseCases {
    * Delete a job from Elasticsearch
    */
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
-    await this.searchService.deleteDocument(
+    await this.searchService.deleteByQuery(
       this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
-      jobId,
+      {
+        term: {
+          id: jobId,
+        },
+      },
     );
     this.logger.log(`Job ${jobId} deleted from search index`);
     return {

@@ -65,7 +65,7 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
       Pick<
         OrganizationWithDetails,
         "id" | "name" | "logoUrl" | "description" | "foundedYear" | "verifiedAt"
-      >
+      > & { role: string }
     >
   >;
 

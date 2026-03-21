@@ -41,10 +41,10 @@ export const getJobStatus = (status: JobStatusEnum) => {
     case JobStatusEnum.PAUSED:
       return "tạm dừng";
     case JobStatusEnum.CLOSED:
-      return "đã đóng";
+      return "đóng";
     case JobStatusEnum.REJECTED:
       return "bị từ chối";
     default:
-      return "không xác định";
+      return "chuyển sang chờ xác nhận";
   }
 };

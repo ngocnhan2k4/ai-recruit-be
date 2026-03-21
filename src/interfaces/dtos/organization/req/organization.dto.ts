@@ -44,9 +44,9 @@ export class CreateOrganizationDto {
   description: string;
 
   @ApiProperty({ type: "string" })
-  @IsNotEmpty({ message: "Logo is required" })
+  @IsOptional()
   @IsString()
-  logoUrl: string;
+  logoUrl?: string;
 
   @ApiProperty({ type: "string" })
   @IsOptional()
