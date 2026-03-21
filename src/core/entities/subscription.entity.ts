@@ -20,3 +20,18 @@ export interface GetListSubscriptionResponse extends Subscription {
     }
   >;
 }
+
+export interface GetUserFeaturesResponse {
+  subscription:
+    | (Pick<Subscription, "id" | "name" | "billingCycle"> & {
+        status: string;
+        expiredAt: Date | null;
+      })
+    | null;
+  features: Array<
+    Pick<Feature, "id" | "code" | "name"> & {
+      limit: number;
+      usage: number;
+    }
+  >;
+}

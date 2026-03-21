@@ -27,6 +27,81 @@ export class UserFeatureUsageRepository
     super(db, userFeatureUsages);
   }
 
+  async getUserFeatures(userId: string) {
+    const rows = await this.db
+      .select({
+        featureId: features.id,
+        code: features.code,
+        name: features.name,
+        limit: subscriptionFeatures.limit,
+        usage: sql<number>`coalesce(${userFeatureUsages.usage}, 0)`,
+        subscriptionId: subscriptions.id,
+        subscriptionName: subscriptions.name,
+        billingCycle: subscriptions.billingCycle,
+        subscriptionStatus: userSubscriptions.status,
+        expiredAt: userSubscriptions.expiredAt,
+      })
+      .from(userSubscriptions)
+      .innerJoin(
+        subscriptionFeatures,
+        eq(
+          subscriptionFeatures.subscriptionId,
+          userSubscriptions.subscriptionId,
+        ),
+      )
+      .innerJoin(
+        subscriptions,
+        eq(subscriptions.id, userSubscriptions.subscriptionId),
+      )
+      .innerJoin(features, eq(features.id, subscriptionFeatures.featureId))
+      .leftJoin(
+        userFeatureUsages,
+        and(
+          eq(userFeatureUsages.userId, userId),
+          eq(userFeatureUsages.featureId, features.id),
+        ),
+      )
+      .where(
+        and(
+          eq(userSubscriptions.userId, userId),
+          eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+          isNull(userSubscriptions.deletedAt),
+          sql`(${userSubscriptions.expiredAt} IS NULL OR ${userSubscriptions.expiredAt} > now())`,
+          isNull(subscriptions.deletedAt),
+          eq(subscriptions.isActive, true),
+          isNull(features.deletedAt),
+          eq(features.isActive, true),
+        ),
+      )
+      .orderBy(features.id);
+
+    if (!rows.length) {
+      return {
+        subscription: null,
+        features: [],
+      };
+    }
+
+    const currentSubscription = {
+      id: rows[0].subscriptionId,
+      name: rows[0].subscriptionName,
+      billingCycle: rows[0].billingCycle,
+      status: rows[0].subscriptionStatus,
+      expiredAt: rows[0].expiredAt,
+    };
+
+    return {
+      subscription: currentSubscription,
+      features: rows.map((row) => ({
+        id: row.featureId,
+        code: row.code as FeatureCodeEnum,
+        name: row.name,
+        limit: row.limit,
+        usage: row.usage ?? 0,
+      })),
+    };
+  }
+
   // [TODO] Using redis to enhance performance
   async consumeFeature(
     userId: string,
