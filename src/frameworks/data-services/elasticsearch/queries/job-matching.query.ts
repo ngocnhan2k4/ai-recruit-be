@@ -22,12 +22,14 @@ export class JobMatchingQuery {
     const {
       cursor,
       limit = 20,
-      status = "active",
+      status,
       workType,
-      provinceIds: filterProvinceIds,
+      provinceId: filterProvinceId,
       categoryId: filterCategoryId,
       salaryMin,
       salaryMax,
+      skillIds: filterSkill,
+      statuses,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -40,7 +42,6 @@ export class JobMatchingQuery {
     }
 
     const mustQueries: any[] = [
-      { term: { status } },
       // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
         bool: {
@@ -52,12 +53,20 @@ export class JobMatchingQuery {
       },
     ];
 
+    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
+
+    if (statusFilters.length) {
+      mustQueries.push({
+        terms: { status: statusFilters },
+      });
+    }
+
     if (workType) {
       mustQueries.push({ terms: { workType } });
     }
 
-    if (filterProvinceIds && filterProvinceIds.length > 0) {
-      mustQueries.push({ terms: { provinceIds: filterProvinceIds } });
+    if (filterProvinceId) {
+      mustQueries.push({ terms: { provinceIds: [filterProvinceId] } });
     }
 
     if (filterCategoryId) {
@@ -80,6 +89,14 @@ export class JobMatchingQuery {
           salaryMin: {
             lte: salaryMax,
           },
+        },
+      });
+    }
+
+    if (filterSkill) {
+      mustQueries.push({
+        terms: {
+          skillIds: filterSkill,
         },
       });
     }
@@ -149,14 +166,7 @@ export class JobMatchingQuery {
                               }
                             }
                             
-                            double score = (matchedSkills / totalSkills) * 100;
-                            
-                            // Bonus cho nhiều skills match
-                            if (matchedSkills == totalSkills) {
-                              score += 20; // Perfect match bonus
-                            }
-                            
-                            return Math.min(score, 100);
+                            return (matchedSkills / totalSkills) * 100;
                           `,
                           params: {
                             userSkillIds: skillIds,
@@ -320,20 +330,36 @@ export class JobMatchingQuery {
   }
 
   /**
-   * Build simple search query (không có user profile)
+   * Build simple search query
    */
-  buildSearchQuery(searchTerm: string, filters: JobFilters): any {
+  buildSearchQuery(filters: JobFilters): any {
     const {
-      page = 1,
+      cursor,
       limit = 20,
-      status = "active",
+      status,
+      statuses,
       workType,
-      provinceIds,
+      provinceId,
       categoryId,
+      keyword,
+      skillIds,
+      organizationId,
+      salaryMin,
+      salaryMax,
+      experienceMin,
+      experienceMax,
     } = filters;
 
+    let searchAfter: any[] | undefined;
+    if (cursor) {
+      try {
+        searchAfter = JSON.parse(Buffer.from(cursor, "base64").toString());
+      } catch {
+        this.logger.warn("Invalid cursor");
+      }
+    }
+
     const mustQueries: any[] = [
-      { term: { status } },
       // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
       {
         bool: {
@@ -341,30 +367,91 @@ export class JobMatchingQuery {
             { range: { endDate: { gte: "now/d" } } },
             { bool: { must_not: { exists: { field: "endDate" } } } },
           ],
+          minimum_should_match: 1,
         },
       },
     ];
 
-    if (workType) {
-      mustQueries.push({ terms: { workType } });
+    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
+
+    if (statusFilters.length) {
+      mustQueries.push({
+        terms: { status: statusFilters },
+      });
     }
 
-    if (provinceIds && provinceIds.length > 0) {
-      mustQueries.push({ terms: { provinceIds: provinceIds } });
+    if (workType) {
+      mustQueries.push({ term: { workType } });
+    }
+
+    if (provinceId) {
+      mustQueries.push({ terms: { provinceIds: [provinceId] } });
     }
 
     if (categoryId) {
       mustQueries.push({ terms: { categoryId } });
     }
 
+    if (skillIds && skillIds.length > 0) {
+      mustQueries.push({
+        terms: {
+          skillIds: skillIds,
+        },
+      });
+    }
+
+    if (organizationId) {
+      mustQueries.push({
+        term: {
+          organizationId,
+        },
+      });
+    }
+
+    if (salaryMin !== undefined || salaryMax !== undefined) {
+      if (salaryMin !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMax: { gte: salaryMin },
+          },
+        });
+      }
+
+      if (salaryMax !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMin: { lte: salaryMax },
+          },
+        });
+      }
+    }
+
+    if (experienceMin !== undefined || experienceMax !== undefined) {
+      if (experienceMin !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMax: { gte: experienceMin },
+          },
+        });
+      }
+
+      if (experienceMax !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMin: { lte: experienceMax },
+          },
+        });
+      }
+    }
+
     const shouldQueries: any[] = [];
 
-    if (searchTerm) {
+    if (keyword) {
       shouldQueries.push(
         {
           match: {
             title: {
-              query: searchTerm,
+              query: keyword,
               boost: 3.0,
             },
           },
@@ -372,7 +459,7 @@ export class JobMatchingQuery {
         {
           match: {
             description: {
-              query: searchTerm,
+              query: keyword,
               boost: 1.0,
             },
           },
@@ -380,7 +467,7 @@ export class JobMatchingQuery {
         {
           match: {
             skillNames: {
-              query: searchTerm,
+              query: keyword,
               boost: 2.0,
             },
           },
@@ -395,7 +482,7 @@ export class JobMatchingQuery {
           bool: {
             must: mustQueries,
             should: shouldQueries,
-            minimum_should_match: searchTerm ? 1 : 0,
+            ...(keyword && { minimum_should_match: 1 }),
           },
         },
         sort: [
@@ -410,8 +497,8 @@ export class JobMatchingQuery {
             },
           },
         ],
-        size: limit,
-        from: (page - 1) * limit,
+        size: limit + 1,
+        ...(searchAfter && { search_after: searchAfter }),
       },
     };
   }

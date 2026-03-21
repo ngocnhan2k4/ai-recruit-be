@@ -23,6 +23,7 @@ class SalaryStatisticsDto {
 }
 
 export class TopInMarketDto {
+  id?: string;
   name: string;
   logoUrl?: string;
   count?: number;

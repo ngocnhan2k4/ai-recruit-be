@@ -51,7 +51,7 @@ export class AIClientService implements IAIService {
             this.httpService.post(url, request, {
               headers: {
                 "Content-Type": "application/json",
-                "X-API-KEY": this.configService.get<string>("AI_API_KEY") || "",
+                "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
               },
               responseType: "stream",
               timeout: this.aiServiceTimeout,
@@ -112,7 +112,7 @@ export class AIClientService implements IAIService {
         .post<OptimizeAtsResponse>(url, request, {
           headers: {
             "Content-Type": "application/json",
-            "X-API-KEY": this.configService.get<string>("AI_API_KEY") || "",
+            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
           },
         })
         .pipe(
@@ -181,7 +181,7 @@ export class AIClientService implements IAIService {
         .post<CvFieldSuggestionResponse>(url, request, {
           headers: {
             "Content-Type": "application/json",
-            "X-API-KEY": this.configService.get<string>("AI_API_KEY") || "",
+            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
           },
         })
         .pipe(

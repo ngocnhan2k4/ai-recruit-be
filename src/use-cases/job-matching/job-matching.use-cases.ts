@@ -3,10 +3,8 @@ import {
   IEmailQueueStorageService,
   IJobRepository,
   IUserRepository,
-  IUserSkillRepository,
-  IUserExperienceRepository,
   ISearchService,
-  IUserOnboardingRepository,
+  IOrganizationRepository,
 } from "@/core";
 import {
   EmailJobType,
@@ -14,16 +12,13 @@ import {
   Province,
   Skill,
   Category,
-  OrganizationRoleEnum,
-  UserProfile,
-  OrganizationTypeEnum,
+  OrganizationWithDetails,
 } from "@/core/entities";
 import { JobFilters } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
 import { EmailJob } from "@/core/entities/email.entity";
 import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
-import { differenceInYears } from "date-fns";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import {
@@ -31,6 +26,7 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
+import { Dictionary, keyBy } from "lodash";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -40,11 +36,9 @@ export class JobMatchingUseCases {
     private readonly jobRepository: IJobRepository,
     private readonly emailStorageService: IEmailQueueStorageService,
     private readonly userRepository: IUserRepository,
-    private readonly userSkillRepository: IUserSkillRepository,
-    private readonly userOnboardingRepository: IUserOnboardingRepository,
-    private readonly userExperienceRepository: IUserExperienceRepository,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   async sendJobRecommendationsToUsers(): Promise<void> {
@@ -125,46 +119,13 @@ export class JobMatchingUseCases {
   ): Promise<ApiResponse<PaginatedResult<JobMatchResultDto>>> {
     this.logger.log(`Getting matched jobs for user ${userId}`);
 
-    const user = await this.userRepository.get(userId);
-    if (!user) {
+    const userProfile = await this.userRepository.getUserProfile(userId);
+    if (!userProfile) {
       throw new NotFoundException({
         message: `User ${userId} not found`,
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
-
-    // Get user skills
-    const [userSkills, userExperiences, userOnboarding] = await Promise.all([
-      this.userSkillRepository.getUserSkills(user.username),
-      this.userExperienceRepository.getUserExperiencesByUsername(user.username),
-      this.userOnboardingRepository.getByField({ userId }),
-    ]);
-    const skillIds = userSkills.map((skill) => skill.id);
-
-    let experienceYears = 0;
-    if (userExperiences.length > 0) {
-      // Calculate total years of experience
-      const totalMonths = userExperiences.reduce((sum, exp) => {
-        const startDate = new Date(exp.experience.startDate);
-        const endDate = exp.experience.endDate
-          ? new Date(exp.experience.endDate)
-          : new Date();
-        const months = differenceInYears(endDate, startDate);
-        return sum + months;
-      }, 0);
-      experienceYears = Math.max(0, totalMonths);
-    }
-
-    const userProfile: UserProfile = {
-      userId: user.id,
-      skillIds,
-      experienceYears,
-      provinceIds: userOnboarding[0]?.provinceIds || [],
-      categoryIds: userOnboarding[0]?.categoryIds || [],
-      expectedSalary: userOnboarding[0]?.expectedSalary
-        ? Number(userOnboarding[0].expectedSalary)
-        : undefined,
-    };
 
     const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
 
@@ -180,28 +141,83 @@ export class JobMatchingUseCases {
     const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
 
     // Extract job IDs for batch query
-    const jobIds: string[] = actualHits
-      .map((hit: any) => hit._source?.id as string | undefined)
-      .filter(
-        (id: string | undefined): id is string =>
-          typeof id === "string" && id.length > 0,
-      );
+    const jobIds: string[] = [];
+    const orgIds: string[] = [];
 
-    const userJobStatusMap =
-      jobIds.length > 0
-        ? await this.jobRepository.getUserJobStatuses(userId, jobIds)
-        : new Map<
-            string,
-            {
-              isSaved: boolean;
-              isApplied: boolean;
-              applyStatus: string | null;
-              applyId: string | null;
-            }
-          >();
+    for (const hit of actualHits) {
+      const source = hit._source;
+      jobIds.push(source.id);
+      const orgId = source.organizationId;
+      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
+    }
+
+    const uniqueOrgIds = [...new Set<string>(orgIds)];
+
+    const [userJobStatusMap, organizations] = await Promise.all([
+      jobIds.length > 0 && filters.user?.userId
+        ? await this.jobRepository.getUserJobStatuses(
+            filters.user?.userId,
+            jobIds,
+          )
+        : Promise.resolve(new Map()),
+      this.organizationRepository.getByIds(uniqueOrgIds, [
+        "id",
+        "name",
+        "description",
+        "websiteUrl",
+        "employeesMin",
+        "employeesMax",
+        "logoUrl",
+      ]),
+    ]);
+    const organizationMap = keyBy(organizations, "id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs: JobMatchResultDto[] = actualHits.map((hit: any) => {
+    const jobs = this.convertHitToDto(
+      actualHits,
+      organizationMap,
+      userJobStatusMap,
+    );
+
+    // Generate next cursor if there are more results
+    let nextCursor: string | undefined;
+    if (hasMore) {
+      const lastHit = actualHits[actualHits.length - 1];
+      const searchAfter = lastHit.sort;
+      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
+    }
+
+    this.logger.log(
+      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
+    );
+
+    return {
+      data: {
+        data: jobs,
+        pagination: {
+          nextCursor,
+          hasNextPage: hasMore,
+        },
+      },
+      message: "Successfully retrieved matched jobs",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  private convertHitToDto(
+    actualHits: any,
+    organizationMap: Dictionary<OrganizationWithDetails>,
+    userJobStatusMap: Map<
+      string,
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >,
+  ): JobMatchResultDto[] {
+    return actualHits.map((hit: any) => {
       const source = hit._source;
 
       // Transform provinces
@@ -221,33 +237,9 @@ export class JobMatchingUseCases {
       );
 
       // Transform organization
-      const organization: OrganizationWithDetailsDto = {
+      const organization = organizationMap[source.organizationId] || {
         id: source.organizationId,
         name: source.organizationName || "",
-        slug: "",
-        type: OrganizationTypeEnum.COMPANY,
-        description: null,
-        address: null,
-        logoUrl: null,
-        about: null,
-        websiteUrl: null,
-        email: null,
-        phone: null,
-        foundedYear: null,
-        verifiedAt: null,
-        employeesMin: null,
-        employeesMax: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-        companySize: null,
-        taxCode: null,
-        benefits: null,
-        companyRawId: null,
-        schoolType: null,
-        culture: null,
-        locations: [],
-        role: OrganizationRoleEnum.ANONYMOUSLY,
       };
 
       const category: Category = {
@@ -292,7 +284,7 @@ export class JobMatchingUseCases {
       return {
         job,
         provinces,
-        organization,
+        organization: organization as OrganizationWithDetailsDto,
         skills,
         category,
         isSaved: jobStatus.isSaved,
@@ -302,32 +294,5 @@ export class JobMatchingUseCases {
         score: hit._score,
       } as JobMatchResultDto;
     });
-
-    // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
-    if (hasMore) {
-      const lastHit = actualHits[actualHits.length - 1];
-      const searchAfter = lastHit.sort;
-      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
-    }
-
-    const total = response.hits.total?.value || 0;
-
-    this.logger.log(
-      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
-    );
-
-    return {
-      data: {
-        data: jobs,
-        pagination: {
-          total,
-          nextCursor,
-          hasNextPage: hasMore,
-        },
-      },
-      message: "Successfully retrieved matched jobs",
-      code: RESPONSE_CODE.SUCCESS,
-    };
   }
 }

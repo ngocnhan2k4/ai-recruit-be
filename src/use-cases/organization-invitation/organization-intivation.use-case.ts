@@ -218,7 +218,7 @@ export class OrganizationInvitationUseCase {
     // Queue email invitation (non-blocking)
     try {
       const [users, organization] = await Promise.all([
-        this.userRepository.getByIds([inviteeId, inviterId]),
+        this.userRepository.getByIds([inviteeId, inviterId], ["id"]),
         this.organizationRepository.get(organizationId),
       ]);
       const invitee = users.find((u) => u.id === inviteeId);
