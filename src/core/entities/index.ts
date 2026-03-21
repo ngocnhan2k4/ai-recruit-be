@@ -192,7 +192,13 @@ export type NewSubscription = InferInsertModel<typeof subscriptions>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 
 export type NewUserSubscription = InferInsertModel<typeof userSubscriptions>;
-export type UserSubscription = InferSelectModel<typeof userSubscriptions>;
+export type UserSubscription = InferSelectModel<typeof userSubscriptions> & {
+  user: Pick<User, "id" | "name" | "username" | "email" | "avatarUrl">;
+  subscription: Pick<
+    Subscription,
+    "id" | "name" | "price" | "billingCycle" | "isActive"
+  >;
+};
 
 export type NewSubscriptionFeature = InferInsertModel<
   typeof subscriptionFeatures

@@ -7,7 +7,6 @@ export interface SubscriptionFilter extends GeneralQuery {
 }
 
 export interface UserSubscriptionFilter extends GeneralQuery {
-  userId?: string;
   subscriptionId?: string;
   status?: UserSubscriptionStatusEnum;
 }

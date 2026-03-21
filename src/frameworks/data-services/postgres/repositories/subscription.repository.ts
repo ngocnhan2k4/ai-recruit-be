@@ -10,10 +10,11 @@ import { type DBDrizzle } from "../types";
 import {
   subscriptionFeatures,
   subscriptions,
+  users,
   userSubscriptions,
 } from "../models";
 import { PaginatedResult } from "@/common/types";
-import { and, count, ilike, isNull, SQL, sql } from "drizzle-orm";
+import { and, count, ilike, isNull, or, SQL, sql } from "drizzle-orm";
 import {
   SubscriptionFilter,
   UserSubscriptionFilter,
@@ -106,10 +107,6 @@ export class SubscriptionRepository
 
     const whereConditions: SQL[] = [isNull(userSubscriptions.deletedAt)];
 
-    if (query.userId) {
-      whereConditions.push(eq(userSubscriptions.userId, query.userId));
-    }
-
     if (query.subscriptionId) {
       whereConditions.push(
         eq(userSubscriptions.subscriptionId, query.subscriptionId),
@@ -122,23 +119,60 @@ export class SubscriptionRepository
 
     if (keyword) {
       whereConditions.push(
-        sql`(
-          cast(${userSubscriptions.userId} as text) ilike ${`%${keyword}%`}
-          or cast(${userSubscriptions.subscriptionId} as text) ilike ${`%${keyword}%`}
-        )`,
+        or(
+          sql`cast(${userSubscriptions.userId} as text) ilike ${`%${keyword}%`}`,
+          sql`cast(${userSubscriptions.subscriptionId} as text) ilike ${`%${keyword}%`}`,
+          ilike(users.name, `%${keyword}%`),
+          ilike(users.email, `%${keyword}%`),
+          ilike(subscriptions.name, `%${keyword}%`),
+        )!,
       );
     }
 
     const [items, totalRow] = await Promise.all([
       this.db
-        .select()
+        .select({
+          id: userSubscriptions.id,
+          userId: userSubscriptions.userId,
+          subscriptionId: userSubscriptions.subscriptionId,
+          startedAt: userSubscriptions.startedAt,
+          expiredAt: userSubscriptions.expiredAt,
+          status: userSubscriptions.status,
+          createdAt: userSubscriptions.createdAt,
+          updatedAt: userSubscriptions.updatedAt,
+          deletedAt: userSubscriptions.deletedAt,
+          user: {
+            id: users.id,
+            name: users.name,
+            username: users.username,
+            email: users.email,
+            avatarUrl: users.avatarUrl,
+          },
+          subscription: {
+            id: subscriptions.id,
+            name: subscriptions.name,
+            price: subscriptions.price,
+            billingCycle: subscriptions.billingCycle,
+            isActive: subscriptions.isActive,
+          },
+        })
         .from(userSubscriptions)
+        .innerJoin(users, eq(userSubscriptions.userId, users.id))
+        .innerJoin(
+          subscriptions,
+          eq(userSubscriptions.subscriptionId, subscriptions.id),
+        )
         .where(and(...whereConditions))
         .limit(limit)
         .offset(offset),
       this.db
         .select({ count: count(userSubscriptions.id) })
         .from(userSubscriptions)
+        .innerJoin(users, eq(userSubscriptions.userId, users.id))
+        .innerJoin(
+          subscriptions,
+          eq(userSubscriptions.subscriptionId, subscriptions.id),
+        )
         .where(and(...whereConditions)),
     ]);
 
