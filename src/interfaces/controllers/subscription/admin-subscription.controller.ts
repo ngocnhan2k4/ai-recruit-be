@@ -17,6 +17,7 @@ import {
   CreateSubscriptionRequestDto,
   GetUserSubscriptionsRequestDto,
   SubscriptionFilterDto,
+  UpdateUserSubscriptionRequestDto,
   UpdateSubscriptionRequestDto,
   UpsertSubscriptionFeaturesRequestDto,
 } from "@/interfaces/dtos";
@@ -76,5 +77,14 @@ export class AdminSubscriptionController {
   @Get("user-subscriptions")
   getUserSubscriptions(@Query() query: GetUserSubscriptionsRequestDto) {
     return this.subscriptionUseCases.getUserSubscriptions(query);
+  }
+
+  @ApiOperation({ summary: "Update user subscription manually" })
+  @Patch("user-subscriptions/:id")
+  updateUserSubscription(
+    @Param("id") id: string,
+    @Body() dto: UpdateUserSubscriptionRequestDto,
+  ) {
+    return this.subscriptionUseCases.updateUserSubscription(id, dto);
   }
 }

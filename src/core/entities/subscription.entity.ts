@@ -35,3 +35,10 @@ export interface GetUserFeaturesResponse {
     }
   >;
 }
+
+export type UpdateUserSubscriptionInput = {
+  userId: string;
+  subscriptionId?: string;
+  status?: UserSubscriptionStatusEnum;
+  expiredAt?: Date;
+};

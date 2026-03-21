@@ -3,12 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Inject } from "@nestjs/common";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateSubscriptionRequestDto,
   SubscriptionFilterDto,
+  UpdateUserSubscriptionRequestDto,
   UpdateSubscriptionRequestDto,
   UpsertSubscriptionFeaturesRequestDto,
 } from "@/interfaces/dtos/subscription";
@@ -18,6 +18,7 @@ import {
   Subscription,
   UserSubscription,
 } from "@/core";
+import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { PaginatedResult } from "@/common/types";
 import {
   GetListSubscriptionResponse,
@@ -27,9 +28,8 @@ import {
 @Injectable()
 export class SubscriptionUseCases {
   constructor(
-    @Inject(ISubscriptionRepository)
     private readonly subscriptionRepo: ISubscriptionRepository,
-    @Inject(IFeatureRepository)
+    private readonly userSubscriptionRepo: IUserSubscriptionRepository,
     private readonly featureRepo: IFeatureRepository,
   ) {}
 
@@ -163,6 +163,42 @@ export class SubscriptionUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: result,
+    };
+  }
+
+  async updateUserSubscription(
+    id: string,
+    dto: UpdateUserSubscriptionRequestDto,
+  ): Promise<ApiResponse<UserSubscription>> {
+    const existing = await this.userSubscriptionRepo.get(id);
+    if (!existing || existing.deletedAt) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BAD_REQUEST,
+        message: "User subscription not found",
+      });
+    }
+
+    if (dto.subscriptionId) {
+      const sub = await this.subscriptionRepo.get(dto.subscriptionId);
+      if (!sub) {
+        throw new NotFoundException({
+          code: RESPONSE_CODE.SUBSCRIPTION_NOT_FOUND,
+          message: "Subscription not found",
+        });
+      }
+    }
+
+    const updated = await this.userSubscriptionRepo.updateUserSubscription(id, {
+      userId: existing.userId,
+      subscriptionId: dto.subscriptionId,
+      status: dto.status,
+      expiredAt: dto.expiredAt ? new Date(dto.expiredAt) : undefined,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: updated!,
     };
   }
 }
