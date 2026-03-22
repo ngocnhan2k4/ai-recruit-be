@@ -37,7 +37,7 @@ export class SubscriptionUseCases {
     dto: CreateSubscriptionRequestDto,
   ): Promise<ApiResponse<Subscription>> {
     const created = await this.subscriptionRepo.create({
-      name: dto.name as "FREE" | "BASIC" | "PRO" | "ENTEPRISE" | undefined,
+      name: dto.name as "FREE" | "BASIC" | "PRO" | "ENTERPRISE" | undefined,
       price: dto.price,
       billingCycle: dto.billingCycle,
       isActive: dto.isActive ?? true,
@@ -58,7 +58,7 @@ export class SubscriptionUseCases {
       { id },
       {
         ...dto,
-        name: dto.name as "FREE" | "BASIC" | "PRO" | "ENTEPRISE" | undefined,
+        name: dto.name as "FREE" | "BASIC" | "PRO" | "ENTERPRISE" | undefined,
       },
     );
 

@@ -151,5 +151,5 @@ export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
   "FREE",
   "BASIC",
   "PRO",
-  "ENTEPRISE",
+  "ENTERPRISE",
 ]);
