@@ -5,12 +5,12 @@ import {
   IsNotEmpty,
   IsArray,
   IsUUID,
-  IsNumber,
   IsBoolean,
   IsOptional,
   ArrayMinSize,
   ArrayMaxSize,
   Min,
+  IsNumber,
   IsIn,
 } from "class-validator";
 
@@ -46,11 +46,6 @@ export class CreateQuestionDto {
   @IsString()
   @IsNotEmpty()
   correctAnswer: string;
-
-  @ApiProperty({ example: 10 })
-  @IsNumber()
-  @Min(1)
-  point: number;
 
   @ApiProperty({
     example: ["medium"],

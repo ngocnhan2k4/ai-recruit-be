@@ -2,7 +2,7 @@ import { IUserAnswerRepository, UserAnswer } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle, DBDrizzleTransaction } from "../types";
-import { userAnswers } from "../models";
+import { userAnswers, questions } from "../models";
 import { eq } from "drizzle-orm";
 
 @Injectable()
@@ -28,11 +28,73 @@ export class UserAnswerRepository
     return result;
   }
 
-  async getTestAnswers(userTestId: string): Promise<UserAnswer[]> {
-    return await this.db
+  async getTestAnswers(
+    userTestId: string,
+  ): Promise<(UserAnswer & { difficultyLevels?: string[] })[]> {
+    const rows = await this.db
+      .select({
+        id: userAnswers.id,
+        userTestId: userAnswers.userTestId,
+        questionId: userAnswers.questionId,
+        chosenAnswer: userAnswers.chosenAnswer,
+        isCorrect: userAnswers.isCorrect,
+        pointGained: userAnswers.pointGained,
+        createdAt: userAnswers.createdAt,
+        difficultyLevels: questions.difficultyLevels,
+      })
+      .from(userAnswers)
+      .leftJoin(questions, eq(userAnswers.questionId, questions.id))
+      .where(eq(userAnswers.userTestId, userTestId));
+
+    return rows.map((r) => ({
+      ...r,
+      difficultyLevels: (r.difficultyLevels as string[] | null) ?? [],
+    }));
+  }
+
+  async upsertScoredAnswers(
+    userTestId: string,
+    answers: Array<{
+      questionId: string;
+      chosenAnswer: string;
+      isCorrect: boolean;
+      pointGained: number;
+    }>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void> {
+    const dbContext = tx || this.db;
+
+    const existing = await dbContext
       .select()
       .from(userAnswers)
       .where(eq(userAnswers.userTestId, userTestId));
+
+    for (const a of answers) {
+      const rowsForQuestion = existing.filter(
+        (r) => r.questionId === a.questionId,
+      );
+
+      if (rowsForQuestion.length > 0) {
+        for (const row of rowsForQuestion) {
+          await dbContext
+            .update(userAnswers)
+            .set({
+              chosenAnswer: a.chosenAnswer,
+              isCorrect: a.isCorrect,
+              pointGained: a.pointGained,
+            })
+            .where(eq(userAnswers.id, row.id));
+        }
+      } else {
+        await dbContext.insert(userAnswers).values({
+          userTestId,
+          questionId: a.questionId,
+          chosenAnswer: a.chosenAnswer,
+          isCorrect: a.isCorrect,
+          pointGained: a.pointGained,
+        });
+      }
+    }
   }
 
   async upsertAnswers(

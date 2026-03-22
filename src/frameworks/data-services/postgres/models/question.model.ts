@@ -3,7 +3,6 @@ import {
   uuid,
   text,
   jsonb,
-  integer,
   boolean,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -27,7 +26,6 @@ export const questions = pgTable("questions", {
   questionText: text("question_text").notNull(),
   options: jsonb("options").$type<string[]>().notNull(),
   correctAnswer: varchar("correct_answer", { length: 255 }).notNull(),
-  point: integer("point").notNull().default(1),
   difficultyLevels: jsonb("difficulty_levels")
     .$type<Difficulty[]>()
     .notNull()

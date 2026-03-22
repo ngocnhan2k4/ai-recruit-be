@@ -403,7 +403,6 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
-      point: q.point,
       difficultyLevels: q.difficultyLevels,
     }));
 
@@ -478,13 +477,12 @@ export class ExamUseCases {
     const examResult = this.scoringService.scoreAndEvaluate(
       validQuestions,
       dto.answers,
+      userTest.selectedDifficultyLevels as string[] | null | undefined,
     );
 
     // Save user answers and update test result in transaction
     await this.userTestRepo.executeWithTransaction(async (tx) => {
-      // Save all answers
       const answersToSave = examResult.answersDetails.map((detail) => ({
-        userTestId: dto.userTestId,
         questionId: detail.questionId,
         chosenAnswer:
           dto.answers.find((a) => a.questionId === detail.questionId)
@@ -493,7 +491,11 @@ export class ExamUseCases {
         pointGained: detail.pointGained,
       }));
 
-      await this.userAnswerRepo.createMany(answersToSave, tx);
+      await this.userAnswerRepo.upsertScoredAnswers(
+        dto.userTestId,
+        answersToSave,
+        tx,
+      );
 
       // Update test result with skill-based levels
       await this.userTestRepo.updateTestResult(
@@ -624,7 +626,6 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
-      point: q.point,
       difficultyLevels: q.difficultyLevels,
       savedAnswer: answerMap.get(q.id) || null,
     }));
