@@ -139,7 +139,7 @@ export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
   "incomplete",
   "active",
   "canceled",
-  "expired",
+  // "expired",
 ]);
 
 export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [

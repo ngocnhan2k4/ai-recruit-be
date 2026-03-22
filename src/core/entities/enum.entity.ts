@@ -176,7 +176,7 @@ export enum UserSubscriptionStatusEnum {
   INCOMPLETE = "incomplete",
   ACTIVE = "active",
   CANCELED = "canceled",
-  EXPIRED = "expired",
+  // EXPIRED = "expired",
 }
 
 export enum SubscriptionEnum {
