@@ -158,11 +158,8 @@ export class SubscriptionRepository
     if (keyword) {
       whereConditions.push(
         or(
-          sql`cast(${userSubscriptions.userId} as text) ilike ${`%${keyword}%`}`,
-          sql`cast(${userSubscriptions.subscriptionId} as text) ilike ${`%${keyword}%`}`,
           ilike(users.name, `%${keyword}%`),
           ilike(users.email, `%${keyword}%`),
-          sql`cast(${subscriptions.name} as text) ilike ${`%${keyword}%`}`,
         )!,
       );
     }
