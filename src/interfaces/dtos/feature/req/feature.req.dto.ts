@@ -1,3 +1,4 @@
+import { FeatureCodeEnum } from "@/core";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsBoolean,
@@ -8,9 +9,9 @@ import {
 } from "class-validator";
 
 export class CreateFeatureRequestDto {
-  @ApiProperty({ enum: ["cv", "learning_path"], example: "cv" })
-  @IsEnum(["cv", "learning_path"] as const)
-  code: "cv" | "learning_path";
+  @ApiProperty({ enum: FeatureCodeEnum, example: "cv" })
+  @IsEnum(FeatureCodeEnum)
+  code: FeatureCodeEnum;
 
   @ApiProperty({ example: "CV" })
   @IsString()

@@ -5,7 +5,10 @@ export class FeatureDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ enum: FeatureCodeEnum, example: FeatureCodeEnum.CV })
+  @ApiProperty({
+    enum: FeatureCodeEnum,
+    example: FeatureCodeEnum.LEARNING_PATH,
+  })
   code: FeatureCodeEnum;
 
   @ApiProperty({ example: "CV" })
