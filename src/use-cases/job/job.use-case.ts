@@ -886,7 +886,6 @@ export class JobUseCases {
     organizationId?: string,
   ): Promise<ApiResponse<{ message: string }>> {
     const existingJob = await this.jobRepository.get(jobId);
-    console.log("Existing job:", existingJob);
     if (!existingJob || existingJob.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,

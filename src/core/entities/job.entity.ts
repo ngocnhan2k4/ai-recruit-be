@@ -23,7 +23,6 @@ export interface JobFilters extends GeneralQuery {
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
-  deletedAt?: Date | null;
 }
 
 export interface StatisticsJobFilter {
