@@ -126,7 +126,7 @@ export class SkillRepository
     }
 
     if (skillIds.length > 0) {
-      whereConditions.push(inArray(skills.id, skills));
+      whereConditions.push(inArray(skills.id, skillIds));
     }
 
     if (query.questions) {
