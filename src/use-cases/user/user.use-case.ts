@@ -274,20 +274,7 @@ export class UserUseCases implements OnModuleInit {
           preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
         }
 
-        // Upsert onboarding: update if exists, create if not
-        const existingOnboarding =
-          await this.userOnboardingRepository.getByField({ userId });
-        if (existingOnboarding.length > 0) {
-          await this.userOnboardingRepository.update(
-            { userId },
-            preferencesUpdate,
-          );
-        } else {
-          await this.userOnboardingRepository.create({
-            userId,
-            ...preferencesUpdate,
-          });
-        }
+        await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
 
       return {
