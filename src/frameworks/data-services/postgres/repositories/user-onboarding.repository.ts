@@ -40,4 +40,20 @@ export class UserOnboardingRepository
       );
     }
   }
+
+  async upsert(
+    userId: string,
+    onboardingData: Partial<UserOnboarding>,
+  ): Promise<void> {
+    await this.db
+      .insert(userOnboardings)
+      .values({
+        userId,
+        ...onboardingData,
+      })
+      .onConflictDoUpdate({
+        target: [userOnboardings.userId],
+        set: onboardingData,
+      });
+  }
 }
