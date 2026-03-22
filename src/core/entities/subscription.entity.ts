@@ -29,7 +29,7 @@ export interface GetUserFeaturesResponse {
       })
     | null;
   features: Array<
-    Pick<Feature, "id" | "code" | "name"> & {
+    Pick<Feature, "id" | "code" | "name" | "description"> & {
       limit: number;
       usage: number;
     }
