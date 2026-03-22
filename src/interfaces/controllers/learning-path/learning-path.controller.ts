@@ -54,10 +54,18 @@ export class LearningPathController {
     description:
       "Generate a roadmap preview with real-time progress updates via Server-Sent Events.",
   })
-  previewRoadmap(
+  async previewRoadmap(
     @Body() dto: PreviewRoadmapDto,
     @Res() reply: FastifyReply,
-  ): void {
+    @GetUser() user: TokenPayload,
+  ): Promise<void> {
+    const { stream, consumeFeature } = this.learningPathUseCase.previewRoadmap(
+      dto,
+      user.userId,
+    );
+
+    await consumeFeature();
+
     reply.hijack();
 
     // Set SSE headers
@@ -76,9 +84,7 @@ export class LearningPathController {
     // Send initial comment to establish connection
     reply.raw.write(": connected\n\n");
 
-    const observable = this.learningPathUseCase.previewRoadmap(dto);
-
-    observable.subscribe({
+    stream.subscribe({
       next: (event) => {
         const data = JSON.stringify(event.data);
         reply.raw.write(`data: ${data}\n\n`);
@@ -97,6 +103,7 @@ export class LearningPathController {
         });
         reply.raw.write(`data: ${errorData}\n\n`);
         reply.raw.end();
+        // [TODO] Can rollback quota for user if fail
       },
     });
   }
