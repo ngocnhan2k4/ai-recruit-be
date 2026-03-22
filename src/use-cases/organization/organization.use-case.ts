@@ -1049,15 +1049,10 @@ export class OrganizationUseCase {
         orgId,
         userId ?? "",
       );
-      console.log(`User ${userId} is member of org ${orgId}: ${isMember}`);
       if (!isMember) status = JobStatusEnum.ACTIVE;
     } catch (_err) {
       status = JobStatusEnum.ACTIVE;
     }
-
-    console.log(
-      `Getting jobs for org ${orgId} with status ${status} for user ${userId}`,
-    );
 
     const result = await this.jobRepository.getJobsByAdmin({
       organizationId: orgId,
