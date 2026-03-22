@@ -3,7 +3,7 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle, DBDrizzleTransaction } from "../types";
 import { userAnswers, questions } from "../models";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 @Injectable()
 export class UserAnswerRepository
@@ -69,24 +69,31 @@ export class UserAnswerRepository
       .from(userAnswers)
       .where(eq(userAnswers.userTestId, userTestId));
 
+    const toInsert: Array<{
+      userTestId: string;
+      questionId: string;
+      chosenAnswer: string;
+      isCorrect: boolean;
+      pointGained: number;
+    }> = [];
+
     for (const a of answers) {
       const rowsForQuestion = existing.filter(
         (r) => r.questionId === a.questionId,
       );
 
       if (rowsForQuestion.length > 0) {
-        for (const row of rowsForQuestion) {
-          await dbContext
-            .update(userAnswers)
-            .set({
-              chosenAnswer: a.chosenAnswer,
-              isCorrect: a.isCorrect,
-              pointGained: a.pointGained,
-            })
-            .where(eq(userAnswers.id, row.id));
-        }
+        const ids = rowsForQuestion.map((r) => r.id);
+        await dbContext
+          .update(userAnswers)
+          .set({
+            chosenAnswer: a.chosenAnswer,
+            isCorrect: a.isCorrect,
+            pointGained: a.pointGained,
+          })
+          .where(inArray(userAnswers.id, ids));
       } else {
-        await dbContext.insert(userAnswers).values({
+        toInsert.push({
           userTestId,
           questionId: a.questionId,
           chosenAnswer: a.chosenAnswer,
@@ -94,6 +101,10 @@ export class UserAnswerRepository
           pointGained: a.pointGained,
         });
       }
+    }
+
+    if (toInsert.length > 0) {
+      await dbContext.insert(userAnswers).values(toInsert);
     }
   }
 
