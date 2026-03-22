@@ -331,7 +331,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("/:orgId/jobs")
   @ApiOperation({
     summary: "Get jobs of an organization",
@@ -340,9 +340,14 @@ export class OrganizationController {
   })
   @ApiResponseDto(JobPaginationResponseDto)
   async getOrganizationJobs(
+    @GetUser() user: TokenPayload,
     @Param("orgId") orgId: string,
     @Query() query: OrganizationJobQueryDto,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
-    return await this.organizationUseCase.getOrganizationJobs(orgId, query);
+    return await this.organizationUseCase.getOrganizationJobs(
+      orgId,
+      query,
+      user?.userId,
+    );
   }
 }

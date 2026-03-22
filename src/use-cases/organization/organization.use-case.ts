@@ -20,6 +20,7 @@ import {
   OrganizationTypeEnum,
   OrganizationWithDetails,
   User,
+  JobStatusEnum,
 } from "@/core";
 import {
   ApiResponse,
@@ -1040,11 +1041,28 @@ export class OrganizationUseCase {
   async getOrganizationJobs(
     orgId: string,
     query: OrganizationJobQueryDto,
+    userId?: string,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    let status = query.status;
+    try {
+      const isMember = await this.organizationMembersRepository.isActiveMember(
+        orgId,
+        userId ?? "",
+      );
+      console.log(`User ${userId} is member of org ${orgId}: ${isMember}`);
+      if (!isMember) status = JobStatusEnum.ACTIVE;
+    } catch (_err) {
+      status = JobStatusEnum.ACTIVE;
+    }
+
+    console.log(
+      `Getting jobs for org ${orgId} with status ${status} for user ${userId}`,
+    );
+
     const result = await this.jobRepository.getJobsByAdmin({
       organizationId: orgId,
       keyword: query.keyword,
-      status: query.status,
+      status: status,
       createdAtStart: query.fromDate ? new Date(query.fromDate) : undefined,
       createdAtEnd: query.toDate ? new Date(query.toDate) : undefined,
       categoryIds: query.categoryIds,
