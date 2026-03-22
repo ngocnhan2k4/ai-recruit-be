@@ -41,6 +41,7 @@ export class UserFeatureUsageRepository
         billingCycle: subscriptions.billingCycle,
         subscriptionStatus: userSubscriptions.status,
         expiredAt: userSubscriptions.expiredAt,
+        startedAt: userSubscriptions.startedAt,
       })
       .from(userSubscriptions)
       .innerJoin(
@@ -65,7 +66,6 @@ export class UserFeatureUsageRepository
       .where(
         and(
           eq(userSubscriptions.userId, userId),
-          eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
           isNull(userSubscriptions.deletedAt),
           sql`(${userSubscriptions.expiredAt} IS NULL OR ${userSubscriptions.expiredAt} > now())`,
           isNull(subscriptions.deletedAt),
@@ -74,7 +74,7 @@ export class UserFeatureUsageRepository
           eq(features.isActive, true),
         ),
       )
-      .orderBy(features.id);
+      .orderBy(desc(userSubscriptions.startedAt));
 
     if (!rows.length) {
       return {
@@ -83,17 +83,24 @@ export class UserFeatureUsageRepository
       };
     }
 
+    const latestSubscriptionId = rows[0].subscriptionId;
+
+    const filteredRows = rows.filter(
+      (row) => row.subscriptionId === latestSubscriptionId,
+    );
+
     const currentSubscription = {
-      id: rows[0].subscriptionId,
-      name: rows[0].subscriptionName,
-      billingCycle: rows[0].billingCycle,
-      status: rows[0].subscriptionStatus,
-      expiredAt: rows[0].expiredAt,
+      id: filteredRows[0].subscriptionId,
+      name: filteredRows[0].subscriptionName,
+      billingCycle: filteredRows[0].billingCycle,
+      status: filteredRows[0].subscriptionStatus as UserSubscriptionStatusEnum,
+      expiredAt: filteredRows[0].expiredAt,
+      startedAt: filteredRows[0].startedAt,
     };
 
     return {
       subscription: currentSubscription,
-      features: rows.map((row) => ({
+      features: filteredRows.map((row) => ({
         id: row.featureId,
         code: row.code as FeatureCodeEnum,
         name: row.name,

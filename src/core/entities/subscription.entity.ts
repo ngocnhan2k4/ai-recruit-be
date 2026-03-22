@@ -24,8 +24,9 @@ export interface GetListSubscriptionResponse extends Subscription {
 export interface GetUserFeaturesResponse {
   subscription:
     | (Pick<Subscription, "id" | "name" | "billingCycle"> & {
-        status: string;
+        status: UserSubscriptionStatusEnum;
         expiredAt: Date | null;
+        startedAt: Date;
       })
     | null;
   features: Array<
