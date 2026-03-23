@@ -278,4 +278,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   >;
 
   abstract getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]>;
+
+  abstract getJobsV2(
+    filters?: JobFilters,
+  ): Promise<PaginatedResult<JobResponse>>;
 }

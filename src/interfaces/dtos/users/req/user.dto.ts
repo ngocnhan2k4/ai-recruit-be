@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsDateString,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -39,6 +40,16 @@ export class CreateUserRequestDto {
 }
 
 export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiProperty({ required: false, example: "2004-05-07" })
+  @IsOptional()
+  @IsDateString()
+  dob?: string;
+
   @ApiProperty({ required: false, type: "boolean" })
   @IsOptional()
   @IsBoolean()

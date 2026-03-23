@@ -17,6 +17,8 @@ import {
   OrganizationQueryDto,
   AdminUpdateOrganizationUpsertDTO,
   OrganizationWithDetailsDto,
+  OrganizationTrendsResponseDto,
+  OrganizationTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -35,6 +37,18 @@ export class OrganizationAdminController {
   @ApiResponseDto(String)
   async getAllOrganizations(@Query() query: OrganizationQueryDto) {
     return await this.organizationUseCase.getOrganizationsByAdmin(query);
+  }
+
+  @Get("trends")
+  @ApiOperation({
+    summary: "Get organization trends",
+    description: "Get organization creation trends over time",
+  })
+  @ApiResponseDto(OrganizationTrendsResponseDto)
+  async getOrganizationTrends(
+    @Query() query: OrganizationTrendsQueryDto,
+  ): Promise<ApiResponse<OrganizationTrendsResponseDto>> {
+    return this.organizationUseCase.getOrganizationTrends(query);
   }
 
   @Get(":orgId")

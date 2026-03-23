@@ -212,6 +212,8 @@ export class UserUseCases implements OnModuleInit {
         response.categoryIds = [];
         response.expectedSalary = null;
       }
+      response.email = user.email || null;
+      response.phone = user.phone || null;
     }
 
     return {
@@ -244,19 +246,12 @@ export class UserUseCases implements OnModuleInit {
 
     try {
       // Update user profile
-      const [result] = await Promise.all([
-        this.userRepository.update(
-          {
-            id: userId,
-          },
-          updatedUser,
-        ),
-        updatedUser.onboardingCompleted
-          ? this.userOnboardingRepository.create({
-              userId,
-            })
-          : Promise.resolve(),
-      ]);
+      const result = await this.userRepository.update(
+        {
+          id: userId,
+        },
+        updatedUser,
+      );
 
       if (result.length === 0) {
         throw new NotFoundException({
@@ -282,11 +277,7 @@ export class UserUseCases implements OnModuleInit {
           preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
         }
 
-        // Update existing onboarding
-        await this.userOnboardingRepository.update(
-          { userId },
-          preferencesUpdate,
-        );
+        await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
 
       return {
