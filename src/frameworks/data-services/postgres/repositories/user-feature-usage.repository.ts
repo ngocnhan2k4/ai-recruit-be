@@ -8,7 +8,7 @@ import {
   userFeatureUsages,
   userSubscriptions,
 } from "../models";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   FeatureCodeEnum,
   UserFeatureUsage,
@@ -66,11 +66,7 @@ export class UserFeatureUsageRepository
       .where(
         and(
           eq(userSubscriptions.userId, userId),
-          isNull(userSubscriptions.deletedAt),
-          sql`(${userSubscriptions.expiredAt} IS NULL OR ${userSubscriptions.expiredAt} > now())`,
-          isNull(subscriptions.deletedAt),
           eq(subscriptions.isActive, true),
-          isNull(features.deletedAt),
           eq(features.isActive, true),
         ),
       )
@@ -153,15 +149,12 @@ export class UserFeatureUsageRepository
       .where(
         and(
           eq(features.code, featureCode),
-          isNull(features.deletedAt),
           eq(features.isActive, true),
 
           eq(userSubscriptions.userId, userId),
           eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
-          isNull(userSubscriptions.deletedAt),
           sql`(${userSubscriptions.expiredAt} IS NULL OR ${userSubscriptions.expiredAt} > now())`,
 
-          isNull(subscriptions.deletedAt),
           eq(subscriptions.isActive, true),
         ),
       )
