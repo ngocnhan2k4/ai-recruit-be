@@ -218,17 +218,13 @@ export class JobRepository
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
-        job: {
-          ...jobs,
-          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
-        },
+        job: jobs,
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         category: categories,
       })
       .from(jobs)
-      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
       .leftJoin(
         sql`LATERAL (
@@ -284,68 +280,67 @@ export class JobRepository
     };
   }
 
-  async getJobs(filters: JobFilters): Promise<PaginatedResult<JobResponse>> {
-    // Build where conditions
+  private buildPublicJobListWhereConditions(filters: JobFilters): SQL[] {
     const whereConditions: SQL[] = [];
-    const { cursor, limit } = filters;
-    if (filters?.keyword) {
+
+    if (filters.keyword) {
       whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
     }
     whereConditions.push(isNull(jobs.deletedAt));
 
-    if (filters?.salaryMin !== undefined) {
+    if (filters.salaryMin !== undefined) {
       whereConditions.push(gte(jobs.salaryMin, filters.salaryMin.toString()));
     }
 
-    if (filters?.salaryMax !== undefined) {
+    if (filters.salaryMax !== undefined) {
       whereConditions.push(lte(jobs.salaryMax, filters.salaryMax.toString()));
     }
 
-    if (filters?.experienceMin !== undefined) {
+    if (filters.experienceMin !== undefined) {
       whereConditions.push(gte(jobs.experienceMin, filters.experienceMin));
     }
 
-    if (filters?.experienceMax !== undefined) {
+    if (filters.experienceMax !== undefined) {
       whereConditions.push(lte(jobs.experienceMax, filters.experienceMax));
     }
 
-    if (filters?.provinceId) {
+    if (filters.provinceId) {
       whereConditions.push(
         sql`EXISTS (
-          SELECT 1 FROM ${jobProvinces} jp 
-          WHERE jp.job_id = ${jobs.id} 
+          SELECT 1 FROM ${jobProvinces} jp
+          WHERE jp.job_id = ${jobs.id}
           AND jp.province_id = ${filters.provinceId}
         )`,
       );
     }
 
-    if (filters?.organizationId) {
+    if (filters.organizationId) {
       whereConditions.push(eq(jobs.organizationId, filters.organizationId));
     }
 
-    if (filters?.categoryId) {
+    if (filters.categoryId) {
       whereConditions.push(eq(jobs.categoryId, filters.categoryId));
     }
 
-    if (filters?.workType) {
+    if (filters.workType) {
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    if (filters?.fromDate) {
+    if (filters.fromDate) {
       whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
     }
 
-    if (filters?.toDate) {
+    if (filters.toDate) {
       const toDate = new Date(filters.toDate);
       toDate.setHours(23, 59, 59, 999);
       whereConditions.push(lte(jobs.createdAt, toDate));
     }
 
-    if (filters?.skillIds?.length) {
+    if (filters.skillIds?.length) {
       whereConditions.push(
         sql`EXISTS (
-          SELECT 1 FROM ${jobSkills} js 
-          WHERE js.job_id = ${jobs.id} 
+          SELECT 1 FROM ${jobSkills} js
+          WHERE js.job_id = ${jobs.id}
           AND js.skill_id IN (${sql.join(
             filters.skillIds.map((id) => sql`${id}`),
             sql`, `,
@@ -353,6 +348,13 @@ export class JobRepository
         )`,
       );
     }
+
+    return whereConditions;
+  }
+
+  async getJobs(filters: JobFilters): Promise<PaginatedResult<JobResponse>> {
+    const whereConditions = this.buildPublicJobListWhereConditions(filters);
+    const { cursor, limit } = filters;
     // [TODO] remove later
     // if (filters?.user?.userId) {
     //   whereConditions.push(
@@ -374,6 +376,20 @@ export class JobRepository
         };
       whereConditions.push(lt(jobs.createdAt, new Date(Number(cursor))));
     }
+
+    const applyUserLateral = filters.user?.userId
+      ? sql`LATERAL (
+          SELECT aj.status AS apply_status, aj.id AS apply_id
+          FROM ${applyJobs} aj
+          INNER JOIN ${cvs} c ON aj.cv_id = c.id
+          WHERE aj.job_id = ${jobs.id}
+            AND c.user_id = ${filters.user.userId}
+          LIMIT 1
+        ) apply_user`
+      : sql`LATERAL (
+          SELECT NULL::text AS apply_status, NULL::uuid AS apply_id
+          WHERE false
+        ) apply_user`;
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -413,32 +429,9 @@ export class JobRepository
               AND ui.type = 'save'
             )`.as("isSaved")
           : sql`false`.as("isSaved"),
-        isApplied: filters?.user?.userId
-          ? sql`EXISTS (
-              SELECT 1 FROM ${applyJobs} aj 
-              INNER JOIN ${cvs} c ON aj.cv_id = c.id
-              WHERE aj.job_id = ${jobs.id} 
-              AND c.user_id = ${filters.user?.userId}
-            )`.as("isApplied")
-          : sql`false`.as("isApplied"),
-        applyStatus: filters?.user?.userId
-          ? sql`(
-              SELECT aj.status FROM ${applyJobs} aj 
-              INNER JOIN ${cvs} c ON aj.cv_id = c.id
-              WHERE aj.job_id = ${jobs.id} 
-              AND c.user_id = ${filters.user?.userId}
-              LIMIT 1
-            )`.as("applyStatus")
-          : sql`NULL`.as("applyStatus"),
-        applyId: filters?.user?.userId
-          ? sql`(
-              SELECT aj.id FROM ${applyJobs} aj 
-              INNER JOIN ${cvs} c ON aj.cv_id = c.id
-              WHERE aj.job_id = ${jobs.id} 
-              AND c.user_id = ${filters.user?.userId}
-              LIMIT 1
-            )`.as("applyId")
-          : sql`NULL`.as("applyId"),
+        isApplied: sql`(apply_user.apply_id IS NOT NULL)`.as("isApplied"),
+        applyStatus: sql`apply_user.apply_status`.as("applyStatus"),
+        applyId: sql`apply_user.apply_id`.as("applyId"),
         category: categories,
       })
       .from(jobs)
@@ -468,6 +461,7 @@ export class JobRepository
         sql`TRUE`,
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
+      .leftJoin(applyUserLateral, sql`TRUE`)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(
         filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt),
@@ -2307,5 +2301,38 @@ export class JobRepository
       date: convertDateToStr(r.date),
       count: Number(r.count),
     }));
+  }
+
+  async getJobsV2(filters?: JobFilters): Promise<PaginatedResult<JobResponse>> {
+    const fields = filters?.fields || [];
+    const ids = filters?.ids || [];
+
+    let db: any = this.db
+      .select({
+        job: {
+          id: jobs.id,
+        },
+        applyUrl: jobRaws.url,
+      })
+      .from(jobs);
+
+    const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
+
+    if (ids.length > 0) {
+      whereConditions.push(inArray(jobs.id, ids));
+    }
+
+    if (fields.includes("jobRaw")) {
+      db = db.innerJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
+    }
+
+    const result = await db.where(
+      whereConditions.length > 0 ? and(...whereConditions) : undefined,
+    );
+
+    return {
+      data: result,
+      pagination: {},
+    };
   }
 }

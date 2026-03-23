@@ -95,6 +95,22 @@ export class GenericRepository<T, TTable extends object>
     return result[0] as T;
   }
 
+  async createMany(
+    item: Partial<T>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
+    const dbClient = tx ?? this.db;
+    const result = await dbClient
+      .insert(this._table as any)
+      .values(
+        item as {
+          [key: string]: any;
+        },
+      )
+      .returning();
+    return result as T[];
+  }
+
   async update(
     where: Partial<T>,
     item: Partial<T>,
@@ -106,10 +122,14 @@ export class GenericRepository<T, TTable extends object>
 
     const dbClient = tx ?? this.db;
 
+    const cleanItem = Object.fromEntries(
+      Object.entries(item).filter(([_, v]) => v !== undefined),
+    );
+
     const result = await dbClient
       .update(this._table as any)
       .set(
-        item as {
+        cleanItem as {
           [key: string]: any;
         },
       )
