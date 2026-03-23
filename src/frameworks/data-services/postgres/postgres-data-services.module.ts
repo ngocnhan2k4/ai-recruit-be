@@ -26,7 +26,6 @@ import {
   IRoadmapSkillOptionRepository,
   IAreaRepository,
   IQuestionRepository,
-  ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
   IWeeklyProgressRepository,
@@ -64,7 +63,6 @@ import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.
 import { AiCvRepository } from "./repositories/ai-cv.repository";
 import { AreaRepository } from "./repositories/area.repository";
 import { QuestionRepository } from "./repositories/question.repository";
-import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
@@ -231,10 +229,6 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
       useClass: QuestionRepository,
     },
     {
-      provide: ILevelRepository,
-      useClass: LevelRepository,
-    },
-    {
       provide: IUserTestRepository,
       useClass: UserTestRepository,
     },
@@ -279,7 +273,6 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
     IRoadmapSkillOptionRepository,
     IAreaRepository,
     IQuestionRepository,
-    ILevelRepository,
     IUserTestRepository,
     IUserAnswerRepository,
     IAiCvRepository,

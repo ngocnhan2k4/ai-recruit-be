@@ -7,7 +7,6 @@ import {
 import {
   IAreaRepository,
   IQuestionRepository,
-  ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
   ISkillRepository,
@@ -21,8 +20,6 @@ import {
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
   AddQuestionsToSkillDto,
-  CreateLevelDto,
-  UpdateLevelDto,
   StartExamDto,
   SubmitExamDto,
   ImportResultDto,
@@ -42,7 +39,6 @@ export class ExamUseCases {
   constructor(
     private readonly areaRepo: IAreaRepository,
     private readonly questionRepo: IQuestionRepository,
-    private readonly levelRepo: ILevelRepository,
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
     private readonly skillRepo: ISkillRepository,
@@ -282,75 +278,6 @@ export class ExamUseCases {
   }
 
   // ==================== LEVEL MANAGEMENT ====================
-
-  async createLevel(dto: CreateLevelDto) {
-    // Validate area exists
-    const area = await this.areaRepo.get(dto.areaId);
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    // Validate min/max range
-    if (dto.minScore > dto.maxScore) {
-      throw new BadRequestException("minScore cannot be greater than maxScore");
-    }
-
-    const level = await this.levelRepo.create(dto);
-    this.logger.log(`Created level: ${level.id}`);
-    return {
-      success: true,
-      message: "Level created successfully",
-      data: level,
-    };
-  }
-
-  async updateLevel(id: string, dto: UpdateLevelDto) {
-    const existing = await this.levelRepo.get(id);
-    if (!existing) {
-      throw new NotFoundException("Level not found");
-    }
-
-    if (dto.minScore && dto.maxScore && dto.minScore > dto.maxScore) {
-      throw new BadRequestException("minScore cannot be greater than maxScore");
-    }
-
-    const [updated] = await this.levelRepo.update({ id }, dto);
-    this.logger.log(`Updated level: ${id}`);
-    return {
-      success: true,
-      message: "Level updated successfully",
-      data: updated,
-    };
-  }
-
-  async deleteLevel(id: string) {
-    const existing = await this.levelRepo.get(id);
-    if (!existing) {
-      throw new NotFoundException("Level not found");
-    }
-
-    await this.levelRepo.deletePermanently({ id });
-    this.logger.log(`Deleted level: ${id}`);
-    return {
-      success: true,
-      message: "Level deleted successfully",
-      data: null,
-    };
-  }
-
-  async getLevelsByArea(areaId: string) {
-    const area = await this.areaRepo.get(areaId);
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    const levels = await this.levelRepo.getLevelsByArea(areaId);
-    return {
-      success: true,
-      message: "Levels fetched successfully",
-      data: levels,
-    };
-  }
 
   // ==================== EXAM FLOW ====================
 

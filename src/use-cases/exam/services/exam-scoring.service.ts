@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ILevelRepository, Question } from "@/core";
+import { Question } from "@/core";
 import { allocateExamPoints } from "./exam-level-points.util";
 
 export interface ScoringResult {
@@ -19,8 +19,6 @@ export interface ExamResult extends ScoringResult {
 
 @Injectable()
 export class ExamScoringService {
-  constructor(private readonly levelRepo: ILevelRepository) {}
-
   private readonly logger = new Logger(ExamScoringService.name);
 
   /**
