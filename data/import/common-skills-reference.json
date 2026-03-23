@@ -1,0 +1,24 @@
+{
+  "source": "Derived from skills_202603221521.json export — verify IDs match your environment before using skillId imports.",
+  "skills": [
+    { "name": "JavaScript", "id": "dc97eb15-9634-4851-a73c-20e8a74f6a27" },
+    { "name": "TypeScript", "id": "70594e3e-ee1b-43ba-b77b-18b57cecbd32" },
+    { "name": "React", "id": "a2171872-6dd2-421b-bcec-f48c7edb3b96" },
+    { "name": "Node.js", "id": "1a6f8943-1bd4-4738-9a26-5b47abd18a31" },
+    { "name": "HTML/CSS", "id": "9709a7c5-fd70-4c8c-a1cd-be4b15e71f97" },
+    { "name": "Python", "id": "03d1de10-f256-45e5-814d-65d63ed47227" },
+    { "name": "Java", "id": "3a001d62-2b6a-4e4e-806c-16c95c3c1e2f" },
+    { "name": "Go", "id": "21bbc963-d284-40ab-884d-da539e9c011b" },
+    { "name": "PHP", "id": "6835030f-f10e-4ab6-89c2-828521a5cc26" },
+    { "name": "C#", "id": "1d55fe6e-2f90-4036-95a0-0a1830102842" },
+    { "name": "AWS", "id": "d56298d5-a8c0-4f60-88f4-bb335c7e0791" },
+    { "name": "Docker", "id": "2af78cd4-18aa-4f0e-a853-d2a69452c089" },
+    { "name": "Kubernetes", "id": "2afb0aa0-70f6-4074-b283-82423f760ed1" },
+    { "name": "Git", "id": "fccb4ae8-7415-4bd7-83c6-57297cb8da35" },
+    { "name": "PostgreSQL", "id": "21804301-9966-4506-8130-c22147144f49" },
+    { "name": "MongoDB", "id": "14327e9c-e026-476b-8f2f-d51ca77dd979" },
+    { "name": "Redis", "id": "dbde90f2-0828-4ee1-aea1-1e562392cd61" },
+    { "name": "Linux", "id": "138014ca-e17a-4566-93b1-ae4afc7ab9cc" },
+    { "name": "NestJS", "id": "868407d4-17a1-4f7d-be8d-01f3d5957e89" }
+  ]
+}

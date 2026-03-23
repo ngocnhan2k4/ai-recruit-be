@@ -1,0 +1,96 @@
+[
+  {"skill": "JavaScript", "questionText": "What does typeof null return?", "options": ["null", "object", "undefined", "number"], "correctAnswer": "object", "difficultyLevels": ["easy"]},
+  {"skill": "JavaScript", "questionText": "What is a closure?", "options": ["A loop", "A function that captures outer scope", "A class", "A Promise"], "correctAnswer": "A function that captures outer scope", "difficultyLevels": ["medium"]},
+  {"skill": "JavaScript", "questionText": "What runs before the next macrotask in the event loop?", "options": ["setTimeout", "Microtasks (e.g. Promise callbacks)", "requestAnimationFrame", "DOM events"], "correctAnswer": "Microtasks (e.g. Promise callbacks)", "difficultyLevels": ["hard"]},
+  {"skill": "JavaScript", "questionText": "What does new Proxy(target, handler) enable?", "options": ["Only getters", "Intercepting operations on target", "Immutable objects only", "Async only"], "correctAnswer": "Intercepting operations on target", "difficultyLevels": ["advanced"]},
+
+  {"skill": "TypeScript", "questionText": "What file configures the TypeScript compiler?", "options": ["package.json", "tsconfig.json", "webpack.config.js", "tsc.json"], "correctAnswer": "tsconfig.json", "difficultyLevels": ["easy"]},
+  {"skill": "TypeScript", "questionText": "What are generics used for?", "options": ["Runtime types", "Reusable components with type parameters", "CSS only", "JSON only"], "correctAnswer": "Reusable components with type parameters", "difficultyLevels": ["medium"]},
+  {"skill": "TypeScript", "questionText": "What is a discriminated union?", "options": ["Union of numbers", "Union types narrowed by a common literal field", "Only enums", "Only interfaces"], "correctAnswer": "Union types narrowed by a common literal field", "difficultyLevels": ["hard"]},
+  {"skill": "TypeScript", "questionText": "What are conditional types?", "options": ["if/else in runtime", "Types that depend on a condition (T extends U ? X : Y)", "Only for classes", "Deprecated"], "correctAnswer": "Types that depend on a condition (T extends U ? X : Y)", "difficultyLevels": ["advanced"]},
+
+  {"skill": "React", "questionText": "What is JSX?", "options": ["A database", "Syntax extension for UI elements", "A CSS framework", "A test runner"], "correctAnswer": "Syntax extension for UI elements", "difficultyLevels": ["easy"]},
+  {"skill": "React", "questionText": "What does useState return?", "options": ["Only state", "A state value and a setter function", "A ref", "A context"], "correctAnswer": "A state value and a setter function", "difficultyLevels": ["medium"]},
+  {"skill": "React", "questionText": "What is the purpose of useMemo?", "options": ["Memoize functions only", "Memoize computed values", "Replace useState", "Server-side only"], "correctAnswer": "Memoize computed values", "difficultyLevels": ["hard"]},
+  {"skill": "React", "questionText": "What does React.lazy enable?", "options": ["Lazy images", "Code-splitting with dynamic import()", "Slower renders", "SSR only"], "correctAnswer": "Code-splitting with dynamic import()", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Node.js", "questionText": "What is Node.js built on?", "options": ["Java VM", "V8 JavaScript engine", "Python interpreter", ".NET CLR"], "correctAnswer": "V8 JavaScript engine", "difficultyLevels": ["easy"]},
+  {"skill": "Node.js", "questionText": "What is require() used for in CommonJS?", "options": ["HTTP only", "Loading modules", "Creating threads", "Parsing JSON only"], "correctAnswer": "Loading modules", "difficultyLevels": ["medium"]},
+  {"skill": "Node.js", "questionText": "What is the EventEmitter used for?", "options": ["HTTP routing", "Pub/sub style events in Node", "File encryption", "Clustering only"], "correctAnswer": "Pub/sub style events in Node", "difficultyLevels": ["hard"]},
+  {"skill": "Node.js", "questionText": "What is worker_threads for?", "options": ["CSS workers", "Running JavaScript in parallel threads", "Only for tests", "Browser only"], "correctAnswer": "Running JavaScript in parallel threads", "difficultyLevels": ["advanced"]},
+
+  {"skill": "HTML/CSS", "questionText": "Which tag is most appropriate for the main navigation?", "options": ["<div>", "<nav>", "<section>", "<span>"], "correctAnswer": "<nav>", "difficultyLevels": ["easy"]},
+  {"skill": "HTML/CSS", "questionText": "What does display: flex do?", "options": ["Hides element", "Enables flexbox layout", "Makes text bold", "Floats element"], "correctAnswer": "Enables flexbox layout", "difficultyLevels": ["medium"]},
+  {"skill": "HTML/CSS", "questionText": "What is the CSS box model?", "options": ["Only margin", "Content padding border margin", "Only width", "JavaScript API"], "correctAnswer": "Content padding border margin", "difficultyLevels": ["hard"]},
+  {"skill": "HTML/CSS", "questionText": "What are CSS container queries?", "options": ["Media queries only", "Styles based on parent container size", "Print styles only", "Deprecated"], "correctAnswer": "Styles based on parent container size", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Python", "questionText": "How do you create a list in Python?", "options": ["{}", "[]", "()", "<>"], "correctAnswer": "[]", "difficultyLevels": ["easy"]},
+  {"skill": "Python", "questionText": "What is a list comprehension?", "options": ["A loop type", "Concise way to build lists", "A debugger", "A package manager"], "correctAnswer": "Concise way to build lists", "difficultyLevels": ["medium"]},
+  {"skill": "Python", "questionText": "What is the GIL?", "options": ["Global import lock", "Global Interpreter Lock", "Graphics library", "Git integration layer"], "correctAnswer": "Global Interpreter Lock", "difficultyLevels": ["hard"]},
+  {"skill": "Python", "questionText": "What are descriptors used for?", "options": ["Only dicts", "Controlling attribute access on objects", "Only asyncio", "CSV parsing"], "correctAnswer": "Controlling attribute access on objects", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Java", "questionText": "What is the entry point of a Java application?", "options": ["start()", "public static void main(String[] args)", "init()", "run()"], "correctAnswer": "public static void main(String[] args)", "difficultyLevels": ["easy"]},
+  {"skill": "Java", "questionText": "What is an interface in Java?", "options": ["A concrete class", "A contract of methods without implementation (Java 8+ allows default)", "Only for GUI", "A package"], "correctAnswer": "A contract of methods without implementation (Java 8+ allows default)", "difficultyLevels": ["medium"]},
+  {"skill": "Java", "questionText": "What is the difference between == and equals() for objects?", "options": ["No difference", "== compares references; equals() compares value when overridden", "equals compares references", "Only for primitives"], "correctAnswer": "== compares references; equals() compares value when overridden", "difficultyLevels": ["hard"]},
+  {"skill": "Java", "questionText": "What is the Java Memory Model concerned with?", "options": ["Disk storage", "Visibility and ordering of reads/writes across threads", "GPU memory", "JAR files only"], "correctAnswer": "Visibility and ordering of reads/writes across threads", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Go", "questionText": "What keyword starts a goroutine?", "options": ["thread", "go", "async", "spawn"], "correctAnswer": "go", "difficultyLevels": ["easy"]},
+  {"skill": "Go", "questionText": "What is a channel used for?", "options": ["File I/O only", "Communication between goroutines", "CSS styling", "HTTP only"], "correctAnswer": "Communication between goroutines", "difficultyLevels": ["medium"]},
+  {"skill": "Go", "questionText": "What is the zero value of a pointer?", "options": ["0", "nil", "null", "undefined"], "correctAnswer": "nil", "difficultyLevels": ["hard"]},
+  {"skill": "Go", "questionText": "What is the purpose of context.Context?", "options": ["JSON parsing", "Cancellation and deadlines across API boundaries", "Only tests", "CSS context"], "correctAnswer": "Cancellation and deadlines across API boundaries", "difficultyLevels": ["advanced"]},
+
+  {"skill": "PHP", "questionText": "What does $ prefix denote in PHP?", "options": ["Constant", "Variable", "Function", "Class"], "correctAnswer": "Variable", "difficultyLevels": ["easy"]},
+  {"skill": "PHP", "questionText": "What is Composer used for?", "options": ["CSS bundling", "Dependency management for PHP", "Database only", "Hosting"], "correctAnswer": "Dependency management for PHP", "difficultyLevels": ["medium"]},
+  {"skill": "PHP", "questionText": "What is PDO?", "options": ["A template engine", "PHP Data Objects for database access", "A debugger", "A router"], "correctAnswer": "PHP Data Objects for database access", "difficultyLevels": ["hard"]},
+  {"skill": "PHP", "questionText": "What are PHP attributes (8+)?", "options": ["HTML attributes", "Metadata on classes/functions readable via reflection", "CSS only", "Deprecated"], "correctAnswer": "Metadata on classes/functions readable via reflection", "difficultyLevels": ["advanced"]},
+
+  {"skill": "C#", "questionText": "What platform runs C# in .NET?", "options": ["JVM", "CLR", "V8", "Python interpreter"], "correctAnswer": "CLR", "difficultyLevels": ["easy"]},
+  {"skill": "C#", "questionText": "What is LINQ?", "options": ["A UI library", "Language Integrated Query", "A database", "A test framework"], "correctAnswer": "Language Integrated Query", "difficultyLevels": ["medium"]},
+  {"skill": "C#", "questionText": "What is async/await compiled to?", "options": ["Threads only", "State machine (Task-based)", "Synchronous code", "SQL"], "correctAnswer": "State machine (Task-based)", "difficultyLevels": ["hard"]},
+  {"skill": "C#", "questionText": "What is Span<T> primarily for?", "options": ["UI spans", "Stack-only contiguous memory views without allocations", "Only strings", "Graphics"], "correctAnswer": "Stack-only contiguous memory views without allocations", "difficultyLevels": ["advanced"]},
+
+  {"skill": "AWS", "questionText": "What is S3?", "options": ["Compute service", "Object storage", "Relational DB", "CDN only"], "correctAnswer": "Object storage", "difficultyLevels": ["easy"]},
+  {"skill": "AWS", "questionText": "What does IAM control?", "options": ["Billing only", "Authentication and authorization", "EC2 sizes only", "DNS only"], "correctAnswer": "Authentication and authorization", "difficultyLevels": ["medium"]},
+  {"skill": "AWS", "questionText": "What is VPC?", "options": ["A VM", "Isolated virtual network in AWS", "A database", "A queue"], "correctAnswer": "Isolated virtual network in AWS", "difficultyLevels": ["hard"]},
+  {"skill": "AWS", "questionText": "What is AWS Lambda?", "options": ["A VM always on", "Serverless compute triggered by events", "Only S3", "Only RDS"], "correctAnswer": "Serverless compute triggered by events", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Docker", "questionText": "What is a Docker image?", "options": ["A running process", "Read-only template for containers", "A volume", "A network"], "correctAnswer": "Read-only template for containers", "difficultyLevels": ["easy"]},
+  {"skill": "Docker", "questionText": "What is a Dockerfile used for?", "options": ["Compose orchestration", "Building images with instructions", "Kubernetes only", "SSH config"], "correctAnswer": "Building images with instructions", "difficultyLevels": ["medium"]},
+  {"skill": "Docker", "questionText": "What is the difference between CMD and ENTRYPOINT?", "options": ["Same", "ENTRYPOINT defines executable; CMD provides default args", "CMD is only shell", "ENTRYPOINT is deprecated"], "correctAnswer": "ENTRYPOINT defines executable; CMD provides default args", "difficultyLevels": ["hard"]},
+  {"skill": "Docker", "questionText": "What is BuildKit?", "options": ["Kubernetes feature", "Modern Docker build backend with advanced features", "A registry", "A cloud"], "correctAnswer": "Modern Docker build backend with advanced features", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Kubernetes", "questionText": "What is the smallest deployable unit in Kubernetes?", "options": ["Deployment", "Pod", "Service", "Node"], "correctAnswer": "Pod", "difficultyLevels": ["easy"]},
+  {"skill": "Kubernetes", "questionText": "What does a Deployment manage?", "options": ["Volumes only", "Replica sets and rolling updates of pods", "DNS only", "IAM"], "correctAnswer": "Replica sets and rolling updates of pods", "difficultyLevels": ["medium"]},
+  {"skill": "Kubernetes", "questionText": "What is a Service used for?", "options": ["Storing data", "Stable network endpoint to pods", "Building images", "Logging only"], "correctAnswer": "Stable network endpoint to pods", "difficultyLevels": ["hard"]},
+  {"skill": "Kubernetes", "questionText": "What is an Ingress?", "options": ["A pod", "HTTP(S) routing into the cluster", "A secret", "A volume type"], "correctAnswer": "HTTP(S) routing into the cluster", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Git", "questionText": "What does git clone do?", "options": ["Delete repo", "Copy a remote repository locally", "Merge branches", "Stash changes"], "correctAnswer": "Copy a remote repository locally", "difficultyLevels": ["easy"]},
+  {"skill": "Git", "questionText": "What does git merge do?", "options": ["Delete branch", "Combine branch histories", "Only fetch", "Only push"], "correctAnswer": "Combine branch histories", "difficultyLevels": ["medium"]},
+  {"skill": "Git", "questionText": "What is git rebase?", "options": ["Same as merge", "Replay commits on top of another branch", "Delete history", "Only remote"], "correctAnswer": "Replay commits on top of another branch", "difficultyLevels": ["hard"]},
+  {"skill": "Git", "questionText": "What does git bisect help with?", "options": ["Sorting branches", "Binary search for a bad commit", "Merging", "Stashing"], "correctAnswer": "Binary search for a bad commit", "difficultyLevels": ["advanced"]},
+
+  {"skill": "PostgreSQL", "questionText": "What type of database is PostgreSQL?", "options": ["Document-only", "Relational (SQL)", "Key-value only", "Graph-only"], "correctAnswer": "Relational (SQL)", "difficultyLevels": ["easy"]},
+  {"skill": "PostgreSQL", "questionText": "What is a primary key?", "options": ["Foreign reference", "Unique identifier for a row", "Index only", "A view"], "correctAnswer": "Unique identifier for a row", "difficultyLevels": ["medium"]},
+  {"skill": "PostgreSQL", "questionText": "What is MVCC?", "options": ["A join type", "Multi-version concurrency control", "A backup tool", "A driver"], "correctAnswer": "Multi-version concurrency control", "difficultyLevels": ["hard"]},
+  {"skill": "PostgreSQL", "questionText": "What are partial indexes?", "options": ["Broken indexes", "Indexes with a WHERE predicate", "Only full table", "Deprecated"], "correctAnswer": "Indexes with a WHERE predicate", "difficultyLevels": ["advanced"]},
+
+  {"skill": "MongoDB", "questionText": "What is the basic data unit in MongoDB?", "options": ["Table", "Document (BSON)", "Row only", "Column family"], "correctAnswer": "Document (BSON)", "difficultyLevels": ["easy"]},
+  {"skill": "MongoDB", "questionText": "What is a collection?", "options": ["A table in SQL sense", "A group of documents", "A transaction", "A user"], "correctAnswer": "A group of documents", "difficultyLevels": ["medium"]},
+  {"skill": "MongoDB", "questionText": "What is a replica set?", "options": ["A backup file", "Group of nodes with primary/secondaries for HA", "A sharding key", "An index type"], "correctAnswer": "Group of nodes with primary/secondaries for HA", "difficultyLevels": ["hard"]},
+  {"skill": "MongoDB", "questionText": "What is the aggregation pipeline?", "options": ["Only find()", "Stages processing documents (match, group, ...)", "SQL only", "Graph only"], "correctAnswer": "Stages processing documents (match, group, ...)", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Redis", "questionText": "What is Redis primarily?", "options": ["Relational DB", "In-memory data structure store", "File system", "Message queue only"], "correctAnswer": "In-memory data structure store", "difficultyLevels": ["easy"]},
+  {"skill": "Redis", "questionText": "What data structure does a Redis list implement?", "options": ["Hash table only", "Linked list", "B-tree", "Graph"], "correctAnswer": "Linked list", "difficultyLevels": ["medium"]},
+  {"skill": "Redis", "questionText": "What is AOF?", "options": ["A cache policy", "Append-only file persistence", "A cluster mode", "Authentication"], "correctAnswer": "Append-only file persistence", "difficultyLevels": ["hard"]},
+  {"skill": "Redis", "questionText": "What is Redis Streams used for?", "options": ["Video streaming", "Append-only log with consumer groups", "Only caching", "SQL queries"], "correctAnswer": "Append-only log with consumer groups", "difficultyLevels": ["advanced"]},
+
+  {"skill": "Linux", "questionText": "What does ls do?", "options": ["Change directory", "List directory contents", "Remove files", "Copy files"], "correctAnswer": "List directory contents", "difficultyLevels": ["easy"]},
+  {"skill": "Linux", "questionText": "What does chmod change?", "options": ["File owner", "File permissions", "File name", "Disk size"], "correctAnswer": "File permissions", "difficultyLevels": ["medium"]},
+  {"skill": "Linux", "questionText": "What is systemd?", "options": ["A shell", "Init system and service manager", "A package format", "A filesystem"], "correctAnswer": "Init system and service manager", "difficultyLevels": ["hard"]},
+  {"skill": "Linux", "questionText": "What is cgroups?", "options": ["A shell builtin", "Kernel feature to limit resource usage for processes", "A firewall", "A compiler"], "correctAnswer": "Kernel feature to limit resource usage for processes", "difficultyLevels": ["advanced"]},
+
+  {"skill": "NestJS", "questionText": "What language is NestJS primarily written for?", "options": ["Python", "TypeScript/JavaScript", "Go", "Java"], "correctAnswer": "TypeScript/JavaScript", "difficultyLevels": ["easy"]},
+  {"skill": "NestJS", "questionText": "What is a NestJS module?", "options": ["A CSS file", "Organizational unit grouping related providers/controllers", "A database", "A Docker image"], "correctAnswer": "Organizational unit grouping related providers/controllers", "difficultyLevels": ["medium"]},
+  {"skill": "NestJS", "questionText": "What is dependency injection in Nest?", "options": ["Manual imports only", "Framework resolves provider dependencies", "Only for tests", "Database only"], "correctAnswer": "Framework resolves provider dependencies", "difficultyLevels": ["hard"]},
+  {"skill": "NestJS", "questionText": "What is an Interceptor used for?", "options": ["Only routing", "Cross-cutting concerns (logging, mapping, timeouts)", "Only validation", "Only auth"], "correctAnswer": "Cross-cutting concerns (logging, mapping, timeouts)", "difficultyLevels": ["advanced"]}
+]

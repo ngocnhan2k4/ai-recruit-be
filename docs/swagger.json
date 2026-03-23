@@ -7022,7 +7022,7 @@
     },
     "/exam/start": {
       "post": {
-        "description": "Select 1 skill and optionally difficulty levels. System will generate 20 randomized questions for that skill.",
+        "description": "Select 1 skill and optionally difficulty levels. System will generate up to 10 randomized questions for that skill.",
         "operationId": "ExamController_startExam",
         "parameters": [],
         "requestBody": {

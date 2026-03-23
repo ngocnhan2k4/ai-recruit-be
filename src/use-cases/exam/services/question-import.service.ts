@@ -8,7 +8,6 @@ export interface ImportRow {
   questionText: string;
   options: string | string[];
   correctAnswer: string;
-  point: number | string;
   difficultyLevels: string | string[];
 }
 
@@ -92,14 +91,6 @@ export class QuestionImportService {
           continue;
         }
 
-        // Validate and parse point
-        const point =
-          typeof row.point === "number" ? row.point : parseFloat(row.point);
-        if (isNaN(point) || point < 1) {
-          errors.push(`Row ${rowNum}: Invalid point value`);
-          continue;
-        }
-
         // Parse and validate difficultyLevels
         let difficultyLevels: string[];
         if (typeof row.difficultyLevels === "string") {
@@ -166,7 +157,6 @@ export class QuestionImportService {
           questionText: row.questionText,
           options,
           correctAnswer: row.correctAnswer,
-          point,
           difficultyLevels: difficultyLevels as (
             | "easy"
             | "medium"
