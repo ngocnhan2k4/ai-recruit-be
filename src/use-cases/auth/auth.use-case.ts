@@ -188,11 +188,11 @@ export class AuthUseCases {
         skipCount: true,
       });
 
-      if (freeSub[0]) {
+      if (freeSub.data.length > 0) {
         await this.userSubscriptionRepo.create(
           {
             userId: user.id,
-            subscriptionId: freeSub[0].id,
+            subscriptionId: freeSub.data[0].id,
             status: UserSubscriptionStatusEnum.ACTIVE,
           },
           tx,
@@ -205,7 +205,7 @@ export class AuthUseCases {
 
         const sf = await this.subFeatureRepo.getByField(
           {
-            subscriptionId: freeSub[0].id,
+            subscriptionId: freeSub.data[0].id,
           },
           ["limit", "subscriptionId"],
         );
@@ -216,7 +216,7 @@ export class AuthUseCases {
           lastRefillAt: new Date(),
         }));
         if (data.length > 0) {
-          await this.userFeatureUsageRepo.createMany(data);
+          await this.userFeatureUsageRepo.createMany(data, tx);
 
           this.logger.log(
             "Created user feature usage successfully with data = ",
