@@ -715,6 +715,19 @@ export class JobUseCases {
         : null,
     };
 
+    if (
+      typeof createJobDto.experienceMin !== "undefined" &&
+      typeof createJobDto.experienceMax !== "undefined" &&
+      createJobDto.experienceMin !== null &&
+      createJobDto.experienceMax !== null &&
+      createJobDto.experienceMin >= createJobDto.experienceMax
+    ) {
+      throw new BadRequestException({
+        message: "experienceMin must be less than experienceMax",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
     const repoResult = await this.jobRepository.createJob(
       jobData,
       true,
@@ -781,6 +794,20 @@ export class JobUseCases {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    // Validate experience range on update (min < max)
+    if (
+      typeof updateJobDto.experienceMin !== "undefined" &&
+      typeof updateJobDto.experienceMax !== "undefined" &&
+      updateJobDto.experienceMin !== null &&
+      updateJobDto.experienceMax !== null &&
+      updateJobDto.experienceMin >= updateJobDto.experienceMax
+    ) {
+      throw new BadRequestException({
+        message: "experienceMin must be less than experienceMax",
+        code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
 

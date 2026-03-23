@@ -1054,7 +1054,7 @@ export class OrganizationUseCase {
       status = JobStatusEnum.ACTIVE;
     }
 
-    const result = await this.jobRepository.getJobsByAdmin({
+    const result = await this.jobRepository.getJobs({
       organizationId: orgId,
       keyword: query.keyword,
       status: status,
