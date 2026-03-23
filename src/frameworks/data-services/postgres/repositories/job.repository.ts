@@ -1899,7 +1899,9 @@ export class JobRepository
     userId?: string,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
-    const key = CACHE_KEYS.job.getWithDetail(jobId);
+    const baseKey = CACHE_KEYS.job.getWithDetail(jobId);
+    const key = userId ? `${baseKey}:u:${userId}` : baseKey;
+
     return cacheWithDedup(
       key,
       () => this.cacheManager.get<JobResponse | null>(key),
