@@ -262,8 +262,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     limit?: number,
   ): Promise<JobResponse[]>;
 
-  abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
-
   abstract getUserJobStatuses(
     userId: User["id"],
     jobIds: Job["id"][],
@@ -280,4 +278,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   >;
 
   abstract getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]>;
+
+  abstract getJobsV2(
+    filters?: JobFilters,
+  ): Promise<PaginatedResult<JobResponse>>;
 }

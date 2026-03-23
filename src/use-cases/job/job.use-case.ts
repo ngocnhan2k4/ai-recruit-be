@@ -4,7 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { IJobRepository, IOrganizationRepository } from "@/core/abstracts";
+import {
+  IJobRepository,
+  IOrganizationRepository,
+  ISearchService,
+} from "@/core/abstracts";
 import {
   ApiResponse,
   JobCountsDto,
@@ -15,9 +19,10 @@ import {
   CompareTopInMarketResponseDto,
   JobTrendsResponseDto,
   JobTrendsQueryDto,
+  JobMatchResultDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { omit } from "lodash";
+import { Dictionary, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
   CompareStatisticsFilterRequestDto,
@@ -35,8 +40,9 @@ import {
   JobStatusEnum,
   WorkTypeEnum,
   OrganizationWithDetails,
-  UpdateJobTypeEnum,
   Notification,
+  Category,
+  JobResponse,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -49,7 +55,6 @@ import {
   ApplyJobResponse,
   JobEventType,
   JobFilters,
-  JobResponse,
   StatisticsJobFilter,
 } from "@/core";
 import { convertDateToStr } from "@/common/utils";
@@ -60,6 +65,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
+import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 
 @Injectable()
 export class JobUseCases {
@@ -69,21 +75,207 @@ export class JobUseCases {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly searchService: ISearchService,
+    private readonly jobMatchingQuery: JobMatchingQuery,
   ) {}
 
   async getJobs(
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
-    let result: PaginatedResult<JobResponse>;
-    // Decide which method to call based on user role
-    if (
-      filters.user?.roles.includes(RoleEnum.ADMIN) ||
-      filters.user?.roles.includes(RoleEnum.SUPER_ADMIN)
-    ) {
-      result = await this.jobRepository.getJobsByAdmin(filters);
-    } else {
-      result = await this.jobRepository.getJobs(filters);
+    if (filters.cursor) {
+      // return empty array if user not logged in
+      if (!filters?.user?.userId)
+        return {
+          message: RESPONSE_MESSAGE.SUCCESS,
+          code: RESPONSE_CODE.SUCCESS,
+          data: {
+            data: [],
+            pagination: { nextCursor: undefined, hasNextPage: false },
+          },
+        };
     }
+
+    // If it's role user, only get status active, close and paused
+    if (!filters.organizationId) {
+      filters.statuses = [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.CLOSED,
+        JobStatusEnum.PAUSED,
+      ];
+    }
+
+    const esQuery = this.jobMatchingQuery.buildSearchQuery(filters);
+
+    // Execute query
+    const response = await this.searchService.search(
+      esQuery.index as string,
+      esQuery.body,
+    );
+
+    // Check if we got more results than requested (to determine hasMore)
+    const hits = response.hits.hits;
+    const hasMore = hits.length > filters.limit;
+    const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
+
+    const jobIds: string[] = [];
+    const orgIds: string[] = [];
+
+    for (const hit of actualHits) {
+      const source = hit._source;
+      jobIds.push(source.id);
+      const orgId = source.organizationId;
+      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
+    }
+
+    const uniqueOrgIds = [...new Set<string>(orgIds)];
+
+    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+      jobIds.length > 0 && filters.user?.userId
+        ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
+        : Promise.resolve(new Map()),
+      this.organizationRepository.getByIds(uniqueOrgIds, [
+        "id",
+        "name",
+        "description",
+        "websiteUrl",
+        "employeesMin",
+        "employeesMax",
+        "logoUrl",
+      ]),
+      this.jobRepository.getJobsV2({
+        ids: jobIds,
+        fields: ["jobRaw"],
+        limit: 0, // No need
+      }),
+    ]);
+
+    const organizationMap = keyBy(organizations, "id");
+    const jobMap = keyBy(jobInfos.data, "job.id");
+
+    // Generate next cursor if there are more results
+    let nextCursor: string | undefined;
+    if (hasMore) {
+      const lastHit = actualHits[actualHits.length - 1];
+      const searchAfter = lastHit.sort;
+      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
+    }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: this.convertHitToDto(
+          actualHits,
+          organizationMap,
+          userJobStatusMap,
+          jobMap,
+        ),
+        pagination: {
+          nextCursor,
+          hasNextPage: hasMore,
+        },
+      },
+    };
+  }
+
+  private convertHitToDto(
+    actualHits: any,
+    organizationMap: Dictionary<OrganizationWithDetails>,
+    userJobStatusMap: Map<
+      string,
+      {
+        isSaved: boolean;
+        isApplied: boolean;
+        applyStatus: string | null;
+        applyId: string | null;
+      }
+    >,
+    jobMap: Dictionary<JobResponse>,
+  ): JobMatchResultDto[] {
+    return actualHits.map((hit: any) => {
+      const source = hit._source;
+
+      // Transform provinces
+      const provinces: Province[] = (source.provinceIds || []).map(
+        (id: string, index: number) => ({
+          id,
+          name: source.provinceNames?.[index] || null,
+        }),
+      );
+
+      // Transform skills
+      const skills: Skill[] = (source.skillIds || []).map(
+        (id: string, index: number) => ({
+          id,
+          name: source.skillNames?.[index] || null,
+        }),
+      );
+
+      // Transform organization
+      const organization = organizationMap[source.organizationId] || {
+        id: source.organizationId,
+        name: source.organizationName || "",
+      };
+
+      const category: Category = {
+        id: source.categoryId,
+        name: source.categoryName || null,
+      };
+
+      // Transform job - datePosted/endDate are date strings, not Date objects
+      const job: Job = {
+        id: source.id,
+        title: source.title,
+        description: source.description,
+        organizationId: source.organizationId,
+        salaryMin: source.salaryMin?.toString() || null,
+        salaryMax: source.salaryMax?.toString() || null,
+        experienceMin: source.experienceMin,
+        experienceMax: source.experienceMax,
+        workType: source.workType,
+        status: source.status || "active",
+        datePosted: source.datePosted || null,
+        endDate: source.endDate || null,
+        jobRawId: null,
+        rejectReason: null,
+        categoryId: source.categoryId || source.categoryIds?.[0] || null,
+        createdAt: source.createdAt
+          ? new Date(source.createdAt as string)
+          : new Date(),
+        updatedAt: source.updatedAt
+          ? new Date(source.updatedAt as string)
+          : new Date(),
+        deletedAt: null,
+        questions: [],
+      };
+
+      const jobStatus = userJobStatusMap.get(job.id) || {
+        isSaved: false,
+        isApplied: false,
+        applyStatus: null,
+        applyId: null,
+      };
+
+      return {
+        job,
+        provinces,
+        organization: organization as OrganizationWithDetailsDto,
+        skills,
+        category,
+        isSaved: jobStatus.isSaved,
+        isApplied: jobStatus.isApplied,
+        applyStatus: jobStatus.applyStatus || undefined,
+        applyId: jobStatus.applyId || undefined,
+        applyUrl: jobMap[job.id]?.applyUrl,
+      } as JobResponseDto;
+    });
+  }
+
+  async getJobsByAdmin(
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    // Decide which method to call based on user role
+    const result = await this.jobRepository.getJobsByAdmin(filters);
 
     this.logger.log(`Fetched ${result.data.length} jobs`);
     // Transform Job entities to JobDtos
@@ -91,12 +283,14 @@ export class JobUseCases {
       ...item,
       job: {
         ...item.job,
-        questions: item.job.questions,
-        organizationId: item.organization.id,
       } as JobDto,
       organization: {
         ...item.organization,
       } as OrganizationWithDetailsDto,
+      skills: item.skills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+      })),
     }));
 
     return {
@@ -553,7 +747,7 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT, {
+    await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
       jobId: newJob.id,
     });
     return {
@@ -563,11 +757,25 @@ export class JobUseCases {
     };
   }
 
-  async updateJob(
+  private async processJobUpdate(
     jobId: string,
-    updateJobDto: UpdateJobDto & { userId: string },
-    user?: TokenPayload,
-  ): Promise<ApiResponse<JobDto>> {
+    updateJobDto: UpdateJobDto,
+    executeUpdate: (
+      updateData: Partial<Job>,
+    ) => Promise<{ updatedJob: Job | null; notifications?: Notification[] }>,
+    isAdminUpdate = false,
+  ): Promise<{
+    transformedJob: JobDto;
+    updatedJob: Job;
+    notifications?: Notification[];
+  }> {
+    const organizationAllowedStatuses = [
+      JobStatusEnum.ACTIVE,
+      JobStatusEnum.CLOSED,
+      JobStatusEnum.PAUSED,
+    ];
+
+    const { status: targetStatus } = updateJobDto;
     const job = await this.jobRepository.get(jobId);
     if (!job || job.deletedAt) {
       throw new BadRequestException({
@@ -576,19 +784,17 @@ export class JobUseCases {
       });
     }
 
-    // Only admin can update job status
     if (
-      updateJobDto.status !== undefined &&
-      user &&
-      !user.roles.includes(RoleEnum.ADMIN) &&
-      !user.roles.includes(RoleEnum.SUPER_ADMIN)
+      !isAdminUpdate &&
+      organizationAllowedStatuses.includes(targetStatus) &&
+      !organizationAllowedStatuses.includes(job.status as JobStatusEnum)
     ) {
       throw new ForbiddenException({
-        message: "Only admin can update job status",
+        message:
+          "Organizations can only set status to active, closed, or paused",
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
-
     const updateData: Partial<Job> = {
       ...updateJobDto,
       status: updateJobDto.status || undefined,
@@ -596,7 +802,7 @@ export class JobUseCases {
       workType: updateJobDto.workType,
     };
 
-    const updatedJob = await this.jobRepository.updateJob(jobId, updateData);
+    const { updatedJob, notifications } = await executeUpdate(updateData);
     if (!updatedJob) {
       throw new BadRequestException({
         message: "Failed to update job",
@@ -604,25 +810,6 @@ export class JobUseCases {
       });
     }
 
-    if (
-      updateJobDto.updateType === UpdateJobTypeEnum.APPROVAL ||
-      updateJobDto.updateType === UpdateJobTypeEnum.REJECTED
-    ) {
-      const { newNotifications } =
-        await this.jobRepository.updateJobWithNotifications(
-          jobId,
-          updateData,
-          updateJobDto.userId,
-        );
-
-      if (newNotifications && newNotifications.length > 0) {
-        this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
-        this.logger.log(
-          `Broadcast job-updated notification to admin room for job "${updatedJob.title}" (${newNotifications.length} notifications created in DB)`,
-        );
-      }
-    }
-    // Transform questions field
     const transformedJob: JobDto = {
       ...updatedJob,
       questions: updatedJob.questions || null,
@@ -631,9 +818,71 @@ export class JobUseCases {
     };
 
     this.logger.log(`Updated job ${jobId}: ${updatedJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT, {
-      jobId: jobId,
-    });
+    if (
+      [...organizationAllowedStatuses, JobStatusEnum.REJECTED].includes(
+        updatedJob.status as JobStatusEnum,
+      )
+    ) {
+      await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
+        jobId: jobId,
+      });
+    }
+
+    return { transformedJob, updatedJob, notifications };
+  }
+
+  async updateJob(
+    jobId: string,
+    updateJobDto: UpdateJobDto,
+  ): Promise<ApiResponse<JobDto>> {
+    const { transformedJob } = await this.processJobUpdate(
+      jobId,
+      updateJobDto,
+      async (updateData) => {
+        const updatedJob = await this.jobRepository.updateJob(
+          jobId,
+          updateData,
+        );
+        return { updatedJob };
+      },
+    );
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedJob,
+    };
+  }
+
+  async adminUpdateJob(
+    jobId: string,
+    updateJobDto: UpdateJobDto,
+    user: TokenPayload,
+  ): Promise<ApiResponse<JobDto>> {
+    const { transformedJob, updatedJob, notifications } =
+      await this.processJobUpdate(
+        jobId,
+        updateJobDto,
+        async (updateData) => {
+          const { job, newNotifications } =
+            await this.jobRepository.updateJobWithNotifications(
+              jobId,
+              updateData,
+              user.userId,
+            );
+          return { updatedJob: job, notifications: newNotifications };
+        },
+        true,
+      );
+
+    if (notifications && notifications.length > 0) {
+      const orgRoom = ROOM_NOTIFICATIONS.org({
+        orgId: updatedJob.organizationId,
+      });
+      this.webSocketGateway.sendToRoom(orgRoom, notifications[0]);
+      this.logger.log(
+        `Broadcast job-updated notification to org room ${orgRoom} for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
+      );
+    }
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -689,7 +938,7 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.addJob(JobEventType.DELETE, {
+    await this.messageQueueService.addJob(JobEventType.DELETE_JOB, {
       jobId: jobId,
     });
     return {
@@ -712,6 +961,7 @@ export class JobUseCases {
       isApplied?: boolean;
       applyStatus?: string;
       applyId?: string;
+      applyUrl?: string | null;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
       this.logger.error(
@@ -837,6 +1087,35 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         data: trends,
+      },
+    };
+  }
+
+  async getJobsV2(
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    const result = await this.jobRepository.getJobs(filters);
+
+    this.logger.log(`Fetched ${result.data.length} jobs`);
+    // Transform Job entities to JobDtos
+    const transformedJobData = result.data.map((item) => ({
+      ...item,
+      job: {
+        ...item.job,
+        questions: item.job.questions,
+        organizationId: item.organization.id,
+      } as JobDto,
+      organization: {
+        ...item.organization,
+      } as OrganizationWithDetailsDto,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: transformedJobData,
+        pagination: result.pagination,
       },
     };
   }

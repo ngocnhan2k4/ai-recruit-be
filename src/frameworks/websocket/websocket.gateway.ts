@@ -23,6 +23,11 @@ interface AuthenticatedSocket extends Socket, IdentityUser {
 @Injectable()
 @WSGateway({
   namespace: "/notifications",
+  cors: {
+    origin: process.env.CORS_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
 })
 export class WebSocketGateway
   implements IWebSocketGateway, OnGatewayConnection, OnGatewayDisconnect
@@ -31,20 +36,12 @@ export class WebSocketGateway
   server: Server;
 
   private readonly logger = new Logger(WebSocketGateway.name);
-  private connectedUsers = new Map<string, AuthenticatedSocket>();
+  private connectedUsers = new Map<string, Set<AuthenticatedSocket>>();
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
-
-  afterInit(server: Server) {
-    server.engine.opts.cors = {
-      origin: this.configService.get<string[]>("CORS_ORIGINS"),
-      methods: ["GET", "POST"],
-      credentials: true,
-    };
-  }
 
   handleConnection(client: AuthenticatedSocket) {
     try {
@@ -73,16 +70,23 @@ export class WebSocketGateway
       }
 
       const orgId = client.handshake.query.organizationId as string;
-      const roomUser = ROOM_NOTIFICATIONS.user({
+
+      client.organizationId = orgId;
+
+      const userKey = ROOM_NOTIFICATIONS.user({
         userId: client.userId,
         orgId: orgId,
       });
-      this.connectedUsers.set(roomUser, client);
+      if (!this.connectedUsers.has(userKey)) {
+        this.connectedUsers.set(userKey, new Set());
+      }
 
-      this.logger.log(`User ${roomUser} connected to WebSocket`);
+      this.connectedUsers.get(userKey)?.add(client);
+
+      this.logger.log(`User ${userKey} connected to WebSocket`);
 
       // Join user-specific room
-      client.join(`user_${roomUser}`);
+      client.join(`user_${userKey}`);
 
       // Check if user is admin and join admin room
       const isAdmin =
@@ -96,7 +100,7 @@ export class WebSocketGateway
       }
 
       if (orgId) {
-        client.join(ROOM_NOTIFICATIONS.org({ orgId: orgId }));
+        client.join(ROOM_NOTIFICATIONS.org({ orgId }));
         this.logger.log(
           `User ${client.userId} joined organization room ${ROOM_NOTIFICATIONS.org({ orgId: orgId })}`,
         );
@@ -115,18 +119,22 @@ export class WebSocketGateway
 
   handleDisconnect(client: AuthenticatedSocket) {
     if (client.userId) {
-      const roomUser = ROOM_NOTIFICATIONS.user({
+      const userKey = ROOM_NOTIFICATIONS.user({
         userId: client.userId,
         orgId: client.organizationId,
       });
 
-      this.connectedUsers.delete(roomUser);
-      this.logger.log(
-        `User ${ROOM_NOTIFICATIONS.user({
-          userId: client.userId,
-          orgId: client.organizationId,
-        })} disconnected from WebSocket`,
-      );
+      const sockets = this.connectedUsers.get(userKey);
+
+      if (sockets) {
+        sockets.delete(client);
+
+        if (sockets.size === 0) {
+          this.connectedUsers.delete(userKey);
+        }
+      }
+
+      this.logger.log(`User ${userKey} disconnected from WebSocket`);
     }
   }
 
@@ -136,24 +144,26 @@ export class WebSocketGateway
   }
 
   sendToUser(identity: IdentityUser, notification: Notification) {
-    const userSocket = this.connectedUsers.get(
-      ROOM_NOTIFICATIONS.user({
-        userId: identity.userId,
-        orgId: identity.organizationId,
-      }),
-    );
+    const userKey = ROOM_NOTIFICATIONS.user({
+      userId: identity.userId,
+      orgId: identity.organizationId,
+    });
 
-    if (userSocket) {
-      userSocket.emit("notification", notification);
-      this.logger.log(
-        `Notification sent to user ${identity.userId}, orgId:${identity.organizationId}`,
+    const sockets = this.connectedUsers.get(userKey);
+
+    if (!sockets || sockets.size === 0) {
+      this.logger.warn(
+        `User ${identity.userId} (org:${identity.organizationId}) not connected`,
       );
-      return true;
+      return false;
     }
-    this.logger.warn(
-      `User ${identity.userId}, orgId:${identity.organizationId} is not connected`,
+    sockets.forEach((socket) => {
+      socket.emit("notification", notification);
+    });
+    this.logger.log(
+      `Notification sent to user ${identity.userId}, org:${identity.organizationId}`,
     );
-    return false;
+    return true;
   }
 
   // Method to broadcast notification to all connected users

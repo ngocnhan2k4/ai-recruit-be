@@ -33,7 +33,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const req = ctx.getRequest<FastifyRequest>();
     const res = ctx.getResponse<FastifyReply>();
     const { method, originalUrl } = req;
-    const start = performance.now();
+    const start = req.raw["startTime"] ?? performance.now();
 
     return next.handle().pipe(
       tap({

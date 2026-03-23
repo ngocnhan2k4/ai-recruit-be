@@ -36,12 +36,20 @@ export class GenericRepository<T, TTable extends object>
     return (result[0] as T) || null;
   }
 
-  async getByIds(ids: ID[]): Promise<T[]> {
+  async getByIds(ids: ID[], fields: (keyof T)[]): Promise<T[]> {
     if (ids.length === 0) return [];
+
+    const table: any = this._table;
+
+    const selectFields = fields.reduce((acc: any, field) => {
+      acc[field] = table[field];
+      return acc;
+    }, {});
+
     const result = await this.db
-      .select()
-      .from(this._table as any)
-      .where(inArray((this._table as any).id, ids));
+      .select(selectFields)
+      .from(table)
+      .where(inArray(table.id, ids));
     return result as T[];
   }
 
