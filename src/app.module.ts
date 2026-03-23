@@ -76,6 +76,11 @@ import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
 import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
 import { RateLimitMiddleware } from "./common/middlewares";
+import { AdminSubscriptionController } from "@/interfaces/controllers/subscription/admin-subscription.controller";
+import { AdminFeatureController } from "@/interfaces/controllers/feature/admin-feature.controller";
+import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscription-use-cases.module";
+import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.module";
+
 @Module({
   imports: [
     // SentryModule must be the first import so Sentry can instrument all other modules
@@ -136,6 +141,8 @@ import { RateLimitMiddleware } from "./common/middlewares";
     OtpModule,
     OtpStorageModule,
     AiCvUseCasesModule,
+    SubscriptionUseCasesModule,
+    FeatureUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -165,6 +172,8 @@ import { RateLimitMiddleware } from "./common/middlewares";
     AdminExamController,
     ExamController,
     AiCvController,
+    AdminSubscriptionController,
+    AdminFeatureController,
   ],
   providers: [
     JwtStrategy,

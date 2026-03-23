@@ -11,6 +11,11 @@ export abstract class IGenericRepository<T> {
 
   abstract create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T>;
 
+  abstract createMany(
+    item: Partial<T>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]>;
+
   abstract update(
     where: Partial<T>,
     item: Partial<T>,

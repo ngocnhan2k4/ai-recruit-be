@@ -12,6 +12,7 @@ import {
   IRoadmapSkillOptionRepository,
   IWeeklyProgressRepository,
   IAIService,
+  IUserFeatureUsageRepository,
 } from "@/core/abstracts";
 import { Inject } from "@nestjs/common";
 import {
@@ -24,6 +25,7 @@ import {
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
 import {
+  FeatureCodeEnum,
   LearningRoadmap,
   LearningRoadmapWithDetails,
   RoadmapSkillOption,
@@ -44,9 +46,13 @@ export class LearningPathUseCase {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly weeklyProgressRepository: IWeeklyProgressRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
   ) {}
 
-  previewRoadmap(request: PreviewRoadmapDto): Observable<MessageEvent> {
+  previewRoadmap(
+    request: PreviewRoadmapDto,
+    userId: string,
+  ): { stream: Observable<MessageEvent>; consumeFeature: () => Promise<void> } {
     this.logger.log(
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
@@ -58,7 +64,15 @@ export class LearningPathUseCase {
       currentSkills: request.currentSkills,
     };
 
-    return this.aiService.generateRoadmap(roadmapRequest);
+    return {
+      stream: this.aiService.generateRoadmap(roadmapRequest),
+      consumeFeature: async () => {
+        await this.userFeatureUsageRepository.consumeFeature(
+          userId,
+          FeatureCodeEnum.LEARNING_PATH,
+        );
+      },
+    };
   }
 
   async saveRoadmap(
