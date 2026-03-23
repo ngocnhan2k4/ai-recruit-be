@@ -6,6 +6,7 @@ import {
 import {
   EducationLevelEnum,
   GenderEnum,
+  GetUserFeaturesResponse,
   OrganizationTypeEnum,
   OrganizationWithDetails,
   ProviderEnum,
@@ -54,6 +55,7 @@ import {
   UserEducationResponseDto,
 } from "@/interfaces/dtos";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -70,6 +72,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
     private readonly userEducationRepository: IUserEducationRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
   ) {}
 
   async onModuleInit() {
@@ -914,6 +917,18 @@ export class UserUseCases implements OnModuleInit {
       data: {
         data: trends,
       },
+    };
+  }
+
+  async getMyFeatures(
+    userId: string,
+  ): Promise<ApiResponse<GetUserFeaturesResponse>> {
+    const features =
+      await this.userFeatureUsageRepository.getUserFeatures(userId);
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: features,
     };
   }
 }
