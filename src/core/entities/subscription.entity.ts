@@ -33,6 +33,7 @@ export interface GetUserFeaturesResponse {
     Pick<Feature, "id" | "code" | "name" | "description"> & {
       limit: number;
       usage: number;
+      lastRefillAt: Date | null;
     }
   >;
 }

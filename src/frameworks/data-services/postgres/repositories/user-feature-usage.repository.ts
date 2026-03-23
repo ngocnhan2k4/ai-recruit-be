@@ -36,6 +36,7 @@ export class UserFeatureUsageRepository
         description: features.description,
         limit: subscriptionFeatures.limit,
         usage: sql<number>`coalesce(${userFeatureUsages.usage}, 0)`,
+        lastRefillAt: userFeatureUsages.lastRefillAt,
         subscriptionId: subscriptions.id,
         subscriptionName: subscriptions.name,
         billingCycle: subscriptions.billingCycle,
@@ -103,6 +104,7 @@ export class UserFeatureUsageRepository
         description: row.description,
         limit: row.limit,
         usage: row.usage ?? 0,
+        lastRefillAt: row.lastRefillAt,
       })),
     };
   }
