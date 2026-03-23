@@ -1,5 +1,5 @@
 import { GenericRepository } from "./generic-repository";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   users,
@@ -136,8 +136,11 @@ export class UserRepository
     };
   }
 
-  async createUser(user: NewUser): Promise<User> {
-    const userData = await this.db.insert(users).values(user).returning();
+  async createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User> {
+    const userData = await (tx || this.db)
+      .insert(users)
+      .values(user)
+      .returning();
     return userData[0];
   }
 
@@ -315,6 +318,7 @@ export class UserRepository
     };
   }
 
+  // [TODO] split to 3 function to usecase call(code respository can reuse after)
   async getUserCvData(userId: string): Promise<UserCvData | null> {
     const user = await this.get(userId);
     if (!user) {
