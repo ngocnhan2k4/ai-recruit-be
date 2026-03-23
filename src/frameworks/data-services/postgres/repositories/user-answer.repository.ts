@@ -3,7 +3,7 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle, DBDrizzleTransaction } from "../types";
 import { userAnswers, questions } from "../models";
-import { eq, inArray } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 @Injectable()
 export class UserAnswerRepository
@@ -64,48 +64,35 @@ export class UserAnswerRepository
   ): Promise<void> {
     const dbContext = tx || this.db;
 
-    const existing = await dbContext
-      .select()
-      .from(userAnswers)
-      .where(eq(userAnswers.userTestId, userTestId));
-
-    const toInsert: Array<{
-      userTestId: string;
-      questionId: string;
-      chosenAnswer: string;
-      isCorrect: boolean;
-      pointGained: number;
-    }> = [];
-
+    // Last write wins if the same question appears more than once in one batch
+    const byQuestionId = new Map<string, (typeof answers)[number]>();
     for (const a of answers) {
-      const rowsForQuestion = existing.filter(
-        (r) => r.questionId === a.questionId,
-      );
-
-      if (rowsForQuestion.length > 0) {
-        const ids = rowsForQuestion.map((r) => r.id);
-        await dbContext
-          .update(userAnswers)
-          .set({
-            chosenAnswer: a.chosenAnswer,
-            isCorrect: a.isCorrect,
-            pointGained: a.pointGained,
-          })
-          .where(inArray(userAnswers.id, ids));
-      } else {
-        toInsert.push({
-          userTestId,
-          questionId: a.questionId,
-          chosenAnswer: a.chosenAnswer,
-          isCorrect: a.isCorrect,
-          pointGained: a.pointGained,
-        });
-      }
+      byQuestionId.set(a.questionId, a);
     }
 
-    if (toInsert.length > 0) {
-      await dbContext.insert(userAnswers).values(toInsert);
+    const rows = [...byQuestionId.values()].map((a) => ({
+      userTestId,
+      questionId: a.questionId,
+      chosenAnswer: a.chosenAnswer,
+      isCorrect: a.isCorrect,
+      pointGained: a.pointGained,
+    }));
+
+    if (rows.length === 0) {
+      return;
     }
+
+    await dbContext
+      .insert(userAnswers)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [userAnswers.userTestId, userAnswers.questionId],
+        set: {
+          chosenAnswer: sql`excluded.chosen_answer`,
+          isCorrect: sql`excluded.is_correct`,
+          pointGained: sql`excluded.point_gained`,
+        },
+      });
   }
 
   async upsertAnswers(
