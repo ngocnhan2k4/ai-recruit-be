@@ -29,7 +29,11 @@ import {
   IUserTestRepository,
   IUserAnswerRepository,
   IWeeklyProgressRepository,
+  ISubscriptionRepository,
+  IFeatureRepository,
+  IUserFeatureUsageRepository,
 } from "@/core";
+
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
 import { CasbinRepository } from "./repositories/casbin.repository";
@@ -66,6 +70,13 @@ import { QuestionRepository } from "./repositories/question.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
+import { SubscriptionRepository } from "./repositories/subscription.repository";
+import { FeatureRepository } from "./repositories/feature.repository";
+import { UserFeatureUsageRepository } from "./repositories/user-feature-usage.repository";
+import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
+import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
+import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
+import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
 
 @Global()
 @Module({
@@ -244,6 +255,30 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
       provide: IWeeklyProgressRepository,
       useClass: WeeklyProgressRepository,
     },
+    {
+      provide: ISubscriptionRepository,
+      useClass: SubscriptionRepository,
+    },
+    {
+      provide: IFeatureRepository,
+      useClass: FeatureRepository,
+    },
+    {
+      provide: IUserFeatureUsageRepository,
+      useClass: UserFeatureUsageRepository,
+    },
+    {
+      provide: IUserSubscriptionRepository,
+      useClass: UserSubscriptionRepository,
+    },
+    {
+      provide: ISubscriptionFeatureRepository,
+      useClass: SubscriptionFeatureRepository,
+    },
+    {
+      provide: IUserFeatureUsageRepository,
+      useClass: UserFeatureUsageRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -277,6 +312,12 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
     IUserAnswerRepository,
     IAiCvRepository,
     IWeeklyProgressRepository,
+    ISubscriptionRepository,
+    IFeatureRepository,
+    IUserFeatureUsageRepository,
+    IUserSubscriptionRepository,
+    ISubscriptionFeatureRepository,
+    IUserFeatureUsageRepository,
   ],
 })
 export class PostgresDataServicesModule {}

@@ -26,3 +26,8 @@ export * from "./area-repository.abstract";
 export * from "./question-repository.abstract";
 export * from "./user-test-repository.abstract";
 export * from "./user-answer-repository.abstract";
+export * from "./subscription-repository.abstract";
+export * from "./feature-repository.abstract";
+export * from "./user-feature-usage-repository.abstract";
+export * from "./user-subscription-repository.abstract";
+export * from "./subscription-feature-repository.abstract";

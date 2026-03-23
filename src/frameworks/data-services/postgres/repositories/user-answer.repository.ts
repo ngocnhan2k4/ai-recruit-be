@@ -100,20 +100,36 @@ export class UserAnswerRepository
     answers: Array<{ questionId: string; chosenAnswer: string }>,
     tx?: DBDrizzleTransaction,
   ): Promise<UserAnswer[]> {
-    const dbContext = tx || this.db;
+    if (tx) {
+      return tx.transaction(async (tx) =>
+        this._upsertAnswers(tx, {
+          userTestId,
+          answers,
+        }),
+      );
+    }
+    return this._upsertAnswers(this.db, { userTestId, answers });
+  }
 
+  private async _upsertAnswers(
+    ctx: DBDrizzle | DBDrizzleTransaction,
+    data: {
+      userTestId: string;
+      answers: Array<{ questionId: string; chosenAnswer: string }>;
+    },
+  ) {
     // Get existing answers for this test
-    const existingAnswers = await dbContext
+    const existingAnswers = await ctx
       .select()
       .from(userAnswers)
-      .where(eq(userAnswers.userTestId, userTestId));
+      .where(eq(userAnswers.userTestId, data.userTestId));
 
     const existingMap = new Map(existingAnswers.map((a) => [a.questionId, a]));
 
     const toInsert: Partial<UserAnswer>[] = [];
     const toUpdate: Array<{ id: string; chosenAnswer: string }> = [];
 
-    for (const answer of answers) {
+    for (const answer of data.answers) {
       const existing = existingMap.get(answer.questionId);
       if (existing) {
         toUpdate.push({
@@ -122,7 +138,7 @@ export class UserAnswerRepository
         });
       } else {
         toInsert.push({
-          userTestId,
+          userTestId: data.userTestId,
           questionId: answer.questionId,
           chosenAnswer: answer.chosenAnswer,
           isCorrect: false, // Will be calculated on final submission
@@ -133,21 +149,21 @@ export class UserAnswerRepository
 
     // Insert new answers
     if (toInsert.length > 0) {
-      await dbContext.insert(userAnswers).values(toInsert as any);
+      await ctx.insert(userAnswers).values(toInsert as any);
     }
 
     // Update existing answers
     for (const update of toUpdate) {
-      await dbContext
+      await ctx
         .update(userAnswers)
         .set({ chosenAnswer: update.chosenAnswer })
         .where(eq(userAnswers.id, update.id));
     }
 
     // Return all answers for this test
-    return await dbContext
+    return ctx
       .select()
       .from(userAnswers)
-      .where(eq(userAnswers.userTestId, userTestId));
+      .where(eq(userAnswers.userTestId, data.userTestId));
   }
 }

@@ -79,7 +79,11 @@ export class AiCvController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     if (!request.file && !request.cvText) {
-      return await this.aiCvUseCases.optimizeCvForAts(request, user);
+      return await this.aiCvUseCases.optimizeCvForAts(
+        request,
+        user.userId,
+        true,
+      );
     }
 
     if (request.file && request.cvText) {
@@ -89,7 +93,11 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvUseCases.optimizeCvForAts(request);
+    return await this.aiCvUseCases.optimizeCvForAts(
+      request,
+      user.userId,
+      false,
+    );
   }
 
   @Post("suggest-field")
@@ -101,8 +109,9 @@ export class AiCvController {
   @ApiResponseDto(CvFieldSuggestionResponseDto)
   async suggestCvField(
     @Body() request: CvFieldSuggestionRequestDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
-    return await this.aiCvUseCases.suggestCvField(request);
+    return await this.aiCvUseCases.suggestCvField(request, user.userId);
   }
 
   @ApiOperation({

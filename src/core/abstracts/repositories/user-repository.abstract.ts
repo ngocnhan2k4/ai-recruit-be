@@ -9,6 +9,7 @@ import {
   UserCvData,
 } from "@/core/entities";
 import { PaginatedResult } from "@/common/types";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IUserRepository extends IGenericRepository<User> {
   abstract getAllWithOffset(
@@ -33,7 +34,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     >
   >;
 
-  abstract createUser(user: NewUser): Promise<User>;
+  abstract createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User>;
   abstract adminUpdateUser(userId: string, user: Partial<User>): Promise<User>;
 
   abstract getAllAdminUsers(
