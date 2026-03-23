@@ -151,6 +151,28 @@ export class JobRepository
     return data;
   }
 
+  // Priority to get datePosted (the date that job is posted)
+  // if datePosted is null, use createdAt as fallback (the date that the job is crawled)
+  private getEffectivePostedDateExpr() {
+    return sql`COALESCE(${jobs.datePosted}::timestamp, ${jobs.createdAt})`;
+  }
+
+  // Calculate average salary, if salaryMin or salaryMax is null, use the other one as average, if both are null, return 0
+  private getAverageSalaryExpr() {
+    return sql`COALESCE((${jobs.salaryMin}::numeric + ${jobs.salaryMax}::numeric) / 2, ${jobs.salaryMin}::numeric, ${jobs.salaryMax}::numeric, 0)`;
+  }
+
+  private resolveSortExpr(sortBy?: string, sortDirection?: "asc" | "desc") {
+    const direction = sortDirection === "desc" ? desc : asc;
+    if (sortBy === "salary") {
+      return direction(this.getAverageSalaryExpr());
+    }
+    if (sortBy === "date_posted") {
+      return direction(this.getEffectivePostedDateExpr());
+    }
+    return null;
+  }
+
   async getJobsByAdmin(
     filters: JobFilters,
   ): Promise<PaginatedResult<JobResponse>> {
@@ -202,18 +224,26 @@ export class JobRepository
     }
 
     if (filters?.createdAtStart) {
-      whereConditions.push(gte(jobs.createdAt, filters.createdAtStart));
+      whereConditions.push(
+        gte(this.getEffectivePostedDateExpr(), filters.createdAtStart),
+      );
     }
 
     if (filters?.createdAtEnd) {
-      whereConditions.push(lte(jobs.createdAt, filters.createdAtEnd));
+      whereConditions.push(
+        lte(this.getEffectivePostedDateExpr(), filters.createdAtEnd),
+      );
     }
 
     if (filters?.isJobSystem) {
       whereConditions.push(isNull(jobs.jobRawId));
     }
 
-    const offset = ((page || 1) - 1) * limit;
+    const offset = (Math.max(page || 1, 1) - 1) * limit;
+    const dynamicSort = this.resolveSortExpr(
+      filters?.sortBy,
+      filters?.sortDirection,
+    );
 
     // Add one extra item to check if there's a next page
     const result = (await this.db
@@ -251,7 +281,10 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id))
+      .orderBy(
+        dynamicSort ||
+          (filters?.organizationId ? desc(jobs.datePosted) : asc(jobs.id)),
+      )
       .offset(offset)
       .limit(limit)) as {
       job: Job;
@@ -326,14 +359,16 @@ export class JobRepository
       whereConditions.push(eq(jobs.workType, filters.workType));
     }
 
-    if (filters.fromDate) {
-      whereConditions.push(gte(jobs.createdAt, new Date(filters.fromDate)));
+    if (filters?.fromDate) {
+      whereConditions.push(
+        gte(this.getEffectivePostedDateExpr(), new Date(filters.fromDate)),
+      );
     }
 
     if (filters.toDate) {
       const toDate = new Date(filters.toDate);
       toDate.setHours(23, 59, 59, 999);
-      whereConditions.push(lte(jobs.createdAt, toDate));
+      whereConditions.push(lte(this.getEffectivePostedDateExpr(), toDate));
     }
 
     if (filters.skillIds?.length) {
@@ -367,6 +402,13 @@ export class JobRepository
     //   );
     // }
 
+    const dynamicSort = this.resolveSortExpr(
+      filters?.sortBy,
+      filters?.sortDirection,
+    );
+    const isOffsetCursor = !!dynamicSort;
+    let offsetValue = 0;
+
     if (cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)
@@ -374,7 +416,14 @@ export class JobRepository
           data: [],
           pagination: { nextCursor: undefined, hasNextPage: false },
         };
-      whereConditions.push(lt(jobs.createdAt, new Date(Number(cursor))));
+
+      if (isOffsetCursor) {
+        if (!isNaN(parseInt(cursor))) {
+          offsetValue = parseInt(cursor);
+        }
+      } else {
+        whereConditions.push(lt(jobs.createdAt, new Date(Number(cursor))));
+      }
     }
 
     const applyUserLateral = filters.user?.userId
@@ -392,7 +441,7 @@ export class JobRepository
         ) apply_user`;
 
     // Add one extra item to check if there's a next page
-    const result = (await this.db
+    const query = this.db
       .select({
         job: {
           id: jobs.id,
@@ -462,11 +511,24 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .leftJoin(applyUserLateral, sql`TRUE`)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(
-        filters?.organizationId ? desc(jobs.datePosted) : desc(jobs.createdAt),
-      )
-      .limit(limit + 1)) as {
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+
+    if (isOffsetCursor) {
+      query
+        .orderBy(dynamicSort)
+        .offset(offsetValue)
+        .limit(limit + 1);
+    } else {
+      query
+        .orderBy(
+          filters?.organizationId
+            ? desc(jobs.datePosted)
+            : desc(jobs.createdAt),
+        )
+        .limit(limit + 1);
+    }
+
+    const result = (await query) as {
       job: any;
       provinces: Province[];
       organization: any;
@@ -479,11 +541,15 @@ export class JobRepository
     const data = hasNextPage ? result.slice(0, limit) : result;
 
     // Next cursor is only applicable for cursor pagination
-    // Use the last item from the sliced data, convert Date to timestamp
-    const nextCursor =
-      hasNextPage && data[data.length - 1]?.job?.createdAt
-        ? data[data.length - 1].job.createdAt.getTime()
-        : undefined;
+    let nextCursor: string | number | undefined = undefined;
+    if (hasNextPage) {
+      if (isOffsetCursor) {
+        nextCursor = offsetValue + limit;
+      } else {
+        nextCursor = data[data.length - 1]?.job?.createdAt?.getTime();
+      }
+    }
+
     return {
       data,
       pagination: {
@@ -1833,7 +1899,9 @@ export class JobRepository
     userId?: string,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
-    const key = CACHE_KEYS.job.getWithDetail(jobId);
+    const baseKey = CACHE_KEYS.job.getWithDetail(jobId);
+    const key = userId ? `${baseKey}:u:${userId}` : baseKey;
+
     return cacheWithDedup(
       key,
       () => this.cacheManager.get<JobResponse | null>(key),
