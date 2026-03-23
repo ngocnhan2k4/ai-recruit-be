@@ -55,6 +55,36 @@ export class AuthUseCases {
           firebaseUid: decode.uid,
         })
       )[0] || null;
+
+    if (!user && decode.email && decode.emailVerified === true) {
+      const existingByEmail = (
+        await this.userRepository.getByField({
+          email: decode.email,
+        })
+      )[0];
+      if (existingByEmail) {
+        const patch: Partial<User> = {
+          firebaseUid: decode.uid,
+          provider: normalizeProvider(
+            decode.provider_id || ProviderEnum.EMAIL,
+          ) as User["provider"],
+        };
+        if (decode.picture && !existingByEmail.avatarUrl) {
+          patch.avatarUrl = decode.picture;
+        }
+        const [merged] = await this.userRepository.update(
+          { id: existingByEmail.id },
+          patch,
+        );
+        user = merged ?? null;
+        if (user) {
+          await this.authService.updateUserClaims(decode.uid, {
+            roles: (user.roles || []) as RoleEnum[],
+          });
+        }
+      }
+    }
+
     if (!user) {
       const newUser: NewUser = {
         username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
