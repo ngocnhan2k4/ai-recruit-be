@@ -42,6 +42,7 @@ import {
   OrganizationWithDetails,
   Notification,
   Category,
+  JobResponse,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -128,7 +129,7 @@ export class JobUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations] = await Promise.all([
+    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
@@ -141,9 +142,15 @@ export class JobUseCases {
         "employeesMax",
         "logoUrl",
       ]),
+      this.jobRepository.getJobsV2({
+        ids: jobIds,
+        fields: ["jobRaw"],
+        limit: 0, // No need
+      }),
     ]);
 
     const organizationMap = keyBy(organizations, "id");
+    const jobMap = keyBy(jobInfos.data, "job.id");
 
     // Generate next cursor if there are more results
     let nextCursor: string | undefined;
@@ -161,6 +168,7 @@ export class JobUseCases {
           actualHits,
           organizationMap,
           userJobStatusMap,
+          jobMap,
         ),
         pagination: {
           nextCursor,
@@ -182,6 +190,7 @@ export class JobUseCases {
         applyId: string | null;
       }
     >,
+    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((hit: any) => {
       const source = hit._source;
@@ -257,6 +266,7 @@ export class JobUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
+        applyUrl: jobMap[job.id]?.applyUrl,
       } as JobResponseDto;
     });
   }
@@ -1077,6 +1087,35 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         data: trends,
+      },
+    };
+  }
+
+  async getJobsV2(
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    const result = await this.jobRepository.getJobs(filters);
+
+    this.logger.log(`Fetched ${result.data.length} jobs`);
+    // Transform Job entities to JobDtos
+    const transformedJobData = result.data.map((item) => ({
+      ...item,
+      job: {
+        ...item.job,
+        questions: item.job.questions,
+        organizationId: item.organization.id,
+      } as JobDto,
+      organization: {
+        ...item.organization,
+      } as OrganizationWithDetailsDto,
+    }));
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: transformedJobData,
+        pagination: result.pagination,
       },
     };
   }
