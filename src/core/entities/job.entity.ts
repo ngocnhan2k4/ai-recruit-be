@@ -32,8 +32,9 @@ export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
   categoryId?: string;
-  provinceId: Province["id"];
+  provinceId?: Province["id"];
   isOpen?: boolean;
+  isCategoryNotNull?: boolean;
 }
 
 export interface JobResponse {

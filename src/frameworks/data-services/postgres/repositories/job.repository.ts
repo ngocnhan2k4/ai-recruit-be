@@ -905,6 +905,7 @@ export class JobRepository
       provinceId,
       isOpen,
       haveDatePosted,
+      isCategoryNotNull,
     }: StatisticsJobFilter & {
       haveDatePosted?: boolean;
     },
@@ -930,6 +931,7 @@ export class JobRepository
             gt(jobsTable.endDate, convertDateToStr(new Date())),
           )
         : undefined,
+      isCategoryNotNull ? isNotNull(jobsTable.categoryId) : undefined,
     ];
 
     return conditions.filter(Boolean) as SQL<unknown>[];
@@ -2369,6 +2371,19 @@ export class JobRepository
       date: convertDateToStr(r.date),
       count: Number(r.count),
     }));
+  }
+
+  async countSyncableJobsForSearch(): Promise<number> {
+    const [row] = await this.db
+      .select({
+        count: countDistinct(jobs.id).as("count"),
+      })
+      .from(jobs)
+      .where(
+        and(eq(jobs.status, JobStatusEnum.ACTIVE), isNotNull(jobs.categoryId)),
+      );
+
+    return Number(row?.count ?? 0);
   }
 
   async getJobsV2(filters?: JobFilters): Promise<PaginatedResult<JobResponse>> {

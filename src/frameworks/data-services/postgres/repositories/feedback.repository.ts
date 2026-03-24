@@ -12,7 +12,6 @@ import {
   count,
   gte,
   lte,
-  isNotNull,
   isNull,
   countDistinct,
   asc,
@@ -33,7 +32,7 @@ export class FeedbackRepository
   async getFeedbacks(
     filter: FeedbackFilter,
   ): Promise<PaginatedResult<Feedback>> {
-    const whereConditions: SQL[] = [isNotNull(feedbacks.deletedAt)];
+    const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
     if (filter.userId) {
       whereConditions.push(eq(feedbacks.userId, filter.userId));
@@ -51,12 +50,14 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, filter.endDate));
     }
 
+    console.log("filter", filter);
+
     const feedbacksResult = await this.db
       .select()
       .from(feedbacks)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(feedbacks.createdAt))
-      .limit(filter.limit + 1)
+      .limit(filter.limit)
       .offset((filter.page! - 1) * filter.limit);
 
     const total = await this.db
