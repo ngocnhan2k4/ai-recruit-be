@@ -18,7 +18,6 @@ export class JobMatchingQuery {
       provinceIds: userProvinceIds,
       categoryIds: userCategoryIds = [],
     } = userProfile;
-
     const {
       cursor,
       limit = 20,
@@ -144,7 +143,7 @@ export class JobMatchingQuery {
                           skillIds: skillIds,
                         },
                       },
-                      weight: 40,
+                      weight: 0.4,
                       script_score: {
                         script: {
                           source: `
@@ -165,7 +164,7 @@ export class JobMatchingQuery {
                               }
                             }
                             
-                            return (matchedSkills / totalSkills) * 100;
+                            return matchedSkills / totalSkills;
                           `,
                           params: {
                             userSkillIds: skillIds,
@@ -177,7 +176,7 @@ export class JobMatchingQuery {
                 : []),
               // 2. Experience Match Score (25%)
               {
-                weight: 25,
+                weight: 0.25,
                 script_score: {
                   script: {
                     source: `
@@ -193,13 +192,13 @@ export class JobMatchingQuery {
                       }
                       
                       if (userExp >= expMax) {
-                        return 100; // Overqualified - still good match
+                        return 1; // Overqualified - still good match
                       } else if (userExp >= expMin) {
-                        return 80; // Perfect match
+                        return 0.8; // Perfect match
                       } else if (userExp >= (long)(expMin * 0.7)) {
-                        return 50; // Close match
+                        return 0.5; // Close match
                       } else {
-                        return 20; // Underqualified
+                        return 0.2; // Underqualified
                       }
                     `,
                     params: {
@@ -212,25 +211,57 @@ export class JobMatchingQuery {
               ...(userProvinceIds.length > 0
                 ? [
                     {
-                      filter: {
-                        terms: {
-                          provinceIds: userProvinceIds,
+                      script_score: {
+                        script: {
+                          source: `
+                            double matched = 0;
+                            double total = params.userProvinceIds.length;
+                        
+                            if (total == 0) return 0;
+
+                            for (def p : params.userProvinceIds) {
+                              if (doc['provinceIds'].contains(p)) {
+                                matched++;
+                              }
+                            }
+
+                            return matched / total;
+                          `,
+                          params: {
+                            userProvinceIds: userProvinceIds,
+                          },
                         },
                       },
-                      weight: 15,
+                      weight: 0.15,
                     },
                   ]
                 : []),
-              // 4. Category Match Score (5%)
+              // 4. Category Match Score (10%)
               ...(userCategoryIds.length > 0
                 ? [
                     {
-                      filter: {
-                        terms: {
-                          categoryId: userCategoryIds,
+                      script_score: {
+                        script: {
+                          source: `
+                            double matched = 0;
+                            double total = params.userCategoryIds.length;
+                        
+                            if (total == 0) return 0;
+
+                            for (def p : params.userCategoryIds) {
+                              if (doc['categoryId'].contains(p)) {
+                                matched++;
+                              }
+                            }
+
+                            return matched / total;
+                          `,
+                          params: {
+                            userCategoryIds: userCategoryIds,
+                          },
                         },
                       },
-                      weight: 15,
+                      weight: 0.1,
                     },
                   ]
                 : []),
@@ -238,7 +269,7 @@ export class JobMatchingQuery {
               ...(userProfile.expectedSalary
                 ? [
                     {
-                      weight: 10,
+                      weight: 0.1,
                       script_score: {
                         script: {
                           source: `
@@ -253,7 +284,7 @@ export class JobMatchingQuery {
                             }
                             
                             if (salaryMin == 0 && salaryMax == 0) {
-                              return 50; // No salary info - neutral score
+                              return 0.5; // No salary info - neutral score
                             }
                             
                             double jobSalary = (salaryMin + salaryMax) / 2;
@@ -264,11 +295,11 @@ export class JobMatchingQuery {
                             double userExpected = params.userExpectedSalary;
                             
                             if (userExpected <= jobSalary * 1.2) {
-                              return 100; // Within 20% - perfect
+                              return 1; // Within 20% - perfect
                             } else if (userExpected <= jobSalary * 1.5) {
-                              return 70; // Within 50% - acceptable
+                              return 0.7; // Within 50% - acceptable
                             } else {
-                              return 30; // Too high
+                              return 0.3; // Too high
                             }
                           `,
                           params: {
@@ -281,7 +312,7 @@ export class JobMatchingQuery {
                 : []),
             ],
             score_mode: "sum", // Sum all function scores
-            boost_mode: "multiply", // Multiply với query score
+            boost_mode: "replace", // Sum với query score
           },
         },
         sort: [
