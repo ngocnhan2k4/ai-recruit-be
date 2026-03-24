@@ -7,10 +7,9 @@ import {
 } from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
 
-export class GenericRepository<
-  T,
-  TTable extends object,
-> implements IGenericRepository<T> {
+export class GenericRepository<T, TTable extends object>
+  implements IGenericRepository<T>
+{
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,

@@ -3,7 +3,9 @@ import { IEmailQueueStorageService } from "@/core/abstracts/email-queue-storage.
 import { EmailJob } from "@/core/entities/email.entity";
 
 @Injectable()
-export class InMemoryEmailQueueStorageService implements IEmailQueueStorageService {
+export class InMemoryEmailQueueStorageService
+  implements IEmailQueueStorageService
+{
   private readonly logger = new Logger(InMemoryEmailQueueStorageService.name);
   private queue: EmailJob[] = [];
 

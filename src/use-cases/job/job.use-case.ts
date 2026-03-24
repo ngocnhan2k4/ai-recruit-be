@@ -246,7 +246,7 @@ export class JobUseCases {
           ? new Date(source.updatedAt as string)
           : new Date(),
         deletedAt: null,
-        questions: [],
+        questions: source.questions,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
