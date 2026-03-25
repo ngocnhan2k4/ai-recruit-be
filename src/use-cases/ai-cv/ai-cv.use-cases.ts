@@ -248,12 +248,11 @@ export class AiCvUseCases {
     useUserCV: boolean,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     // Call AI service to optimize CV
+    await this.userFeatureUsageRepo.consumeFeature(
+      userId,
+      FeatureCodeEnum.OPTIMIZE_CV,
+    );
     try {
-      await this.userFeatureUsageRepo.consumeFeature(
-        userId,
-        FeatureCodeEnum.OPTIMIZE_CV,
-      );
-
       let cvText = "";
 
       if (request?.file) {
