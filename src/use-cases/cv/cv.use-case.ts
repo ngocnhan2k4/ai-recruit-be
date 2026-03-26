@@ -29,6 +29,7 @@ export class CvUseCases {
       .map((cv) => ({
         id: cv.id,
         userId: cv.userId,
+        aiCvId: cv.aiCvId,
         name: cv.name,
         fileUrl: cv.fileUrl,
         fileName: cv.fileName,
@@ -95,6 +96,7 @@ export class CvUseCases {
     // Save CV record to database
     const newCv = await this.cvRepository.create({
       userId: userId,
+      aiCvId: createCvDto.aiCvId,
       name: createCvDto.name,
       fileUrl: uploadResult.data.url,
       fileName: createCvDto.fileName,
@@ -109,6 +111,7 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: newCv.id,
       userId: newCv.userId,
+      aiCvId: newCv.aiCvId,
       name: newCv.name,
       fileUrl: newCv.fileUrl,
       fileName: newCv.fileName,
@@ -176,6 +179,10 @@ export class CvUseCases {
       updateData.name = updateCvDto.name;
     }
 
+    if (updateCvDto?.aiCvId !== undefined) {
+      updateData.aiCvId = updateCvDto.aiCvId;
+    }
+
     if (fileUrl) {
       updateData.lastUsed = new Date();
     }
@@ -199,6 +206,7 @@ export class CvUseCases {
     const cvDto: CvDto = {
       id: updatedCv.id,
       userId: updatedCv.userId,
+      aiCvId: updatedCv.aiCvId,
       name: updatedCv.name,
       fileUrl: updatedCv.fileUrl,
       fileName: updatedCv.fileName,
@@ -247,6 +255,22 @@ export class CvUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: { message: "CV deleted successfully" },
+    };
+  }
+
+  async checkAiCvExists(
+    userId: string,
+    aiCvId: string,
+  ): Promise<ApiResponse<{ exists: boolean }>> {
+    const existingCv = await this.cvRepository.getByField({
+      userId,
+      aiCvId,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { exists: existingCv.length > 0 },
     };
   }
 }

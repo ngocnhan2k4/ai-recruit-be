@@ -81,6 +81,7 @@ export class JobUseCases {
 
   async getJobs(
     filters: JobFilters,
+    isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
     if (filters.cursor) {
       // return empty array if user not logged in
@@ -96,7 +97,7 @@ export class JobUseCases {
     }
 
     // If it's role user, only get status active, close and paused
-    if (!filters.organizationId) {
+    if (!isOrg) {
       filters.statuses = [
         JobStatusEnum.ACTIVE,
         JobStatusEnum.CLOSED,

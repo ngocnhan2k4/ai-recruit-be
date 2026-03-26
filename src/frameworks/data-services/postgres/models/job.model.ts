@@ -29,6 +29,7 @@ import {
   WorkTypeEnum,
 } from "./enums";
 import { organizations } from "./organization.model";
+import { aiCvs } from "./ai-cvs.model";
 
 export const jobRaws = pgTable("job_raws", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -191,6 +192,9 @@ export const cvs = pgTable("cvs", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
+  aiCvId: uuid("ai_cv_id").references(() => aiCvs.id, {
+    onDelete: "set null",
+  }),
   name: varchar("name", { length: 255 }).notNull(),
   fileUrl: varchar("file_url", { length: 500 }).notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
