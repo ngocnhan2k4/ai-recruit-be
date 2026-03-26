@@ -15,6 +15,7 @@ import {
   isNull,
   countDistinct,
   asc,
+  sql,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
 import { PaginatedResult } from "@/common/types";
@@ -85,18 +86,20 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, new Date(toDate)));
     }
 
+    const dateExpr = sql`DATE(${feedbacks.createdAt})`;
+
     const result = await this.db
       .select({
-        date: feedbacks.createdAt,
+        date: dateExpr,
         count: countDistinct(feedbacks.id).as("count"),
       })
       .from(feedbacks)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(feedbacks.createdAt)
-      .orderBy(asc(feedbacks.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }

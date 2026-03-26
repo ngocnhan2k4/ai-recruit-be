@@ -608,18 +608,20 @@ export class OrganizationRepository
       whereConditions.push(lte(organizations.createdAt, new Date(toDate)));
     }
 
+    const dateExpr = sql`DATE(${organizations.createdAt})`;
+
     const result = await this.db
       .select({
-        date: organizations.createdAt,
+        date: dateExpr,
         count: countDistinct(organizations.id).as("count"),
       })
       .from(organizations)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(organizations.createdAt)
-      .orderBy(asc(organizations.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }
