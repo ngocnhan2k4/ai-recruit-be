@@ -22,6 +22,13 @@ export class CvDto {
   userId: string;
 
   @ApiProperty({
+    example: "uuid-ai-cv-id",
+    description: "Linked AI CV ID",
+    required: false,
+  })
+  aiCvId?: string | null;
+
+  @ApiProperty({
     example: "https://example.com/cv.pdf",
     description: "URL of the CV file",
   })
@@ -63,6 +70,14 @@ export class CvListResponseDto {
     description: "Array of user CVs",
   })
   cvs: CvDto[];
+}
+
+export class CvAiCvExistsResponseDto {
+  @ApiProperty({
+    example: true,
+    description: "Whether a CV linked to this AI CV already exists",
+  })
+  exists: boolean;
 }
 
 // DTOs for CV Optimize ATS

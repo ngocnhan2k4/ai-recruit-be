@@ -377,6 +377,8 @@ export class JobMatchingQuery {
       salaryMax,
       experienceMin,
       experienceMax,
+      fromDate,
+      toDate,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -408,7 +410,6 @@ export class JobMatchingQuery {
         terms: { status: statusFilters },
       });
     }
-
     if (workType) {
       mustQueries.push({ term: { workType } });
     }
@@ -473,6 +474,20 @@ export class JobMatchingQuery {
       }
     }
 
+    if (fromDate || toDate) {
+      const rangeQuery: any = {};
+      if (fromDate) {
+        rangeQuery.gte = fromDate;
+      }
+      if (toDate) {
+        rangeQuery.lte = toDate;
+      }
+      mustQueries.push({
+        range: {
+          datePosted: rangeQuery,
+        },
+      });
+    }
     const shouldQueries: any[] = [];
 
     if (keyword) {
