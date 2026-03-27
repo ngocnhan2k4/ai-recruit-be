@@ -6,6 +6,7 @@ import {
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
+import { getTx, txStorage } from "@/common/utils";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -173,6 +174,20 @@ export class GenericRepository<T, TTable extends object>
   async executeWithTransaction<T>(
     fn: (tx: DBDrizzleTransaction) => Promise<T>,
   ): Promise<T> {
-    return await this.db.transaction(async (tx) => fn(tx));
+    const existingTx = getTx();
+
+    if (existingTx) {
+      return fn(existingTx);
+    }
+
+    return this.db.transaction(async (tx) => {
+      return txStorage.run({ tx }, async () => {
+        return fn(tx);
+      });
+    });
   }
+
+  getExecutor = () => {
+    return getTx() ?? this.db;
+  };
 }

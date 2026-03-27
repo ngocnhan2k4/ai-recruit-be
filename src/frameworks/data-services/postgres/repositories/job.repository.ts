@@ -2357,18 +2357,20 @@ export class JobRepository
       whereConditions.push(isNotNull(jobs.jobRawId));
     }
 
+    const dateExpr = sql`DATE(${jobs.createdAt})`;
+
     const result = await this.db
       .select({
-        date: jobs.createdAt,
+        date: dateExpr,
         count: countDistinct(jobs.id).as("count"),
       })
       .from(jobs)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(jobs.createdAt)
-      .orderBy(asc(jobs.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }
