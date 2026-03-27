@@ -44,8 +44,6 @@ export class SkillController {
     summary: "Get pageinated skills",
   })
   @ApiResponseDto(SkillDto, { isArray: true })
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(LLONG_TTL)
   @Get()
   async getPaginatedSkills(
     @Query() query: GetSkillsQueryDto,
