@@ -4,7 +4,6 @@ import {
   Post,
   Delete,
   Put,
-  Body,
   Param,
   UseGuards,
   Query,
@@ -22,7 +21,12 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser, UploadFileAndBody } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
 import { ApiResponse, ApiResponseDto } from "../../dtos";
-import { CvDto, CvListResponseDto, CvRequestDto } from "../../dtos/cv";
+import {
+  CvAiCvExistsResponseDto,
+  CvDto,
+  CvListResponseDto,
+  CvRequestDto,
+} from "../../dtos/cv";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 import type { MultipartFile } from "@fastify/multipart";
 import { RESPONSE_CODE } from "@/common/constants";
@@ -56,6 +60,26 @@ export class CvController {
   }
 
   @ApiOperation({
+    summary: "Check if AI CV has been saved",
+    description:
+      "Check whether the authenticated user already has a CV linked to the given AI CV ID",
+  })
+  @ApiQuery({
+    name: "aiCvId",
+    required: true,
+    description: "AI CV ID to check",
+    example: "uuid-ai-cv-id",
+  })
+  @ApiResponseDto(CvAiCvExistsResponseDto)
+  @Get("exists")
+  async checkAiCvExists(
+    @GetUser() user: TokenPayload,
+    @Query("aiCvId") aiCvId: string,
+  ): Promise<ApiResponse<CvAiCvExistsResponseDto>> {
+    return this.cvUseCases.checkAiCvExists(user.userId, aiCvId);
+  }
+
+  @ApiOperation({
     summary: "Get CV by Id",
   })
   @ApiParam({
@@ -81,6 +105,7 @@ export class CvController {
       properties: {
         file: { type: "string", format: "binary" },
         name: { type: "string" },
+        aiCvId: { type: "string", format: "uuid" },
       },
       required: ["file", "name"],
     },
@@ -116,6 +141,7 @@ export class CvController {
       properties: {
         file: { type: "string", format: "binary" },
         name: { type: "string" },
+        aiCvId: { type: "string", format: "uuid" },
       },
     },
   })
