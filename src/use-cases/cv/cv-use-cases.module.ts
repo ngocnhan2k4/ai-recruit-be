@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { CvUseCases } from "./cv.use-case";
-import { StorageModule } from "../storage/storage.module";
+import { CloudinaryModule } from "@/frameworks/storage/cloudinary/cloudinary.module";
 
 @Module({
-  imports: [StorageModule],
+  imports: [CloudinaryModule],
   providers: [CvUseCases],
   exports: [CvUseCases],
 })
