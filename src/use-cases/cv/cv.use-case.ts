@@ -5,19 +5,19 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { CV_FOLDER, RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
-import { StorageUseCase } from "@/use-cases/storage/storage.use-case";
 import { MultipartFile } from "@fastify/multipart";
 import { ICvRepository } from "@/core";
 import { Cv } from "@/core";
 import { Inject } from "@nestjs/common";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 
 @Injectable()
 export class CvUseCases {
   private readonly logger = new Logger(CvUseCases.name);
   constructor(
-    private readonly storageUseCase: StorageUseCase,
+    private readonly cloudinaryService: CloudinaryService,
     @Inject(ICvRepository) private readonly cvRepository: ICvRepository,
   ) {}
 
@@ -84,7 +84,9 @@ export class CvUseCases {
     }
 
     // Upload file to Cloudinary
-    const uploadResult = await this.storageUseCase.uploadFile(file);
+    const uploadResult = await this.cloudinaryService.uploadFile(file, {
+      folder: CV_FOLDER,
+    });
 
     if (!uploadResult.data) {
       throw new BadRequestException({
@@ -141,7 +143,9 @@ export class CvUseCases {
 
     if (file) {
       // Upload new file to Cloudinary
-      uploadResult = await this.storageUseCase.uploadFile(file);
+      uploadResult = await this.cloudinaryService.uploadFile(file, {
+        folder: CV_FOLDER,
+      });
       if (!uploadResult.data) {
         throw new BadRequestException({
           message: "Failed to upload file to storage",

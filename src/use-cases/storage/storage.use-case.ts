@@ -23,17 +23,6 @@ export class StorageUseCase {
     };
   }
 
-  async uploadImage(
-    file: MultipartFile,
-  ): Promise<ApiResponse<{ url: string; public_id: string; format: string }>> {
-    const result = await this.cloudinaryService.uploadFile(file);
-    return {
-      message: "Image uploaded successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
-    };
-  }
-
   async deleteFile(
     public_id: string,
   ): Promise<ApiResponse<{ message: string }>> {
