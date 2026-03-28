@@ -21,13 +21,6 @@ export class ApplyJobResponseDto {
   status: string;
 
   @ApiProperty({
-    example: "uuid-cv-id",
-    required: false,
-    description: "CV ID used for application",
-  })
-  userCvId?: string;
-
-  @ApiProperty({
     type: [JobAnswerDto],
     required: false,
     description: "Answers to job questions",
@@ -40,6 +33,39 @@ export class ApplyJobResponseDto {
     ],
   })
   answers?: JobAnswerDto[];
+
+  @ApiProperty({
+    description: "The date when the application was created",
+    type: Date,
+  })
+  createdAt?: Date;
+
+  @ApiProperty({
+    description: "The date when the application was last updated",
+    type: Date,
+  })
+  updatedAt?: Date;
+
+  @ApiProperty({
+    description: "The user who applied for the job",
+    required: false,
+  })
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+
+  @ApiProperty({
+    description: "The CV used for application",
+    required: false,
+  })
+  cv?: {
+    id: string;
+    name: string;
+    fileUrl: string;
+  };
 }
 
 export class UserInteractionResponseDto {

@@ -32,6 +32,7 @@ import {
   UpdateJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
+  ApplyJobQueryDto,
 } from "@/interfaces/dtos";
 import {
   Skill,
@@ -1028,10 +1029,12 @@ export class JobUseCases {
     };
   }
   async getApplyJobs(
-    jobId: string,
-  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
-    const result = await this.jobRepository.getApplyJobs(jobId);
-    this.logger.log(`Get job applications for job ${jobId}`);
+    query: ApplyJobQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {
+    const result = await this.jobRepository.getApplyJobs(query.jobId, {
+      fields: query.totalOnly ? ["total"] : [],
+    });
+    this.logger.log(`Get job applications for job ${query.jobId}`);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

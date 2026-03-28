@@ -60,8 +60,24 @@ export interface ApplyJobResponse {
   id: string;
   jobId: string;
   status: string;
-  cvId: string;
   answers?: JobAnswer[];
+  createdAt?: Date;
+  updatedAt?: Date;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+  cv?: {
+    id: string;
+    name: string;
+    fileUrl: string;
+  };
+}
+
+export interface ApplyJobFilters {
+  fields?: string[];
 }
 
 export interface UserInteractionResponse {

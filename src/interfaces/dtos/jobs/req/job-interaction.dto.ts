@@ -122,6 +122,21 @@ export class ApplyJobQueryDto {
   })
   @IsUUID()
   jobId: string;
+
+  @ApiProperty({
+    example: true,
+    description: "Only return the total count of applications",
+    required: false,
+    type: Boolean,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return value;
+  })
+  totalOnly?: boolean;
 }
 
 export class UpdateApplyJobDto {
