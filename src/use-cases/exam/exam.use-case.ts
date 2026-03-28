@@ -7,7 +7,6 @@ import {
 import {
   IAreaRepository,
   IQuestionRepository,
-  ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
   ISkillRepository,
@@ -21,8 +20,6 @@ import {
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
   AddQuestionsToSkillDto,
-  CreateLevelDto,
-  UpdateLevelDto,
   StartExamDto,
   SubmitExamDto,
   ImportResultDto,
@@ -33,6 +30,7 @@ import {
   ExamScoringService,
   ImportRow,
 } from "./services";
+import { EXAM_MAX_QUESTIONS } from "@/common/constants";
 
 @Injectable()
 export class ExamUseCases {
@@ -41,7 +39,6 @@ export class ExamUseCases {
   constructor(
     private readonly areaRepo: IAreaRepository,
     private readonly questionRepo: IQuestionRepository,
-    private readonly levelRepo: ILevelRepository,
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
     private readonly skillRepo: ISkillRepository,
@@ -282,75 +279,6 @@ export class ExamUseCases {
 
   // ==================== LEVEL MANAGEMENT ====================
 
-  async createLevel(dto: CreateLevelDto) {
-    // Validate area exists
-    const area = await this.areaRepo.get(dto.areaId);
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    // Validate min/max range
-    if (dto.minScore > dto.maxScore) {
-      throw new BadRequestException("minScore cannot be greater than maxScore");
-    }
-
-    const level = await this.levelRepo.create(dto);
-    this.logger.log(`Created level: ${level.id}`);
-    return {
-      success: true,
-      message: "Level created successfully",
-      data: level,
-    };
-  }
-
-  async updateLevel(id: string, dto: UpdateLevelDto) {
-    const existing = await this.levelRepo.get(id);
-    if (!existing) {
-      throw new NotFoundException("Level not found");
-    }
-
-    if (dto.minScore && dto.maxScore && dto.minScore > dto.maxScore) {
-      throw new BadRequestException("minScore cannot be greater than maxScore");
-    }
-
-    const [updated] = await this.levelRepo.update({ id }, dto);
-    this.logger.log(`Updated level: ${id}`);
-    return {
-      success: true,
-      message: "Level updated successfully",
-      data: updated,
-    };
-  }
-
-  async deleteLevel(id: string) {
-    const existing = await this.levelRepo.get(id);
-    if (!existing) {
-      throw new NotFoundException("Level not found");
-    }
-
-    await this.levelRepo.deletePermanently({ id });
-    this.logger.log(`Deleted level: ${id}`);
-    return {
-      success: true,
-      message: "Level deleted successfully",
-      data: null,
-    };
-  }
-
-  async getLevelsByArea(areaId: string) {
-    const area = await this.areaRepo.get(areaId);
-    if (!area) {
-      throw new NotFoundException("Area not found");
-    }
-
-    const levels = await this.levelRepo.getLevelsByArea(areaId);
-    return {
-      success: true,
-      message: "Levels fetched successfully",
-      data: levels,
-    };
-  }
-
   // ==================== EXAM FLOW ====================
 
   async startExam(userId: string, dto: StartExamDto) {
@@ -367,15 +295,14 @@ export class ExamUseCases {
     }
 
     // TODO: Re-enable this validation for production
-    // if (allQuestions.length < 20) {
+    // if (allQuestions.length < EXAM_MAX_QUESTIONS) {
     //   throw new BadRequestException(
-    //     `Not enough questions for this skill. Found ${allQuestions.length}, need 20. Try selecting different difficulty levels or contact admin.`,
+    //     `Not enough questions for this skill. Found ${allQuestions.length}, need ${EXAM_MAX_QUESTIONS}. Try selecting different difficulty levels or contact admin.`,
     //   );
     // }
 
-    // Randomize and select questions (use available count or 20, whichever is less)
-    // For development: using all available questions if less than 20
-    const questionCount = Math.min(allQuestions.length, 20);
+    // Randomize and select questions (use available count or EXAM_MAX_QUESTIONS, whichever is less)
+    const questionCount = Math.min(allQuestions.length, EXAM_MAX_QUESTIONS);
     const selectedQuestions = this.randomizerService.randomizeQuestions(
       allQuestions,
       {
@@ -403,7 +330,6 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
-      point: q.point,
       difficultyLevels: q.difficultyLevels,
     }));
 
@@ -478,13 +404,12 @@ export class ExamUseCases {
     const examResult = this.scoringService.scoreAndEvaluate(
       validQuestions,
       dto.answers,
+      userTest.selectedDifficultyLevels as string[] | null | undefined,
     );
 
     // Save user answers and update test result in transaction
     await this.userTestRepo.executeWithTransaction(async (tx) => {
-      // Save all answers
       const answersToSave = examResult.answersDetails.map((detail) => ({
-        userTestId: dto.userTestId,
         questionId: detail.questionId,
         chosenAnswer:
           dto.answers.find((a) => a.questionId === detail.questionId)
@@ -493,7 +418,11 @@ export class ExamUseCases {
         pointGained: detail.pointGained,
       }));
 
-      await this.userAnswerRepo.createMany(answersToSave, tx);
+      await this.userAnswerRepo.upsertScoredAnswers(
+        dto.userTestId,
+        answersToSave,
+        tx,
+      );
 
       // Update test result with skill-based levels
       await this.userTestRepo.updateTestResult(
@@ -624,7 +553,6 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
-      point: q.point,
       difficultyLevels: q.difficultyLevels,
       savedAnswer: answerMap.get(q.id) || null,
     }));

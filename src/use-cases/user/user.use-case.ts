@@ -925,6 +925,8 @@ export class UserUseCases implements OnModuleInit {
   ): Promise<ApiResponse<GetUserFeaturesResponse>> {
     const features =
       await this.userFeatureUsageRepository.getUserFeatures(userId);
+    // [TODO]: Check if any two days have expired -> send notification
+    // If expired -> downgrade free subscription
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,

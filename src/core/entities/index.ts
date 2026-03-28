@@ -17,7 +17,6 @@ import {
   jobProvinces,
   areas,
   questions,
-  levels,
   userTests,
   userAnswers,
   applyJobs,
@@ -171,9 +170,6 @@ export type Area = InferSelectModel<typeof areas>;
 
 export type NewQuestion = InferInsertModel<typeof questions>;
 export type Question = InferSelectModel<typeof questions>;
-
-export type NewLevel = InferInsertModel<typeof levels>;
-export type Level = InferSelectModel<typeof levels>;
 
 export type NewUserTest = InferInsertModel<typeof userTests>;
 export type UserTest = InferSelectModel<typeof userTests> & {

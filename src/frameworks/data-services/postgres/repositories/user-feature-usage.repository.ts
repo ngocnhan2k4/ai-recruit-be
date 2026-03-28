@@ -16,7 +16,7 @@ import {
 } from "@/core";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { GenericRepository } from "./generic-repository";
-import { ONE_DAY_MS } from "@/common/constants";
+import { ONE_DAY_MS, RESPONSE_CODE } from "@/common/constants";
 
 @Injectable()
 export class UserFeatureUsageRepository
@@ -155,7 +155,6 @@ export class UserFeatureUsageRepository
 
           eq(userSubscriptions.userId, userId),
           eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
-          sql`(${userSubscriptions.expiredAt} IS NULL OR ${userSubscriptions.expiredAt} > now())`,
 
           eq(subscriptions.isActive, true),
         ),
@@ -165,21 +164,40 @@ export class UserFeatureUsageRepository
 
     // 2. Validate
     if (!result) {
-      throw new ForbiddenException("Feature or subscription not available");
+      throw new ForbiddenException({
+        message: "Feature or subscription not available",
+        code: RESPONSE_CODE.FEATURE_OR_SUBSCRIPTION_NOT_AVAILABLE,
+      });
     }
 
-    const { featureId, subscriptionId, limit } = result;
-
-    if (!featureId) {
-      throw new ForbiddenException("Feature not available");
-    }
+    const { featureId, subscriptionId, limit, expiredAt } = result;
 
     if (!subscriptionId) {
-      throw new ForbiddenException("No active subscription");
+      throw new ForbiddenException({
+        message: "No subscription",
+        code: RESPONSE_CODE.NO_SUBSCRIPTION,
+      });
+    }
+
+    if (!featureId) {
+      throw new ForbiddenException({
+        message: "Feature not available",
+        code: RESPONSE_CODE.FEATURE_NOT_AVAILABLE,
+      });
+    }
+
+    if (expiredAt && new Date(expiredAt).getTime() <= Date.now()) {
+      throw new ForbiddenException({
+        message: "Subscription has expired",
+        code: RESPONSE_CODE.SUBSCRIPTION_EXPIRED,
+      });
     }
 
     if ((limit ?? 0) <= 0) {
-      throw new ForbiddenException("Feature not included in subscription");
+      throw new ForbiddenException({
+        message: "Feature not included in subscription",
+        code: RESPONSE_CODE.FEATURE_NOT_INCLUDED_IN_SUBSCRIPTION,
+      });
     }
 
     // Support both usecase use transaction or not

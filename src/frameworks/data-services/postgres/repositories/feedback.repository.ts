@@ -12,10 +12,10 @@ import {
   count,
   gte,
   lte,
-  isNotNull,
   isNull,
   countDistinct,
   asc,
+  sql,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
 import { PaginatedResult } from "@/common/types";
@@ -33,7 +33,7 @@ export class FeedbackRepository
   async getFeedbacks(
     filter: FeedbackFilter,
   ): Promise<PaginatedResult<Feedback>> {
-    const whereConditions: SQL[] = [isNotNull(feedbacks.deletedAt)];
+    const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
     if (filter.userId) {
       whereConditions.push(eq(feedbacks.userId, filter.userId));
@@ -51,12 +51,14 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, filter.endDate));
     }
 
+    console.log("filter", filter);
+
     const feedbacksResult = await this.db
       .select()
       .from(feedbacks)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(feedbacks.createdAt))
-      .limit(filter.limit + 1)
+      .limit(filter.limit)
       .offset((filter.page! - 1) * filter.limit);
 
     const total = await this.db
@@ -84,18 +86,20 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, new Date(toDate)));
     }
 
+    const dateExpr = sql`DATE(${feedbacks.createdAt})`;
+
     const result = await this.db
       .select({
-        date: feedbacks.createdAt,
+        date: dateExpr,
         count: countDistinct(feedbacks.id).as("count"),
       })
       .from(feedbacks)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(feedbacks.createdAt)
-      .orderBy(asc(feedbacks.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }

@@ -8,6 +8,24 @@ import {
   ValidateNested,
 } from "class-validator";
 
+export class CvSocialLinkDto {
+  @ApiPropertyOptional({
+    example: "linkedin.com/in/nguyen-van-a",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  name?: string | null;
+
+  @ApiPropertyOptional({
+    example: "https://linkedin.com/in/nguyen-van-a",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  url?: string | null;
+}
+
 export class CvPersonalInfoDto {
   @ApiProperty({ example: "Nguyen Van A" })
   @IsString()
@@ -28,15 +46,25 @@ export class CvPersonalInfoDto {
   @IsOptional()
   location?: string;
 
-  @ApiPropertyOptional({ example: "linkedin.com/in/nguyen-van-a" })
+  @ApiPropertyOptional({
+    example: "https://cdn.example.com/avatar.jpg",
+    nullable: true,
+  })
   @IsString()
   @IsOptional()
-  linkedin?: string;
+  avatarUrl?: string | null;
 
-  @ApiPropertyOptional({ example: "github.com/nguyen-van-a" })
-  @IsString()
+  @ApiPropertyOptional({ type: CvSocialLinkDto, nullable: true })
+  @ValidateNested()
+  @Type(() => CvSocialLinkDto)
   @IsOptional()
-  github?: string;
+  linkedin?: CvSocialLinkDto | null;
+
+  @ApiPropertyOptional({ type: CvSocialLinkDto, nullable: true })
+  @ValidateNested()
+  @Type(() => CvSocialLinkDto)
+  @IsOptional()
+  github?: CvSocialLinkDto | null;
 }
 
 export class CvExperienceDto {
@@ -108,6 +136,11 @@ export class CvProjectDto {
   @ApiProperty({ example: "E-commerce Platform" })
   @IsString()
   name: string;
+
+  @ApiPropertyOptional({ example: "ECOM", nullable: true })
+  @IsString()
+  @IsOptional()
+  shortName?: string | null;
 
   @ApiProperty({ example: "A scalable microservices system..." })
   @IsString()

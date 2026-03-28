@@ -11,13 +11,19 @@ export interface OptimizeAtsRequest {
   language?: CvLanguageEnum;
 }
 
+export class CvSocialLink {
+  name?: string | null;
+  url?: string | null;
+}
+
 export class CvPersonalInfo {
   name: string;
   email: string;
   phone?: string;
   location?: string;
-  linkedin?: string;
-  github?: string;
+  avatarUrl?: string | null;
+  linkedin?: CvSocialLink | null;
+  github?: CvSocialLink | null;
 }
 
 export class CvExperience {
@@ -41,6 +47,7 @@ export class CvEducation {
 
 export class CvProject {
   name: string;
+  shortName?: string | null;
   description: string;
   technologies: string[];
   url?: string;

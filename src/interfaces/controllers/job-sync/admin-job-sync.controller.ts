@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Param,
@@ -44,6 +45,32 @@ export class AdminJobSyncController {
     ApiResponse<{ totalSynced: number; message: string }>
   > {
     return await this.jobSyncUseCases.syncAllActiveJobs();
+  }
+
+  @ApiOperation({
+    summary: "Get Elasticsearch sync status",
+    description:
+      "Return Elasticsearch jobs count and DB syncable jobs count for manual sync monitoring.",
+  })
+  @ApiResponseDto("string")
+  @Get("status")
+  async getSyncStatus(): Promise<
+    ApiResponse<{
+      esCount: number;
+      dbCount: number;
+    }>
+  > {
+    return await this.jobSyncUseCases.getSyncStatus();
+  }
+
+  @ApiOperation({
+    summary: "Delete Elasticsearch jobs index",
+    description: "Delete the whole Elasticsearch jobs index.",
+  })
+  @ApiResponseDto("string")
+  @Delete("index")
+  async deleteJobsIndex(): Promise<ApiResponse<{ message: string }>> {
+    return await this.jobSyncUseCases.deleteJobsIndex();
   }
 
   @ApiOperation({

@@ -16,6 +16,7 @@ import {
   SavePartialAnswersDto,
   GetUserTestsQueryDto,
 } from "@/interfaces/dtos/exam";
+import { EXAM_MAX_QUESTIONS } from "@/common/constants";
 import { GetUser } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
 
@@ -28,8 +29,7 @@ export class ExamController {
 
   @ApiOperation({
     summary: "Start an exam",
-    description:
-      "Select 1 skill and optionally difficulty levels. System will generate 20 randomized questions for that skill.",
+    description: `Select 1 skill and optionally difficulty levels. System will generate up to ${EXAM_MAX_QUESTIONS} randomized questions for that skill.`,
   })
   @Post("start")
   @ApiBearerAuth()

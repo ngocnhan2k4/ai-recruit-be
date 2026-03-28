@@ -279,7 +279,7 @@ export class JobMatchingUseCases {
           ? new Date(source.updatedAt as string)
           : new Date(),
         deletedAt: null,
-        questions: [],
+        questions: source.questions,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -301,7 +301,7 @@ export class JobMatchingUseCases {
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
         applyUrl: jobMap[job.id]?.applyUrl,
-        score: hit._score,
+        score: hit._score * 100,
       } as JobMatchResultDto;
     });
   }

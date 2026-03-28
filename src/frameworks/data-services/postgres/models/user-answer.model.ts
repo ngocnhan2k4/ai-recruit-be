@@ -6,6 +6,7 @@ import {
   integer,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { userTests } from "./user-test.model";
 import { questions } from "./question.model";
@@ -28,5 +29,9 @@ export const userAnswers = pgTable(
   (table) => [
     index("idx_user_answers_user_test").on(table.userTestId),
     index("idx_user_answers_question").on(table.questionId),
+    uniqueIndex("idx_user_answers_user_test_question_unique").on(
+      table.userTestId,
+      table.questionId,
+    ),
   ],
 );
