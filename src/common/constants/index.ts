@@ -6,3 +6,4 @@ export * from "./queue";
 export * from "./cache";
 export * from "./notification";
 export * from "./time";
+export * from "./storage";

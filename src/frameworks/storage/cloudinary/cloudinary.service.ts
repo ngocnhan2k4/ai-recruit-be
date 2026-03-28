@@ -14,12 +14,22 @@ export class CloudinaryService {
     });
   }
 
-  async uploadFile(file: MultipartFile): Promise<any> {
+  async uploadFile(
+    file: MultipartFile,
+    options?: {
+      folder?: string;
+    },
+  ): Promise<any> {
     const buffer = await file.toBuffer(); // FastifyMultipart hỗ trợ toBuffer()
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        { resource_type: "auto" },
+        {
+          resource_type: "auto",
+          folder: options?.folder
+            ? `${this.configService.get<string>("NODE_ENV")}/${options?.folder}`
+            : "default",
+        },
         (error, result) => {
           if (error) reject(new Error(error.message));
           else resolve(result);
