@@ -22,6 +22,13 @@ export class CvDto {
   userId: string;
 
   @ApiProperty({
+    example: "uuid-ai-cv-id",
+    description: "Linked AI CV ID",
+    required: false,
+  })
+  aiCvId?: string | null;
+
+  @ApiProperty({
     example: "https://example.com/cv.pdf",
     description: "URL of the CV file",
   })
@@ -65,15 +72,29 @@ export class CvListResponseDto {
   cvs: CvDto[];
 }
 
+export class CvAiCvExistsResponseDto {
+  @ApiProperty({
+    example: true,
+    description: "Whether a CV linked to this AI CV already exists",
+  })
+  exists: boolean;
+}
+
 // DTOs for CV Optimize ATS
+
+export interface CVSocialLink {
+  name?: string | null;
+  url?: string | null;
+}
 
 export interface CVPersonalInfo {
   name: string;
   email: string;
   phone?: string;
   location?: string;
-  linkedin?: string;
-  github?: string;
+  avatarUrl?: string | null;
+  linkedin?: CVSocialLink | null;
+  github?: CVSocialLink | null;
 }
 
 export interface CVExperience {
@@ -96,6 +117,7 @@ export interface CVEducation {
 
 export interface CVProject {
   name: string;
+  shortName?: string | null;
   description: string;
   technologies: string[];
   url?: string | null;

@@ -97,6 +97,13 @@ export class UserController {
     return this.userUseCases.getUserByAccessToken(user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Get current user features" })
+  @Get("me/features")
+  getMyFeatures(@GetUser() user: TokenPayload) {
+    return this.userUseCases.getMyFeatures(user.userId);
+  }
+
   @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({
     summary: "Get user by username",

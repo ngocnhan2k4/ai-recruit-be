@@ -6,6 +6,7 @@ import {
 import {
   EducationLevelEnum,
   GenderEnum,
+  GetUserFeaturesResponse,
   OrganizationTypeEnum,
   OrganizationWithDetails,
   ProviderEnum,
@@ -54,6 +55,7 @@ import {
   UserEducationResponseDto,
 } from "@/interfaces/dtos";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -70,6 +72,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly authService: IAuthService,
     private readonly casbinService: CasbinService,
     private readonly userEducationRepository: IUserEducationRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
   ) {}
 
   async onModuleInit() {
@@ -209,6 +212,8 @@ export class UserUseCases implements OnModuleInit {
         response.categoryIds = [];
         response.expectedSalary = null;
       }
+      response.email = user.email || null;
+      response.phone = user.phone || null;
     }
 
     return {
@@ -241,19 +246,12 @@ export class UserUseCases implements OnModuleInit {
 
     try {
       // Update user profile
-      const [result] = await Promise.all([
-        this.userRepository.update(
-          {
-            id: userId,
-          },
-          updatedUser,
-        ),
-        updatedUser.onboardingCompleted
-          ? this.userOnboardingRepository.create({
-              userId,
-            })
-          : Promise.resolve(),
-      ]);
+      const result = await this.userRepository.update(
+        {
+          id: userId,
+        },
+        updatedUser,
+      );
 
       if (result.length === 0) {
         throw new NotFoundException({
@@ -279,11 +277,7 @@ export class UserUseCases implements OnModuleInit {
           preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
         }
 
-        // Update existing onboarding
-        await this.userOnboardingRepository.update(
-          { userId },
-          preferencesUpdate,
-        );
+        await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
 
       return {
@@ -410,10 +404,12 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
   ): Promise<ApiResponse<number>> {
-    const result = await this.userExperienceRepository.deletePermanently({
-      userId,
-      id,
-    });
+    const result =
+      await this.userExperienceRepository.deleteUserExperienceAndUserSkills(
+        userId,
+        id,
+      );
+
     if (result.length === 0) {
       throw new NotFoundException({
         message: "[deleteUserExperience] - [delete] User experience not found",
@@ -921,6 +917,20 @@ export class UserUseCases implements OnModuleInit {
       data: {
         data: trends,
       },
+    };
+  }
+
+  async getMyFeatures(
+    userId: string,
+  ): Promise<ApiResponse<GetUserFeaturesResponse>> {
+    const features =
+      await this.userFeatureUsageRepository.getUserFeatures(userId);
+    // [TODO]: Check if any two days have expired -> send notification
+    // If expired -> downgrade free subscription
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: features,
     };
   }
 }

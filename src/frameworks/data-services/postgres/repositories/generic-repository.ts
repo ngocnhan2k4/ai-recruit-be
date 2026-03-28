@@ -6,6 +6,7 @@ import {
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
+import { getTx, txStorage } from "@/common/utils";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -36,12 +37,20 @@ export class GenericRepository<T, TTable extends object>
     return (result[0] as T) || null;
   }
 
-  async getByIds(ids: ID[]): Promise<T[]> {
+  async getByIds(ids: ID[], fields: (keyof T)[]): Promise<T[]> {
     if (ids.length === 0) return [];
+
+    const table: any = this._table;
+
+    const selectFields = fields.reduce((acc: any, field) => {
+      acc[field] = table[field];
+      return acc;
+    }, {});
+
     const result = await this.db
-      .select()
-      .from(this._table as any)
-      .where(inArray((this._table as any).id, ids));
+      .select(selectFields)
+      .from(table)
+      .where(inArray(table.id, ids));
     return result as T[];
   }
 
@@ -87,6 +96,22 @@ export class GenericRepository<T, TTable extends object>
     return result[0] as T;
   }
 
+  async createMany(
+    item: Partial<T>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]> {
+    const dbClient = tx ?? this.db;
+    const result = await dbClient
+      .insert(this._table as any)
+      .values(
+        item as {
+          [key: string]: any;
+        },
+      )
+      .returning();
+    return result as T[];
+  }
+
   async update(
     where: Partial<T>,
     item: Partial<T>,
@@ -98,10 +123,14 @@ export class GenericRepository<T, TTable extends object>
 
     const dbClient = tx ?? this.db;
 
+    const cleanItem = Object.fromEntries(
+      Object.entries(item).filter(([_, v]) => v !== undefined),
+    );
+
     const result = await dbClient
       .update(this._table as any)
       .set(
-        item as {
+        cleanItem as {
           [key: string]: any;
         },
       )
@@ -145,6 +174,20 @@ export class GenericRepository<T, TTable extends object>
   async executeWithTransaction<T>(
     fn: (tx: DBDrizzleTransaction) => Promise<T>,
   ): Promise<T> {
-    return await this.db.transaction(async (tx) => fn(tx));
+    const existingTx = getTx();
+
+    if (existingTx) {
+      return fn(existingTx);
+    }
+
+    return this.db.transaction(async (tx) => {
+      return txStorage.run({ tx }, async () => {
+        return fn(tx);
+      });
+    });
   }
+
+  getExecutor = () => {
+    return getTx() ?? this.db;
+  };
 }

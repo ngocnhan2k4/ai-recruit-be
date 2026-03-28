@@ -79,6 +79,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: FastifyReply,
   ): Promise<ApiResponse<AccessTokenResponseDto>> {
     const token = req.cookies[REFRESH_TOKEN];
+
     if (!token) {
       throw new BadRequestException({
         code: RESPONSE_CODE.TOKEN_NOT_FOUND,

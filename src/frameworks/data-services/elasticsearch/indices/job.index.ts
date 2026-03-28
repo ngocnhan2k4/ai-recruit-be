@@ -138,6 +138,9 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         datePosted: {
           type: "date",
         },
+        questions: {
+          type: "keyword",
+        },
         createdAt: {
           type: "date",
         },
@@ -164,7 +167,6 @@ export function transformJobToDocument({
 }): Record<string, unknown> {
   const salaryMin = job.salaryMin ? parseFloat(job.salaryMin) : null;
   const salaryMax = job.salaryMax ? parseFloat(job.salaryMax) : null;
-
   return {
     id: job.id,
     title: job.title,
@@ -182,6 +184,7 @@ export function transformJobToDocument({
     experienceMin: job.experienceMin,
     experienceMax: job.experienceMax,
     workType: job.workType,
+    questions: job.questions,
     status: job.status,
     endDate: job.endDate,
     datePosted: job.datePosted,

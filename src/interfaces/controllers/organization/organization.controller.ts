@@ -32,6 +32,8 @@ import {
   UpdateOrganizationAdditionalInfoDto,
   SendEmailVerificationDto,
   VerifyOrganizationEmailDto,
+  JobPaginationResponseDto,
+  OrganizationJobQueryDto,
 } from "../../dtos";
 import { GetUser, UploadFileAndBody } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
@@ -46,7 +48,7 @@ import { MultipartFile } from "@fastify/multipart";
 export class OrganizationController {
   constructor(private readonly organizationUseCase: OrganizationUseCase) {}
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(JwtAuthGuard)
   @Get("/me")
   @ApiOperation({
     summary: "Get organizations by user ID with cursor pagination",
@@ -67,7 +69,7 @@ export class OrganizationController {
   }
 
   @UseGuards(OrganizationAuthorizeGuard)
-  @Get("/check-name/:name")
+  @Get("/name/:name")
   @ApiOperation({
     summary: "Check if a company name exists",
     description: "Check if a company name exists",
@@ -94,7 +96,7 @@ export class OrganizationController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiOperation({
     summary: "Create a new organization",
@@ -102,11 +104,13 @@ export class OrganizationController {
   })
   @ApiResponseDto(String)
   async createOrganization(
-    @Body() data: CreateOrganizationDto,
+    @UploadFileAndBody()
+    upload: { file: MultipartFile; body: CreateOrganizationDto },
     @GetUser() user: TokenPayload,
   ) {
-    return await this.organizationUseCase.createOrganization(
-      data,
+    return await this.organizationUseCase.createOrganizationWithLogo(
+      upload.body,
+      upload.file,
       user?.userId,
     );
   }
@@ -282,7 +286,7 @@ export class OrganizationController {
       >
     >
   > {
-    return await this.organizationUseCase.getAllOrganizations(query);
+    return await this.organizationUseCase.getOrganizations(query);
   }
 
   @Get(":orgId/users-to-invite")
@@ -324,6 +328,26 @@ export class OrganizationController {
     return await this.organizationUseCase.updateOrganizationLogo(
       orgId,
       uploadFile.file,
+    );
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get("/:orgId/jobs")
+  @ApiOperation({
+    summary: "Get jobs of an organization",
+    description:
+      "Retrieve a paginated list of jobs belonging to a specific organization with filters for status, date range, keyword, and categories.",
+  })
+  @ApiResponseDto(JobPaginationResponseDto)
+  async getOrganizationJobs(
+    @GetUser() user: TokenPayload,
+    @Param("orgId") orgId: string,
+    @Query() query: OrganizationJobQueryDto,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    return await this.organizationUseCase.getOrganizationJobs(
+      orgId,
+      query,
+      user?.userId,
     );
   }
 }

@@ -6,6 +6,7 @@ import {
   UseGuards,
   Query,
   UseInterceptors,
+  Param,
 } from "@nestjs/common";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -43,12 +44,20 @@ export class SkillController {
     summary: "Get pageinated skills",
   })
   @ApiResponseDto(SkillDto, { isArray: true })
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(LLONG_TTL)
   @Get()
   async getPaginatedSkills(
     @Query() query: GetSkillsQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SkillDto>>> {
     return await this.skillUseCases.getPaginatedSkills(query);
+  }
+
+  @ApiOperation({
+    summary: "Get skill by ID",
+  })
+  @Get(":id")
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LLONG_TTL)
+  async getSkillById(@Param("id") id: string): Promise<ApiResponse<SkillDto>> {
+    return await this.skillUseCases.getSkillById(id);
   }
 }

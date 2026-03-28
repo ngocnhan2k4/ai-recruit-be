@@ -1,7 +1,7 @@
 import { Type } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 
 export type SortDirection = "asc" | "desc";
 
@@ -13,11 +13,11 @@ export class GeneralQueryDto {
     minimum: 1,
     maximum: 100,
   })
-  @Transform(({ value }: { value: string }) =>
-    Math.min(parseInt(value, 10), 100),
-  )
-  @Min(1, { message: "Limit must be greater than or equal to 1" })
-  @Max(100, { message: "Limit must be less than or equal to 100" })
+  @Transform(({ value }: { value: string }) => {
+    if (value === undefined || value === null || value === "") return 10;
+    const n = parseInt(value, 10);
+    return Number.isNaN(n) ? 10 : Math.min(100, Math.max(1, n));
+  })
   @IsNumber()
   limit: number = 10;
 
@@ -26,15 +26,20 @@ export class GeneralQueryDto {
     required: false,
     description: "Number of items to skip",
   })
-  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  @Transform(({ value }: { value: string }) => {
+    if (value === undefined || value === null || value === "") return 1;
+    const n = parseInt(value, 10);
+    return Number.isNaN(n) ? 1 : Math.max(1, n);
+  })
   @IsNumber()
-  @Min(1, { message: "Page number must be greater than or equal to 1" })
   page: number = 1;
 
   @ApiProperty({
     required: false,
     description: "Field to sort by",
   })
+  @IsOptional()
+  @IsString()
   sortBy?: string;
 
   @ApiProperty({

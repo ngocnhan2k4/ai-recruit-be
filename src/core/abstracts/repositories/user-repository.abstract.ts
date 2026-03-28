@@ -1,7 +1,15 @@
-import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { NewUser, User } from "@/core/entities";
+import {
+  NewUser,
+  User,
+  UserTrends,
+  UserTrendsQuery,
+  GetUserQuery,
+  UserProfile,
+  UserCvData,
+} from "@/core/entities";
 import { PaginatedResult } from "@/common/types";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IUserRepository extends IGenericRepository<User> {
   abstract getAllWithOffset(
@@ -26,7 +34,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     >
   >;
 
-  abstract createUser(user: NewUser): Promise<User>;
+  abstract createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User>;
   abstract adminUpdateUser(userId: string, user: Partial<User>): Promise<User>;
 
   abstract getAllAdminUsers(
@@ -51,5 +59,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     >
   >;
 
+  abstract getUserProfile(userId: string): Promise<UserProfile | null>;
+  abstract getUserCvData(userId: string): Promise<UserCvData | null>;
   abstract getUserTrends(params: UserTrendsQuery): Promise<UserTrends[]>;
 }

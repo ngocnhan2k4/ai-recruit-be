@@ -126,5 +126,32 @@ export const TemplateEnum = pgEnum("cv_template", [
 
 export const UserInteractionTypeEnum = pgEnum("user_interaction_type", [
   "save",
-  "hide",
+  // [TODO] remove later
+  //"hide",
+]);
+
+export const BillingCycleSubscriptionEnum = pgEnum(
+  "billing_cycle_subscription",
+  ["monthly", "yearly"],
+);
+
+export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
+  "incomplete",
+  "active",
+  "canceled",
+  // "expired",
+]);
+
+export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [
+  "learning_path",
+  "cv",
+  "suggest_cv_field",
+  "optimize_cv",
+]);
+
+export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
+  "FREE",
+  "BASIC",
+  "PRO",
+  "ENTERPRISE",
 ]);

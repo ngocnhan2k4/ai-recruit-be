@@ -31,4 +31,9 @@ export abstract class IUserExperienceRepository extends IGenericRepository<UserE
     id: number,
     data: CreateUserExperience,
   ): Promise<UserExperience | null>;
+
+  abstract deleteUserExperienceAndUserSkills(
+    userId: string,
+    experienceId: number,
+  );
 }

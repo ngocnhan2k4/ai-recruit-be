@@ -17,21 +17,20 @@ import {
   jobProvinces,
   areas,
   questions,
-  levels,
   userTests,
   userAnswers,
-  importLogs,
   applyJobs,
-} from "@/frameworks/data-services/postgres/models";
-import {
-  notifications,
-  userNotifications,
-} from "@/frameworks/data-services/postgres/models/notification.model";
-import {
   organizationInvitations,
   organizationLocations,
   organizations,
-} from "@/frameworks/data-services/postgres/models/organization.model";
+  notifications,
+  userNotifications,
+  features,
+  subscriptions,
+  userSubscriptions,
+  subscriptionFeatures,
+  userFeatureUsages,
+} from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
@@ -42,6 +41,8 @@ export * from "./user.entity";
 export * from "./job.entity";
 export * from "./organization.entity";
 export * from "./feedback.entity";
+export * from "./skill.entity";
+export * from "./subscription.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -71,6 +72,7 @@ export type User = InferSelectModel<typeof users>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
+export type UserTestSkill = Pick<Skill, "id" | "name">;
 
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
@@ -169,17 +171,36 @@ export type Area = InferSelectModel<typeof areas>;
 export type NewQuestion = InferInsertModel<typeof questions>;
 export type Question = InferSelectModel<typeof questions>;
 
-export type NewLevel = InferInsertModel<typeof levels>;
-export type Level = InferSelectModel<typeof levels>;
-
 export type NewUserTest = InferInsertModel<typeof userTests>;
-export type UserTest = InferSelectModel<typeof userTests>;
+export type UserTest = InferSelectModel<typeof userTests> & {
+  selectedSkills?: UserTestSkill[];
+};
 
 export type NewUserAnswer = InferInsertModel<typeof userAnswers>;
 export type UserAnswer = InferSelectModel<typeof userAnswers>;
 
-export type NewImportLog = InferInsertModel<typeof importLogs>;
-export type ImportLog = InferSelectModel<typeof importLogs>;
-
 export type NewApplyJob = InferInsertModel<typeof applyJobs>;
 export type ApplyJob = InferSelectModel<typeof applyJobs>;
+
+export type NewFeature = InferInsertModel<typeof features>;
+export type Feature = InferSelectModel<typeof features>;
+
+export type NewSubscription = InferInsertModel<typeof subscriptions>;
+export type Subscription = InferSelectModel<typeof subscriptions>;
+
+export type NewUserSubscription = InferInsertModel<typeof userSubscriptions>;
+export type UserSubscription = InferSelectModel<typeof userSubscriptions> & {
+  user: Pick<User, "id" | "name" | "username" | "email" | "avatarUrl">;
+  subscription: Pick<
+    Subscription,
+    "id" | "name" | "price" | "billingCycle" | "isActive"
+  >;
+};
+
+export type NewSubscriptionFeature = InferInsertModel<
+  typeof subscriptionFeatures
+>;
+export type SubscriptionFeature = InferSelectModel<typeof subscriptionFeatures>;
+
+export type NewUserFeatureUsage = InferInsertModel<typeof userFeatureUsages>;
+export type UserFeatureUsage = InferSelectModel<typeof userFeatureUsages>;

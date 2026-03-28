@@ -150,16 +150,18 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     save: boolean,
   ): Promise<UserInteractionResponse | null>;
 
-  abstract hideJob(
-    userId: string,
-    jobId: string,
-    hide: boolean,
-  ): Promise<UserInteractionResponse | null>;
+  // [TODO] remove later
+  // abstract hideJob(
+  //   userId: string,
+  //   jobId: string,
+  //   hide: boolean,
+  // ): Promise<UserInteractionResponse | null>;
 
   // CRUD operations
   abstract createJob(
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     sendNotifications?: boolean,
@@ -175,6 +177,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
   ): Promise<Job | null>;
@@ -182,6 +185,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     jobId: string,
     job: Partial<Job> & {
       skillIds?: string[];
+      skillNames?: string[];
       provinceIds?: string[];
     },
     userId: string,
@@ -258,8 +262,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     limit?: number,
   ): Promise<JobResponse[]>;
 
-  abstract getJobIdsActive(query: GeneralQuery): Promise<string[]>;
-
   abstract getUserJobStatuses(
     userId: User["id"],
     jobIds: Job["id"][],
@@ -276,4 +278,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   >;
 
   abstract getJobTrends(params: JobTrendsQuery): Promise<JobTrends[]>;
+
+  abstract getJobsV2(
+    filters?: JobFilters,
+  ): Promise<PaginatedResult<JobResponse>>;
 }

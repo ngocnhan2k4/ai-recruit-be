@@ -1,3 +1,5 @@
+import { estypes } from "@elastic/elasticsearch";
+
 /**
  * Abstract interface for search services
  * This allows swapping Elasticsearch with other search engines (Algolia, MeiliSearch, etc.)
@@ -54,9 +56,12 @@ export abstract class ISearchService {
   /**
    * Delete a document from the index
    * @param indexName - Name of the index
-   * @param id - Document ID to delete
+   * @param query - Query to delete document
    */
-  abstract deleteDocument(indexName: string, id: string): Promise<void>;
+  abstract deleteByQuery(
+    indexName: string,
+    query: estypes.QueryDslQueryContainer,
+  ): Promise<{ deleted: number; took: number }>;
 
   /**
    * Reindex from remote Elasticsearch using Reindex API
@@ -73,4 +78,10 @@ export abstract class ISearchService {
     sourceAuth?: { username: string; password: string },
     query?: any,
   ): Promise<{ total: number; took: number }>;
+
+  abstract updateByQuery(
+    indexName: string,
+    query: estypes.QueryDslQueryContainer,
+    script: estypes.Script,
+  ): Promise<void>;
 }

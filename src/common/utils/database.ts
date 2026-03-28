@@ -51,13 +51,12 @@ export function createPoolLogger(pool: Pool): Pool {
         logQuery(sql, params, duration, err);
         callback(err, result);
       };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+
       return originalQuery(...args);
     } else {
       // Promise style
       const result = originalQuery(...args);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return result.then(
         (res: QueryResult) => {
           const duration = performance.now() - start;
