@@ -384,6 +384,13 @@ export class JobRepository
       );
     }
 
+    if (filters.status) {
+      whereConditions.push(eq(jobs.status, filters.status));
+    }
+    const categoryIds = filters.categoryIds || [];
+    if (categoryIds?.length > 0) {
+      whereConditions.push(inArray(jobs.categoryId, categoryIds));
+    }
     return whereConditions;
   }
 
