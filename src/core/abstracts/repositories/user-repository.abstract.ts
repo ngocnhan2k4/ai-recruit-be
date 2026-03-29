@@ -9,6 +9,7 @@ import {
   UserCvData,
   NewUserIdentity,
 } from "@/core/entities";
+import { ProviderEnum } from "@/core/entities/enum.entity";
 import { PaginatedResult } from "@/common/types";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
@@ -73,6 +74,23 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     {
       provider: string;
       createdAt: Date;
+      providerUserId?: string | null;
+      providerEmail?: string | null;
+      providerName?: string | null;
+      providerPicture?: string | null;
     }[]
   >;
+
+  abstract getActiveUserIdentityId(
+    userId: string,
+    provider: ProviderEnum,
+    tx?: DBDrizzleTransaction,
+  ): Promise<string | null>;
+
+  abstract softDeleteUserIdentity(
+    userId: string,
+    provider: ProviderEnum,
+    deletedAt?: Date,
+    tx?: DBDrizzleTransaction,
+  ): Promise<number>;
 }

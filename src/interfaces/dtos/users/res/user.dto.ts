@@ -63,6 +63,22 @@ export class UserLoginMethodDto {
   provider: ProviderEnum;
 
   @Expose()
+  @ApiProperty({ required: false, nullable: true, type: String })
+  providerUserId?: string | null;
+
+  @Expose()
+  @ApiProperty({ required: false, nullable: true, type: String })
+  providerEmail?: string | null;
+
+  @Expose()
+  @ApiProperty({ required: false, nullable: true, type: String })
+  providerName?: string | null;
+
+  @Expose()
+  @ApiProperty({ required: false, nullable: true, type: String })
+  providerPicture?: string | null;
+
+  @Expose()
   @ApiProperty({ type: String, format: "date-time" })
   createdAt: Date;
 }

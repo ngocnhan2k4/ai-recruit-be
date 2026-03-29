@@ -52,17 +52,14 @@ export class AuthUseCases {
       provider_id?: string;
       roles?: RoleEnum[];
       emailVerified?: boolean;
-      firebase?: {
-        identities: {
-          "google.com"?: string[];
-          "facebook.com"?: string[];
-          "github.com"?: string[];
-        };
+      identities: {
+        "google.com"?: string[];
+        "facebook.com"?: string[];
+        "github.com"?: string[];
       };
     };
     try {
       decode = await this.authService.verifyIdToken(idToken);
-      console.log("Decoded token in use case: ", decode.firebase);
     } catch {
       throw new UnauthorizedException({
         message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
@@ -73,9 +70,9 @@ export class AuthUseCases {
       decode.provider_id || ProviderEnum.EMAIL,
     );
 
-    const firebaseIdentities =
-      (decode.firebase?.identities as Record<string, string[] | undefined>) ||
-      undefined;
+    const firebaseIdentities = decode.identities as
+      | Record<string, string[] | undefined>
+      | undefined;
     const firebaseProviderKey =
       decode.provider_id ||
       (currentProvider === ProviderEnum.GOOGLE
@@ -86,6 +83,22 @@ export class AuthUseCases {
             ? "github.com"
             : "password");
     const providerUserId = firebaseIdentities?.[firebaseProviderKey]?.[0];
+
+    let providerEmail: string | null | undefined;
+    let providerName: string | null | undefined;
+    let providerPicture: string | null | undefined;
+    let resolvedProviderUserId: string | undefined = providerUserId;
+    const profiles = await this.authService.getUserProviderProfiles(decode.uid);
+    const currentProfile = profiles.find(
+      (p) => p.providerId === firebaseProviderKey,
+    );
+    if (currentProfile) {
+      resolvedProviderUserId =
+        currentProfile.providerUserId ?? resolvedProviderUserId;
+      providerEmail = currentProfile.email ?? null;
+      providerName = currentProfile.name ?? null;
+      providerPicture = currentProfile.picture ?? null;
+    }
     let user =
       (
         await this.userRepository.getByField({
@@ -112,7 +125,10 @@ export class AuthUseCases {
           {
             userId: _user.id,
             provider: currentProvider,
-            providerUserId,
+            providerUserId: resolvedProviderUserId,
+            providerEmail,
+            providerName,
+            providerPicture,
           },
           tx,
         );
@@ -134,14 +150,24 @@ export class AuthUseCases {
       await this.userRepository.addUserIdentity({
         userId: user.id,
         provider: currentProvider,
-        providerUserId,
+        providerUserId: resolvedProviderUserId,
+        providerEmail,
+        providerName,
+        providerPicture,
       });
     }
 
     const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
     const otherProviders = loginMethods
       .filter((m) => m.provider !== user.provider)
-      .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
+      .map((m) => ({
+        provider: m.provider as any,
+        createdAt: m.createdAt,
+        providerUserId: m.providerUserId ?? null,
+        providerEmail: m.providerEmail ?? null,
+        providerName: m.providerName ?? null,
+        providerPicture: m.providerPicture ?? null,
+      }));
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({

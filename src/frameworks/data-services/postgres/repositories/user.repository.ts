@@ -43,6 +43,7 @@ import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.a
 import { RoleEnum } from "@/common/constants";
 import { differenceInYears } from "date-fns";
 import { convertDateToStr } from "@/common/utils";
+import { ProviderEnum } from "@/core";
 
 @Injectable()
 export class UserRepository
@@ -58,22 +59,46 @@ export class UserRepository
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
   ): Promise<void> {
+    const set: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+    if (identity.providerUserId !== undefined)
+      set.providerUserId = identity.providerUserId;
+    if (identity.providerEmail !== undefined)
+      set.providerEmail = identity.providerEmail;
+    if (identity.providerName !== undefined)
+      set.providerName = identity.providerName;
+    if (identity.providerPicture !== undefined)
+      set.providerPicture = identity.providerPicture;
+
     await (tx || this.db)
       .insert(userIdentities)
       .values(identity)
-      // Use a target-less ON CONFLICT so this remains compatible with either:
-      // - legacy unique index (user_id, provider)
-      // - new partial unique index (user_id, provider) WHERE deleted_at IS NULL
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [userIdentities.userId, userIdentities.provider],
+        targetWhere: sql`${userIdentities.deletedAt} IS NULL`,
+        set: set as any,
+      });
   }
 
-  async getUserLoginMethods(
-    userId: string,
-  ): Promise<{ provider: string; createdAt: Date }[]> {
+  async getUserLoginMethods(userId: string): Promise<
+    {
+      provider: string;
+      createdAt: Date;
+      providerUserId?: string | null;
+      providerEmail?: string | null;
+      providerName?: string | null;
+      providerPicture?: string | null;
+    }[]
+  > {
     const result = await this.db
       .select({
         provider: userIdentities.provider,
         createdAt: userIdentities.createdAt,
+        providerUserId: userIdentities.providerUserId,
+        providerEmail: userIdentities.providerEmail,
+        providerName: userIdentities.providerName,
+        providerPicture: userIdentities.providerPicture,
       })
       .from(userIdentities)
       .where(
@@ -81,7 +106,50 @@ export class UserRepository
       )
       .orderBy(asc(userIdentities.createdAt));
 
-    return result as { provider: string; createdAt: Date }[];
+    return result as any;
+  }
+
+  async getActiveUserIdentityId(
+    userId: string,
+    provider: ProviderEnum,
+    tx?: DBDrizzleTransaction,
+  ): Promise<string | null> {
+    const dbClient = tx ?? this.db;
+    const rows = await dbClient
+      .select({ id: userIdentities.id })
+      .from(userIdentities)
+      .where(
+        and(
+          eq(userIdentities.userId, userId),
+          eq(userIdentities.provider, provider as any),
+          sql`${userIdentities.deletedAt} IS NULL`,
+        ),
+      )
+      .limit(1);
+
+    return rows[0]?.id ?? null;
+  }
+
+  async softDeleteUserIdentity(
+    userId: string,
+    provider: ProviderEnum,
+    deletedAt: Date = new Date(),
+    tx?: DBDrizzleTransaction,
+  ): Promise<number> {
+    const dbClient = tx ?? this.db;
+    const rows = await dbClient
+      .update(userIdentities)
+      .set({ deletedAt, updatedAt: new Date() } as any)
+      .where(
+        and(
+          eq(userIdentities.userId, userId),
+          eq(userIdentities.provider, provider as any),
+          sql`${userIdentities.deletedAt} IS NULL`,
+        ),
+      )
+      .returning({ id: userIdentities.id });
+
+    return rows.length;
   }
 
   async getAllWithOffset(

@@ -34,6 +34,9 @@ export const userIdentities = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     provider: ProviderEnum("provider").notNull(),
     providerUserId: varchar("provider_user_id", { length: 255 }),
+    providerEmail: varchar("provider_email", { length: 255 }),
+    providerName: varchar("provider_name", { length: 255 }),
+    providerPicture: varchar("provider_picture", { length: 500 }),
     ...timestamps,
   },
   (table) => [

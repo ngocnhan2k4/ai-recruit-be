@@ -11,7 +11,7 @@ import {
   userIdentities,
 } from "@/frameworks/data-services/postgres/models";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { isNotNull } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 import { normalizeProvider } from "@/common/utils/firebase";
 
 @Module({
@@ -206,6 +206,9 @@ async function main() {
                 userId: row.id,
                 provider,
                 providerUserId: p.uid ?? undefined,
+                providerEmail: (p as any).email ?? null,
+                providerName: (p as any).displayName ?? null,
+                providerPicture: (p as any).photoURL ?? null,
               };
             })
             .filter((r) => r.provider);
@@ -227,7 +230,17 @@ async function main() {
                 drizzleDb
                   .insert(userIdentities)
                   .values(identity)
-                  .onConflictDoNothing(),
+                  .onConflictDoUpdate({
+                    target: [userIdentities.userId, userIdentities.provider],
+                    where: sql`${userIdentities.deletedAt} IS NULL`,
+                    set: {
+                      providerUserId: identity.providerUserId,
+                      providerEmail: (identity as any).providerEmail,
+                      providerName: (identity as any).providerName,
+                      providerPicture: (identity as any).providerPicture,
+                      updatedAt: new Date(),
+                    } as any,
+                  }),
                 options.timeoutMs,
                 `db.insert user_identity userId=${row.id} provider=${identity.provider}`,
               );

@@ -17,16 +17,13 @@ export class FireBaseAuthService implements IAuthService {
     provider_id?: string;
     roles?: RoleEnum[];
     emailVerified?: boolean;
-    firebase?: {
-      identities: {
-        "google.com"?: string[];
-        "facebook.com"?: string[];
-        "github.com"?: string[];
-      };
+    identities: {
+      "google.com"?: string[];
+      "facebook.com"?: string[];
+      "github.com"?: string[];
     };
   }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
-    console.log("Decoded Firebase ID Token:", decodedToken);
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
@@ -36,7 +33,7 @@ export class FireBaseAuthService implements IAuthService {
         decodedToken.provider_id || decodedToken.firebase.sign_in_provider,
       roles: (decodedToken as any).roles || [RoleEnum.USER],
       emailVerified: decodedToken.email_verified,
-      firebase: decodedToken.firebase,
+      identities: decodedToken.firebase.identities || {},
     };
   }
 
@@ -64,5 +61,33 @@ export class FireBaseAuthService implements IAuthService {
   async customTokenWithClaims(uid: string, claims: any): Promise<string> {
     const token = await this.firebaseApp.auth().createCustomToken(uid, claims);
     return token;
+  }
+
+  async getUserProviderProfiles(uid: string): Promise<
+    {
+      providerId: string;
+      providerUserId: string;
+      email?: string | null;
+      name?: string | null;
+      picture?: string | null;
+    }[]
+  > {
+    const user = await this.firebaseApp.auth().getUser(uid);
+    const providerData = user.providerData ?? [];
+    return providerData
+      .filter((p) => Boolean(p.providerId) && Boolean(p.uid))
+      .map((p) => ({
+        providerId: p.providerId,
+        providerUserId: p.uid,
+        email: p.email ?? null,
+        name: p.displayName ?? null,
+        picture: p.photoURL ?? null,
+      }));
+  }
+
+  async unlinkProvider(uid: string, providerId: string): Promise<void> {
+    await this.firebaseApp.auth().updateUser(uid, {
+      providersToUnlink: [providerId],
+    });
   }
 }

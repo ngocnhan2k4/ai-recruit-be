@@ -153,7 +153,14 @@ export class UserUseCases implements OnModuleInit {
     const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
     const otherProviders = loginMethods
       .filter((m) => m.provider !== user.provider)
-      .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
+      .map((m) => ({
+        provider: m.provider as any,
+        createdAt: m.createdAt,
+        providerUserId: m.providerUserId ?? null,
+        providerEmail: m.providerEmail ?? null,
+        providerName: m.providerName ?? null,
+        providerPicture: m.providerPicture ?? null,
+      }));
 
     const userDto = GetUserResponseDto.from({
       ...user,
@@ -165,6 +172,102 @@ export class UserUseCases implements OnModuleInit {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: userDto,
+    };
+  }
+
+  private toFirebaseProviderId(provider: ProviderEnum): string {
+    switch (provider) {
+      case ProviderEnum.GOOGLE:
+        return "google.com";
+      case ProviderEnum.FACEBOOK:
+        return "facebook.com";
+      case ProviderEnum.GITHUB:
+        return "github.com";
+      case ProviderEnum.EMAIL:
+        return "password";
+      default:
+        return String(provider);
+    }
+  }
+
+  async unlinkProvider(
+    userId: string,
+    provider: ProviderEnum,
+  ): Promise<ApiResponse<void>> {
+    const user: User | null = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    if (!user.firebaseUid) {
+      throw new ConflictException({
+        message: "User has no firebaseUid",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    if (provider === ProviderEnum.EMAIL) {
+      throw new ConflictException({
+        message: "Cannot unlink email/password provider",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    if (provider === (user.provider as ProviderEnum)) {
+      throw new ConflictException({
+        message: "Cannot unlink primary login provider",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const firebaseProviderId = this.toFirebaseProviderId(provider);
+    const deletedAt = new Date();
+
+    const activeIdentityId = await this.userRepository.getActiveUserIdentityId(
+      user.id,
+      provider,
+    );
+    if (!activeIdentityId) {
+      throw new NotFoundException({
+        message: "User identity not found",
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    try {
+      await this.authService.unlinkProvider(
+        user.firebaseUid,
+        firebaseProviderId,
+      );
+    } catch (e: any) {
+      const errorInfo = e?.errorInfo;
+      const errorCode = errorInfo?.code ?? e?.code;
+      const errorMessage = errorInfo?.message ?? e?.message;
+
+      if (
+        !(
+          errorCode === "auth/no-such-provider" ||
+          errorCode === "auth/provider-not-linked"
+        )
+      )
+        throw new ConflictException({
+          message: errorMessage ?? "Firebase unlink failed",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+    }
+
+    await this.userRepository.softDeleteUserIdentity(
+      user.id,
+      provider,
+      deletedAt,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 
@@ -205,7 +308,6 @@ export class UserUseCases implements OnModuleInit {
       school: school?.name || null,
     };
 
-    // Add private information if user is viewing their own profile
     if (isOwner) {
       const [userOnboarding] = await Promise.all([
         this.userOnboardingRepository.getByField({ userId: user.id }),
@@ -906,10 +1008,12 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserAccount(userId: string): Promise<ApiResponse<boolean>> {
+    console.log("Deleting user account with ID:", userId);
     const result = await this.userRepository.delete({
       id: userId,
       deletedAt: null,
     });
+    console.log("Delete user account result:", result);
     if (result.length === 0) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
