@@ -52,7 +52,7 @@ export class ApplyJobResponseDto {
   })
   user?: {
     id: string;
-    email: string;
+    email: string | null;
     name: string;
     avatarUrl: string | null;
   };
@@ -64,7 +64,7 @@ export class ApplyJobResponseDto {
   cv?: {
     id: string;
     name: string;
-    fileUrl: string;
+    fileUrl: string | null;
   };
 }
 
