@@ -82,13 +82,19 @@ export class CvAiCvExistsResponseDto {
 
 // DTOs for CV Optimize ATS
 
+export interface CVSocialLink {
+  name?: string | null;
+  url?: string | null;
+}
+
 export interface CVPersonalInfo {
   name: string;
   email: string;
   phone?: string;
   location?: string;
-  linkedin?: string;
-  github?: string;
+  avatarUrl?: string | null;
+  linkedin?: CVSocialLink | null;
+  github?: CVSocialLink | null;
 }
 
 export interface CVExperience {
@@ -111,6 +117,7 @@ export interface CVEducation {
 
 export interface CVProject {
   name: string;
+  shortName?: string | null;
   description: string;
   technologies: string[];
   url?: string | null;

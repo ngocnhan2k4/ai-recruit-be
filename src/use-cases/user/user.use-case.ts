@@ -24,7 +24,11 @@ import {
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  USER_FOLDER,
+} from "@/common/constants";
 import {
   ApiResponse,
   GetUserResponseDto,
@@ -501,7 +505,9 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.FILE_NOT_FOUND,
       });
     }
-    const result = await this.cloudinaryService.uploadFile(file);
+    const result = await this.cloudinaryService.uploadFile(file, {
+      folder: USER_FOLDER,
+    });
     const user = await this.userRepository.get(userId);
     if (!user) {
       throw new NotFoundException({

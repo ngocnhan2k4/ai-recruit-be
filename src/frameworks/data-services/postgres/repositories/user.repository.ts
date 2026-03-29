@@ -405,19 +405,20 @@ export class UserRepository
     if (toDate) {
       whereConditions.push(lte(users.createdAt, new Date(toDate)));
     }
+    const dateExpr = sql`DATE(${users.createdAt})`;
 
     const result = await this.db
       .select({
-        date: users.createdAt,
+        date: dateExpr,
         count: countDistinct(users.id).as("count"),
       })
       .from(users)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(users.createdAt)
-      .orderBy(asc(users.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }

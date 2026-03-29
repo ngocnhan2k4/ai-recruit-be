@@ -35,7 +35,11 @@ import {
   OrganizationTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  ORG_FOLDER,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+} from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { slugify } from "@/common/utils";
@@ -984,7 +988,9 @@ export class OrganizationUseCase {
     });
 
     // Upload to Cloudinary
-    const uploadResult = await this.cloudinaryService.uploadFile(file);
+    const uploadResult = await this.cloudinaryService.uploadFile(file, {
+      folder: ORG_FOLDER,
+    });
 
     if (!uploadResult || !uploadResult.secure_url) {
       throw new BadRequestException({
