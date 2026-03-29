@@ -53,6 +53,7 @@ import { LoggerServiceModule } from "@/frameworks/logger-services/logger.module"
 import { ProvinceUseCasesModule } from "@/use-cases/province/province-use-cases.module";
 import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
 import { SkillController } from "@/interfaces/controllers/skill/skill.controller";
+import { AdminSkillController } from "@/interfaces/controllers/skill/admin-skill.controller";
 import { SkillUseCasesModule } from "@/use-cases/skill/skill-use-cases.module";
 import { UniversityUseCasesModule } from "@/use-cases/university/university-use-cases.module";
 import { NotificationUseCasesModule } from "@/use-cases/notification/notification-use-cases.module";
@@ -158,6 +159,7 @@ import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.mod
     ProvinceController,
     CvController,
     SkillController,
+    AdminSkillController,
     UniversityController,
     CasbinController,
     NotificationController,

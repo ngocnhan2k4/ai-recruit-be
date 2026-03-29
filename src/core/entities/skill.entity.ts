@@ -10,3 +10,12 @@ export interface SkillFilter extends GeneralQuery {
 export type GetListSkillResponse = Pick<Skill, "name" | "id"> & {
   questionCount?: number;
 };
+
+export type CrawledSkillResponse = Pick<Skill, "id" | "name" | "createdAt"> & {
+  synonym: null;
+};
+
+export enum SkillReviewStatus {
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+}

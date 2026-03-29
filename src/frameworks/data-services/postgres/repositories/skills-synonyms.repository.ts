@@ -24,16 +24,18 @@ export class SkillsSynonymsRepository
 
     // Fetch all existing skills and synonyms from DB
     const [allSkills, allSynonyms] = await Promise.all([
-      this.skillRepository.getAll(["id", "name"]),
+      this.skillRepository.getAll(["id", "name", "isApproved"]),
       this.getAll(["id", "masterName", "aliasName"]),
     ]);
+
+    const approvedSkillNames = allSkills.filter((s) => s.isApproved);
 
     // Create a map for fast lookup and lists for fuzzy matching
 
     // Skills Table
     const skillNameMap = new Map<string, string>();
     const skillIdToName = new Map<string, string>();
-    allSkills.forEach((s) => {
+    approvedSkillNames.forEach((s) => {
       skillNameMap.set(s.name.toLowerCase(), s.id);
       skillIdToName.set(s.id, s.name);
     });
