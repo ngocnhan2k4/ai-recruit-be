@@ -1,6 +1,14 @@
 import { TokenPayload, GeneralQuery } from "@/common/types";
 import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
-import { Category, Job, OrganizationWithDetails, Province, Skill } from ".";
+import {
+  Category,
+  Job,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  User,
+  Cv,
+} from ".";
 
 export interface JobFilters extends GeneralQuery {
   organizationId?: OrganizationWithDetails["id"];
@@ -63,17 +71,8 @@ export interface ApplyJobResponse {
   answers?: JobAnswer[];
   createdAt?: Date;
   updatedAt?: Date;
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    avatarUrl: string | null;
-  };
-  cv?: {
-    id: string;
-    name: string;
-    fileUrl: string;
-  };
+  user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
+  cv?: Pick<Cv, "id" | "name" | "fileUrl">;
 }
 
 export interface ApplyJobFilters {
