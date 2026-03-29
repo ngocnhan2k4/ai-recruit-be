@@ -62,7 +62,7 @@ def get_or_create_skill(cur, skill_name):
     skill_score = best_skill_match[1] if best_skill_match else 0
     syn_score = best_syn_match[1] if best_syn_match else 0
 
-    if max(skill_score, syn_score) >= 95:
+    if max(skill_score, syn_score) >= 90:
         if skill_score >= syn_score:
             matched_name = best_skill_match[0]
             print(f"    [Skill] Fuzzy match (High - {skill_score}%): {skill_name} ~> {matched_name}")
