@@ -3,12 +3,23 @@ import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { notifications, userNotifications } from "../models/notification.model";
 import {
+  NotiGroupTypeEnum,
   Notification,
   NewNotification,
   NewUserNotification,
 } from "@/core/entities";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
-import { eq, and, isNull, desc, count, lt, inArray, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  isNull,
+  desc,
+  count,
+  lt,
+  inArray,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { PaginatedResult } from "@/common/types";
 import { organizationInvitations, organizations, users } from "../models";
@@ -18,6 +29,25 @@ export class NotificationRepository
   extends GenericRepository<Notification, typeof notifications>
   implements INotificationRepository
 {
+  private readonly groupTypeMap: Record<
+    NotiGroupTypeEnum,
+    (typeof notifications.$inferSelect)["type"][]
+  > = {
+    [NotiGroupTypeEnum.RECRUITMENT]: [
+      "job_applied",
+      "job_matched",
+      "admin_job_approved",
+      "admin_job_rejected",
+    ],
+    [NotiGroupTypeEnum.PROFILE]: [
+      "cv_approved",
+      "cv_rejected",
+      "profile_viewed",
+    ],
+    [NotiGroupTypeEnum.ORG]: ["organization_invitation"],
+    [NotiGroupTypeEnum.SYSTEM]: ["system", "job_approved"],
+  };
+
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, notifications);
   }
@@ -144,6 +174,31 @@ export class NotificationRepository
       whereConditions.push(
         lt(notifications.createdAt, new Date(filter.cursor)),
       );
+    }
+
+    if (filter.includeTypes && filter.includeTypes.length > 0) {
+      whereConditions.push(
+        inArray(
+          notifications.type,
+          filter.includeTypes as (typeof notifications.$inferSelect)["type"][],
+        ),
+      );
+    }
+
+    if (filter.excludeTypes && filter.excludeTypes.length > 0) {
+      whereConditions.push(
+        notInArray(
+          notifications.type,
+          filter.excludeTypes as (typeof notifications.$inferSelect)["type"][],
+        ),
+      );
+    }
+
+    if (filter.groupType) {
+      const groupTypes = this.groupTypeMap[filter.groupType];
+      if (groupTypes?.length) {
+        whereConditions.push(inArray(notifications.type, groupTypes));
+      }
     }
 
     const orgIdFromPayload = sql<string>`(${notifications.payload} ->> 'orgId')::uuid`;
