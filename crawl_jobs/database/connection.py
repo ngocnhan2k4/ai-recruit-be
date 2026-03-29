@@ -388,14 +388,47 @@ def _get_fallback_province(cur):
 
 
 def _get_or_create_skill(cur, skill_name):
+    # Normalize name for checking
+    normalized_name = skill_name.strip().lower()
+
+    # Check if already exists in skills table (case-insensitive)
     cur.execute(
-        "SELECT id FROM skills WHERE LOWER(name) = LOWER(%s) LIMIT 1", (skill_name,)
+        "SELECT id FROM skills WHERE LOWER(name) = %s LIMIT 1", (normalized_name,)
     )
     row = cur.fetchone()
     if row:
         return row[0]
 
-    cur.execute("INSERT INTO skills (name) VALUES (%s) RETURNING id", (skill_name,))
+    # Check if exists in skills_synonyms table
+    # We check if the normalized_name matches alias_name or master_name
+    cur.execute(
+        """
+        SELECT master_name FROM skills_synonyms 
+        WHERE LOWER(alias_name) = %s OR LOWER(master_name) = %s 
+        LIMIT 1
+        """,
+        (normalized_name, normalized_name),
+    )
+    synonym_row = cur.fetchone()
+    
+    target_name = skill_name
+    if synonym_row:
+        # Use the master_name as the target name for the skill
+        target_name = synonym_row[0]
+        # Check if this master_name already exists in skills table
+        cur.execute(
+            "SELECT id FROM skills WHERE LOWER(name) = LOWER(%s) LIMIT 1", (target_name,)
+        )
+        existing_master = cur.fetchone()
+        if existing_master:
+            return existing_master[0]
+
+    # If still not found, insert new skill with slug
+    slug = slugify(target_name)
+    cur.execute(
+        "INSERT INTO skills (name, slug) VALUES (%s, %s) RETURNING id", 
+        (target_name, slug)
+    )
     return cur.fetchone()[0]
 
 
