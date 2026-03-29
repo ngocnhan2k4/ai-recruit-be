@@ -11,8 +11,131 @@ import {
   userIdentities,
 } from "@/frameworks/data-services/postgres/models";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
-import { isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { normalizeProvider } from "@/common/utils/firebase";
+
+type DbIdentityCapabilities = {
+  providerEmail: boolean;
+  providerName: boolean;
+  providerPicture: boolean;
+};
+
+const getDbIdentityCapabilities = async (
+  drizzleDb: DBDrizzle,
+): Promise<DbIdentityCapabilities> => {
+  const pool = (drizzleDb as any)?.$client;
+  if (!pool?.query) {
+    // Fall back: assume schema is up to date.
+    return { providerEmail: true, providerName: true, providerPicture: true };
+  }
+
+  const result = await pool.query(
+    `select column_name
+     from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'user_identities'`,
+  );
+
+  const cols = new Set<string>(
+    (result?.rows ?? []).map((r: any) => String(r.column_name)),
+  );
+  return {
+    providerEmail: cols.has("provider_email"),
+    providerName: cols.has("provider_name"),
+    providerPicture: cols.has("provider_picture"),
+  };
+};
+
+const isFirebaseUserNotFoundError = (e: unknown): boolean => {
+  const anyErr = e as any;
+  const code = anyErr?.code ?? anyErr?.errorInfo?.code;
+  if (code === "auth/user-not-found") return true;
+  const message = anyErr?.message ?? String(e);
+  return (
+    message.includes("auth/user-not-found") ||
+    message.toLowerCase().includes("no user record") ||
+    message.toLowerCase().includes("no user")
+  );
+};
+
+const formatDbError = (e: unknown): string => {
+  const anyErr = e as any;
+  const parts: string[] = [];
+  if (anyErr?.code) parts.push(`code=${anyErr.code}`);
+  if (anyErr?.severity) parts.push(`severity=${anyErr.severity}`);
+  if (anyErr?.constraint) parts.push(`constraint=${anyErr.constraint}`);
+  if (anyErr?.table) parts.push(`table=${anyErr.table}`);
+  if (anyErr?.detail) parts.push(`detail=${anyErr.detail}`);
+  if (anyErr?.hint) parts.push(`hint=${anyErr.hint}`);
+
+  const message = anyErr?.message ?? String(e);
+  return `${message}${parts.length ? ` (${parts.join(" ")})` : ""}`;
+};
+
+const upsertUserIdentity = async (
+  drizzleDb: DBDrizzle,
+  identity: {
+    userId: string;
+    provider: any;
+    providerUserId?: string;
+    providerEmail?: string | null;
+    providerName?: string | null;
+    providerPicture?: string | null;
+  },
+): Promise<"updated" | "inserted"> => {
+  const updateSet: Record<string, any> = {
+    updatedAt: new Date(),
+  };
+
+  if (identity.providerUserId !== undefined)
+    updateSet.providerUserId = identity.providerUserId;
+  if (identity.providerEmail !== undefined)
+    updateSet.providerEmail = identity.providerEmail;
+  if (identity.providerName !== undefined)
+    updateSet.providerName = identity.providerName;
+  if (identity.providerPicture !== undefined)
+    updateSet.providerPicture = identity.providerPicture;
+
+  // 1) Prefer UPDATE to avoid relying on unique indexes.
+  const updated = await drizzleDb
+    .update(userIdentities)
+    .set(updateSet as any)
+    .where(
+      and(
+        eq(userIdentities.userId, identity.userId),
+        eq(userIdentities.provider, identity.provider),
+        sql`${userIdentities.deletedAt} IS NULL`,
+      ),
+    )
+    .returning({ id: userIdentities.id });
+  if (updated.length > 0) return "updated";
+
+  // 2) If nothing updated, try INSERT.
+  try {
+    await drizzleDb
+      .insert(userIdentities)
+      .values(identity as any)
+      .onConflictDoNothing();
+    return "inserted";
+  } catch (e) {
+    // If we raced another insert that has a unique constraint, retry UPDATE once.
+    const code = (e as any)?.code;
+    if (code === "23505") {
+      await drizzleDb
+        .update(userIdentities)
+        .set(updateSet as any)
+        .where(
+          and(
+            eq(userIdentities.userId, identity.userId),
+            eq(userIdentities.provider, identity.provider),
+            sql`${userIdentities.deletedAt} IS NULL`,
+          ),
+        );
+      return "updated";
+    }
+    throw e;
+  }
+};
 
 @Module({
   imports: [
@@ -123,6 +246,17 @@ async function main() {
     db = drizzleDb;
     const firebaseApp = app.get<admin.app.App>(FIREBASE_ADMIN as any);
 
+    const capabilities = await getDbIdentityCapabilities(drizzleDb);
+    if (
+      !capabilities.providerEmail ||
+      !capabilities.providerName ||
+      !capabilities.providerPicture
+    ) {
+      console.warn(
+        `[sync] user_identities missing columns: provider_email=${capabilities.providerEmail} provider_name=${capabilities.providerName} provider_picture=${capabilities.providerPicture}. Will sync without missing fields.`,
+      );
+    }
+
     let offset = 0;
     let syncedUsers = 0;
     let insertedRows = 0;
@@ -170,8 +304,7 @@ async function main() {
             );
           } catch (e) {
             // User might not exist in Firebase anymore; skip.
-            const message = (e as any)?.message ?? String(e);
-            if (message.includes("auth/user-not-found")) {
+            if (isFirebaseUserNotFoundError(e)) {
               firebaseNotFound++;
               console.warn(
                 `[sync] Firebase user not found: uid=${firebaseUid}`,
@@ -181,7 +314,7 @@ async function main() {
 
             erroredUsers++;
             console.warn(
-              `[sync] Firebase getUser failed: uid=${firebaseUid} err=${message}`,
+              `[sync] Firebase getUser failed: uid=${firebaseUid} err=${(e as any)?.message ?? String(e)}`,
             );
             return;
           }
@@ -202,14 +335,20 @@ async function main() {
           const toInsert = [...providerData, ...fallbackProviders]
             .map((p) => {
               const provider = normalizeProvider(p.providerId ?? "password");
-              return {
+              const base: any = {
                 userId: row.id,
                 provider,
                 providerUserId: p.uid ?? undefined,
-                providerEmail: (p as any).email ?? null,
-                providerName: (p as any).displayName ?? null,
-                providerPicture: (p as any).photoURL ?? null,
               };
+
+              if (capabilities.providerEmail)
+                base.providerEmail = (p as any).email ?? null;
+              if (capabilities.providerName)
+                base.providerName = (p as any).displayName ?? null;
+              if (capabilities.providerPicture)
+                base.providerPicture = (p as any).photoURL ?? null;
+
+              return base;
             })
             .filter((r) => r.provider);
 
@@ -227,29 +366,15 @@ async function main() {
           for (const identity of toInsert) {
             try {
               await withTimeout(
-                drizzleDb
-                  .insert(userIdentities)
-                  .values(identity)
-                  .onConflictDoUpdate({
-                    target: [userIdentities.userId, userIdentities.provider],
-                    where: sql`${userIdentities.deletedAt} IS NULL`,
-                    set: {
-                      providerUserId: identity.providerUserId,
-                      providerEmail: (identity as any).providerEmail,
-                      providerName: (identity as any).providerName,
-                      providerPicture: (identity as any).providerPicture,
-                      updatedAt: new Date(),
-                    } as any,
-                  }),
+                upsertUserIdentity(drizzleDb, identity as any),
                 options.timeoutMs,
                 `db.insert user_identity userId=${row.id} provider=${identity.provider}`,
               );
               insertedRows++;
             } catch (e) {
               erroredUsers++;
-              const message = (e as any)?.message ?? String(e);
               console.warn(
-                `[sync] insert failed: user=${row.id} provider=${identity.provider} err=${message}`,
+                `[sync] upsert failed: user=${row.id} provider=${identity.provider} err=${formatDbError(e)}`,
               );
             }
           }
