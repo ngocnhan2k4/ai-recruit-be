@@ -70,11 +70,15 @@ def main():
 
     update_mode = args.mode == "update"
     
-    itviec_pages = args.itviec_pages or args.pages
-    linkedin_pages = args.linkedin_pages or args.pages
-    topcv_pages = args.topcv_pages or args.pages
-    jobsgo_pages = args.jobsgo_pages or args.pages
-    vietnamworks_pages = args.vietnamworks_pages or args.pages
+    # Handle page counts explicitly (allow 0 to skip)
+    def get_pages(val):
+        return val if val is not None else args.pages
+
+    itviec_pages = get_pages(args.itviec_pages)
+    linkedin_pages = get_pages(args.linkedin_pages)
+    topcv_pages = get_pages(args.topcv_pages)
+    jobsgo_pages = get_pages(args.jobsgo_pages)
+    vietnamworks_pages = get_pages(args.vietnamworks_pages)
     
     # Track statistics per source
     stats = {
