@@ -2,10 +2,10 @@ from helpers.text import slugify
 from rapidfuzz import process, fuzz
 
 def get_or_create_skill(cur, skill_name):
-    # 1. Normalize name for checking
+    # Normalize name for checking
     normalized_name = skill_name.strip().lower()
 
-    # 2. EXACT MATCH Check: skills table (case-insensitive)
+    # EXACT MATCH Check: skills table (case-insensitive)
     cur.execute(
         "SELECT id FROM skills WHERE LOWER(name) = %s LIMIT 1", (normalized_name,)
     )
@@ -14,7 +14,7 @@ def get_or_create_skill(cur, skill_name):
         print(f"    [Skill] Exact match in 'skills': {skill_name}")
         return row[0]
 
-    # 3. EXACT MATCH Check: skills_synonyms table
+    # EXACT MATCH Check: skills_synonyms table
     cur.execute(
         """
         SELECT master_name FROM skills_synonyms 
@@ -45,7 +45,7 @@ def get_or_create_skill(cur, skill_name):
             )
             return cur.fetchone()[0]
 
-    # 4. FUZZY MATCH Check (if no exact match)
+    # FUZZY MATCH Check (if no exact match)
     cur.execute("SELECT name FROM skills")
     all_skills = [r[0] for r in cur.fetchall()]
     
