@@ -96,7 +96,7 @@ export class SubscriptionRepository
         : Promise.resolve(),
     ]);
 
-    const total = Number(totalRow[0]?.count ?? 0);
+    const total = Number(totalRow?.[0]?.count ?? 0);
     const hasNext = offset + items.length < total;
 
     return {
