@@ -7,6 +7,13 @@ export abstract class IAuthService {
     name?: string;
     picture?: string;
     provider_id?: string;
+    firebase?: {
+      identities: {
+        "google.com"?: string[];
+        "facebook.com"?: string[];
+        "github.com"?: string[];
+      };
+    };
     roles?: RoleEnum[];
   }>;
   abstract signJwt(payload: any): string;

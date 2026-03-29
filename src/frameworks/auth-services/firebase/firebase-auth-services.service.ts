@@ -17,6 +17,13 @@ export class FireBaseAuthService implements IAuthService {
     provider_id?: string;
     roles?: RoleEnum[];
     emailVerified?: boolean;
+    firebase?: {
+      identities: {
+        "google.com"?: string[];
+        "facebook.com"?: string[];
+        "github.com"?: string[];
+      };
+    };
   }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
     console.log("Decoded Firebase ID Token:", decodedToken);
@@ -29,6 +36,7 @@ export class FireBaseAuthService implements IAuthService {
         decodedToken.provider_id || decodedToken.firebase.sign_in_provider,
       roles: (decodedToken as any).roles || [RoleEnum.USER],
       emailVerified: decodedToken.email_verified,
+      firebase: decodedToken.firebase,
     };
   }
 

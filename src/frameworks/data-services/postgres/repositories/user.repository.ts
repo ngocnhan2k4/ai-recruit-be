@@ -58,13 +58,13 @@ export class UserRepository
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
   ): Promise<void> {
-    try {
-      await (tx || this.db).insert(userIdentities).values(identity);
-    } catch (error: any) {
-      // Unique violation (e.g. already-linked active provider). Keep history via soft-delete.
-      if (error?.code === "23505") return;
-      throw error;
-    }
+    await (tx || this.db)
+      .insert(userIdentities)
+      .values(identity)
+      // Use a target-less ON CONFLICT so this remains compatible with either:
+      // - legacy unique index (user_id, provider)
+      // - new partial unique index (user_id, provider) WHERE deleted_at IS NULL
+      .onConflictDoNothing();
   }
 
   async getUserLoginMethods(

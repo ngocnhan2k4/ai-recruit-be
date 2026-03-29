@@ -52,10 +52,17 @@ export class AuthUseCases {
       provider_id?: string;
       roles?: RoleEnum[];
       emailVerified?: boolean;
+      firebase?: {
+        identities: {
+          "google.com"?: string[];
+          "facebook.com"?: string[];
+          "github.com"?: string[];
+        };
+      };
     };
     try {
       decode = await this.authService.verifyIdToken(idToken);
-      console.log("Decoded Firebase ID Token:", decode);
+      console.log("Decoded token in use case: ", decode.firebase);
     } catch {
       throw new UnauthorizedException({
         message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
@@ -65,6 +72,20 @@ export class AuthUseCases {
     const currentProvider = normalizeProvider(
       decode.provider_id || ProviderEnum.EMAIL,
     );
+
+    const firebaseIdentities =
+      (decode.firebase?.identities as Record<string, string[] | undefined>) ||
+      undefined;
+    const firebaseProviderKey =
+      decode.provider_id ||
+      (currentProvider === ProviderEnum.GOOGLE
+        ? "google.com"
+        : currentProvider === ProviderEnum.FACEBOOK
+          ? "facebook.com"
+          : currentProvider === ProviderEnum.GITHUB
+            ? "github.com"
+            : "password");
+    const providerUserId = firebaseIdentities?.[firebaseProviderKey]?.[0];
     let user =
       (
         await this.userRepository.getByField({
@@ -91,6 +112,7 @@ export class AuthUseCases {
           {
             userId: _user.id,
             provider: currentProvider,
+            providerUserId,
           },
           tx,
         );
@@ -112,6 +134,7 @@ export class AuthUseCases {
       await this.userRepository.addUserIdentity({
         userId: user.id,
         provider: currentProvider,
+        providerUserId,
       });
     }
 
