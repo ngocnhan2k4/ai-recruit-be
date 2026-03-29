@@ -19,6 +19,7 @@ export class FireBaseAuthService implements IAuthService {
     emailVerified?: boolean;
   }> {
     const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);
+    console.log("Decoded Firebase ID Token:", decodedToken);
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,

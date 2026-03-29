@@ -149,10 +149,17 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
+
+    const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
+    const otherProviders = loginMethods
+      .filter((m) => m.provider !== user.provider)
+      .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
+
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
       roles: user.roles as RoleEnum[],
+      otherProviders,
     });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -701,10 +708,17 @@ export class UserUseCases implements OnModuleInit {
       await this.casbinService.addRoleForUser(userId, role);
     }
     await this.casbinService.savePolicy();
+
+    const loginMethods = await this.userRepository.getUserLoginMethods(userId);
+    const otherProviders = loginMethods
+      .filter((m) => m.provider !== updatedUser.provider)
+      .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
+
     const userDto = GetUserResponseDto.from({
       ...updatedUser,
       provider: updatedUser.provider as ProviderEnum,
       roles: rolesToUpdate as RoleEnum[],
+      otherProviders,
     });
     return {
       message: "User updated successfully",

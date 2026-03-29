@@ -25,6 +25,28 @@ import {
   UserStatusEnum,
 } from "./enums";
 
+export const userIdentities = pgTable(
+  "user_identities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: ProviderEnum("provider").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("idx_user_identities_active")
+      .on(table.userId, table.provider)
+      .where(sql`${table.deletedAt} is null`),
+    index("idx_user_identities_user_provider_deleted").on(
+      table.userId,
+      table.provider,
+      table.deletedAt,
+    ),
+  ],
+);
+
 export const users = pgTable(
   "users",
   {

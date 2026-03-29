@@ -8,9 +8,16 @@ import {
   userOnboardings,
   userEducations,
   skills,
+  userIdentities,
 } from "../models";
 import { organizations } from "../models/organization.model";
-import { NewUser, User, UserProfile, UserCvData } from "@/core/entities";
+import {
+  NewUser,
+  User,
+  UserProfile,
+  UserCvData,
+  NewUserIdentity,
+} from "@/core/entities";
 import {
   ilike,
   or,
@@ -46,6 +53,35 @@ export class UserRepository
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, users);
     this.casbinAdapter = new DrizzleCasbinAdapter(db);
+  }
+  async addUserIdentity(
+    identity: NewUserIdentity,
+    tx?: DBDrizzleTransaction,
+  ): Promise<void> {
+    try {
+      await (tx || this.db).insert(userIdentities).values(identity);
+    } catch (error: any) {
+      // Unique violation (e.g. already-linked active provider). Keep history via soft-delete.
+      if (error?.code === "23505") return;
+      throw error;
+    }
+  }
+
+  async getUserLoginMethods(
+    userId: string,
+  ): Promise<{ provider: string; createdAt: Date }[]> {
+    const result = await this.db
+      .select({
+        provider: userIdentities.provider,
+        createdAt: userIdentities.createdAt,
+      })
+      .from(userIdentities)
+      .where(
+        sql`${userIdentities.userId} = ${userId} AND ${userIdentities.deletedAt} IS NULL`,
+      )
+      .orderBy(asc(userIdentities.createdAt));
+
+    return result as { provider: string; createdAt: Date }[];
   }
 
   async getAllWithOffset(

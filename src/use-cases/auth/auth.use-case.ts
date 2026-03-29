@@ -21,6 +21,7 @@ import { normalizeProvider } from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 @Injectable()
 export class AuthUseCases {
@@ -54,12 +55,16 @@ export class AuthUseCases {
     };
     try {
       decode = await this.authService.verifyIdToken(idToken);
+      console.log("Decoded Firebase ID Token:", decode);
     } catch {
       throw new UnauthorizedException({
         message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
         code: RESPONSE_CODE.INVALID_CREDENTIALS,
       });
     }
+    const currentProvider = normalizeProvider(
+      decode.provider_id || ProviderEnum.EMAIL,
+    );
     let user =
       (
         await this.userRepository.getByField({
@@ -80,9 +85,20 @@ export class AuthUseCases {
         provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
         emailVerified: decode.emailVerified,
       };
-      user = await this.createUserWithSubscription(newUser);
+      user = await this.userRepository.executeWithTransaction(async (tx) => {
+        const _user = await this.createUserWithSubscription(newUser, tx);
+        await this.userRepository.addUserIdentity(
+          {
+            userId: _user.id,
+            provider: currentProvider,
+          },
+          tx,
+        );
 
-      // Set custom user claims in Firebase
+        return _user;
+      });
+
+      // Set custom user claims in Firebases
       await this.authService.updateUserClaims(decode.uid, {
         roles: decode.roles as RoleEnum[],
       });
@@ -92,13 +108,24 @@ export class AuthUseCases {
         await this.casbinService.addRoleForUser(user.id, role);
       }
       await this.casbinService.savePolicy();
+    } else {
+      await this.userRepository.addUserIdentity({
+        userId: user.id,
+        provider: currentProvider,
+      });
     }
+
+    const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
+    const otherProviders = loginMethods
+      .filter((m) => m.provider !== user.provider)
+      .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
       roles: user.roles as RoleEnum[],
+      otherProviders,
     });
 
     // const customToken = await this.authService.customTokenWithClaims(
@@ -176,56 +203,57 @@ export class AuthUseCases {
       code: RESPONSE_CODE.SUCCESS,
     };
   }
-  async createUserWithSubscription(newUser: NewUser): Promise<User> {
-    return this.userRepository.executeWithTransaction(async (tx) => {
-      const user = await this.userRepository.createUser(newUser, tx);
+  async createUserWithSubscription(
+    newUser: NewUser,
+    tx: DBDrizzleTransaction,
+  ): Promise<User> {
+    const user = await this.userRepository.createUser(newUser, tx);
 
-      this.logger.log("Created user successfully with user = ", user);
+    this.logger.log("Created user successfully with user = ", user);
 
-      const freeSub = await this.subscriptionRepo.getListSubscriptions({
-        limit: 1,
-        name: SubscriptionEnum.FREE,
-        skipCount: true,
-      });
+    const freeSub = await this.subscriptionRepo.getListSubscriptions({
+      limit: 1,
+      name: SubscriptionEnum.FREE,
+      skipCount: true,
+    });
 
-      if (freeSub.data.length > 0) {
-        await this.userSubscriptionRepo.create(
-          {
-            userId: user.id,
-            subscriptionId: freeSub.data[0].id,
-            status: UserSubscriptionStatusEnum.ACTIVE,
-          },
-          tx,
-        );
+    if (freeSub.data.length > 0) {
+      await this.userSubscriptionRepo.create(
+        {
+          userId: user.id,
+          subscriptionId: freeSub.data[0].id,
+          status: UserSubscriptionStatusEnum.ACTIVE,
+        },
+        tx,
+      );
+
+      this.logger.log(
+        "Created user subscription successfully for user id = ",
+        user.id,
+      );
+
+      const sf = await this.subFeatureRepo.getByField(
+        {
+          subscriptionId: freeSub.data[0].id,
+        },
+        ["limit", "subscriptionId"],
+      );
+      const data = sf.map((r) => ({
+        userId: user.id,
+        featureId: r.featureId,
+        usage: 0,
+        lastRefillAt: new Date(),
+      }));
+      if (data.length > 0) {
+        await this.userFeatureUsageRepo.createMany(data, tx);
 
         this.logger.log(
-          "Created user subscription successfully for user id = ",
-          user.id,
+          "Created user feature usage successfully with data = ",
+          data,
         );
-
-        const sf = await this.subFeatureRepo.getByField(
-          {
-            subscriptionId: freeSub.data[0].id,
-          },
-          ["limit", "subscriptionId"],
-        );
-        const data = sf.map((r) => ({
-          userId: user.id,
-          featureId: r.featureId,
-          usage: 0,
-          lastRefillAt: new Date(),
-        }));
-        if (data.length > 0) {
-          await this.userFeatureUsageRepo.createMany(data, tx);
-
-          this.logger.log(
-            "Created user feature usage successfully with data = ",
-            data,
-          );
-        }
       }
+    }
 
-      return user;
-    });
+    return user;
   }
 }
