@@ -61,6 +61,13 @@ export enum NotificationStatusEnum {
   READ = "read",
   DELETED = "deleted",
 }
+
+export enum NotiGroupTypeEnum {
+  RECRUITMENT = "recruitment",
+  PROFILE = "profile",
+  ORG = "org",
+  SYSTEM = "system",
+}
 export enum SchoolTypeEnum {
   COLLEGE = "college",
   UNIVERSITY = "university",
