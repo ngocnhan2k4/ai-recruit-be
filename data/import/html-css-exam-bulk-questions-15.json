@@ -1,0 +1,152 @@
+[
+  {
+    "skill": "HTML/CSS",
+    "questionText": "HTML dùng để làm gì?",
+    "options": ["Biên dịch backend", "Đánh dấu cấu trúc nội dung trang web", "Quản lý process OS", "Nén video"],
+    "correctAnswer": "Đánh dấu cấu trúc nội dung trang web",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "CSS dùng để?",
+    "options": ["Chạy SQL", "Định kiểu trình bày giao diện", "Bundle JS", "Auth JWT"],
+    "correctAnswer": "Định kiểu trình bày giao diện",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Thẻ nào tạo liên kết hypertext?",
+    "options": ["<link>", "<a>", "<nav> only", "<span>"],
+    "correctAnswer": "<a>",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Semantic HTML giúp điều gì?",
+    "options": [
+      "Chỉ làm chậm",
+      "Ý nghĩa rõ ràng hơn cho SEO/a11y và cấu trúc tài liệu",
+      "Thay thế CSS",
+      "Bắt buộc SPA"
+    ],
+    "correctAnswer": "Ý nghĩa rõ ràng hơn cho SEO/a11y và cấu trúc tài liệu",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Box model trong CSS gồm (từ trong ra ngoài)?",
+    "options": [
+      "Chỉ width",
+      "content → padding → border → margin",
+      "margin → border duy nhất",
+      "flex → grid"
+    ],
+    "correctAnswer": "content → padding → border → margin",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "display: flex căn chỉnh trục chính bằng thuộc tính nào?",
+    "options": ["align-items", "justify-content", "flex-wrap only", "gap only"],
+    "correctAnswer": "justify-content",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "CSS Grid: grid-template-columns dùng để?",
+    "options": [
+      "Định nghĩa số lượng/độ rộng cột",
+      "Chỉ màu nền",
+      "Animation",
+      "Media query only"
+    ],
+    "correctAnswer": "Định nghĩa số lượng/độ rộng cột",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Position: absolute căn theo?",
+    "options": [
+      "Luôn viewport",
+      "Tổ tiên positioned gần nhất (hoặc viewport)",
+      "Chỉ static",
+      "Chỉ table"
+    ],
+    "correctAnswer": "Tổ tiên positioned gần nhất (hoặc viewport)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Media query trong CSS phục vụ?",
+    "options": ["Chỉ print", "Responsive theo kích thước/thiết bị", "Chỉ IE", "Xóa HTML"],
+    "correctAnswer": "Responsive theo kích thước/thiết bị",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "z-index có hiệu lực khi?",
+    "options": [
+      "Luôn với mọi display",
+      "Phần tử tạo stacking context (vd position không static, flex item... tùy trường hợp)",
+      "Chỉ text",
+      "Không bao giờ"
+    ],
+    "correctAnswer": "Phần tử tạo stacking context (vd position không static, flex item... tùy trường hợp)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "Specificity CSS: inline style so với class?",
+    "options": ["Class luôn thắng", "Inline thường cao hơn class", "Bằng nhau", "ID thua class"],
+    "correctAnswer": "Inline thường cao hơn class",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "BFC (Block Formatting Context) giúp?",
+    "options": [
+      "Chỉ animation",
+      "Cô lập layout: áp dụng float/clear, margin collapse theo quy tắc riêng",
+      "Chỉ table",
+      "JPEG encode"
+    ],
+    "correctAnswer": "Cô lập layout: áp dụng float/clear, margin collapse theo quy tắc riêng",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "will-change trong CSS dùng để gợi ý?",
+    "options": [
+      "Tăng specificity",
+      "Trình duyệt tối ưu layer/họa tiết trước thay đổi thuộc tính",
+      "Tắt paint",
+      "Chỉ SVG"
+    ],
+    "correctAnswer": "Trình duyệt tối ưu layer/họa tiết trước thay đổi thuộc tính",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "ARIA role/attributes trong HTML nhằm?",
+    "options": [
+      "Thay thế CSS",
+      "Hỗ trợ accessibility cho assistive technology khi cần",
+      "Tối ưu gzip",
+      "Chỉ mobile"
+    ],
+    "correctAnswer": "Hỗ trợ accessibility cho assistive technology khi cần",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "HTML/CSS",
+    "questionText": "prefers-reduced-motion trong media query phục vụ?",
+    "options": [
+      "Chỉ dark mode",
+      "Tôn trọng người dùng giảm animation/chuyển động",
+      "Chặn font",
+      "Bật GPU luôn"
+    ],
+    "correctAnswer": "Tôn trọng người dùng giảm animation/chuyển động",
+    "difficultyLevels": ["advanced"]
+  }
+]

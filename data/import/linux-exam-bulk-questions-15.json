@@ -1,0 +1,182 @@
+[
+  {
+    "skill": "Linux",
+    "questionText": "Kernel Linux chịu trách nhiệm chính về?",
+    "options": [
+      "Chỉ render GUI",
+      "Quản lý tài nguyên, process, bộ nhớ và gọi driver phần cứng",
+      "Chỉ email server",
+      "Chỉ DNS"
+    ],
+    "correctAnswer": "Quản lý tài nguyên, process, bộ nhớ và gọi driver phần cứng",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "Thư mục /home trên Linux thường chứa?",
+    "options": [
+      "Chỉ bootloader",
+      "Home directory của user thông thường",
+      "Chỉ swap",
+      "Chỉ kernel modules"
+    ],
+    "correctAnswer": "Home directory của user thông thường",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "Lệnh ls -la hiển thị?",
+    "options": [
+      "Chỉ PID",
+      "Danh sách file kèm ẩn, chi tiết quyền kích thước",
+      "Chỉ network",
+      "Chỉ disk usage"
+    ],
+    "correctAnswer": "Danh sách file kèm ẩn, chi tiết quyền kích thước",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "chmod 755 trên file nghĩa là?",
+    "options": [
+      "rwx------",
+      "rwxr-xr-x",
+      "rw-rw-rw-",
+      "---------"
+    ],
+    "correctAnswer": "rwxr-xr-x",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "chown user:group file thay đổi?",
+    "options": [
+      "Chỉ content",
+      "Owner và group của file",
+      "Inode number",
+      "Filesystem type"
+    ],
+    "correctAnswer": "Owner và group của file",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "systemd là gì trên nhiều distro hiện đại?",
+    "options": [
+      "Window manager",
+      "Init / service manager và quản lý unit",
+      "Chỉ compiler",
+      "File indexer"
+    ],
+    "correctAnswer": "Init / service manager và quản lý unit",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "journalctl dùng để?",
+    "options": [
+      "Xem package list",
+      "Xem log systemd-journald",
+      "Mount disk",
+      "Kill all process"
+    ],
+    "correctAnswer": "Xem log systemd-journald",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "cron / systemd timer dùng để?",
+    "options": [
+      "Lập lịch chạy task định kỳ",
+      "Chỉ cài packet",
+      "Resize partition",
+      "Chỉ SSH keygen"
+    ],
+    "correctAnswer": "Lập lịch chạy task định kỳ",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "Load average trên Linux phản ánh?",
+    "options": [
+      "Chỉ CPU count",
+      "Trung bình số process runnable/blocked theo thời gian (hàng đợi run-queue)",
+      "Chỉ RAM size",
+      "Chỉ network latency"
+    ],
+    "correctAnswer": "Trung bình số process runnable/blocked theo thời gian (hàng đợi run-queue)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "Namespaces trong Linux containers liên quan?",
+    "options": [
+      "Cách ly view PID/mount/network/... giữa process groups",
+      "Chỉ swap file",
+      "Chỉ RAID",
+      "Không tồn tại"
+    ],
+    "correctAnswer": "Cách ly view PID/mount/network/... giữa process groups",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "cgroups (control groups) dùng để?",
+    "options": [
+      "Chỉ DNS cache",
+      "Giới hạn/đo CPU memory IO cho nhóm process",
+      "Chỉ compile kernel",
+      "Chỉ file ACL"
+    ],
+    "correctAnswer": "Giới hạn/đo CPU memory IO cho nhóm process",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "strace theo dõi?",
+    "options": [
+      "Chỉ disk SMART",
+      "System calls của process",
+      "Chỉ routing table",
+      "Chỉ package hash"
+    ],
+    "correctAnswer": "System calls của process",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "iptables/nftables thường xử lý?",
+    "options": [
+      "Firewall / NAT packet filtering tại kernel",
+      "Chỉ backup",
+      "Chỉ user session GUI",
+      "Chỉ TLS cert"
+    ],
+    "correctAnswer": "Firewall / NAT packet filtering tại kernel",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "SELinux/AppArmor là?",
+    "options": [
+      "MAC — mandatory access control bổ sung cho DAC",
+      "Chỉ audio mixer",
+      "Chỉ mail queue",
+      "Chỉ X11 theme"
+    ],
+    "correctAnswer": "MAC — mandatory access control bổ sung cho DAC",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Linux",
+    "questionText": "inotify/epoll trong ngữ cảnh Linux?",
+    "options": [
+      "inotify: theo dõi sự kiện FS; epoll: hiệu quả I/O multiplexing",
+      "Chỉ printer",
+      "Cùng là RAID level",
+      "Chỉ package signing"
+    ],
+    "correctAnswer": "inotify: theo dõi sự kiện FS; epoll: hiệu quả I/O multiplexing",
+    "difficultyLevels": ["advanced"]
+  }
+]
