@@ -30,6 +30,7 @@ import {
   userSubscriptions,
   subscriptionFeatures,
   userFeatureUsages,
+  userIdentities,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
@@ -69,6 +70,8 @@ export type UserSkill = InferSelectModel<typeof userSkills>;
 
 export type NewUser = InferInsertModel<typeof users>;
 export type User = InferSelectModel<typeof users>;
+export type UserIdentity = InferSelectModel<typeof userIdentities>;
+export type NewUserIdentity = InferInsertModel<typeof userIdentities>;
 
 export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
