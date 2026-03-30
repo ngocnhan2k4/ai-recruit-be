@@ -7,7 +7,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { SynonymSkillResponse } from "@/core/entities/skill-synonym.entity";
 import * as fuzz from "fuzzball";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import { CACHE_KEYS, VERY_LONG_TTL } from "@/common/constants";
+import { CACHE_KEYS, SHORT_TTL, VERY_LONG_TTL } from "@/common/constants";
 import type { Cache } from "cache-manager";
 import { cacheWithDedup } from "@/common/utils";
 
@@ -40,7 +40,7 @@ export class SkillsSynonymsRepository
             Pick<any, "id" | "name" | "isApproved">[] | undefined
           >(skillsKey),
         () => this.skillRepository.getAll(["id", "name", "isApproved"]),
-        (data) => this.cacheManager.set(skillsKey, data, VERY_LONG_TTL),
+        (data) => this.cacheManager.set(skillsKey, data, SHORT_TTL),
         { logger: this.logger },
       ),
       cacheWithDedup<Pick<SkillSynonym, "id" | "masterName" | "aliasName">[]>(
