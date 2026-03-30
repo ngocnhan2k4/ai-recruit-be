@@ -23,13 +23,19 @@ import {
   eq,
   inArray,
 } from "drizzle-orm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { CACHE_KEYS } from "@/common/constants/cache";
 
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
   implements ISkillRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, skills);
   }
 
@@ -235,5 +241,8 @@ export class SkillRepository
         await tx.delete(skills).where(inArray(skills.id, ids));
       });
     }
+
+    // Invalidate the cache whenever skills are reviewed (approved or deleted)
+    await this.cacheManager.del(CACHE_KEYS.skill.getAll());
   }
 }
