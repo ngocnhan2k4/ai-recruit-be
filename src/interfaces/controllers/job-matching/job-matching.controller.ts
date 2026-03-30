@@ -33,7 +33,7 @@ export class JobMatchingController {
         limit: query.limit || 20,
         salaryMin: query.salaryMin,
         salaryMax: query.salaryMax,
-        provinceIds: query.provinceIds,
+        provinceId: query.provinceId,
         categoryId: query.categoryId,
         workType: query.workType,
         status: JobStatusEnum.ACTIVE,

@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { IAuthService, NewUser, ProviderEnum, User } from "@/core";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import {
-  IAuthRepository,
-  IUserRepository,
-  IUserOnboardingRepository,
+  IAuthService,
+  ISubscriptionRepository,
+  IUserFeatureUsageRepository,
+  NewUser,
+  ProviderEnum,
+  SubscriptionEnum,
+  User,
+  UserSubscriptionStatusEnum,
 } from "@/core";
+import { IAuthRepository, IUserRepository } from "@/core";
 import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
 import { RoleEnum } from "@/common/constants";
 import { randomBytes } from "crypto";
@@ -14,14 +19,20 @@ import { TokenPayload } from "@/common/types";
 import { generateUsername } from "@/common/utils";
 import { normalizeProvider } from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
+import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
 
 @Injectable()
 export class AuthUseCases {
+  private readonly logger = new Logger(AuthUseCases.name);
   constructor(
     private readonly authService: IAuthService,
     private readonly authRepository: IAuthRepository,
     private readonly userRepository: IUserRepository,
-    private readonly userOnboardingRepository: IUserOnboardingRepository,
+    private readonly subscriptionRepo: ISubscriptionRepository,
+    private readonly userSubscriptionRepo: IUserSubscriptionRepository,
+    private readonly userFeatureUsageRepo: IUserFeatureUsageRepository,
+    private readonly subFeatureRepo: ISubscriptionFeatureRepository,
     private readonly configService: ConfigService,
     private readonly casbinService: CasbinService,
   ) {}
@@ -69,7 +80,7 @@ export class AuthUseCases {
         provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
         emailVerified: decode.emailVerified,
       };
-      user = await this.userRepository.createUser(newUser);
+      user = await this.createUserWithSubscription(newUser);
 
       // Set custom user claims in Firebase
       await this.authService.updateUserClaims(decode.uid, {
@@ -164,5 +175,57 @@ export class AuthUseCases {
       message: "Logged out successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
+  }
+  async createUserWithSubscription(newUser: NewUser): Promise<User> {
+    return this.userRepository.executeWithTransaction(async (tx) => {
+      const user = await this.userRepository.createUser(newUser, tx);
+
+      this.logger.log("Created user successfully with user = ", user);
+
+      const freeSub = await this.subscriptionRepo.getListSubscriptions({
+        limit: 1,
+        name: SubscriptionEnum.FREE,
+        skipCount: true,
+      });
+
+      if (freeSub.data.length > 0) {
+        await this.userSubscriptionRepo.create(
+          {
+            userId: user.id,
+            subscriptionId: freeSub.data[0].id,
+            status: UserSubscriptionStatusEnum.ACTIVE,
+          },
+          tx,
+        );
+
+        this.logger.log(
+          "Created user subscription successfully for user id = ",
+          user.id,
+        );
+
+        const sf = await this.subFeatureRepo.getByField(
+          {
+            subscriptionId: freeSub.data[0].id,
+          },
+          ["limit", "subscriptionId"],
+        );
+        const data = sf.map((r) => ({
+          userId: user.id,
+          featureId: r.featureId,
+          usage: 0,
+          lastRefillAt: new Date(),
+        }));
+        if (data.length > 0) {
+          await this.userFeatureUsageRepo.createMany(data, tx);
+
+          this.logger.log(
+            "Created user feature usage successfully with data = ",
+            data,
+          );
+        }
+      }
+
+      return user;
+    });
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants";
-import { IJobRepository, ISearchService } from "@/core";
+import { IJobRepository, ISearchService, JobStatusEnum } from "@/core";
 import {
   getJobIndexMapping,
   transformJobToDocument,
@@ -38,6 +38,15 @@ export class JobSyncUseCases {
     }
   }
 
+  private async getSyncableJobsBatch(page: number, limit: number) {
+    const result = await this.jobRepository.getJobsByAdmin({
+      limit,
+      page,
+      status: JobStatusEnum.ACTIVE,
+    });
+    return result.data.filter((item) => item.category != null);
+  }
+
   /**
    * Initialize Elasticsearch index
    */
@@ -67,17 +76,12 @@ export class JobSyncUseCases {
     this.logger.log("Starting manual sync of all active jobs...");
 
     const batchSize = 100;
-    let offset = 0;
+    let page = 1;
     let hasMore = true;
     let totalSynced = 0;
 
     while (hasMore) {
-      const data = (
-        await this.jobRepository.getJobsByAdmin({
-          limit: batchSize,
-          page: offset / batchSize + 1,
-        })
-      ).data.filter((item) => item.category != null);
+      const data = await this.getSyncableJobsBatch(page, batchSize);
 
       if (data.length === 0) {
         hasMore = false;
@@ -100,7 +104,7 @@ export class JobSyncUseCases {
         );
       }
 
-      offset += batchSize;
+      page += 1;
     }
 
     this.logger.log(`Full sync completed: ${totalSynced} jobs synced`);
@@ -114,13 +118,44 @@ export class JobSyncUseCases {
     };
   }
 
+  async getSyncStatus(): Promise<
+    ApiResponse<{
+      esCount: number;
+      dbCount: number;
+    }>
+  > {
+    const client = this.searchService.getClient();
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_JOBS",
+    )!;
+
+    const exists = await client.indices.exists({ index: indexName });
+    const esCount = exists
+      ? Number((await client.count({ index: indexName })).count ?? 0)
+      : 0;
+    const dbCount = await this.jobRepository.count({ isCategoryNotNull: true });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        esCount,
+        dbCount,
+      },
+    };
+  }
+
   /**
    * Delete a job from Elasticsearch
    */
   async deleteJob(jobId: string): Promise<ApiResponse<{ message: string }>> {
-    await this.searchService.deleteDocument(
+    await this.searchService.deleteByQuery(
       this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!,
-      jobId,
+      {
+        term: {
+          id: jobId,
+        },
+      },
     );
     this.logger.log(`Job ${jobId} deleted from search index`);
     return {
@@ -128,6 +163,24 @@ export class JobSyncUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data: {
         message: `Job ${jobId} deleted from search index successfully`,
+      },
+    };
+  }
+
+  /**
+   * Delete the whole jobs Elasticsearch index
+   */
+  async deleteJobsIndex(): Promise<ApiResponse<{ message: string }>> {
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_JOBS",
+    )!;
+    await this.searchService.deleteIndex(indexName);
+    this.logger.log(`Index ${indexName} deleted`);
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        message: `Index ${indexName} deleted successfully`,
       },
     };
   }

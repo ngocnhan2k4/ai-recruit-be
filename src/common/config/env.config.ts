@@ -65,8 +65,10 @@ export class EnvironmentVariables {
   @IsString()
   REDIS_PASSWORD: string;
 
-  // @IsNumber()
-  // REDIS_DB: number;
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  REDIS_DB: number = 0;
 
   @IsString()
   FIREBASE_STORAGE_BUCKET: string;
@@ -150,6 +152,14 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SWAGGER_PASSWORD: string;
+
+  @IsOptional()
+  @IsString()
+  SLACK_ERROR_WEBHOOK_URL: string;
+
+  @IsOptional()
+  @IsString()
+  SENTRY_DSN: string;
 }
 
 export const validateConfig = (

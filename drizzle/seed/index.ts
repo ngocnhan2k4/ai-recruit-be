@@ -1,7 +1,5 @@
-// import { AnonymousId } from "@/common/constants/roles";
 import { categories } from "@/frameworks/data-services/postgres/models/category.model";
 import { provinces } from "@/frameworks/data-services/postgres/models/province.model";
-import { skills } from "@/frameworks/data-services/postgres/models/skill.model";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { organizations } from "@/frameworks/data-services/postgres/models";
@@ -9,84 +7,61 @@ import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
 import { slugify } from "@/common/utils/string";
 
 const categoriesData = [
+  // 🔹 Software Development
   "Frontend Developer",
   "Backend Developer",
   "Fullstack Developer",
-  "Mobile Developer",
+  "Software Engineer",
+  "Mobile Application Developer",
+  "Game Developer",
+  "Embedded Engineer",
+
+  // 🔹 UI/UX
   "UI/UX Designer",
-  "DevOps Engineer",
+  "UX Researcher",
+
+  // 🔹 Data & AI
+  "Data Analyst",
+  "Data Engineer",
   "Data Scientist",
-  "Product Manager",
+  "AI & Machine Learning",
+
+  // 🔹 Testing / QA
+  "Manual Tester",
+  "Automation Tester",
   "QA Engineer",
+
+  // 🔹 DevOps / Cloud / Infra
+  "DevOps & Cloud Engineer",
+  "Cloud Engineer",
+  "Site Reliability Engineer (SRE)",
+  "Systems Engineer & Administrator",
   "System Administrator",
-  "Database Administrator",
+  "Network Engineer",
+
+  // 🔹 Security
+  "Security Engineer",
   "Security Specialist",
+  "Penetration Tester",
+  "Application Security Engineer",
+
+  // 🔹 Database
+  "Database Engineer",
+  "Database Administrator",
+
+  // 🔹 Product / Business
+  "Product Manager",
+  "Project Manager",
+  "Business Analyst",
+  "IT Consultant",
+
+  // 🔹 Support / Others
+  "IT Support",
+  "Solution Architect",
+  "Cloud Architect",
+  "Bridge System Engineer (BrSE)",
 ];
 
-const skillsData = [
-  "JavaScript",
-  "TypeScript",
-  "Python",
-  "Java",
-  "C#",
-  "PHP",
-  "Ruby",
-  "Go",
-  "Rust",
-  "Swift",
-  "Kotlin",
-  "Dart",
-  "React",
-  "Vue.js",
-  "Angular",
-  "Next.js",
-  "Nuxt.js",
-  "Node.js",
-  "Express.js",
-  "Django",
-  "Flask",
-  "FastAPI",
-  "Spring Boot",
-  "ASP.NET Core",
-  "Laravel",
-  "Ruby on Rails",
-  "MongoDB",
-  "PostgreSQL",
-  "MySQL",
-  "SQLite",
-  "Redis",
-  "ElasticSearch",
-  "Docker",
-  "Kubernetes",
-  "AWS",
-  "Google Cloud",
-  "Azure",
-  "Git",
-  "Jenkins",
-  "GitHub Actions",
-  "Figma",
-  "Adobe XD",
-  "Photoshop",
-  "Illustrator",
-  "HTML",
-  "CSS",
-  "SASS",
-  "Tailwind CSS",
-  "Bootstrap",
-  "Material-UI",
-  "React Native",
-  "Flutter",
-  "Xamarin",
-  "Unity",
-  "Unreal Engine",
-  "TensorFlow",
-  "PyTorch",
-  "Machine Learning",
-  "Data Analysis",
-  "Pandas",
-  "NumPy",
-  "Jupyter",
-];
 const provincesData = [
   "Hà Nội",
   "Cao Bằng",
@@ -253,12 +228,6 @@ async function main() {
     .insert(categories)
     .values(categoriesData.map((name) => ({ name })))
     .onConflictDoNothing({ target: categories.name });
-
-  // Insert skills - skip if name already exists
-  await db
-    .insert(skills)
-    .values(skillsData.map((name) => ({ name })))
-    .onConflictDoNothing({ target: skills.name });
 
   const dataToInsert = universitiesData.map((uniName) => ({
     name: uniName,

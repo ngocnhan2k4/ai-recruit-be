@@ -26,12 +26,14 @@ import {
   IRoadmapSkillOptionRepository,
   IAreaRepository,
   IQuestionRepository,
-  ILevelRepository,
   IUserTestRepository,
   IUserAnswerRepository,
-  IImportLogRepository,
   IWeeklyProgressRepository,
+  ISubscriptionRepository,
+  IFeatureRepository,
+  IUserFeatureUsageRepository,
 } from "@/core";
+
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
 import { CasbinRepository } from "./repositories/casbin.repository";
@@ -65,11 +67,16 @@ import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.
 import { AiCvRepository } from "./repositories/ai-cv.repository";
 import { AreaRepository } from "./repositories/area.repository";
 import { QuestionRepository } from "./repositories/question.repository";
-import { LevelRepository } from "./repositories/level.repository";
 import { UserTestRepository } from "./repositories/user-test.repository";
 import { UserAnswerRepository } from "./repositories/user-answer.repository";
-import { ImportLogRepository } from "./repositories/import-log.repository";
 import { WeeklyProgressRepository } from "./repositories/weekly-progress.repository";
+import { SubscriptionRepository } from "./repositories/subscription.repository";
+import { FeatureRepository } from "./repositories/feature.repository";
+import { UserFeatureUsageRepository } from "./repositories/user-feature-usage.repository";
+import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
+import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
+import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
+import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
 
 @Global()
 @Module({
@@ -233,10 +240,6 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
       useClass: QuestionRepository,
     },
     {
-      provide: ILevelRepository,
-      useClass: LevelRepository,
-    },
-    {
       provide: IUserTestRepository,
       useClass: UserTestRepository,
     },
@@ -245,16 +248,36 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
       useClass: UserAnswerRepository,
     },
     {
-      provide: IImportLogRepository,
-      useClass: ImportLogRepository,
-    },
-    {
       provide: IAiCvRepository,
       useClass: AiCvRepository,
     },
     {
       provide: IWeeklyProgressRepository,
       useClass: WeeklyProgressRepository,
+    },
+    {
+      provide: ISubscriptionRepository,
+      useClass: SubscriptionRepository,
+    },
+    {
+      provide: IFeatureRepository,
+      useClass: FeatureRepository,
+    },
+    {
+      provide: IUserFeatureUsageRepository,
+      useClass: UserFeatureUsageRepository,
+    },
+    {
+      provide: IUserSubscriptionRepository,
+      useClass: UserSubscriptionRepository,
+    },
+    {
+      provide: ISubscriptionFeatureRepository,
+      useClass: SubscriptionFeatureRepository,
+    },
+    {
+      provide: IUserFeatureUsageRepository,
+      useClass: UserFeatureUsageRepository,
     },
   ],
   exports: [
@@ -285,12 +308,16 @@ import { WeeklyProgressRepository } from "./repositories/weekly-progress.reposit
     IRoadmapSkillOptionRepository,
     IAreaRepository,
     IQuestionRepository,
-    ILevelRepository,
     IUserTestRepository,
     IUserAnswerRepository,
-    IImportLogRepository,
     IAiCvRepository,
     IWeeklyProgressRepository,
+    ISubscriptionRepository,
+    IFeatureRepository,
+    IUserFeatureUsageRepository,
+    IUserSubscriptionRepository,
+    ISubscriptionFeatureRepository,
+    IUserFeatureUsageRepository,
   ],
 })
 export class PostgresDataServicesModule {}

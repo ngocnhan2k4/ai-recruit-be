@@ -76,12 +76,14 @@ export class AiCvController {
   async optimizeAts(
     @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     if (!request.file && !request.cvText) {
-      throw new BadRequestException({
-        message: "Either CV file or CV text must be provided",
-        code: RESPONSE_CODE.CV_NOT_UPLOADED,
-      });
+      return await this.aiCvUseCases.optimizeCvForAts(
+        request,
+        user.userId,
+        true,
+      );
     }
 
     if (request.file && request.cvText) {
@@ -91,7 +93,11 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvUseCases.optimizeCvForAts(request);
+    return await this.aiCvUseCases.optimizeCvForAts(
+      request,
+      user.userId,
+      false,
+    );
   }
 
   @Post("suggest-field")
@@ -103,8 +109,9 @@ export class AiCvController {
   @ApiResponseDto(CvFieldSuggestionResponseDto)
   async suggestCvField(
     @Body() request: CvFieldSuggestionRequestDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
-    return await this.aiCvUseCases.suggestCvField(request);
+    return await this.aiCvUseCases.suggestCvField(request, user.userId);
   }
 
   @ApiOperation({

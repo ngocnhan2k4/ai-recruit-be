@@ -1,8 +1,17 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsOptional, IsNumber } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsUUID } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class CvRequestDto {
+  @ApiProperty({
+    example: "uuid-ai-cv-id",
+    required: false,
+    description: "Linked AI CV ID",
+  })
+  @IsOptional()
+  @IsUUID()
+  aiCvId?: string;
+
   @ApiProperty({
     example: "My Software Engineer CV.pdf",
     required: false,

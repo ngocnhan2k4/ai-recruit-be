@@ -4,7 +4,11 @@ import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import { NotificationStatusEnum, NotificationType } from "@/core/entities";
+import {
+  Notification,
+  NotificationStatusEnum,
+  NotificationType,
+} from "@/core/entities";
 import {
   GetNotificationResponseDto,
   NotificationActionRequestDto,
@@ -15,18 +19,34 @@ import {
 @Injectable()
 export class NotificationUseCase {
   private readonly logger = new Logger(NotificationUseCase.name);
+
   constructor(
     private readonly notificationRepository: INotificationRepository,
   ) {}
 
-  async getNotificationsByUser(
+  private getTypeFilters(filter: NotificationFilter, isAdmin: boolean) {
+    const includeTypes: string[] = [];
+    const excludeTypes: string[] = [];
+
+    if (isAdmin) {
+      includeTypes.push(NotificationType.JOB_POSTED);
+      return { ...filter, includeTypes, excludeTypes: undefined };
+    }
+
+    excludeTypes.push(NotificationType.JOB_POSTED);
+    return { ...filter, excludeTypes, includeTypes: undefined };
+  }
+
+  private buildGetNotificationsSuccessResponse(
     filter: NotificationFilter,
-  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
-    const result =
-      await this.notificationRepository.getNotificationsByUser(filter);
+    result: PaginatedResult<Notification>,
+    isAdmin: boolean,
+  ): ApiResponse<PaginatedResult<GetNotificationResponseDto>> {
+    const actor = isAdmin ? "admin" : "user";
     this.logger.log(
-      `Get notification of user: ${filter.userId}, orgId: ${filter.organizationId} successfully`,
+      `Get notification of ${actor}: ${filter.userId}, orgId: ${filter.organizationId}, groupType: ${filter.groupType} successfully`,
     );
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       data: {
@@ -38,8 +58,26 @@ export class NotificationUseCase {
         })),
         pagination: result.pagination,
       },
-      message: `Get notification of user: ${filter.userId}, orgId: ${filter.organizationId} successfully`,
+      message: `Get notification of ${actor}: ${filter.userId}, orgId: ${filter.organizationId}, groupType: ${filter.groupType} successfully`,
     };
+  }
+
+  async getNotificationsByUser(
+    filter: NotificationFilter,
+  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
+    const adjustedFilter = this.getTypeFilters(filter, false);
+    const result =
+      await this.notificationRepository.getNotificationsByUser(adjustedFilter);
+    return this.buildGetNotificationsSuccessResponse(filter, result, false);
+  }
+
+  async getNotificationsByAdmin(
+    filter: NotificationFilter,
+  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
+    const adjustedFilter = this.getTypeFilters(filter, true);
+    const result =
+      await this.notificationRepository.getNotificationsByUser(adjustedFilter);
+    return this.buildGetNotificationsSuccessResponse(filter, result, true);
   }
 
   async updateNotificationStatus(

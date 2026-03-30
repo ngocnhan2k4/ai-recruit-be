@@ -1,15 +1,23 @@
-import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
+import {
+  DBDrizzle,
+  DBDrizzleTransaction,
+} from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
 export abstract class IGenericRepository<T> {
   abstract getAll<K extends keyof T>(fields: K[]): Promise<Pick<T, K>[]>;
 
   abstract get(id: ID): Promise<T | null>;
 
-  abstract getByIds(ids: ID[]): Promise<T[]>;
+  abstract getByIds(ids: ID[], fields: (keyof T)[]): Promise<T[]>;
 
   abstract getByField(field: Partial<T>, omit?: (keyof T)[]): Promise<T[]>;
 
   abstract create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T>;
+
+  abstract createMany(
+    item: Partial<T>[],
+    tx?: DBDrizzleTransaction,
+  ): Promise<T[]>;
 
   abstract update(
     where: Partial<T>,
@@ -27,4 +35,6 @@ export abstract class IGenericRepository<T> {
   abstract executeWithTransaction<T>(
     fn: (tx: DBDrizzleTransaction) => Promise<T>,
   ): Promise<T>;
+
+  abstract getExecutor(): DBDrizzleTransaction | DBDrizzle;
 }

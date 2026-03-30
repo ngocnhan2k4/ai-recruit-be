@@ -20,7 +20,7 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import { QueryJobDto, CreateJobDto, UpdateJobDto } from "@/interfaces/dtos";
+import { QueryJobDto, CreateJobDto } from "@/interfaces/dtos";
 import {
   JobDto,
   JobPaginationResponseDto,
@@ -39,7 +39,7 @@ import {
   ApplyJobResponseDto,
   UserInteractionResponseDto,
   SaveJobDto,
-  HideJobDto,
+  //HideJobDto,
   ApplyJobDto,
   UpdateApplyJobDto,
   ApplyJobQueryDto,
@@ -61,7 +61,7 @@ export class JobController {
   @ApiOperation({
     summary: "Get all jobs",
     description:
-      "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type.",
+      "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type. from es",
   })
   @UseGuards(OptionalJwtAuthGuard)
   @ApiResponseDto(JobPaginationResponseDto)
@@ -71,6 +71,27 @@ export class JobController {
     @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
     return this.jobUseCases.getJobs({
+      ...query,
+      user: user && {
+        ...user,
+        roles: [RoleEnum.USER],
+      },
+    });
+  }
+
+  @ApiOperation({
+    summary: "Get all jobs",
+    description:
+      "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type. from database",
+  })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiResponseDto(JobPaginationResponseDto)
+  @Get("v2")
+  async getJobsV2(
+    @Query() query: QueryJobDto,
+    @GetUser() user?: TokenPayload,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    return this.jobUseCases.getJobsV2({
       ...query,
       user: user && {
         ...user,
@@ -213,24 +234,24 @@ export class JobController {
       saveJobDto.save!,
     );
   }
-
-  @ApiOperation({
-    summary: "Hide a job",
-    description: "Hide a job from future search results",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(UserInteractionResponseDto)
-  @Post("hide")
-  async hideJob(
-    @GetUser() user: TokenPayload,
-    @Body() hideJobDto: HideJobDto,
-  ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.hideJob(
-      user.userId,
-      hideJobDto.jobId,
-      hideJobDto.hide!,
-    );
-  }
+  // [TODO] remove later
+  // @ApiOperation({
+  //   summary: "Hide a job",
+  //   description: "Hide a job from future search results",
+  // })
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(UserInteractionResponseDto)
+  // @Post("hide")
+  // async hideJob(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() hideJobDto: HideJobDto,
+  // ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+  //   return await this.jobUseCases.hideJob(
+  //     user.userId,
+  //     hideJobDto.jobId,
+  //     hideJobDto.hide!,
+  //   );
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(JobDto)
@@ -240,28 +261,6 @@ export class JobController {
     @Body() createJobDto: CreateJobDto,
   ): Promise<ApiResponse<JobDto>> {
     return await this.jobUseCases.createJob(user.userId, createJobDto);
-  }
-
-  @ApiOperation({
-    summary: "Update a job",
-    description: "Update an existing job posting",
-  })
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(JobDto)
-  @Put(":id")
-  async updateJob(
-    @Param("id") jobId: string,
-    @Body() updateJobDto: UpdateJobDto,
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(
-      jobId,
-      {
-        ...updateJobDto,
-        userId: user.userId,
-      },
-      user,
-    );
   }
 
   @ApiOperation({

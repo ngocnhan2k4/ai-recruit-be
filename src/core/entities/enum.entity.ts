@@ -61,6 +61,13 @@ export enum NotificationStatusEnum {
   READ = "read",
   DELETED = "deleted",
 }
+
+export enum NotiGroupTypeEnum {
+  RECRUITMENT = "recruitment",
+  PROFILE = "profile",
+  ORG = "org",
+  SYSTEM = "system",
+}
 export enum SchoolTypeEnum {
   COLLEGE = "college",
   UNIVERSITY = "university",
@@ -102,11 +109,6 @@ export enum DomainTypeEnum {
   ALL = "*",
 }
 
-export enum UpdateJobTypeEnum {
-  UPDATE = "update",
-  APPROVAL = "approval",
-  REJECTED = "rejected",
-}
 export enum FeedbackStatusEnum {
   PENDING = "pending",
   READ = "read",
@@ -160,10 +162,33 @@ export enum OtpPurpose {
 
 export enum UserInteractionEnum {
   SAVE = "save",
-  HIDE = "hide",
+  //[TODO] remove later
+  //HIDE = "hide",
 }
 export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
+}
+export enum FeatureCodeEnum {
+  LEARNING_PATH = "learning_path",
+  SUGGEST_CV_FIELD = "suggest_cv_field",
+  OPTIMIZE_CV = "optimize_cv",
+}
+export enum BillingCycleSubscriptionEnum {
+  MONTHLY = "monthly",
+  YEARLY = "yearly",
+}
+export enum UserSubscriptionStatusEnum {
+  INCOMPLETE = "incomplete",
+  ACTIVE = "active",
+  CANCELED = "canceled",
+  // EXPIRED = "expired",
+}
+
+export enum SubscriptionEnum {
+  FREE = "FREE",
+  BASIC = "BASIC",
+  PRO = "PRO",
+  ENTERPRISE = "ENTERPRISE",
 }

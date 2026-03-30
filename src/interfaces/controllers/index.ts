@@ -35,8 +35,11 @@ export * from "./organization/admin-organization.controller";
 
 // notification controllers
 export * from "./notification/notification.controller";
+export * from "./notification/admin-notification.controller";
 
 // casbin controllers
 export * from "./casbin/casbin.controller";
 
 export * from "./learning-path/learning-path.controller";
+export * from "./subscription/admin-subscription.controller";
+export * from "./feature/admin-feature.controller";

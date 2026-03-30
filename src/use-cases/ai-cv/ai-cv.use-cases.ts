@@ -1,9 +1,12 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { FileTextExtractor } from "@/common/utils";
+import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
+  FeatureCodeEnum,
   IAIService,
+  IUserFeatureUsageRepository,
+  IUserRepository,
   NewAiCv,
   OptimizeAtsResponse,
 } from "@/core";
@@ -34,8 +37,9 @@ export class AiCvUseCases {
   private readonly logger = new Logger(AiCvUseCases.name);
   constructor(
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
-    @Inject(IAIService)
-    private readonly aiService: IAIService,
+    @Inject(IAIService) private readonly aiService: IAIService,
+    private readonly userRepository: IUserRepository,
+    private readonly userFeatureUsageRepo: IUserFeatureUsageRepository,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -209,43 +213,45 @@ export class AiCvUseCases {
 
   async suggestCvField(
     request: CvFieldSuggestionRequestDto,
+    userId: string,
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
-    try {
-      const result = await this.aiService.suggestCvField({
-        cvData: request.cvData as any,
-        targetField: request.targetField,
-        fieldContext: request.fieldContext,
-        jobDescription: request.jobDescription,
-      });
+    await this.userFeatureUsageRepo.consumeFeature(
+      userId,
+      FeatureCodeEnum.SUGGEST_CV_FIELD,
+    );
 
-      const response: CvFieldSuggestionResponseDto = {
-        targetField: result.targetField,
-        suggestion: result.suggestion,
-        generatedAt: result.generatedAt,
-      };
+    const result = await this.aiService.suggestCvField({
+      cvData: request.cvData as any,
+      targetField: request.targetField,
+      fieldContext: request.fieldContext,
+      jobDescription: request.jobDescription,
+    });
 
-      return {
-        data: response,
-        message: "Field suggestion generated successfully",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    } catch (error) {
-      this.logger.error(error.message);
-      throw new BadRequestException({
-        message: error.message,
-        code: RESPONSE_CODE.BAD_REQUEST,
-      });
-    }
+    const response: CvFieldSuggestionResponseDto = {
+      targetField: result.targetField,
+      suggestion: result.suggestion,
+      generatedAt: result.generatedAt,
+    };
+
+    return {
+      data: response,
+      message: "Field suggestion generated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 
   async optimizeCvForAts(
     request: OptimizeAtsUploadDto,
+    userId: string,
+    useUserCV: boolean,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    this.logger.log("Starting CV optimization for ATS");
-
     // Call AI service to optimize CV
+    await this.userFeatureUsageRepo.consumeFeature(
+      userId,
+      FeatureCodeEnum.OPTIMIZE_CV,
+    );
     try {
       let cvText = "";
 
@@ -255,6 +261,13 @@ export class AiCvUseCases {
         this.logger.log(`Extracted ${cvText.length} chars from CV`);
       } else if (request?.cvText) {
         cvText = request.cvText;
+      } else if (useUserCV) {
+        // Generate CV text from user profile data
+        const userCvData = await this.userRepository.getUserCvData(userId);
+        if (userCvData) {
+          cvText = userCvDataToText(userCvData);
+          this.logger.log(`Generated ${cvText.length} chars from user profile`);
+        }
       }
 
       const optimizeRequest = {

@@ -22,7 +22,8 @@ import {
   eq,
   desc,
   and,
-  gt,
+  gte,
+  lte,
   SQL,
   isNotNull,
   inArray,
@@ -31,8 +32,6 @@ import {
   or,
   lt,
   countDistinct,
-  gte,
-  lte,
   asc,
 } from "drizzle-orm";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
@@ -126,7 +125,9 @@ export class OrganizationRepository
     return data;
   }
 
-  getOrganizationById(id: string): Promise<OrganizationWithDetails | null> {
+  async getOrganizationById(
+    id: string,
+  ): Promise<OrganizationWithDetails | null> {
     const cacheKey = CACHE_KEYS.organization.getWithDetail(id);
     return cacheWithDedup<OrganizationWithDetails | null>(
       cacheKey,
@@ -216,35 +217,12 @@ export class OrganizationRepository
     );
   }
 
-  async getAllOrganizations(query: OrganizationQuery) {
-    const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
+  async getOrganizations(query: OrganizationQuery) {
+    const limit = query.limit;
 
-    if (query.keyword) {
-      whereConditions.push(
-        sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword})) > 0.22`,
-      );
-    }
+    const whereConditions: SQL<unknown>[] = this.buildOrganizationQuery(query);
 
-    if (query.employeeMin !== undefined) {
-      whereConditions.push(gt(organizations.employeesMin, query.employeeMin));
-    }
-
-    if (query.employeeMax !== undefined) {
-      whereConditions.push(gt(organizations.employeesMax, query.employeeMax));
-    }
-
-    if (query.verified) {
-      whereConditions.push(isNotNull(organizations.verifiedAt));
-    }
-
-    if (query.provinceIds?.length) {
-      whereConditions.push(
-        inArray(organizationLocations.provinceId, query.provinceIds),
-      );
-    }
-
-    const usePage = query.page != null && query.page >= 1;
-    if (!usePage && query.cursor) {
+    if (query.cursor) {
       whereConditions.push(lt(organizations.createdAt, new Date(query.cursor)));
     }
 
@@ -271,21 +249,7 @@ export class OrganizationRepository
         }
       : baseSelect;
 
-    // Count total with same filters (for page-based pagination)
-    const countResult = await this.db
-      .select({ count: sql<number>`count(distinct ${organizations.id})` })
-      .from(organizations)
-      .leftJoin(
-        organizationLocations,
-        eq(organizations.id, organizationLocations.organizationId),
-      )
-      .where(and(...whereConditions));
-    const total = Number(countResult[0]?.count ?? 0);
-
-    const limit = query.limit + (usePage ? 0 : 1); // when cursor-based, request limit+1 to detect hasNext
-    const offset = usePage ? (query.page! - 1) * query.limit : 0;
-
-    const baseQuery = this.db
+    const results = await this.db
       .select(selectFields)
       .from(organizations)
       .leftJoin(
@@ -298,36 +262,123 @@ export class OrganizationRepository
       )
       .where(and(...whereConditions))
       .orderBy(desc(organizations.createdAt))
-      .groupBy(organizations.id);
+      .groupBy(organizations.id)
+      .limit(limit + 1);
 
-    const results =
-      offset > 0
-        ? await baseQuery.offset(offset).limit(limit)
-        : await baseQuery.limit(limit);
-
-    const hasNextPage = usePage
-      ? query.page! * query.limit < total
-      : results.length > query.limit;
-    const data = usePage
-      ? results
-      : hasNextPage
-        ? results.slice(0, query.limit)
-        : results;
-
+    const hasNextPage = results.length > limit;
+    const data = hasNextPage ? results.slice(0, limit) : results;
     const nextCursor =
-      !usePage && hasNextPage && data.length > 0
+      !query.page && hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
-    const resultToSend = {
+    return {
       data,
       pagination: {
         nextCursor,
         hasNextPage,
+      },
+    };
+  }
+
+  async getOrganizationsByAdmin(query: OrganizationQuery) {
+    const limit = query.limit;
+    const page = Math.max(query.page ?? 1, 1);
+
+    const whereConditions: SQL<unknown>[] = this.buildOrganizationQuery(query);
+
+    const baseSelect = {
+      id: organizations.id,
+      name: organizations.name,
+      type: organizations.type,
+      logoUrl: organizations.logoUrl,
+      description: organizations.description,
+      email: organizations.email,
+      phone: organizations.phone,
+      foundedYear: organizations.foundedYear,
+      verifiedAt: organizations.verifiedAt,
+      createdAt: organizations.createdAt,
+    } as const;
+
+    const selectFields = query.keyword
+      ? {
+          ...baseSelect,
+          similarity:
+            sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword}))`.as(
+              "similarity",
+            ),
+        }
+      : baseSelect;
+
+    const offset = query.page ? (page - 1) * limit : 0;
+
+    const results = await this.db
+      .select(selectFields)
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .leftJoin(
+        organizationMembers,
+        eq(organizations.id, organizationMembers.organizationId),
+      )
+      .where(and(...whereConditions))
+      .orderBy(desc(organizations.createdAt))
+      .groupBy(organizations.id)
+      .offset(offset)
+      .limit(limit + 1);
+
+    const countResult = await this.db
+      .select({ count: sql<number>`count(distinct ${organizations.id})` })
+      .from(organizations)
+      .leftJoin(
+        organizationLocations,
+        eq(organizations.id, organizationLocations.organizationId),
+      )
+      .where(and(...whereConditions));
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const hasNextPage = results.length > limit;
+    const data = hasNextPage ? results.slice(0, limit) : results;
+
+    return {
+      data,
+      pagination: {
+        hasNextPage,
         total,
       },
     };
-    return resultToSend;
+  }
+
+  private buildOrganizationQuery(query: OrganizationQuery) {
+    const whereConditions: SQL<unknown>[] = [isNull(organizations.deletedAt)];
+
+    if (query.keyword) {
+      whereConditions.push(
+        sql`similarity(unaccent(${organizations.name}), unaccent(${query.keyword})) > 0.22`,
+      );
+    }
+
+    if (query.employeeMin !== undefined) {
+      whereConditions.push(gte(organizations.employeesMin, query.employeeMin));
+    }
+
+    if (query.employeeMax !== undefined) {
+      whereConditions.push(lte(organizations.employeesMax, query.employeeMax));
+    }
+
+    if (query.verified) {
+      whereConditions.push(isNotNull(organizations.verifiedAt));
+    }
+
+    if (query.provinceIds?.length) {
+      whereConditions.push(
+        inArray(organizationLocations.provinceId, query.provinceIds),
+      );
+    }
+
+    return whereConditions;
   }
 
   async getMyOrganizations(userId: string, query: GeneralQuery) {
@@ -351,6 +402,7 @@ export class OrganizationRepository
         foundedYear: organizations.foundedYear,
         verifiedAt: organizations.verifiedAt,
         createdAt: organizations.createdAt,
+        role: organizationMembers.role,
       })
       .from(organizations)
       .innerJoin(
@@ -556,18 +608,20 @@ export class OrganizationRepository
       whereConditions.push(lte(organizations.createdAt, new Date(toDate)));
     }
 
+    const dateExpr = sql`DATE(${organizations.createdAt})`;
+
     const result = await this.db
       .select({
-        date: organizations.createdAt,
+        date: dateExpr,
         count: countDistinct(organizations.id).as("count"),
       })
       .from(organizations)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .groupBy(organizations.createdAt)
-      .orderBy(asc(organizations.createdAt));
+      .groupBy(dateExpr)
+      .orderBy(asc(dateExpr));
 
     return result.map((r) => ({
-      date: convertDateToStr(r.date),
+      date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
   }
