@@ -104,8 +104,9 @@ import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.mod
         const password = configService.get<string>("REDIS_PASSWORD")
           ? `:${configService.get<string>("REDIS_PASSWORD")}@`
           : "";
+        const db = configService.get<number>("REDIS_DB");
 
-        const redisUrl = `redis://${password}${host}:${port}`;
+        const redisUrl = `redis://${password}${host}:${port}/${db}`;
         return {
           stores: [createKeyv(redisUrl)],
         };
