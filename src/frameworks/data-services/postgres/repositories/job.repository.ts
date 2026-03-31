@@ -49,6 +49,7 @@ import {
   User,
   UserInteractionEnum,
   ApplyJob,
+  ApplyJobFilters,
 } from "@/core";
 import {
   Job,
@@ -1025,7 +1026,8 @@ export class JobRepository
 
     const result = await this.db
       .select({
-        term: jobs.title,
+        id: jobs.id,
+        title: jobs.title,
         count: countDistinct(applyJobs.id).as("count"),
       })
       .from(jobs)
@@ -1041,7 +1043,8 @@ export class JobRepository
     );
 
     return result.map((item) => ({
-      name: item.term,
+      id: item.id,
+      name: item.title,
       count: Number(item.count),
       percentage:
         totalApplications > 0
@@ -1122,19 +1125,24 @@ export class JobRepository
 
   async getJobCounts(): Promise<JobCounts> {
     // grouped counts by status excluding deleted jobs
-    const grouped = await this.db
-      .select({
-        status: jobs.status,
-        count: countDistinct(jobs.id).as("count"),
-      })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt))
-      .groupBy(jobs.status);
-
-    const totalRes = await this.db
-      .select({ total: countDistinct(jobs.id).as("total") })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt));
+    const [grouped, totalRes] = await Promise.all([
+      this.db
+        .select({
+          status: jobs.status,
+          count: countDistinct(jobs.id).as("count"),
+        })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt))
+        .groupBy(jobs.status),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+    ]);
 
     const total = Number(totalRes[0]?.total ?? 0);
 
@@ -1371,24 +1379,73 @@ export class JobRepository
     return result[0] as ApplyJobResponse | null;
   }
 
-  async getApplyJobs(jobId: string): Promise<ApplyJobResponse[]> {
-    const result = await this.db
+  async getApplyJobs(
+    jobId: string,
+    filters?: ApplyJobFilters,
+  ): Promise<PaginatedResult<ApplyJobResponse>> {
+    const total = await this.getTotalOfJobApplicationsByJobId(jobId);
+    if (filters?.fields?.includes("total")) {
+      return {
+        data: [],
+        pagination: {
+          total,
+        },
+      };
+    }
+
+    const data = await this.db
       .select({
         id: applyJobs.id,
         jobId: applyJobs.jobId,
-        cvId: applyJobs.cvId,
         status: applyJobs.status,
         answers: applyJobs.answers,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
-        userId: cvs.userId,
+        user: {
+          id: cvs.userId,
+          email: users.email,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+        cv: {
+          id: cvs.id,
+          name: cvs.name,
+          fileUrl: cvs.fileUrl,
+        },
       })
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(users, eq(cvs.userId, users.id))
       .where(eq(applyJobs.jobId, jobId))
       .orderBy(desc(applyJobs.createdAt));
 
-    return result as ApplyJobResponse[];
+    // Convert data to ApplyJobResponse[]
+    const applications = data.map((item) => ({
+      id: item.id,
+      jobId: item.jobId,
+      status: item.status,
+      answers: item.answers,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      user: item.user,
+      cv: item.cv,
+    })) as ApplyJobResponse[];
+
+    return {
+      data: applications,
+      pagination: {
+        total,
+      },
+    };
+  }
+
+  async getTotalOfJobApplicationsByJobId(jobId: string): Promise<number> {
+    const result = await this.db
+      .select({ total: countDistinct(applyJobs.id).as("total") })
+      .from(applyJobs)
+      .where(eq(applyJobs.jobId, jobId));
+
+    return Number(result[0]?.total ?? 0);
   }
 
   async saveJob(

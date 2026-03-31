@@ -625,4 +625,22 @@ export class OrganizationRepository
       count: Number(r.count),
     }));
   }
+
+  async countOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<number> {
+    const [row] = await this.db
+      .select({
+        count: countDistinct(organizations.id).as("count"),
+      })
+      .from(organizations)
+      .where(
+        and(
+          isNull(organizations.deletedAt),
+          inArray(organizations.type, types),
+        ),
+      );
+
+    return Number(row?.count ?? 0);
+  }
 }

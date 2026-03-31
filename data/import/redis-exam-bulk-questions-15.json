@@ -1,0 +1,182 @@
+[
+  {
+    "skill": "Redis",
+    "questionText": "Redis chủ yếu được dùng như gì?",
+    "options": [
+      "OLAP warehouse",
+      "In-memory data store / cache / message broker use cases",
+      "File system",
+      "Relational engine"
+    ],
+    "correctAnswer": "In-memory data store / cache / message broker use cases",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Kiểu dữ liệu String trong Redis phù hợp cho?",
+    "options": [
+      "Chỉ JSON lồng nhau sâu",
+      "Giá trị đơn (text, counter serialized)",
+      "Chỉ graph",
+      "Chỉ stream"
+    ],
+    "correctAnswer": "Giá trị đơn (text, counter serialized)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Hash trong Redis lưu gì?",
+    "options": [
+      "Cây B-tree",
+      "Field-value map trong một key",
+      "Chỉ sorted set",
+      "Binary log"
+    ],
+    "correctAnswer": "Field-value map trong một key",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "List trong Redis đặc trưng bởi?",
+    "options": [
+      "Chỉ unique members",
+      "Danh sách có thứ tự, push/pop hai đầu",
+      "Không thứ tự không trùng",
+      "Chỉ TTL global"
+    ],
+    "correctAnswer": "Danh sách có thứ tự, push/pop hai đầu",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Set trong Redis khác List như thế nào?",
+    "options": [
+      "Set không thứ tự và member unique",
+      "Set luôn sorted",
+      "Set chỉ lưu số",
+      "Không khác"
+    ],
+    "correctAnswer": "Set không thứ tự và member unique",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Sorted Set (ZSET) kết hợp?",
+    "options": [
+      "Chỉ set không điểm",
+      "Member unique + score để sort/rank",
+      "Chỉ queue FIFO",
+      "Chỉ bitmap"
+    ],
+    "correctAnswer": "Member unique + score để sort/rank",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "TTL (EXPIRE) trong Redis dùng để?",
+    "options": [
+      "Tăng RAM vô hạn",
+      "Tự xóa key sau thời gian — hữu ích cache/session",
+      "Backup RDB",
+      "Tạo cluster"
+    ],
+    "correctAnswer": "Tự xóa key sau thời gian — hữu ích cache/session",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "PUBLISH/SUBSCRIBE trong Redis là pattern gì?",
+    "options": [
+      "CRUD SQL",
+      "Pub/Sub messaging đơn giản (không đảm bảo persistence như queue)",
+      "Chỉ transaction ACID",
+      "Replication handshake"
+    ],
+    "correctAnswer": "Pub/Sub messaging đơn giản (không đảm bảo persistence như queue)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Redis Streams khác List chủ yếu ở?",
+    "options": [
+      "Streams không lưu message id",
+      "Streams Append-only log với ID và consumer group",
+      "Streams chỉ cho string",
+      "Streams không consumer"
+    ],
+    "correctAnswer": "Streams Append-only log với ID và consumer group",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "INCR trên key string trong Redis dùng để?",
+    "options": [
+      "Xóa key",
+      "Tăng số nguyên atomic (counter)",
+      "Chỉ đọc không ghi",
+      "Tạo index secondary"
+    ],
+    "correctAnswer": "Tăng số nguyên atomic (counter)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Persistence RDB snapshot là?",
+    "options": [
+      "Ghi từng lệnh AOF",
+      "Lưu điểm snapshot dataset tại thời điểm theo cấu hình",
+      "Chỉ RAM không disk",
+      "Replication buffer"
+    ],
+    "correctAnswer": "Lưu điểm snapshot dataset tại thời điểm theo cấu hình",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "AOF (Append Only File) khác RDB chủ yếu?",
+    "options": [
+      "AOF ghi log lệnh thay đổi; RDB là snapshot",
+      "AOF không bao giờ recover",
+      "RDB chỉ stream",
+      "Giống hệt"
+    ],
+    "correctAnswer": "AOF ghi log lệnh thay đổi; RDB là snapshot",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "Redis Cluster sharding dựa trên?",
+    "options": [
+      "Chỉ tên key alphabet",
+      "Hash slot (16384 slots) gán cho node",
+      "Ngẫu nhiên mỗi request",
+      "Chỉ master mặc định"
+    ],
+    "correctAnswer": "Hash slot (16384 slots) gán cho node",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "EVAL / Lua script trong Redis giúp?",
+    "options": [
+      "Chỉ cấu hình",
+      "Chạy logic server-side atomic trên nhiều lệnh",
+      "Import CSV",
+      "Tạo user ACL"
+    ],
+    "correctAnswer": "Chạy logic server-side atomic trên nhiều lệnh",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Redis",
+    "questionText": "HyperLogLog trong Redis dùng để?",
+    "options": [
+      "Đếm chính xác tuyệt đối mọi set",
+      "Ước lượng cardinality với bộ nhớ nhỏ",
+      "Full-text search",
+      "Geo index"
+    ],
+    "correctAnswer": "Ước lượng cardinality với bộ nhớ nhỏ",
+    "difficultyLevels": ["hard"]
+  }
+]

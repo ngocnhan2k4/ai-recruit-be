@@ -7,7 +7,7 @@ import { ConfigService } from "@nestjs/config";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { GetPoliciesCasbinFilter } from "@/interfaces/dtos/casbin";
 import { PaginatedResult } from "@/common/types";
-import { eq, and, count, SQL, asc, desc, gt } from "drizzle-orm";
+import { eq, and, count, SQL, asc, desc, gt, inArray } from "drizzle-orm";
 import { casbinRule } from "@/frameworks/data-services/postgres/models/casbin-rule.model";
 import { ICasbinRepository } from "@/core";
 
@@ -354,6 +354,12 @@ export class CasbinService {
     // Build WHERE conditions based on filters
     const whereConditions: SQL[] = [];
 
+    if (query.policyRulesOnly) {
+      whereConditions.push(
+        inArray(casbinRule.ptype, [PtypeEnum.BASIC, PtypeEnum.DOMAIN]),
+      );
+    }
+
     // Filter by ptype
     if (query.ptype) {
       whereConditions.push(eq(casbinRule.ptype, query.ptype));
@@ -470,6 +476,22 @@ export class CasbinService {
       nextCursor = lastItem.id.toString();
     }
 
+    let summary: Record<string, number> | undefined;
+    if (query.policyRulesOnly) {
+      const [pRow] = await this.db
+        .select({ cnt: count() })
+        .from(casbinRule)
+        .where(eq(casbinRule.ptype, PtypeEnum.BASIC));
+      const [p2Row] = await this.db
+        .select({ cnt: count() })
+        .from(casbinRule)
+        .where(eq(casbinRule.ptype, PtypeEnum.DOMAIN));
+      summary = {
+        p: Number(pRow?.cnt ?? 0),
+        p2: Number(p2Row?.cnt ?? 0),
+      };
+    }
+
     return {
       data: policyArrays,
       pagination: {
@@ -477,6 +499,7 @@ export class CasbinService {
         hasNextPage,
         total,
       },
+      summary,
     };
   }
 }

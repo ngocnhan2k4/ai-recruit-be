@@ -1,14 +1,16 @@
 import {
+  CrawledSkillResponse,
   GetListSkillResponse,
   ISkillRepository,
   Skill,
   SkillFilter,
+  SkillReviewStatus,
 } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { skills, questions } from "../models";
-import { PaginatedResult } from "@/common/types";
+import { skills, questions, jobSkills } from "../models";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
 import {
   count,
   ilike,
@@ -21,12 +23,19 @@ import {
   eq,
   inArray,
 } from "drizzle-orm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { CACHE_KEYS } from "@/common/constants/cache";
+
 @Injectable()
 export class SkillRepository
   extends GenericRepository<Skill, typeof skills>
   implements ISkillRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, skills);
   }
 
@@ -119,7 +128,10 @@ export class SkillRepository
     const keyword = query.keyword ?? "";
     const skillIds = query.skillIds || [];
 
-    const whereConditions: SQL[] = [isNotNull(skills.description)];
+    const whereConditions: SQL[] = [
+      isNotNull(skills.description),
+      eq(skills.isApproved, true),
+    ];
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
@@ -160,9 +172,77 @@ export class SkillRepository
         name: skills.name,
       })
       .from(skills)
-      .where(eq(skills.id, id))
+      .where(and(eq(skills.id, id), eq(skills.isApproved, true)))
       .limit(1);
 
     return skill[0] ?? null;
+  }
+
+  async getCrawledSkills(
+    query: GeneralQuery,
+  ): Promise<PaginatedResult<CrawledSkillResponse>> {
+    const limit = query.limit ?? 10;
+    const page = query.page ?? 1;
+    const offset = (page - 1) * limit;
+
+    const whereConditions: SQL[] = [eq(skills.isApproved, false)];
+
+    const whereClause = and(...whereConditions);
+
+    const [rows, totalRow] = await Promise.all([
+      this.db
+        .select({
+          id: skills.id,
+          name: skills.name,
+          createdAt: skills.createdAt,
+        })
+        .from(skills)
+        .where(whereClause)
+        .orderBy(desc(skills.createdAt))
+        .limit(limit)
+        .offset(offset),
+
+      this.db
+        .select({ count: count(skills.id) })
+        .from(skills)
+        .where(whereClause),
+    ]);
+
+    const data: CrawledSkillResponse[] = rows.map((r) => ({
+      ...r,
+      synonym: null,
+    }));
+    const total = Number(totalRow[0].count ?? 0);
+    const hasNext = offset + data.length < total;
+
+    return {
+      data,
+      pagination: {
+        total,
+        hasNextPage: hasNext,
+      },
+    };
+  }
+
+  async bulkReviewSkills(
+    ids: string[],
+    status: SkillReviewStatus,
+  ): Promise<void> {
+    if (ids.length === 0) return;
+
+    if (status === SkillReviewStatus.APPROVED) {
+      await this.db
+        .update(skills)
+        .set({ isApproved: true })
+        .where(inArray(skills.id, ids));
+    } else {
+      await this.db.transaction(async (tx) => {
+        await tx.delete(jobSkills).where(inArray(jobSkills.skillId, ids));
+        await tx.delete(skills).where(inArray(skills.id, ids));
+      });
+    }
+
+    // Invalidate the cache whenever skills are reviewed (approved or deleted)
+    await this.cacheManager.del(CACHE_KEYS.skill.getAll());
   }
 }

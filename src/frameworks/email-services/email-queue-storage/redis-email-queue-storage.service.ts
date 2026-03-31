@@ -5,9 +5,7 @@ import { ICacheService } from "@/core/abstracts/cache.abstract";
 
 // [TODO] Move this to use message queue
 @Injectable()
-export class RedisEmailQueueStorageService
-  implements IEmailQueueStorageService
-{
+export class RedisEmailQueueStorageService implements IEmailQueueStorageService {
   private readonly logger = new Logger(RedisEmailQueueStorageService.name);
   private readonly QUEUE_KEY = "email:queue";
 
