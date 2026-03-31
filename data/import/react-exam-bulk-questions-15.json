@@ -1,0 +1,132 @@
+[
+  {
+    "skill": "React",
+    "questionText": "JSX là gì trong React?",
+    "options": ["Database query", "Cú pháp mở rộng trông giống XML trong JS", "CSS framework", "Router protocol"],
+    "correctAnswer": "Cú pháp mở rộng trông giống XML trong JS",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Hook nào quản lý state trong function component?",
+    "options": ["useReducer only", "useState", "useFetch", "useDom"],
+    "correctAnswer": "useState",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Props trong React là?",
+    "options": ["State nội bộ ẩn", "Dữ liệu truyền từ cha xuống con (read-only về mặt convention)", "Chỉ dùng class", "Event loop"],
+    "correctAnswer": "Dữ liệu truyền từ cha xuống con (read-only về mặt convention)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "React",
+    "questionText": "key trong danh sách phần tử React dùng để?",
+    "options": ["Style CSS", "Giúp React xác định identity phần tử khi diff", "SEO", "Accessibility bắt buộc"],
+    "correctAnswer": "Giúp React xác định identity phần tử khi diff",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Virtual DOM giúp điều gì?",
+    "options": ["Thay thế HTTP", "Tính toán diff update thực DOM hiệu quả hơn", "Lưu cookie", "Parse SQL"],
+    "correctAnswer": "Tính toán diff update thực DOM hiệu quả hơn",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "React",
+    "questionText": "useEffect dùng khi nào?",
+    "options": ["Chỉ render", "Side effect sau render: fetch, subscription, đồng bộ DOM", "Thay thế useState", "Chỉ event handler"],
+    "correctAnswer": "Side effect sau render: fetch, subscription, đồng bộ DOM",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Dependency array rỗng [] trong useEffect nghĩa là?",
+    "options": ["Chạy mỗi render", "Chạy một lần sau mount (cleanup khi unmount)", "Không chạy", "Chạy trước mount"],
+    "correctAnswer": "Chạy một lần sau mount (cleanup khi unmount)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "React",
+    "questionText": "useMemo khác useCallback chủ yếu ở điểm nào?",
+    "options": [
+      "Giống hệt",
+      "useMemo memoize giá trị; useCallback memoize hàm",
+      "useMemo chỉ cho class",
+      "useCallback chỉ cho context"
+    ],
+    "correctAnswer": "useMemo memoize giá trị; useCallback memoize hàm",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Context API giải quyết vấn đề gì?",
+    "options": ["Thay Redux mọi case", "Tránh prop drilling cho dữ liệu dùng chuyên sâu", "Tối ưu bundle", "SSR cache"],
+    "correctAnswer": "Tránh prop drilling cho dữ liệu dùng chuyên sâu",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Controlled input là?",
+    "options": [
+      "Input không có onChange",
+      "Giá trị input do state React điều khiển qua value + onChange",
+      "Chỉ file upload",
+      "Chỉ radio"
+    ],
+    "correctAnswer": "Giá trị input do state React điều khiển qua value + onChange",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "React",
+    "questionText": "React.StrictMode trong dev thường gây ra điều gì?",
+    "options": ["Tắt warning", "Gọi một số hàm/hook hai lần để phát hiện side effect không an toàn", "Tăng production perf", "Chặn concurrent"],
+    "correctAnswer": "Gọi một số hàm/hook hai lần để phát hiện side effect không an toàn",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "React",
+    "questionText": "useReducer phù hợp khi?",
+    "options": [
+      "Không bao giờ",
+      "State phức tạp nhiều transition liên quan hoặc logic như state machine",
+      "Chỉ fetch",
+      "Chỉ form đơn"
+    ],
+    "correctAnswer": "State phức tạp nhiều transition liên quan hoặc logic như state machine",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Fiber architecture trong React liên quan?",
+    "options": ["Filesystem", "Incremental reconciliation / interruptible rendering", "GraphQL", "WebSocket"],
+    "correctAnswer": "Incremental reconciliation / interruptible rendering",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "React",
+    "questionText": "Error Boundary trong React (class) bắt lỗi ở đâu?",
+    "options": [
+      "Event handler async",
+      "Lỗi trong lifecycle con tree trong quá trình render",
+      "Lỗi fetch network",
+      "Mọi promise rejection"
+    ],
+    "correctAnswer": "Lỗi trong lifecycle con tree trong quá trình render",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "React",
+    "questionText": "startTransition (Concurrent) dùng để?",
+    "options": [
+      "Chặn mọi update",
+      "Đánh dấu update không khẩn để ưu tiên UI phản hồi",
+      "Chỉ server",
+      "Thay useEffect"
+    ],
+    "correctAnswer": "Đánh dấu update không khẩn để ưu tiên UI phản hồi",
+    "difficultyLevels": ["advanced"]
+  }
+]

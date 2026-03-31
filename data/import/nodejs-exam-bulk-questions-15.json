@@ -1,0 +1,157 @@
+[
+  {
+    "skill": "Node.js",
+    "questionText": "Node.js chạy trên engine JavaScript nào?",
+    "options": ["SpiderMonkey", "V8", "Chakra", "JSC"],
+    "correctAnswer": "V8",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "require() thuộc hệ module nào?",
+    "options": ["ESM only", "CommonJS", "AMD only", "SystemJS"],
+    "correctAnswer": "CommonJS",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "npm là gì?",
+    "options": ["Runtime kernel", "Trình quản lý package mặc định cho Node", "Database", "HTTP client"],
+    "correctAnswer": "Trình quản lý package mặc định cho Node",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "package.json dùng để?",
+    "options": [
+      "Chỉ gitignore",
+      "Khai báo metadata, script, dependencies của project",
+      "Chỉ lock version OS",
+      "Cấu hình Docker only"
+    ],
+    "correctAnswer": "Khai báo metadata, script, dependencies của project",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "process.env trong Node dùng để?",
+    "options": ["Đọc biến môi trường", "Xóa file", "Spawn GPU", "Parse HTML"],
+    "correctAnswer": "Đọc biến môi trường",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Event-driven non-blocking I/O trong Node nghĩa là?",
+    "options": [
+      "Mọi I/O đồng bộ chặn thread",
+      "I/O async với libuv + event loop; callback/promise không chặn main thread",
+      "Không có I/O",
+      "Chỉ đọc file"
+    ],
+    "correctAnswer": "I/O async với libuv + event loop; callback/promise không chặn main thread",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "fs.promises (hoặc fs/promises) cung cấp?",
+    "options": ["Sync API only", "Promise-based API cho thao tác file", "SQL driver", "GraphQL"],
+    "correctAnswer": "Promise-based API cho thao tác file",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Streams trong Node phù hợp?",
+    "options": [
+      "Chỉ string nhỏ",
+      "Xử lý dữ liệu lớn theo chunk (tiết kiệm bộ nhớ)",
+      "Chỉ image resize",
+      "Không dùng được"
+    ],
+    "correctAnswer": "Xử lý dữ liệu lớn theo chunk (tiết kiệm bộ nhớ)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "cluster module (legacy pattern) dùng để?",
+    "options": [
+      "Chỉ log",
+      "Tận dụng đa CPU với nhiều worker process",
+      "Encrypt TLS",
+      "Thay cluster Kubernetes"
+    ],
+    "correctAnswer": "Tận dụng đa CPU với nhiều worker process",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "middleware trong Express là?",
+    "options": [
+      "Chỉ router",
+      "Hàm (req,res,next) xử lý tuần tự request",
+      "Chỉ static file",
+      "WebSocket only"
+    ],
+    "correctAnswer": "Hàm (req,res,next) xử lý tuần tự request",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Difference between setImmediate và process.nextTick?",
+    "options": [
+      "Giống nhau",
+      "nextTick chạy trước phase timers/immediate; setImmediate chạy theo check phase",
+      "setImmediate luôn trước",
+      "Không tồn tại"
+    ],
+    "correctAnswer": "nextTick chạy trước phase timers/immediate; setImmediate chạy theo check phase",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Worker Threads khác child_process chủ yếu?",
+    "options": [
+      "Worker dùng thread trong process; child_process fork process mới",
+      "Giống hệt",
+      "Worker chỉ cho CPU Python",
+      "child_process là async only"
+    ],
+    "correctAnswer": "Worker dùng thread trong process; child_process fork process mới",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Backpressure trong stream là gì?",
+    "options": [
+      "Tăng tốc vô hạn",
+      "Cơ chế làm chậm producer khi consumer không kịp",
+      "Nén gzip",
+      "TLS handshake"
+    ],
+    "correctAnswer": "Cơ chế làm chậm producer khi consumer không kịp",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "ESM import.meta.url trong Node dùng để?",
+    "options": [
+      "Đường dẫn file module hiện tại (file://)",
+      "Chỉ browser",
+      "ENV host",
+      "Port server"
+    ],
+    "correctAnswer": "Đường dẫn file module hiện tại (file://)",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Node.js",
+    "questionText": "Singleton pattern với module cache trong Node nghĩa là?",
+    "options": [
+      "Mỗi require tạo instance mới luôn",
+      "require cùng path trả cùng object đã evaluate (cache)",
+      "Chỉ ESM",
+      "Chặn circular"
+    ],
+    "correctAnswer": "require cùng path trả cùng object đã evaluate (cache)",
+    "difficultyLevels": ["advanced"]
+  }
+]

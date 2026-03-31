@@ -1,0 +1,147 @@
+[
+  {
+    "skill": "Go",
+    "questionText": "Go là ngôn ngữ compiled do ai phát triển (dự án nổi bật)?",
+    "options": ["Mozilla", "Google", "Oracle", "Microsoft"],
+    "correctAnswer": "Google",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "Goroutine là?",
+    "options": ["OS thread trần only", "Hàm lightweight concurrency do runtime Go lập lịch", "Process fork", "Container"],
+    "correctAnswer": "Hàm lightweight concurrency do runtime Go lập lịch",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "channel trong Go dùng để?",
+    "options": ["Chỉ log", "Giao tiếp an toàn giữa goroutine (CSP style)", "Chỉ file", "Chỉ HTTP"],
+    "correctAnswer": "Giao tiếp an toàn giữa goroutine (CSP style)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "`go func()` làm gì?",
+    "options": ["Dừng chương trình", "Chạy hàm trong goroutine mới", "Chờ sync", "Compile tag"],
+    "correctAnswer": "Chạy hàm trong goroutine mới",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "zero value của int trong Go?",
+    "options": ["nil", "0", "undefined", "1"],
+    "correctAnswer": "0",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "defer trong hàm thực thi khi nào?",
+    "options": [
+      "Ngay lập tức",
+      "Khi hàm return (LIFO stack defer)",
+      "Không chạy",
+      "Chỉ panic"
+    ],
+    "correctAnswer": "Khi hàm return (LIFO stack defer)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "interface{} hoặc `any` trong Go là?",
+    "options": [
+      "Kiểu void",
+      "Top type — nhận mọi giá trị động (type assertion runtime)",
+      "Chỉ string",
+      "Chỉ error"
+    ],
+    "correctAnswer": "Top type — nhận mọi giá trị động (type assertion runtime)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "slice khác array trong Go?",
+    "options": [
+      "Giống nhau",
+      "slice là descriptor (pointer,length,cap); array có độ dài cố định trong type",
+      "array động",
+      "slice không append được"
+    ],
+    "correctAnswer": "slice là descriptor (pointer,length,cap); array có độ dài cố định trong type",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "select với nhiều channel?",
+    "options": [
+      "Chỉ một case",
+      "Chọn case sẵn sàng (hoặc default) — multiplex I/O",
+      "Sort channel",
+      "Mutex"
+    ],
+    "correctAnswer": "Chọn case sẵn sàng (hoặc default) — multiplex I/O",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "go mod trong Go 1.16+ dùng để?",
+    "options": ["Chỉ test", "Quản lý module/phiên bản dependency", "Chỉ docker", "Chỉ fmt"],
+    "correctAnswer": "Quản lý module/phiên bản dependency",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "Mutex vs RWMutex trong sync?",
+    "options": [
+      "Giống nhau",
+      "RWMutex cho nhiều reader hoặc một writer",
+      "Mutex cho read parallel",
+      "Không an toàn thread"
+    ],
+    "correctAnswer": "RWMutex cho nhiều reader hoặc một writer",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "context.Context mục đích phổ biến?",
+    "options": [
+      "Style CSS",
+      "Hủy/deadline/ giá trị request-scoped lan truyền API",
+      "Lưu global singleton",
+      "ORM only"
+    ],
+    "correctAnswer": "Hủy/deadline/ giá trị request-scoped lan truyền API",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "G-M-P scheduler (khái quát) liên quan?",
+    "options": ["GC chỉ", "Lập lịch goroutine lên thread OS", "Protobuf", "Linking ELF"],
+    "correctAnswer": "Lập lịch goroutine lên thread OS",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "Empty struct struct{} dùng khi?",
+    "options": [
+      "Tốn bộ nhớ lớn",
+      "Tín hiệu(channel) không payload hoặc marker type size 0",
+      "JSON null",
+      "Panic"
+    ],
+    "correctAnswer": "Tín hiệu(channel) không payload hoặc marker type size 0",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Go",
+    "questionText": "escape analysis trong compiler Go ảnh hưởng?",
+    "options": [
+      "Syntax highlight",
+      "Quyết định heap vs stack allocation",
+      "Chỉ vet",
+      "Thay gofmt"
+    ],
+    "correctAnswer": "Quyết định heap vs stack allocation",
+    "difficultyLevels": ["advanced"]
+  }
+]
