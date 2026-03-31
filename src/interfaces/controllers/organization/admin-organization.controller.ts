@@ -19,6 +19,7 @@ import {
   OrganizationWithDetailsDto,
   OrganizationTrendsResponseDto,
   OrganizationTrendsQueryDto,
+  OrganizationCountsResponseDto,
 } from "@/interfaces/dtos";
 import { ApiResponseDto } from "@/interfaces/dtos/common/api-response.dto";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -49,6 +50,18 @@ export class OrganizationAdminController {
     @Query() query: OrganizationTrendsQueryDto,
   ): Promise<ApiResponse<OrganizationTrendsResponseDto>> {
     return this.organizationUseCase.getOrganizationTrends(query);
+  }
+
+  @Get("count")
+  @ApiOperation({
+    summary: "Get organization counts (admin)",
+    description: "Get total number of companies and schools/universities.",
+  })
+  @ApiResponseDto(OrganizationCountsResponseDto)
+  async getOrganizationCounts(): Promise<
+    ApiResponse<OrganizationCountsResponseDto>
+  > {
+    return this.organizationUseCase.getOrganizationCountsByAdmin();
   }
 
   @Get(":orgId")
