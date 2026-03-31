@@ -121,6 +121,11 @@ export enum SkillLevelEnum {
   ADVANCED = "advanced",
 }
 
+export enum SkillResolutionStatusEnum {
+  MATCHED = "matched",
+  PENDING = "pending",
+}
+
 export enum ResourceTypeEnum {
   VIDEO = "video",
   COURSE = "course",

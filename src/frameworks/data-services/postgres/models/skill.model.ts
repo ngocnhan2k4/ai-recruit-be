@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  jsonb,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { timestamps } from "./helpers";
 
 export const skills = pgTable("skills", {
@@ -21,6 +28,8 @@ export const skills = pgTable("skills", {
       criteria: string[];
     };
   }>(),
+
+  isApproved: boolean("is_approved").notNull().default(false),
 
   ...timestamps,
 });

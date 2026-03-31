@@ -1,6 +1,7 @@
 export const SHORT_TTL = 10 * 60 * 1000; // 10 minutes
 export const LONG_TTL = 60 * 60 * 1000; // 60 minutes
 export const LLONG_TTL = 3 * 24 * 60 * 60 * 1000; // 3 days
+export const VERY_LONG_TTL = 10 * LLONG_TTL; // 30 days
 
 export const CACHE_KEYS = {
   organization: {
@@ -11,5 +12,11 @@ export const CACHE_KEYS = {
   job: {
     get: (jobId: string) => `job:${jobId}:get`,
     getWithDetail: (jobId: string) => `job:${jobId}:getWithDetail`,
+  },
+  skillSynonym: {
+    getAll: () => `skillSynonym:getAll`,
+  },
+  skill: {
+    getAll: () => `skill:getAll`,
   },
 };
