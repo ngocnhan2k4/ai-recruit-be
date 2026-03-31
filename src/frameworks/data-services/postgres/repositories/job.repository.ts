@@ -1026,7 +1026,8 @@ export class JobRepository
 
     const result = await this.db
       .select({
-        term: jobs.title,
+        id: jobs.id,
+        title: jobs.title,
         count: countDistinct(applyJobs.id).as("count"),
       })
       .from(jobs)
@@ -1042,7 +1043,8 @@ export class JobRepository
     );
 
     return result.map((item) => ({
-      name: item.term,
+      id: item.id,
+      name: item.title,
       count: Number(item.count),
       percentage:
         totalApplications > 0
