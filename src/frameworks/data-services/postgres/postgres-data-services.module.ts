@@ -77,6 +77,8 @@ import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-
 import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
 import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
 import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
+import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
+import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 
 @Global()
 @Module({
@@ -188,6 +190,10 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
       useClass: SkillRepository,
     },
     {
+      provide: ISkillsSynonymsRepository,
+      useClass: SkillsSynonymsRepository,
+    },
+    {
       provide: IUserOnboardingRepository,
       useClass: UserOnboardingRepository,
     },
@@ -289,6 +295,7 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
     IJobRepository,
     IProvinceRepository,
     ISkillRepository,
+    ISkillsSynonymsRepository,
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,

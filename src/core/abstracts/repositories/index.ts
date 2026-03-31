@@ -31,3 +31,4 @@ export * from "./feature-repository.abstract";
 export * from "./user-feature-usage-repository.abstract";
 export * from "./user-subscription-repository.abstract";
 export * from "./subscription-feature-repository.abstract";
+export * from "./skills-synonyms-repository.abstract";

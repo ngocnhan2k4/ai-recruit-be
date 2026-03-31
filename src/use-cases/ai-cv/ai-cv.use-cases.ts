@@ -120,8 +120,6 @@ export class AiCvUseCases {
       updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
     };
 
-    this.logger.log(`Created AI CV ${newAiCv.id}: ${newAiCv.title}`);
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
