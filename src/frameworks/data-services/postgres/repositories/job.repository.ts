@@ -1033,7 +1033,7 @@ export class JobRepository
       .from(jobs)
       .leftJoin(applyJobs, eq(jobs.id, applyJobs.jobId))
       .where(and(...conditions, isNotNull(applyJobs.id)))
-      .groupBy(jobs.title)
+      .groupBy(jobs.title, jobs.id)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
