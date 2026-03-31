@@ -155,3 +155,15 @@ export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
   "PRO",
   "ENTERPRISE",
 ]);
+
+export const TaskStatusEnum = pgEnum("task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "failed",
+]);
+
+export const TaskTypeEnum = pgEnum("task_type", [
+  "learning_path_generation",
+  "cv_generation",
+]);
