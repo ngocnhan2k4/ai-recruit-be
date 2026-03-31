@@ -1,0 +1,117 @@
+[
+  {
+    "skill": "JavaScript",
+    "questionText": "Kết quả của typeof undefined trong JavaScript?",
+    "options": ["undefined", "object", "null", "string"],
+    "correctAnswer": "undefined",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Từ khóo nào khai báo biến block-scoped có thể gán lại?",
+    "options": ["var", "let", "const", "function"],
+    "correctAnswer": "let",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "typeof null trả về gì?",
+    "options": ["null", "object", "undefined", "number"],
+    "correctAnswer": "object",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Phương thức nào thêm phần tử vào cuối mảng?",
+    "options": ["push", "pop", "shift", "unshift"],
+    "correctAnswer": "push",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "=== khác == chủ yếu ở điểm nào?",
+    "options": ["Không khác", "=== so sánh cả kiểu và giá trị", "== nhanh hơn", "=== chỉ dùng cho số"],
+    "correctAnswer": "=== so sánh cả kiểu và giá trị",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Promise.prototype.then trả về gì?",
+    "options": ["undefined luôn", "Một Promise mới (chuỗi then)", "Chỉ callback", "Một số"],
+    "correctAnswer": "Một Promise mới (chuỗi then)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Closure trong JavaScript là gì?",
+    "options": ["Vòng lặp for", "Hàm giữ tham chiếu tới biến môi trường bên ngoài", "Từ khóa class", "Kiểu Promise"],
+    "correctAnswer": "Hàm giữ tham chiếu tới biến môi trường bên ngoài",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Event loop: microtask thường xử lý loại callback nào trước task thông thường?",
+    "options": ["setTimeout", "Promise.then", "requestAnimationFrame", "addEventListener đồng bộ"],
+    "correctAnswer": "Promise.then",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "slice() và splice() trên mảng khác nhau thế nào?",
+    "options": ["Giống hệt", "slice không đổi mảng gốc; splice thay đổi mảng gốc", "splice không đổi mảng gốc", "slice chỉ dùng cho string"],
+    "correctAnswer": "slice không đổi mảng gốc; splice thay đổi mảng gốc",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Object.create(null) tạo ra đối tượng như thế nào?",
+    "options": ["Có prototype là Object.prototype", "Không có prototype (__proto__ null)", "Luôn ném lỗi", "Bằng null"],
+    "correctAnswer": "Không có prototype (__proto__ null)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "async function trả về kiểu gì khi gọi?",
+    "options": ["Luôn undefined", "Promise", "Generator", "Callback"],
+    "correctAnswer": "Promise",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "WeakMap khác Map chủ yếu ở điểm nào?",
+    "options": ["WeakMap chỉ nhận object làm key và key có thể bị GC", "WeakMap lưu primitive key", "WeakMap có size đảm bảo", "Không khác"],
+    "correctAnswer": "WeakMap chỉ nhận object làm key và key có thể bị GC",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Symbol trong ES6 dùng để làm gì thường gặp?",
+    "options": ["Chỉ lưu chuỗi", "Tạo khóa duy nhất, tránh xung đột thuộc tính", "Thay thế Number", "Parse JSON"],
+    "correctAnswer": "Tạo khóa duy nhất, tránh xung đột thuộc tính",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Khác biệt debounce và throttle khi xử lý sự kiện?",
+    "options": [
+      "Giống nhau",
+      "Debounce gộp nhiều lần gọi thành một sau khi im lặng; throttle giới hạn tần suất",
+      "Throttle chỉ cho click",
+      "Debounce chỉ dùng cho HTTP"
+    ],
+    "correctAnswer": "Debounce gộp nhiều lần gọi thành một sau khi im lặng; throttle giới hạn tần suất",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "JavaScript",
+    "questionText": "Top-level await trong module ES có nghĩa là?",
+    "options": [
+      "Chỉ worker",
+      "Module chờ promise resolve trước khi module phụ thuộc chạy tiếp",
+      "Chặn parse HTML toàn site",
+      "Cấm trong browser"
+    ],
+    "correctAnswer": "Module chờ promise resolve trước khi module phụ thuộc chạy tiếp",
+    "difficultyLevels": ["advanced"]
+  }
+]
