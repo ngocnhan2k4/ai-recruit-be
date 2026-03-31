@@ -1123,19 +1123,24 @@ export class JobRepository
 
   async getJobCounts(): Promise<JobCounts> {
     // grouped counts by status excluding deleted jobs
-    const grouped = await this.db
-      .select({
-        status: jobs.status,
-        count: countDistinct(jobs.id).as("count"),
-      })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt))
-      .groupBy(jobs.status);
-
-    const totalRes = await this.db
-      .select({ total: countDistinct(jobs.id).as("total") })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt));
+    const [grouped, totalRes] = await Promise.all([
+      this.db
+        .select({
+          status: jobs.status,
+          count: countDistinct(jobs.id).as("count"),
+        })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt))
+        .groupBy(jobs.status),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+    ]);
 
     const total = Number(totalRes[0]?.total ?? 0);
 

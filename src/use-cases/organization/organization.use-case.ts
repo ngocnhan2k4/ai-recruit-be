@@ -33,6 +33,7 @@ import {
   PaginatedResultDto,
   OrganizationTrendsResponseDto,
   OrganizationTrendsQueryDto,
+  OrganizationCountsResponseDto,
 } from "@/interfaces/dtos";
 import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
 import {
@@ -872,6 +873,29 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: result,
+    };
+  }
+
+  async getOrganizationCountsByAdmin(): Promise<
+    ApiResponse<OrganizationCountsResponseDto>
+  > {
+    const [companies, schools] = await Promise.all([
+      this.organizationRepository.countOrganizationsByTypes([
+        OrganizationTypeEnum.COMPANY,
+      ]),
+      this.organizationRepository.countOrganizationsByTypes([
+        OrganizationTypeEnum.SCHOOL,
+        OrganizationTypeEnum.UNIVERSITY,
+      ]),
+    ]);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        companies,
+        schools,
+      },
     };
   }
 
