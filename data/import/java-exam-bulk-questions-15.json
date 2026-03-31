@@ -1,0 +1,167 @@
+[
+  {
+    "skill": "Java",
+    "questionText": "Java chạy trên nền gì (khái niệm cốt lõi)?",
+    "options": ["Trực tiếp CPU machine code only", "JVM bytecode + JVM", "Chỉ browser", "Interpreter PHP"],
+    "correctAnswer": "JVM bytecode + JVM",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "JDK khác JRE chủ yếu?",
+    "options": [
+      "Giống nhau",
+      "JDK gồm công cụ dev (compiler...); JRE runtime để chạy",
+      "JRE lớn hơn luôn",
+      "Chỉ mobile"
+    ],
+    "correctAnswer": "JDK gồm công cụ dev (compiler...); JRE runtime để chạy",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "public static void main(String[] args) ý nghĩa?",
+    "options": [
+      "Destructor",
+      "Điểm vào chương trình Java",
+      "Constructor class",
+      "Annotation"
+    ],
+    "correctAnswer": "Điểm vào chương trình Java",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "int vs Integer trong Java?",
+    "options": [
+      "Giống hệt",
+      "int primitive; Integer wrapper object (kiểu tham chiếu)",
+      "Integer primitive",
+      "Chỉ array"
+    ],
+    "correctAnswer": "int primitive; Integer wrapper object (kiểu tham chiếu)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "Interface trong Java (Java 8+) có thể có?",
+    "options": ["Chỉ abstract methods", "default methods và static methods", "Chỉ fields mutable", "Không kế thừa"],
+    "correctAnswer": "default methods và static methods",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "equals() và hashCode() contract?",
+    "options": [
+      "Không liên quan",
+      "Nếu equals true → hashCode phải same; override equals thường override hashCode",
+      "hashCode quyết định equals",
+      "Chỉ String"
+    ],
+    "correctAnswer": "Nếu equals true → hashCode phải same; override equals thường override hashCode",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "try-with-resources dùng cho?",
+    "options": [
+      "Chỉ thread",
+      "Tự đóng Closeable/AutoCloseable",
+      "Regex only",
+      "Reflection only"
+    ],
+    "correctAnswer": "Tự đóng Closeable/AutoCloseable",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "synchronized keyword dùng để?",
+    "options": [
+      "Tối ưu IO",
+      "Đảm bảo đoạn code/monitor thread-safe (hòa hợp memory model cơ bản)",
+      "Chỉ collection",
+      "Garbage collect"
+    ],
+    "correctAnswer": "Đảm bảo đoạn code/monitor thread-safe (hòa hợp memory model cơ bản)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "Generics type erasure nghĩa là?",
+    "options": [
+      "Giữ type runtime đầy đủ mọi T",
+      "Thông tin generic bị xóa ở runtime (đổi thành raw/bounds)",
+      "Chỉ List",
+      "Chỉ compile warning"
+    ],
+    "correctAnswer": "Thông tin generic bị xóa ở runtime (đổi thành raw/bounds)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "Stream API trong Java 8 map/filter là?",
+    "options": ["Eager always", "Lazy intermediate operations + terminal", "Chỉ SQL", "Chỉ IO"],
+    "correctAnswer": "Lazy intermediate operations + terminal",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "volatile field trong Java đảm bảo?",
+    "options": [
+      "Atomic mọi compound op",
+      "Hiển thị thay đổi giữa thread theo memory visibility rules",
+      "Khóa object",
+      "Chỉ local thread"
+    ],
+    "correctAnswer": "Hiển thị thay đổi giữa thread theo memory visibility rules",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "ExecutorService lợi ích?",
+    "options": [
+      "Parse JSON",
+      "Pool thread quản lý tác vụ async thay vì tạo thread thủ công mỗi lần",
+      "Chỉ Swing",
+      "Chỉ GC"
+    ],
+    "correctAnswer": "Pool thread quản lý tác vụ async thay vì tạo thread thủ công mỗi lần",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "ClassLoader trong JVM phục vụ?",
+    "options": [
+      "Giải phóng RAM",
+      "Nạp class bytecode theo delegation model",
+      "Chỉ JIT",
+      "Chỉ GC"
+    ],
+    "correctAnswer": "Nạp class bytecode theo delegation model",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "VarHandle (Java 9+) khác AtomicInteger?",
+    "options": [
+      "Giống hệt",
+      "API fine-grained để ordered/volatile/fence operations trên field/array",
+      "Chỉ string",
+      "Deprecated"
+    ],
+    "correctAnswer": "API fine-grained để ordered/volatile/fence operations trên field/array",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Java",
+    "questionText": "Project Loom (virtual thread) hướng tới?",
+    "options": [
+      "Xóa JVM",
+      "Thread nhẹ cho concurrency I/O-bound hiệu quả",
+      "Chỉ GUI",
+      "Thay bytecode"
+    ],
+    "correctAnswer": "Thread nhẹ cho concurrency I/O-bound hiệu quả",
+    "difficultyLevels": ["advanced"]
+  }
+]

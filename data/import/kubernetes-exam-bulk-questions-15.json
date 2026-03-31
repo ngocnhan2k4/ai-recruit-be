@@ -1,0 +1,162 @@
+[
+  {
+    "skill": "Kubernetes",
+    "questionText": "Pod trong Kubernetes là?",
+    "options": ["Database cluster", "Nhóm container chia sẻ network/storage tối thiểu", "VM hypervisor", "Ingress only"],
+    "correctAnswer": "Nhóm container chia sẻ network/storage tối thiểu",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Deployment quản lý gì?",
+    "options": [
+      "Secret encryption only",
+      "ReplicaSet / rollout / rollback của Pod template",
+      "Chỉ Service",
+      "Chỉ PV"
+    ],
+    "correctAnswer": "ReplicaSet / rollout / rollback của Pod template",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Service type ClusterIP?",
+    "options": [
+      "Public L4 internet mặc định",
+      "VIP nội bộ cluster tới nhóm Pod qua label selector",
+      "Chỉ UDP",
+      "DNS global"
+    ],
+    "correctAnswer": "VIP nội bộ cluster tới nhóm Pod qua label selector",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Lệnh kubectl get pods -n <ns> dùng để?",
+    "options": ["Liệt kê Pod trong namespace", "Xóa cluster", "Cài chart", "Build image"],
+    "correctAnswer": "Liệt kê Pod trong namespace",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "ConfigMap vs Secret (khái niệm)?",
+    "options": [
+      "Giống nhau",
+      "Secret cho dữ liệu nhạy cảm; ConfigMap cho cấu hình thường (cả hai cần bảo vệ RBAC)",
+      "Secret chỉ TLS",
+      "ConfigMap luôn encrypted at-rest"
+    ],
+    "correctAnswer": "Secret cho dữ liệu nhạy cảm; ConfigMap cho cấu hình thường (cả hai cần bảo vệ RBAC)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Ingress controller khác Service LoadBalancer chủ yếu?",
+    "options": [
+      "Giống hệt",
+      "Ingress quản lý HTTP/S routing host/path tới Service; LB thường L4 cloud",
+      "Ingress chỉ TCP",
+      "Service không có selector"
+    ],
+    "correctAnswer": "Ingress quản lý HTTP/S routing host/path tới Service; LB thường L4 cloud",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "livenessProbe vs readinessProbe?",
+    "options": [
+      "Giống nhau",
+      "Liveness restart container nếu hỏng; readiness gỡ Pod khỏi Service endpoints khi chưa sẵn sàng",
+      "Readiness restart",
+      "Chỉ batch job"
+    ],
+    "correctAnswer": "Liveness restart container nếu hỏng; readiness gỡ Pod khỏi Service endpoints khi chưa sẵn sàng",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Namespace trong K8s giúp?",
+    "options": [
+      "Chỉ logging",
+      "Cô lập tài nguyên/logical boundary/quotas",
+      "Chỉ etcd",
+      "VM zoning"
+    ],
+    "correctAnswer": "Cô lập tài nguyên/logical boundary/quotas",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "PersistentVolume (PV) vs PersistentVolumeClaim (PVC)?",
+    "options": [
+      "Giống nhau",
+      "Admin/provision PV; user app claim PVC bind capacity",
+      "PVC tạo disk hypervisor",
+      "PV chỉ tmpfs"
+    ],
+    "correctAnswer": "Admin/provision PV; user app claim PVC bind capacity",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "DaemonSet phù hợp?",
+    "options": [
+      "Web API scale HPA",
+      "Chạy một Pod trên mỗi node (log agent, monitor)",
+      "Cron schedule",
+      "Stateful SQL primary"
+    ],
+    "correctAnswer": "Chạy một Pod trên mỗi node (log agent, monitor)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "HorizontalPodAutoscaler dựa trên?",
+    "options": ["Chỉ CPU custom", "Metrics (CPU/memory/custom) để scale replica", "Chỉ disk", "Chỉ user count"],
+    "correctAnswer": "Metrics (CPU/memory/custom) để scale replica",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "NetworkPolicy làm gì?",
+    "options": [
+      "Ingress DNS",
+      "L3/L4 firewall rules giữa Pod/namespace (CNI hỗ trợ)",
+      "TLS terminate",
+      "Quota CPU"
+    ],
+    "correctAnswer": "L3/L4 firewall rules giữa Pod/namespace (CNI hỗ trợ)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "etcd trong control plane?",
+    "options": ["Container runtime", "Lưu trữ state cluster consensus", "Ingress", "CRI-O only"],
+    "correctAnswer": "Lưu trữ state cluster consensus",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Admission webhook (Validating/Mutating) thời điểm?",
+    "options": [
+      "Sau khi Pod running",
+      "Trước khi object persist vào etcd (policy/mutation)",
+      "Chỉ kubectl client",
+      "Chỉ Helm uninstall"
+    ],
+    "correctAnswer": "Trước khi object persist vào etcd (policy/mutation)",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Kubernetes",
+    "questionText": "Pod Security Standards (PSS) / legacy PSP hướng tới?",
+    "options": [
+      "Thay Ingress",
+      "Giới hạn privilege (root, capabilities, volumes...) theo policy level",
+      "CDN edge",
+      "Service mesh data plane"
+    ],
+    "correctAnswer": "Giới hạn privilege (root, capabilities, volumes...) theo policy level",
+    "difficultyLevels": ["advanced"]
+  }
+]

@@ -1,0 +1,142 @@
+[
+  {
+    "skill": "AWS",
+    "questionText": "AWS viết tắt của?",
+    "options": ["Apple Web Services", "Amazon Web Services", "Advanced Web Storage", "Azure Web Stack"],
+    "correctAnswer": "Amazon Web Services",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "S3 là dịch vụ gì?",
+    "options": ["Relational DB", "Object storage", "Kubernetes", "Message broker"],
+    "correctAnswer": "Object storage",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "EC2 cung cấp?",
+    "options": ["Serverless function only", "Máy ảo (compute instances)", "DNS only", "CDN only"],
+    "correctAnswer": "Máy ảo (compute instances)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "IAM dùng để?",
+    "options": [
+      "Billing tag",
+      "Quản lý identity, policy, quyền truy cập tài nguyên AWS",
+      "Load balancer",
+      "Terraform state"
+    ],
+    "correctAnswer": "Quản lý identity, policy, quyền truy cập tài nguyên AWS",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "VPC là?",
+    "options": ["CDN edge", "Mạng ảo cô lập trong region", "Queue", "SQL engine"],
+    "correctAnswer": "Mạng ảo cô lập trong region",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "RDS là?",
+    "options": ["Redis cache", "Managed relational database", "File system", "Lambda layer"],
+    "correctAnswer": "Managed relational database",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "Lambda execution model?",
+    "options": [
+      "Luôn EC2 cố định",
+      "Event-driven serverless compute theo invocation",
+      "Chỉ batch ECS",
+      "EBS mount only"
+    ],
+    "correctAnswer": "Event-driven serverless compute theo invocation",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "CloudFront phục vụ?",
+    "options": ["Secrets manager", "CDN / edge cache content", "VPC peering", "KMS"],
+    "correctAnswer": "CDN / edge cache content",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "Security Group vs NACL?",
+    "options": [
+      "Giống nhau",
+      "SG stateful per instance; NACL stateless subnet level",
+      "NACL stateful only",
+      "Chỉ NAT"
+    ],
+    "correctAnswer": "SG stateful per instance; NACL stateless subnet level",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "KMS trong AWS dùng cho?",
+    "options": ["Deploy CDK", "Quản lý encryption keys", "CI pipeline", "Metric only"],
+    "correctAnswer": "Quản lý encryption keys",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "SQS visibility timeout ý nghĩa?",
+    "options": [
+      "TTL message xóa",
+      "Thời gian message ẩn với consumer khác sau khi nhận",
+      "Delay queue fixed",
+      "SNS fan-out"
+    ],
+    "correctAnswer": "Thời gian message ẩn với consumer khác sau khi nhận",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "API Gateway vs ALB routing?",
+    "options": [
+      "Giống hệt",
+      "API Gateway quản lý API HTTP lifecycle/auth/throttle; ALB L7 load balance tới target",
+      "ALB chỉ MQTT",
+      "Gateway chỉ S3"
+    ],
+    "correctAnswer": "API Gateway quản lý API HTTP lifecycle/auth/throttle; ALB L7 load balance tới target",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "STS AssumeRole dùng để?",
+    "options": [
+      "Tạo S3 bucket",
+      "Cấp temporary credentials theo trust policy/role chain",
+      "Encrypt EBS",
+      "Route53 health"
+    ],
+    "correctAnswer": "Cấp temporary credentials theo trust policy/role chain",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "Well-Architected Framework pillar không bao gồm?",
+    "options": ["Operational Excellence", "Pixel Perfect Design", "Security", "Reliability"],
+    "correctAnswer": "Pixel Perfect Design",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "AWS",
+    "questionText": "CAP trong hệ phân tán — RDS multi-AZ prioritizes phổ biến?",
+    "options": [
+      "AP 100%",
+      "Trade-off: thường ưu CA + consistency trong single primary + sync replica pattern",
+      "Chỉ eventual tuyệt đối",
+      "Không có trade-off"
+    ],
+    "correctAnswer": "Trade-off: thường ưu CA + consistency trong single primary + sync replica pattern",
+    "difficultyLevels": ["advanced"]
+  }
+]

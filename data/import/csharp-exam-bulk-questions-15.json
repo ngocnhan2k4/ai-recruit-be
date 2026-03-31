@@ -1,0 +1,152 @@
+[
+  {
+    "skill": "C#",
+    "questionText": "C# chạy chủ yếu trên runtime nào phổ biến?",
+    "options": ["JVM", ".NET (CLR/CoreCLR)", "CPython", "V8 only"],
+    "correctAnswer": ".NET (CLR/CoreCLR)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "CLR là gì?",
+    "options": ["CSS linter", "Common Language Runtime — thực thi managed code", "Cloud region", "Compiler only"],
+    "correctAnswer": "Common Language Runtime — thực thi managed code",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "value type vs reference type trong C#?",
+    "options": [
+      "Không khác",
+      "struct int... value type stack/tight; class string... ref type heap",
+      "class là value",
+      "string luôn value"
+    ],
+    "correctAnswer": "struct int... value type stack/tight; class string... ref type heap",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "async/await biên dịch thành?",
+    "options": ["Blocking threads OS", "State machine + Task", "Raw pthread", "SQL proc"],
+    "correctAnswer": "State machine + Task",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "interface trong C# có multiple implementation?",
+    "options": ["Không", "Class có thể implement nhiều interface", "Một interface duy nhất", "Chỉ struct"],
+    "correctAnswer": "Class có thể implement nhiều interface",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "LINQ deferred execution nghĩa là?",
+    "options": [
+      "Chạy ngay khi build query",
+      "Thực thi khi enumerate (IEnumerable) trừ một số op terminal",
+      "Chỉ SQL",
+      "Không có lazy"
+    ],
+    "correctAnswer": "Thực thi khi enumerate (IEnumerable) trừ một số op terminal",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "using statement (IDisposable) đảm bảo?",
+    "options": ["Compile macro", "Gọi Dispose khi ra khối", "Chỉ GC", "Thread lock"],
+    "correctAnswer": "Gọi Dispose khi ra khối",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "Generics trong C# ở runtime?",
+    "options": [
+      "Luôn erase như Java",
+      "Reified cho value type instantiation (generic type thật per primitive/value)",
+      "Không JIT",
+      "Chỉ dynamic"
+    ],
+    "correctAnswer": "Reified cho value type instantiation (generic type thật per primitive/value)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "await một Task đang faulted (đã lỗi) thường xảy ra gì?",
+    "options": [
+      "Im lặng",
+      "Ném exception tại điểm await (được unwrap từ Task lỗi)",
+      "Chỉ log compiler",
+      "Không compile"
+    ],
+    "correctAnswer": "Ném exception tại điểm await (được unwrap từ Task lỗi)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "record (C# 9+) phù hợp?",
+    "options": ["Kernel driver", "Dữ liệu immutable/semi-immutable với value equality", "Chỉ WPF", "Regex"],
+    "correctAnswer": "Dữ liệu immutable/semi-immutable với value equality",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "Span<T> và Memory<T> mục đích?",
+    "options": [
+      "UI binding only",
+      "Slice mảng/bộ đệm không cấp phát heap thừa (perf/low alloc)",
+      "JSON parser built-in",
+      "ADO only"
+    ],
+    "correctAnswer": "Slice mảng/bộ đệm không cấp phát heap thừa (perf/low alloc)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "ConfigureAwait(false) trong library?",
+    "options": [
+      "Buộc UI thread",
+      "Tránh marshal về sync context gốc khi không cần (library code)",
+      "Tắt async",
+      "Chỉ ASP.NET Core"
+    ],
+    "correctAnswer": "Tránh marshal về sync context gốc khi không cần (library code)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "volatile trong C# đọc C# spec tổng quát?",
+    "options": [
+      "Khóa mutex",
+      "Đảm bảo đọc/ghi không cache tối ưu sai thứ tự (memory barrier hạn chế)",
+      "Atomic mọi thao tác compound",
+      "JIT off"
+    ],
+    "correctAnswer": "Đảm bảo đọc/ghi không cache tối ưu sai thứ tự (memory barrier hạn chế)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "Source generators trong Roslyn dùng để?",
+    "options": [
+      "Chạy MSBuild only",
+      "Sinh code compile-time từ phân tích syntax tree",
+      "Runtime IL patch",
+      "NuGet cache"
+    ],
+    "correctAnswer": "Sinh code compile-time từ phân tích syntax tree",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "C#",
+    "questionText": "ref struct (stackonly) hạn chế?",
+    "options": [
+      "Chỉ class",
+      "Không heap boxing/field của class thông thường — lifetime stack-bound",
+      "Chỉ async Task",
+      "Không dùng được field"
+    ],
+    "correctAnswer": "Không heap boxing/field của class thông thường — lifetime stack-bound",
+    "difficultyLevels": ["advanced"]
+  }
+]

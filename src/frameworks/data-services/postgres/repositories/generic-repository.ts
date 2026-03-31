@@ -8,9 +8,10 @@ import {
 import { ID } from "@/common/types";
 import { getTx, txStorage } from "@/common/utils";
 
-export class GenericRepository<T, TTable extends object>
-  implements IGenericRepository<T>
-{
+export class GenericRepository<
+  T,
+  TTable extends object,
+> implements IGenericRepository<T> {
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
