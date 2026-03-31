@@ -1,0 +1,147 @@
+[
+  {
+    "skill": "NestJS",
+    "questionText": "NestJS framework cho runtime nào?",
+    "options": ["JVM", "Node.js (TypeScript/JavaScript)", "PHP-FPM", "Go binary only"],
+    "correctAnswer": "Node.js (TypeScript/JavaScript)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Decorators @Controller(), @Get() lấy cảm hứng từ?",
+    "options": ["Rails only", "Angular style + DI metadata", "Django ORM", "Spring XML only"],
+    "correctAnswer": "Angular style + DI metadata",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Provider trong NestJS là?",
+    "options": ["Chỉ entity", "Service/Class inject được qua DI container", "Chỉ guard", "Middleware file"],
+    "correctAnswer": "Service/Class inject được qua DI container",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Module @Module metadata imports/exports dùng để?",
+    "options": [
+      "Chỉ route",
+      "Tổ chức DI graph và tái sử dụng providers giữa modules",
+      "Chỉ swagger",
+      "Chỉ ORM"
+    ],
+    "correctAnswer": "Tổ chức DI graph và tái sử dụng providers giữa modules",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Guard trong Nest implements?",
+    "options": ["ExceptionFilter", "CanActivate — xác thực/phân quyền trước handler", "Pipe transform", "Interceptor response"],
+    "correctAnswer": "CanActivate — xác thực/phân quyền trước handler",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Pipe validation phổ biến với class-validator?",
+    "options": ["WebSocket only", "Transform + validate DTO (ValidationPipe)", "GraphQL only", "Cron only"],
+    "correctAnswer": "Transform + validate DTO (ValidationPipe)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Middleware vs Guard khác nhau?",
+    "options": [
+      "Giống nhau",
+      "Middleware Express-style pipeline; Guard framework authz point",
+      "Guard chạy trước HTTP stack",
+      "Middleware không có next()"
+    ],
+    "correctAnswer": "Middleware Express-style pipeline; Guard framework authz point",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Interceptor implement?",
+    "options": ["CanActivate", "NestInterceptor — bọc execution / RxJS stream", "Pipe", "Filter"],
+    "correctAnswer": "NestInterceptor — bọc execution / RxJS stream",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "ExceptionFilter dùng để?",
+    "options": ["Parse JSON body", "Xử lý exception → HTTP response nhất quán", "Cache redis", "Schedule job"],
+    "correctAnswer": "Xử lý exception → HTTP response nhất quán",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Injectable({ scope: Scope.REQUEST }) nghĩa là?",
+    "options": [
+      "Singleton mặc định",
+      "Provider mới mỗi HTTP request (state theo request)",
+      "Transient toàn app",
+      "Chỉ websocket"
+    ],
+    "correctAnswer": "Provider mới mỗi HTTP request (state theo request)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Dynamic module forRootAsync dùng khi?",
+    "options": [
+      "Chỉ test",
+      "Cấu hình async từ ConfigService/Factory trước khi register module",
+      "Chỉ CLI",
+      "Replace Express"
+    ],
+    "correctAnswer": "Cấu hình async từ ConfigService/Factory trước khi register module",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "@nestjs/microservices Transport.TCP vs Redis?",
+    "options": [
+      "Giống nhau",
+      "Khác layer message broker / pattern message; cùng abstraction nhưng hạ tầng khác",
+      "TCP chỉ GraphQL",
+      "Redis chỉ HTTP"
+    ],
+    "correctAnswer": "Khác layer message broker / pattern message; cùng abstraction nhưng hạ tầng khác",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Execution context switchToHttp().getRequest() trong guard?",
+    "options": [
+      "Lấy GraphQL context",
+      "Lấy request object framework (Express hoặc Fastify sau adapter)",
+      "Chỉ GRPC",
+      "Không tồn tại"
+    ],
+    "correctAnswer": "Lấy request object framework (Express hoặc Fastify sau adapter)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Custom ParameterDecorator với createParamDecorator khi?",
+    "options": [
+      "Thay service",
+      "Trích metadata/custom từ request trong signature controller",
+      "Chỉ entity",
+      "Webpack plugin"
+    ],
+    "correctAnswer": "Trích metadata/custom từ request trong signature controller",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "NestJS",
+    "questionText": "Lifecycle OnModuleInit so với onApplicationBootstrap?",
+    "options": [
+      "Cùng thời điểm",
+      "OnModuleInit theo từng module; onApplicationBootstrap khi mọi module sẵn sàng, trước lúc app listen",
+      "Bootstrap luôn chạy trước module đầu tiên",
+      "Chỉ dùng cho microservice"
+    ],
+    "correctAnswer": "OnModuleInit theo từng module; onApplicationBootstrap khi mọi module sẵn sàng, trước lúc app listen",
+    "difficultyLevels": ["advanced"]
+  }
+]

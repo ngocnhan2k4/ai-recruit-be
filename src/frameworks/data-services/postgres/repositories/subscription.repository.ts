@@ -93,7 +93,7 @@ export class SubscriptionRepository
             .select({ count: count(subscriptions.id) })
             .from(subscriptions)
             .where(and(...whereConditions))
-        : Promise.resolve(),
+        : Promise.resolve([]),
     ]);
 
     const total = Number(totalRow?.[0]?.count ?? 0);
