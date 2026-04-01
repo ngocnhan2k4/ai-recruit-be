@@ -63,9 +63,9 @@ def import_skills_synonyms(db_url, csv_file, source="stackoverflow"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Import skills synonyms from CSV to PostgreSQL.")
-    parser.add_argument("--db-url", required=True, help="PostgreSQL database URL (e.g., postgresql://user:password@localhost:5432/dbname)")
-    parser.add_argument("--csv-file", default="skills_synonyms/data/skills_synonyms.csv", help="Path to the skills_synonyms.csv file (default: crawl_jobs/skills_synonyms/data/skills_synonyms.csv)")
-    parser.add_argument("--source", default="stackoverflow", help="Source of the synonyms (default: stackoverflow)")
+    parser.add_argument("--db-url", required=True)
+    parser.add_argument("--csv-file", default="skills/data/skills_synonyms.csv")
+    parser.add_argument("--source", default="stackoverflow")
 
     args = parser.parse_args()
 
