@@ -15,9 +15,7 @@ import {
   Param,
   Query,
   UseGuards,
-  Res,
 } from "@nestjs/common";
-import type { FastifyReply } from "fastify";
 import { LearningPathUseCase } from "@/use-cases/learning-path/learning-path.use-case";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, PaginatedResultDto } from "../../dtos";
@@ -27,7 +25,6 @@ import { Logger } from "@nestjs/common";
 
 import {
   PreviewRoadmapDto,
-  SaveRoadmapDto,
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
   UpdateWeeklyHoursDto,
@@ -48,78 +45,31 @@ export class LearningPathController {
 
   constructor(private readonly learningPathUseCase: LearningPathUseCase) {}
 
-  @Post("preview")
-  @ApiOperation({
-    summary: "Preview learning roadmap with SSE streaming",
-    description:
-      "Generate a roadmap preview with real-time progress updates via Server-Sent Events.",
-  })
-  async previewRoadmap(
-    @Body() dto: PreviewRoadmapDto,
-    @Res() reply: FastifyReply,
-    @GetUser() user: TokenPayload,
-  ): Promise<void> {
-    const { stream, consumeFeature } = this.learningPathUseCase.previewRoadmap(
-      dto,
-      user.userId,
-    );
-
-    await consumeFeature();
-
-    reply.hijack();
-
-    // Set SSE headers
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": reply.request.headers.origin || "*",
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Methods":
-        "GET, HEAD, OPTIONS, PUT, POST, DELETE, PATCH",
-      "Access-Control-Allow-Headers": "Cookie, Content-Type,Authorization",
-    });
-
-    // Send initial comment to establish connection
-    reply.raw.write(": connected\n\n");
-
-    stream.subscribe({
-      next: (event) => {
-        const data = JSON.stringify(event.data);
-        reply.raw.write(`data: ${data}\n\n`);
-        if ((reply.raw as any).flush) {
-          (reply.raw as any).flush();
-        }
-      },
-      complete: () => {
-        this.logger.log("SSE stream completed");
-        reply.raw.end();
-      },
-      error: (error) => {
-        const errorData = JSON.stringify({
-          type: "error",
-          message: error.message || "Unknown error occurred",
-        });
-        reply.raw.write(`data: ${errorData}\n\n`);
-        reply.raw.end();
-        // [TODO] Can rollback quota for user if fail
-      },
-    });
-  }
-
   @Post()
   @ApiOperation({
-    summary: "Save learning roadmap",
+    summary: "Create learning roadmap generation task",
     description:
-      "Save a learning roadmap to database using preview data from /preview endpoint. Does NOT call AI again.",
+      "Start roadmap generation asynchronously and receive progress via notifications.",
   })
-  async saveRoadmap(
+  createRoadmap(
+    @Body() dto: PreviewRoadmapDto,
     @GetUser() user: TokenPayload,
-    @Body() dto: SaveRoadmapDto,
-  ): Promise<ApiResponse<LearningRoadmap>> {
-    return await this.learningPathUseCase.saveRoadmap(user.userId, dto);
+  ): Promise<ApiResponse<{ taskId: string }>> {
+    return this.learningPathUseCase.createRoadmap(dto, user.userId);
   }
+
+  // @Post()
+  // @ApiOperation({
+  //   summary: "Save learning roadmap",
+  //   description:
+  //     "Save a learning roadmap to database using preview data from /preview endpoint. Does NOT call AI again.",
+  // })
+  // async saveRoadmap(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() dto: SaveRoadmapDto,
+  // ): Promise<ApiResponse<LearningRoadmap>> {
+  //   return await this.learningPathUseCase.saveRoadmap(user.userId, dto);
+  // }
 
   @Get()
   @ApiOperation({

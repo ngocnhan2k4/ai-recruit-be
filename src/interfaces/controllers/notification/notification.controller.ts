@@ -12,6 +12,7 @@ import {
 import {
   ApiResponse,
   ApiResponseDto,
+  NotificationDto,
   PaginatedResultDto,
   PaginatedResultDecorator,
 } from "@/interfaces/dtos";
@@ -19,7 +20,6 @@ import { GetUser } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
 import {
   GetNotificationRequestDto,
-  GetNotificationResponseDto,
   NotificationActionRequestDto,
   NotificationActionResponseDto,
   UpdateNotificationStatusRequestDto,
@@ -36,12 +36,12 @@ export class NotificationController {
     summary: "Get notification by user id, org id",
   })
   @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(PaginatedResultDecorator(GetNotificationResponseDto))
+  @ApiResponseDto(PaginatedResultDecorator(NotificationDto))
   @Get()
   async getNotificationsByUser(
     @Query() query: GetNotificationRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<PaginatedResultDto<GetNotificationResponseDto>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<NotificationDto>>> {
     return this.notificationUseCase.getNotificationsByUser({
       ...query,
       userId: user.userId,
