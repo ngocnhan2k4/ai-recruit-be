@@ -147,7 +147,7 @@ export class TaskWorker extends WorkerHost {
 
           const optionCreates = (skillData.options || []).map(
             (option: any) => ({
-              skillId: newSkill.id,
+              roadmapSkillId: newSkill.id,
               optionId: option.optionId,
               optionName: option.optionName,
               resources: option.resources || [],
@@ -241,6 +241,9 @@ export class TaskWorker extends WorkerHost {
                 }
 
                 if (payload.type === "error") {
+                  this.logger.error(
+                    `[processLearningPath] AI generation error for task ${taskId}: ${payload}`,
+                  );
                   subscription.unsubscribe();
                   reject(new Error(payload.message || "AI generation failed"));
                   return;
