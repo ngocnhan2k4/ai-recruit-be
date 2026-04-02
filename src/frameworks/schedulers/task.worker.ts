@@ -4,7 +4,6 @@ import { Job } from "bullmq";
 import { TASK_QUEUE } from "@/common/constants";
 import {
   IAIService,
-  INotificationRepository,
   ITaskRepository,
   IWebSocketGateway,
   ILearningRoadmapRepository,
@@ -28,7 +27,6 @@ export class TaskWorker extends WorkerHost {
   constructor(
     private readonly aiService: IAIService,
     private readonly taskRepository: ITaskRepository,
-    private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly roadmapRepository: ILearningRoadmapRepository,
     private readonly phaseRepository: IRoadmapPhaseRepository,
@@ -67,6 +65,7 @@ export class TaskWorker extends WorkerHost {
       id: notificationId,
       receiverId: userId,
       message,
+      title: message, // to fe show in dev mode
       type: NotificationType.SYSTEM,
       payload,
       task: {
@@ -97,6 +96,16 @@ export class TaskWorker extends WorkerHost {
         } as any,
         tx,
       );
+
+      // const newPhases = (preview.phases || []).map(
+      //   (phase: any, index: number) => ({
+      //     roadmapId: newRoadmap.id,
+      //     name: phase.name,
+      //     description: phase.description,
+      //     durationWeeks: phase.durationWeeks,
+      //     orderIndex: index,
+      //   }),
+      // );
 
       const skillIdMap = new Map<string, string>();
       // [TODO]: Optimize later
@@ -178,6 +187,7 @@ export class TaskWorker extends WorkerHost {
 
   private async processLearningPath(data: LearningPathTaskData) {
     const { taskId, notificationId } = data;
+    let resultData: any = null;
 
     try {
       const task = await this.taskRepository.get(taskId);
@@ -196,7 +206,7 @@ export class TaskWorker extends WorkerHost {
         notificationId,
         userId,
         payload: { taskId },
-        message: "Generating your learning roadmap...",
+        message: "Đang tạo lộ trình học tập của bạn...",
         taskData: {
           type: TaskTypeEnum.LEARNING_PATH_GENERATION,
           status: TaskStatusEnum.IN_PROGRESS,
@@ -210,8 +220,6 @@ export class TaskWorker extends WorkerHost {
         timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
         currentSkills: request.currentSkills,
       };
-
-      let resultData: any = null;
 
       await new Promise<void>((resolve, reject) => {
         const subscription = this.aiService
@@ -243,7 +251,7 @@ export class TaskWorker extends WorkerHost {
                   notificationId,
                   userId,
                   payload: { taskId },
-                  message: "Learning path generation is running...",
+                  message: "Đang tạo lộ trình học tập của bạn...",
                   taskData: {
                     type: TaskTypeEnum.LEARNING_PATH_GENERATION,
                     status: TaskStatusEnum.IN_PROGRESS,
@@ -274,6 +282,8 @@ export class TaskWorker extends WorkerHost {
         throw new Error("AI stream completed without result");
       }
 
+      console.log("AI generation completed with result:", resultData);
+
       const roadmap = await this.persistRoadmapFromPreview({
         userId,
         request,
@@ -287,12 +297,12 @@ export class TaskWorker extends WorkerHost {
         payload: {
           taskId,
         },
-        message: "Your learning roadmap is ready.",
+        message: "Lộ trình học tập của bạn đã sẵn sàng.",
         taskData: {
           type: TaskTypeEnum.LEARNING_PATH_GENERATION,
           status: TaskStatusEnum.COMPLETED,
           progress: 100,
-          result: { roadmapId: roadmap.id },
+          result: { roadmapId: roadmap.id, data: resultData },
         },
       });
     } catch (error: any) {
@@ -314,6 +324,7 @@ export class TaskWorker extends WorkerHost {
             status: TaskStatusEnum.FAILED,
             progress: 0,
             error: error.message || "Unknown error",
+            result: { data: resultData },
           },
         });
       }

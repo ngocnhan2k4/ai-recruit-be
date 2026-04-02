@@ -85,9 +85,9 @@ export class LearningPathUseCase {
           await this.notificationRepository.createNotificationWithRecipients(
             {
               senderId: null,
-              title: "Learning path generation started",
+              title: "Lộ trình học tập của bạn đang được tạo",
               message:
-                "We are generating your learning roadmap. You'll receive updates here.",
+                "Đang tạo lộ trình học tập dựa trên vai trò mục tiêu của bạn. Vui lòng chờ trong giây lát!",
               type: NotificationType.SYSTEM,
               payload: {
                 taskId: task.id,

@@ -25,8 +25,7 @@ export const tasks = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_tasks_status_type").on(table.status, table.type),
+    index("idx_tasks_type_status").on(table.type, table.status),
     index("idx_tasks_user_id").on(table.userId),
-    index("idx_tasks_user_created").on(table.userId, table.createdAt),
   ],
 );

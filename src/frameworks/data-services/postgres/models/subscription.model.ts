@@ -86,7 +86,7 @@ export const userSubscriptions = pgTable(
   (table) => [
     uniqueIndex("unique_active_subscription_per_user")
       .on(table.userId)
-      .where(sql`${table.status} = 'active'`),
+      .where(sql`${table.status} = 'active'::user_subscription_status`),
     index("user_subscriptions_user_status_idx").on(table.userId, table.status),
     index("user_subscriptions_user_idx").on(table.userId),
     index("user_subscriptions_subscription_idx").on(table.subscriptionId),

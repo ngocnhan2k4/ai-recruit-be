@@ -19,3 +19,4 @@ export * from "./user-test.model";
 export * from "./user-answer.model";
 export * from "./subscription.model";
 export * from "./task.model";
+export * from "./skills-synonyms.model";
