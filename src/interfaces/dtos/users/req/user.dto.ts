@@ -57,6 +57,15 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
 
   @ApiProperty({
     required: false,
+    description: "Total years of experience for matching",
+    example: 5,
+  })
+  @IsOptional()
+  @IsNumber()
+  experienceYears?: number | null;
+
+  @ApiProperty({
+    required: false,
     type: [String],
     description: "Array of province IDs where user wants to work",
   })
