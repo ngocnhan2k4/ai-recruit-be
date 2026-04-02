@@ -11,7 +11,13 @@ import {
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
 } from "@/core/abstracts";
-import { NotificationType, TaskStatusEnum, TaskTypeEnum } from "@/core";
+import {
+  AILearningRoadmapResult,
+  NotificationType,
+  TaskStatusEnum,
+  TaskTypeEnum,
+} from "@/core";
+import { PreviewRoadmapDto } from "@/interfaces/dtos";
 
 type LearningPathTaskData = {
   taskId: string;
@@ -76,10 +82,11 @@ export class TaskWorker extends WorkerHost {
 
   private async persistRoadmapFromPreview(data: {
     userId: string;
-    request: any;
-    preview: any;
+    request: PreviewRoadmapDto;
+    result: AILearningRoadmapResult;
   }) {
-    const { userId, request, preview } = data;
+    const { userId, request, result } = data;
+    const preview = result.previewData;
 
     return this.roadmapRepository.executeWithTransaction(async (tx) => {
       const newRoadmap = await this.roadmapRepository.create(
@@ -159,7 +166,7 @@ export class TaskWorker extends WorkerHost {
           for (const skillData of phase.skills) {
             const aiSkillId = skillData.skillId;
             if (skillData.prerequisites?.length && aiSkillId) {
-              const dbSkillId = skillIdMap.get(aiSkillId as string);
+              const dbSkillId = skillIdMap.get(aiSkillId);
               if (dbSkillId) {
                 // Map AI skillIds to database skillIds
                 const mappedPrerequisites = skillData.prerequisites
@@ -186,7 +193,7 @@ export class TaskWorker extends WorkerHost {
 
   private async processLearningPath(data: LearningPathTaskData) {
     const { taskId, notificationId } = data;
-    let resultData: any = null;
+    let resultData: AILearningRoadmapResult | null = null;
 
     try {
       const task = await this.taskRepository.get(taskId);
@@ -195,7 +202,7 @@ export class TaskWorker extends WorkerHost {
       }
 
       const userId = task.userId;
-      const request = (task.input as any)?.request;
+      const request: PreviewRoadmapDto = (task.input as any)?.request;
       if (!userId || !request) {
         throw new Error(`Task input missing userId/request: ${taskId}`);
       }
@@ -286,7 +293,7 @@ export class TaskWorker extends WorkerHost {
       const roadmap = await this.persistRoadmapFromPreview({
         userId,
         request,
-        preview: resultData,
+        result: resultData,
       });
 
       await this.emitAndPersistTask({

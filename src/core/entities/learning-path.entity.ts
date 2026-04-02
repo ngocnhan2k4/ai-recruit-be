@@ -91,23 +91,10 @@ export interface RoadmapSkillData {
   options: SkillOption[];
 }
 
-export interface PreviewRoadmapResponse {
-  roadmapId: string;
-  generatedAt: string;
-  gapAnalysis: GapAnalysis;
-  totalWeeks: number;
-  phases: Array<{
-    name: string;
-    description: string;
-    durationWeeks: number;
-    skills: RoadmapSkillData[];
-  }>;
-}
-
-export interface LearningRoadmapWithEnrichedSkills
-  extends Omit<LearningRoadmap, "currentSkills"> {
-  currentSkills: SkillLevel[];
-}
+// export interface LearningRoadmapWithEnrichedSkills
+//   extends Omit<LearningRoadmap, "currentSkills"> {
+//   currentSkills: SkillLevel[];
+// }
 
 export interface LearningRoadmapWithDetails extends LearningRoadmap {
   phases: Array<
@@ -118,10 +105,10 @@ export interface LearningRoadmapWithDetails extends LearningRoadmap {
   currentWeek?: number;
 }
 
-export interface LearningRoadmapWithDetailsEnriched
-  extends Omit<LearningRoadmapWithDetails, "currentSkills"> {
-  currentSkills: SkillLevel[];
-}
+// export interface LearningRoadmapWithDetailsEnriched
+//   extends Omit<LearningRoadmapWithDetails, "currentSkills"> {
+//   currentSkills: SkillLevel[];
+// }
 
 export interface RoadmapProgressStats {
   totalSkills: number;
@@ -130,4 +117,25 @@ export interface RoadmapProgressStats {
   completedPhases: number;
   overallProgress: number;
   estimatedCompletionDate: Date | null;
+}
+
+export interface PreviewRoadmapData {
+  gapAnalysis: GapAnalysis;
+  totalWeeks: number;
+  phases: Array<{
+    name: string;
+    description: string;
+    durationWeeks: number;
+    orderIndex: number;
+    skills: RoadmapSkillData[];
+  }>;
+}
+
+export interface AILearningRoadmapResult {
+  title: string;
+  targetRole: string;
+  currentRole: string;
+  previewData: PreviewRoadmapData;
+  currentSkills: SkillLevel[];
+  timeCommitmentHoursPerWeek: number;
 }
