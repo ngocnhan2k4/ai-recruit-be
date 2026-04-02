@@ -10,6 +10,7 @@ import {
   IRoadmapPhaseRepository,
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
+  INotificationRepository,
 } from "@/core/abstracts";
 import {
   AILearningRoadmapResult,
@@ -42,6 +43,7 @@ export class TaskWorker extends WorkerHost {
     private readonly phaseRepository: IRoadmapPhaseRepository,
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
+    private readonly notificationRepository: INotificationRepository,
   ) {
     super();
   }
@@ -69,7 +71,21 @@ export class TaskWorker extends WorkerHost {
   }) {
     const { notificationId, userId, payload, message, taskId } = params;
 
-    await this.taskRepository.update({ id: taskId }, params.taskData);
+    await this.taskRepository.executeWithTransaction(async (tx) => {
+      await this.taskRepository.update({ id: taskId }, params.taskData, tx);
+
+      await this.notificationRepository.update(
+        { id: notificationId },
+        {
+          payload: {
+            taskId,
+            ...payload,
+          },
+          message,
+        },
+        tx,
+      );
+    });
 
     this.webSocketGateway.sendToUser({ userId }, {
       id: notificationId,
