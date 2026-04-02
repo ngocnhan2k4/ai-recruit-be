@@ -65,7 +65,6 @@ export class TaskWorker extends WorkerHost {
       id: notificationId,
       receiverId: userId,
       message,
-      title: message, // to fe show in dev mode
       type: NotificationType.SYSTEM,
       payload,
       task: {
