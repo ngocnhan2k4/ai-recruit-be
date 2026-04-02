@@ -14,6 +14,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseEnumPipe,
   Patch,
   Post,
   Put,
@@ -56,6 +57,7 @@ import {
   UserEducationResponseDto,
 } from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
+import { ProviderEnum } from "@/core";
 
 @ApiTags("Users")
 @Controller("users")
@@ -102,6 +104,25 @@ export class UserController {
   @Get("me/features")
   getMyFeatures(@GetUser() user: TokenPayload) {
     return this.userUseCases.getMyFeatures(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Unlink a login provider",
+    description:
+      "Unlink a secondary login provider on Firebase, then soft-delete the matching active row in user_identities.",
+  })
+  @ApiParam({
+    name: "provider",
+    enum: ProviderEnum,
+    example: ProviderEnum.GOOGLE,
+  })
+  @Delete("me/providers/:provider")
+  unlinkProvider(
+    @GetUser() user: TokenPayload,
+    @Param("provider", new ParseEnumPipe(ProviderEnum)) provider: ProviderEnum,
+  ): Promise<ApiResponse<void>> {
+    return this.userUseCases.unlinkProvider(user.userId, provider);
   }
 
   @UseGuards(JwtAuthGuard, CasbinGuard)

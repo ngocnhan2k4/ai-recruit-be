@@ -1,0 +1,147 @@
+[
+  {
+    "skill": "Python",
+    "questionText": "Python thường được mô tả là ngôn ngữ kiểu gì?",
+    "options": ["Compiled static low-level", "High-level interpreted (phổ biến) / có bytecode", "Chỉ markup", "SQL dialect"],
+    "correctAnswer": "High-level interpreted (phổ biến) / có bytecode",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "Indentation trong Python dùng để?",
+    "options": ["Chỉ style", "Xác định khối lệnh (bắt buộc)", "Comment", "Import"],
+    "correctAnswer": "Xác định khối lệnh (bắt buộc)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "list và tuple khác nhau chủ yếu?",
+    "options": ["Giống hệt", "list mutable; tuple immutable (thường)", "tuple mutable", "Chỉ chứa số"],
+    "correctAnswer": "list mutable; tuple immutable (thường)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "dict trong Python là?",
+    "options": ["Cấu trúc FIFO", "Ánh xạ key → value", "Chỉ sorted set", "Binary tree cố định"],
+    "correctAnswer": "Ánh xạ key → value",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "PEP 8 liên quan?",
+    "options": ["Security policy", "Hướng dẫn style code Python", "Package index", "Async IO spec"],
+    "correctAnswer": "Hướng dẫn style code Python",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "List comprehension dùng để?",
+    "options": [
+      "Chỉ exception",
+      "Tạo list ngắn gọn từ iterable có filter/map",
+      "Chỉ file I/O",
+      "SQL ORM"
+    ],
+    "correctAnswer": "Tạo list ngắn gọn từ iterable có filter/map",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "with open(...) as f: dùng pattern gì?",
+    "options": ["Multiprocessing", "Context manager đảm bảo đóng file", "GIL release", "Metaclass"],
+    "correctAnswer": "Context manager đảm bảo đóng file",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "*args và **kwargs trong định nghĩa hàm?",
+    "options": [
+      "Chỉ decorator",
+      "*args tuple vị trí; **kwargs dict keyword",
+      "Chỉ class static",
+      "Chỉ async"
+    ],
+    "correctAnswer": "*args tuple vị trí; **kwargs dict keyword",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "GIL (Global Interpreter Lock) ảnh hưởng?",
+    "options": [
+      "Tăng song song CPU-bound thread trong CPython",
+      "Hạn chế đa luồng thực thi bytecode đồng thời (điển hình CPU-bound thread)",
+      "Chỉ I/O",
+      "Không tồn tại"
+    ],
+    "correctAnswer": "Hạn chế đa luồng thực thi bytecode đồng thời (điển hình CPU-bound thread)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "virtualenv / venv mục đích?",
+    "options": [
+      "Chỉ Docker",
+      "Cô lập dependencies theo project",
+      "Compile C++",
+      "Quản lý Git"
+    ],
+    "correctAnswer": "Cô lập dependencies theo project",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "Decorator @ trong Python là?",
+    "options": ["Syntax error", "Hàm bọc hàm/metadata để mở rộng hành vi", "Chỉ property", "Macro preprocessor"],
+    "correctAnswer": "Hàm bọc hàm/metadata để mở rộng hành vi",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "Generator function (yield) lợi ích?",
+    "options": [
+      "Luôn nhanh hơn list vô hạn bộ nhớ",
+      "Lazy iteration — sinh giá trị theo demand, tiết kiệm RAM",
+      "Chặn recursion",
+      "Chỉ numpy"
+    ],
+    "correctAnswer": "Lazy iteration — sinh giá trị theo demand, tiết kiệm RAM",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "async/await trong asyncio chạy trên?",
+    "options": [
+      "Nhiều OS thread mặc định cho mọi task",
+      "Event loop cooperative multitasking trong một thread (typical)",
+      "Process pool luôn",
+      "Chỉ database"
+    ],
+    "correctAnswer": "Event loop cooperative multitasking trong một thread (typical)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "Descriptor protocol (__get__, __set__) dùng cho?",
+    "options": [
+      "Chỉ unittest",
+      "Cơ chế property/method binding ở tầng low-level của class attributes",
+      "JSON schema",
+      "GC only"
+    ],
+    "correctAnswer": "Cơ chế property/method binding ở tầng low-level của class attributes",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "Python",
+    "questionText": "Metaclass trong Python là?",
+    "options": [
+      "Library pandas",
+      "Class của class — kiểm soát tạo lớp",
+      "Package installer",
+      "Async keyword"
+    ],
+    "correctAnswer": "Class của class — kiểm soát tạo lớp",
+    "difficultyLevels": ["advanced"]
+  }
+]

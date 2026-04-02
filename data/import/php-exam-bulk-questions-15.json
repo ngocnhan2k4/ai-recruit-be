@@ -1,0 +1,157 @@
+[
+  {
+    "skill": "PHP",
+    "questionText": "PHP chủ yếu dùng trong lĩnh vực nào?",
+    "options": ["Chỉ firmware", "Web backend / scripting server-side", "Shader GPU", "Kernel OS"],
+    "correctAnswer": "Web backend / scripting server-side",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "$ biến trong PHP nghĩa là?",
+    "options": ["Hằng global", "Biến bắt đầu bằng $", "Comment", "Namespace root"],
+    "correctAnswer": "Biến bắt đầu bằng $",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "include vs require khác nhau?",
+    "options": [
+      "Giống nhau",
+      "require báo lỗi fatal nếu file thiếu; include chỉ warning (typical)",
+      "include fatal luôn",
+      "Chỉ OOP"
+    ],
+    "correctAnswer": "require báo lỗi fatal nếu file thiếu; include chỉ warning (typical)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "Composer trong PHP là?",
+    "options": ["Web server", "Dependency manager / autoload PSR", "ORM built-in", "DB engine"],
+    "correctAnswer": "Dependency manager / autoload PSR",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "session_start() dùng để?",
+    "options": ["Đóng DB", "Khởi tạo session PHP", "Gzip response", "JWT sign"],
+    "correctAnswer": "Khởi tạo session PHP",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "PDO cung cấp?",
+    "options": [
+      "Template engine",
+      "Abstraction DB thống nhất + prepared statement",
+      "Queue Redis",
+      "Router"
+    ],
+    "correctAnswer": "Abstraction DB thống nhất + prepared statement",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "Prepared statement giúp?",
+    "options": [
+      "Chỉ cache opcode",
+      "Giảm SQL injection + tái sử dụng plan (DB hỗ trợ)",
+      "Tăng HTML size",
+      "Session fix"
+    ],
+    "correctAnswer": "Giảm SQL injection + tái sử dụng plan (DB hỗ trợ)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "namespace trong PHP 5.3+ dùng để?",
+    "options": ["Chỉ CLI", "Tránh xung đột tên class/hàm theo cấu trúc package", "Chỉ json", "GD library"],
+    "correctAnswer": "Tránh xung đột tên class/hàm theo cấu trúc package",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "autoload PSR-4 liên quan?",
+    "options": [
+      "Chỉ apache",
+      "Ánh xạ namespace prefix → thư mục để nạp class tự động",
+      "Opcode cache",
+      "FPM pool"
+    ],
+    "correctAnswer": "Ánh xạ namespace prefix → thư mục để nạp class tự động",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "=== so với == trong PHP?",
+    "options": [
+      "Giống nhau",
+      "=== so sánh strict (type+value); == loose với juggling",
+      "== strict",
+      "Chỉ array"
+    ],
+    "correctAnswer": "=== so sánh strict (type+value); == loose với juggling",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "Opcache trong PHP làm gì?",
+    "options": [
+      "CDN",
+      "Cache bytecode đã compile để tăng perf",
+      "ORM",
+      "HTTP/2 push"
+    ],
+    "correctAnswer": "Cache bytecode đã compile để tăng perf",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "PHP-FPM khác mod_php chủ yếu?",
+    "options": [
+      "Giống hệt",
+      "Process manager PHP tách khỏi web server, pool worker",
+      "Chỉ Windows",
+      "Chỉ CGI không pool"
+    ],
+    "correctAnswer": "Process manager PHP tách khỏi web server, pool worker",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "Traits trong OOP PHP mục đích?",
+    "options": [
+      "Thay interface",
+      "Tái sử dụng method giữa nhiều class (horizontal reuse)",
+      "Abstract class only",
+      "Enum"
+    ],
+    "correctAnswer": "Tái sử dụng method giữa nhiều class (horizontal reuse)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "WeakMap (PHP 8+) khác ArrayObject?",
+    "options": [
+      "Giống nhau",
+      "Object keys với weak reference — phù hợp cache metadata object",
+      "Chỉ string key",
+      "Immutable"
+    ],
+    "correctAnswer": "Object keys với weak reference — phù hợp cache metadata object",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "PHP",
+    "questionText": "Fibers (PHP 8.1+) phục vụ?",
+    "options": [
+      "CSS layout",
+      "Coroutines tại user-space cho async style có điểm tạm dừng",
+      "GC cycle",
+      "JIT off"
+    ],
+    "correctAnswer": "Coroutines tại user-space cho async style có điểm tạm dừng",
+    "difficultyLevels": ["advanced"]
+  }
+]

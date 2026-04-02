@@ -1026,13 +1026,14 @@ export class JobRepository
 
     const result = await this.db
       .select({
-        term: jobs.title,
+        id: jobs.id,
+        title: jobs.title,
         count: countDistinct(applyJobs.id).as("count"),
       })
       .from(jobs)
       .leftJoin(applyJobs, eq(jobs.id, applyJobs.jobId))
       .where(and(...conditions, isNotNull(applyJobs.id)))
-      .groupBy(jobs.title)
+      .groupBy(jobs.title, jobs.id)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
@@ -1042,7 +1043,8 @@ export class JobRepository
     );
 
     return result.map((item) => ({
-      name: item.term,
+      id: item.id,
+      name: item.title,
       count: Number(item.count),
       percentage:
         totalApplications > 0
@@ -1123,19 +1125,24 @@ export class JobRepository
 
   async getJobCounts(): Promise<JobCounts> {
     // grouped counts by status excluding deleted jobs
-    const grouped = await this.db
-      .select({
-        status: jobs.status,
-        count: countDistinct(jobs.id).as("count"),
-      })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt))
-      .groupBy(jobs.status);
-
-    const totalRes = await this.db
-      .select({ total: countDistinct(jobs.id).as("total") })
-      .from(jobs)
-      .where(isNull(jobs.deletedAt));
+    const [grouped, totalRes] = await Promise.all([
+      this.db
+        .select({
+          status: jobs.status,
+          count: countDistinct(jobs.id).as("count"),
+        })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt))
+        .groupBy(jobs.status),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+      this.db
+        .select({ total: countDistinct(jobs.id).as("total") })
+        .from(jobs)
+        .where(isNull(jobs.deletedAt)),
+    ]);
 
     const total = Number(totalRes[0]?.total ?? 0);
 

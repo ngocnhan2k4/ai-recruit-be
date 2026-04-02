@@ -1,0 +1,182 @@
+[
+  {
+    "skill": "Git",
+    "questionText": "Git là gì?",
+    "options": [
+      "Hệ quản trị cơ sở dữ liệu",
+      "Hệ thống quản lý phiên bản phân tán",
+      "Trình biên dịch C++",
+      "Package manager cho Node"
+    ],
+    "correctAnswer": "Hệ thống quản lý phiên bản phân tán",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git init dùng để làm gì?",
+    "options": [
+      "Tải repo từ remote",
+      "Khởi tạo repository Git trong thư mục hiện tại",
+      "Xóa lịch sử commit",
+      "Merge nhánh"
+    ],
+    "correctAnswer": "Khởi tạo repository Git trong thư mục hiện tại",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git clone làm gì?",
+    "options": [
+      "Tạo nhánh mới",
+      "Sao chép repository remote về máy local",
+      "Xóa file đã stage",
+      "Revert commit cuối"
+    ],
+    "correctAnswer": "Sao chép repository remote về máy local",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "Staging area trong Git là gì?",
+    "options": [
+      "Thư mục .git/objects duy nhất",
+      "Vùng trung gian trước khi commit (index)",
+      "Nhánh remote mặc định",
+      "File cấu hình SSH"
+    ],
+    "correctAnswer": "Vùng trung gian trước khi commit (index)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git commit -m \"msg\" lưu gì?",
+    "options": [
+      "Chỉ push lên server",
+      "Tạo snapshot các thay đổi đã stage với message",
+      "Xóa nhánh",
+      "Pull code mới nhất"
+    ],
+    "correctAnswer": "Tạo snapshot các thay đổi đã stage với message",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git merge dùng để?",
+    "options": [
+      "Xóa commit",
+      "Gộp lịch sử một nhánh vào nhánh hiện tại",
+      "Ẩn file",
+      "Đổi URL remote"
+    ],
+    "correctAnswer": "Gộp lịch sử một nhánh vào nhánh hiện tại",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git rebase khác merge ở điểm nào (khái niệm)?",
+    "options": [
+      "rebase luôn tạo merge commit",
+      "rebase viết lại base commit của nhánh lên đầu nhánh khác; merge giữ graph merge",
+      "rebase không thay đổi lịch sử",
+      "merge không dùng được trên remote"
+    ],
+    "correctAnswer": "rebase viết lại base commit của nhánh lên đầu nhánh khác; merge giữ graph merge",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Git",
+    "questionText": ".gitignore dùng để?",
+    "options": [
+      "Liệt kê contributor",
+      "Bỏ qua file/thư mục không theo dõi",
+      "Cấu hình CI",
+      "Đặt tên nhánh mặc định"
+    ],
+    "correctAnswer": "Bỏ qua file/thư mục không theo dõi",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "HEAD trong Git trỏ tới đâu?",
+    "options": [
+      "Luôn là origin/main",
+      "Commit/branch hiện tại trong repo",
+      "Server GitHub",
+      "File README"
+    ],
+    "correctAnswer": "Commit/branch hiện tại trong repo",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git fetch khác git pull như thế nào?",
+    "options": [
+      "Giống hệt nhau",
+      "fetch tải refs/commits mà không merge; pull thường fetch + merge/rebase",
+      "pull không kết nối remote",
+      "fetch xóa nhánh local"
+    ],
+    "correctAnswer": "fetch tải refs/commits mà không merge; pull thường fetch + merge/rebase",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git cherry-pick dùng để?",
+    "options": [
+      "Xóa tag",
+      "Áp dụng một commit cụ thể lên nhánh hiện tại",
+      "Đổi tên remote",
+      "Tạo submodule"
+    ],
+    "correctAnswer": "Áp dụng một commit cụ thể lên nhánh hiện tại",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "Detached HEAD nghĩa là gì?",
+    "options": [
+      "Không kết nối internet",
+      "HEAD trỏ trực tiếp commit thay vì tên nhánh",
+      "Repo bị hỏng",
+      "Chỉ đọc không ghi"
+    ],
+    "correctAnswer": "HEAD trỏ trực tiếp commit thay vì tên nhánh",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git reflog hữu ích khi nào?",
+    "options": [
+      "Chỉ xem tag",
+      "Phục hồi sau khi reset/sửa nhầm nhờ lịch sử tham chiếu HEAD",
+      "Thay thế git log hoàn toàn",
+      "Không bao giờ dùng"
+    ],
+    "correctAnswer": "Phục hồi sau khi reset/sửa nhầm nhờ lịch sử tham chiếu HEAD",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "Fast-forward merge xảy ra khi?",
+    "options": [
+      "Luôn khi có conflict",
+      "Nhánh hiện tại không có commit mới và chỉ cần tiến HEAD",
+      "Khi dùng rebase --onto",
+      "Khi có hai nhánh fork từ commit khác nhau"
+    ],
+    "correctAnswer": "Nhánh hiện tại không có commit mới và chỉ cần tiến HEAD",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Git",
+    "questionText": "git stash lưu gì?",
+    "options": [
+      "Toàn bộ repo zip",
+      "Thay đổi làm việc chưa commit tạm thời để chuyển nhánh",
+      "Chỉ file binary",
+      "Lịch sử remote"
+    ],
+    "correctAnswer": "Thay đổi làm việc chưa commit tạm thời để chuyển nhánh",
+    "difficultyLevels": ["medium"]
+  }
+]

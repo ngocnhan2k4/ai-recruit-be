@@ -3,37 +3,69 @@ import { skillsSynonyms } from "../models/skills-synonyms.model";
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { GenericRepository } from "./generic-repository";
 import type { DBDrizzle } from "../types";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { SynonymSkillResponse } from "@/core/entities/skill-synonym.entity";
 import * as fuzz from "fuzzball";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { CACHE_KEYS, SHORT_TTL, VERY_LONG_TTL } from "@/common/constants";
+import type { Cache } from "cache-manager";
+import { cacheWithDedup } from "@/common/utils";
 
 @Injectable()
 export class SkillsSynonymsRepository
   extends GenericRepository<SkillSynonym, typeof skillsSynonyms>
   implements ISkillsSynonymsRepository
 {
+  private readonly logger = new Logger(SkillsSynonymsRepository.name);
+
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly skillRepository: ISkillRepository,
   ) {
     super(db, skillsSynonyms);
   }
 
   async getSynonymsSkills(skillNames: string[]): Promise<SynonymSkillResponse> {
+    const synonymKey = CACHE_KEYS.skillSynonym.getAll();
+    const skillsKey = CACHE_KEYS.skill.getAll();
     const threshold = 90;
 
     // Fetch all existing skills and synonyms from DB
     const [allSkills, allSynonyms] = await Promise.all([
-      this.skillRepository.getAll(["id", "name"]),
-      this.getAll(["id", "masterName", "aliasName"]),
+      cacheWithDedup<Pick<any, "id" | "name" | "isApproved">[]>(
+        skillsKey,
+        () =>
+          this.cacheManager.get<
+            Pick<any, "id" | "name" | "isApproved">[] | undefined
+          >(skillsKey),
+        () => this.skillRepository.getAll(["id", "name", "isApproved"]),
+        (data) => this.cacheManager.set(skillsKey, data, SHORT_TTL),
+        { logger: this.logger },
+      ),
+      cacheWithDedup<Pick<SkillSynonym, "id" | "masterName" | "aliasName">[]>(
+        synonymKey,
+        () =>
+          this.cacheManager.get<
+            Pick<SkillSynonym, "id" | "masterName" | "aliasName">[] | undefined
+          >(synonymKey),
+        () => this.getAll(["id", "masterName", "aliasName"]),
+        (data: Pick<SkillSynonym, "id" | "masterName" | "aliasName">[]) =>
+          this.cacheManager.set(synonymKey, data, VERY_LONG_TTL),
+        {
+          logger: this.logger,
+        },
+      ),
     ]);
+
+    const approvedSkillNames = allSkills.filter((s) => s.isApproved);
 
     // Create a map for fast lookup and lists for fuzzy matching
 
     // Skills Table
     const skillNameMap = new Map<string, string>();
     const skillIdToName = new Map<string, string>();
-    allSkills.forEach((s) => {
+    approvedSkillNames.forEach((s) => {
       skillNameMap.set(s.name.toLowerCase(), s.id);
       skillIdToName.set(s.id, s.name);
     });

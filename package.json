@@ -37,7 +37,8 @@
     "casbin:list": "ts-node casbin_rule.config.ts list",
     "casbin:migrate": "ts-node migrate-casbin.ts",
     "swagger:json": "node scripts/fetch-swagger-json.js",
-    "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts"
+    "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts",
+    "sync:firebase-identities": "ts-node -r tsconfig-paths/register scripts/sync-firebase-user-identities.ts"
   },
   "husky": {
     "hooks": {

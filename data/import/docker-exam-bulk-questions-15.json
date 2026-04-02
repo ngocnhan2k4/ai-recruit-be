@@ -1,0 +1,177 @@
+[
+  {
+    "skill": "Docker",
+    "questionText": "Docker image là gì?",
+    "options": [
+      "Một file zip chứa mã nguồn",
+      "Một template read-only để tạo container",
+      "Một máy ảo hoàn chỉnh",
+      "Một volume lưu trữ dữ liệu"
+    ],
+    "correctAnswer": "Một template read-only để tạo container",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "Lệnh nào chạy container từ image?",
+    "options": ["docker build", "docker run", "docker commit", "docker pull"],
+    "correctAnswer": "docker run",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "Dockerfile dùng để làm gì?",
+    "options": [
+      "Cấu hình mạng Docker",
+      "Mô tả các bước build image",
+      "Quản lý secrets",
+      "Định nghĩa compose nhiều service"
+    ],
+    "correctAnswer": "Mô tả các bước build image",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "Container khác virtual machine chủ yếu ở điểm nào?",
+    "options": [
+      "Container cần hypervisor riêng",
+      "Container chia sẻ kernel host; VM có kernel riêng",
+      "Container không thể chạy Linux trên Windows",
+      "Container luôn chậm hơn VM"
+    ],
+    "correctAnswer": "Container chia sẻ kernel host; VM có kernel riêng",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "docker ps hiển thị gì?",
+    "options": [
+      "Tất cả image local",
+      "Các container đang chạy (mặc định)",
+      "Log của container",
+      "Cấu hình network"
+    ],
+    "correctAnswer": "Các container đang chạy (mặc định)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "Volume trong Docker dùng để làm gì?",
+    "options": [
+      "Chỉ mount secret",
+      "Lưu trữ dữ liệu bền vững hoặc chia sẻ giữa host và container",
+      "Tăng tốc build image",
+      "Thay thế Dockerfile"
+    ],
+    "correctAnswer": "Lưu trữ dữ liệu bền vững hoặc chia sẻ giữa host và container",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "COPY và ADD trong Dockerfile khác nhau như thế nào (khái quát)?",
+    "options": [
+      "Giống hệt nhau",
+      "ADD hỗ trợ URL và giải nén tar tự động; COPY chỉ copy file/local",
+      "COPY chỉ dùng cho Windows",
+      "ADD đã bị loại bỏ"
+    ],
+    "correctAnswer": "ADD hỗ trợ URL và giải nén tar tự động; COPY chỉ copy file/local",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "Multi-stage build giúp gì?",
+    "options": [
+      "Chạy nhiều container cùng lúc",
+      "Giảm kích thước image cuối bằng cách tách bước build và runtime",
+      "Tăng số layer tối đa",
+      "Chỉ dùng cho Docker Swarm"
+    ],
+    "correctAnswer": "Giảm kích thước image cuối bằng cách tách bước build và runtime",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": ".dockerignore có vai trò gì?",
+    "options": [
+      "Bỏ qua file/khi build context để build nhanh và image gọn",
+      "Chặn traffic vào container",
+      "Ẩn password trong image",
+      "Cấu hình registry"
+    ],
+    "correctAnswer": "Bỏ qua file/khi build context để build nhanh và image gọn",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "docker network create thường dùng khi nào?",
+    "options": [
+      "Xóa tất cả container",
+      "Tạo bridge network tùy chỉnh để các container giao tiếp theo tên",
+      "Build image đa nền tảng",
+      "Push image lên hub"
+    ],
+    "correctAnswer": "Tạo bridge network tùy chỉnh để các container giao tiếp theo tên",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "HEALTHCHECK trong Dockerfile dùng để?",
+    "options": [
+      "Kiểm tra disk host",
+      "Docker/engine kiểm tra trạng thái ứng dụng trong container",
+      "Bắt buộc TLS",
+      "Giới hạn CPU"
+    ],
+    "correctAnswer": "Docker/engine kiểm tra trạng thái ứng dụng trong container",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "User namespace trong Docker (khi bật) giúp gì?",
+    "options": [
+      "Tăng tốc pull image",
+      "Cô lập UID/GID trong container khới UID host",
+      "Chỉ cho phép root trong container",
+      "Tắt overlay filesystem"
+    ],
+    "correctAnswer": "Cô lập UID/GID trong container khới UID host",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "BuildKit ảnh hưởng build Docker như thế nào (khái niệm)?",
+    "options": [
+      "Chỉ dùng cho Windows",
+      "Song song hóa, cache và secret mount hiện đại hơn so với builder legacy",
+      "Thay thế containerd",
+      "Không liên quan build"
+    ],
+    "correctAnswer": "Song song hóa, cache và secret mount hiện đại hơn so với builder legacy",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "docker compose và docker-compose (CLI cũ) khác nhau chính là?",
+    "options": [
+      "compose là plugin tích hợp docker CLI; compose cũ là binary riêng",
+      "Không có khác biệt",
+      "compose chỉ chạy trên Mac",
+      "compose không hỗ trợ YAML"
+    ],
+    "correctAnswer": "compose là plugin tích hợp docker CLI; compose cũ là binary riêng",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "Docker",
+    "questionText": "ENTRYPOINT và CMD kết hợp: ENTRYPOINT thường định nghĩa gì?",
+    "options": [
+      "Chỉ biến môi trường",
+      "Executable chính; CMD cung cố đối số mặc định",
+      "Port expose",
+      "User chạy trong image"
+    ],
+    "correctAnswer": "Executable chính; CMD cung cố đối số mặc định",
+    "difficultyLevels": ["medium"]
+  }
+]
