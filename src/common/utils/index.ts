@@ -8,3 +8,4 @@ export * from "./calculate-week-number";
 export * from "./string";
 export * from "./user-profile";
 export * from "./context";
+export * from "./backoff";
