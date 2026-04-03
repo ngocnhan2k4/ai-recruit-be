@@ -197,3 +197,15 @@ export enum SubscriptionEnum {
   PRO = "PRO",
   ENTERPRISE = "ENTERPRISE",
 }
+
+export enum TaskStatusEnum {
+  PENDING = "pending",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+  FAILED = "failed",
+}
+
+export enum TaskTypeEnum {
+  LEARNING_PATH_GENERATION = "learning_path_generation",
+  CV_GENERATION = "cv_generation",
+}
