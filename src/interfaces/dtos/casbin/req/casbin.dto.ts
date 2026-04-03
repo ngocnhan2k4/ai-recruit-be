@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsEnum, IsOptional } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsString, IsEnum, IsOptional, IsBoolean } from "class-validator";
 import { DomainTypeEnum } from "@/core/entities";
 import { GeneralQueryDto } from "../../common/query";
 import { PtypeEnum } from "@/common/constants";
@@ -261,4 +262,18 @@ export class GetPoliciesCasbinFilter extends GeneralQueryDto {
   @IsString()
   @IsOptional()
   object?: string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "If true, only list Casbin policy rules (ptype p and p2), excluding role bindings (g, g2). Pagination total matches this set.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === true || value === "true") return true;
+    if (value === false || value === "false") return false;
+    return undefined;
+  })
+  @IsBoolean()
+  policyRulesOnly?: boolean;
 }

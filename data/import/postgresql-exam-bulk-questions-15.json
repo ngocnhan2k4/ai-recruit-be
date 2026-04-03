@@ -1,0 +1,142 @@
+[
+  {
+    "skill": "PostgreSQL",
+    "questionText": "PostgreSQL là loại database?",
+    "options": ["Document-only", "Relational / SQL (ORDBMS)", "Pure key-value", "Time-series only"],
+    "correctAnswer": "Relational / SQL (ORDBMS)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Primary key trong bảng dùng để?",
+    "options": ["Comment", "Xác định duy nhất mỗi hàng và index mặc định", "Chỉ foreign key", "Partition only"],
+    "correctAnswer": "Xác định duy nhất mỗi hàng và index mặc định",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "SERIAL trong Postgres thường map?",
+    "options": ["UUID always", "Integer sequence auto-increment column", "JSONB", "Enum"],
+    "correctAnswer": "Integer sequence auto-increment column",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "JOIN loại nào chỉ hàng khớp cả hai bên?",
+    "options": ["LEFT JOIN", "INNER JOIN", "FULL without ON", "CROSS JOIN filtered"],
+    "correctAnswer": "INNER JOIN",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "JSONB khác JSON?",
+    "options": [
+      "Giống hệt",
+      "JSONB binary decomposed — indexable/operators hiệu quả hơn thường",
+      "JSON nhanh hơn mọi query",
+      "JSONB không lưu được"
+    ],
+    "correctAnswer": "JSONB binary decomposed — indexable/operators hiệu quả hơn thường",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Transaction ACID trong Postgres đảm bảo?",
+    "options": ["Chỉ availability", "Tính toàn vẹn đồng thời/commit-rollback", "Chỉ read uncommitted forever", "Không isolation"],
+    "correctAnswer": "Tính toàn vẹn đồng thời/commit-rollback",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "MVCC trong Postgres giúp?",
+    "options": [
+      "Chỉ full lock table mọi SELECT",
+      "Reader không block writer và ngược lại ở mức hàng (điển hình)",
+      "Chỉ MyISAM style",
+      "Không snapshot"
+    ],
+    "correctAnswer": "Reader không block writer và ngược lại ở mức hàng (điển hình)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "EXPLAIN ANALYZE dùng để?",
+    "options": ["Grant role", "Xem kế hoạch thực thi + đo thời gian thực tế", "Backup base", "Replication slot"],
+    "correctAnswer": "Xem kế hoạch thực thi + đo thời gian thực tế",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Index B-tree phù hợp?",
+    "options": ["Full-text mặc định", "So sánh equality/range trên scalar thường", "JSON path only", "Sequential scan only"],
+    "correctAnswer": "So sánh equality/range trên scalar thường",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "VACUUM trong Postgres?",
+    "options": ["Xóa cluster", "Dọn dead tuple / cập nhật visibility map / freeze", "Chỉ analyze stats", "Export CSV only"],
+    "correctAnswer": "Dọn dead tuple / cập nhật visibility map / freeze",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "WAL (write-ahead log) mục đích?",
+    "options": [
+      "Query cache result",
+      "Ghi log trước khi apply data để durability & recovery",
+      "Columnar storage",
+      "Client auth only"
+    ],
+    "correctAnswer": "Ghi log trước khi apply data để durability & recovery",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Replication streaming primary → standby?",
+    "options": [
+      "Chỉ file copy thủ công",
+      "WAL records shipped/apply cho HA/read scale read-only",
+      "Chỉ CSV",
+      "Không hỗ trợ"
+    ],
+    "correctAnswer": "WAL records shipped/apply cho HA/read scale read-only",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Isolation level SERIALIZABLE trong Postgres?",
+    "options": [
+      "Giống READ UNCOMMITTED",
+      "Phát hiện cycle serialization anomaly mạnh nhất (chi phí cao hơn)",
+      "Không lock",
+      "Chỉ NoSQL"
+    ],
+    "correctAnswer": "Phát hiện cycle serialization anomaly mạnh nhất (chi phí cao hơn)",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "Partition pruning là?",
+    "options": [
+      "Xóa index",
+      "Planner bỏ qua partition không liên quan để giảm scan",
+      "Chỉ hash join",
+      "Logical replicate"
+    ],
+    "correctAnswer": "Planner bỏ qua partition không liên quan để giảm scan",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "PostgreSQL",
+    "questionText": "CTID trong Postgres là?",
+    "options": [
+      "User session",
+      "Vị trí vật lý hàng (tid) — hữu ích low-level, thay đổi sau vacuum/cluster",
+      "Primary key",
+      "JSON operator"
+    ],
+    "correctAnswer": "Vị trí vật lý hàng (tid) — hữu ích low-level, thay đổi sau vacuum/cluster",
+    "difficultyLevels": ["advanced"]
+  }
+]

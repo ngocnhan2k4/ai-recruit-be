@@ -213,8 +213,8 @@ export class JobController {
   @Get("apply")
   async getApplyJobs(
     @Query() query: ApplyJobQueryDto,
-  ): Promise<ApiResponse<ApplyJobResponseDto[]>> {
-    return await this.jobUseCases.getApplyJobs(query.jobId);
+  ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {
+    return await this.jobUseCases.getApplyJobs(query);
   }
 
   @ApiOperation({
@@ -315,6 +315,7 @@ export class JobController {
   ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
     return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
   }
+
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(Number)
   @Get("applied/count")

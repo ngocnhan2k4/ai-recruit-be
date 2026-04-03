@@ -1,0 +1,172 @@
+[
+  {
+    "skill": "MongoDB",
+    "questionText": "MongoDB là database kiểu gì?",
+    "options": [
+      "Quan hệ SQL thuần",
+      "NoSQL document-oriented",
+      "Chỉ key-value in-memory",
+      "Chỉ time-series"
+    ],
+    "correctAnswer": "NoSQL document-oriented",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Đơn vị dữ liệu cơ bản trong MongoDB là gì?",
+    "options": ["Table", "Document (BSON/JSON)", "Row", "Column family"],
+    "correctAnswer": "Document (BSON/JSON)",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Collection trong MongoDB tương tự gì trong SQL?",
+    "options": ["Database", "Table", "Index", "Transaction log"],
+    "correctAnswer": "Table",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "_id trong document có đặc điểm gì?",
+    "options": [
+      "Luôn do user nhập",
+      "Unique trong collection; mặc định ObjectId nếu không chỉ định",
+      "Có thể trùng lặp",
+      "Chỉ là string UUID v4"
+    ],
+    "correctAnswer": "Unique trong collection; mặc định ObjectId nếu không chỉ định",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "find() trong MongoDB shell/driver dùng để?",
+    "options": [
+      "Xóa collection",
+      "Truy vấn document khớp filter",
+      "Tạo index",
+      "Backup cluster"
+    ],
+    "correctAnswer": "Truy vấn document khớp filter",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Index trong MongoDB giúp gì?",
+    "options": [
+      "Giảm dung lượng disk",
+      "Tăng tốc truy vấn và ràng buộc unique/sparse tùy cấu hình",
+      "Thay thế replica set",
+      "Tắt ghi"
+    ],
+    "correctAnswer": "Tăng tốc truy vấn và ràng buộc unique/sparse tùy cấu hình",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Aggregation pipeline là gì?",
+    "options": [
+      "Chỉ import dữ liệu",
+      "Chuỗi stage xử lý dữ liệu (match, group, project...)",
+      "Công cụ GUI Compass",
+      "Backup incremental"
+    ],
+    "correctAnswer": "Chuỗi stage xử lý dữ liệu (match, group, project...)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Replica Set dùng để?",
+    "options": [
+      "Chỉ dev local",
+      "Cao khả dụng và redundancy: primary + secondaries",
+      "Giảm index",
+      "Thay schema SQL"
+    ],
+    "correctAnswer": "Cao khả dụng và redundancy: primary + secondaries",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Shard trong MongoDB cluster nhằm?",
+    "options": [
+      "Chỉ đọc",
+      "Phân mảnh dữ liệu theo shard key để scale ngang",
+      "Mã hóa TLS",
+      "Tạo user admin"
+    ],
+    "correctAnswer": "Phân mảnh dữ liệu theo shard key để scale ngang",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Write concern ảnh hưởng gì?",
+    "options": [
+      "Chỉ UI",
+      "Mức xác nhận ghi từ replica trước khi báo thành công",
+      "Tốc độ compile",
+      "Kích thước batch import"
+    ],
+    "correctAnswer": "Mức xác nhận ghi từ replica trước khi báo thành công",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "$lookup trong aggregation dùng để?",
+    "options": [
+      "Xóa field",
+      "Join giữa collections",
+      "Sort index",
+      "Validate BSON"
+    ],
+    "correctAnswer": "Join giữa collections",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "TTL index dùng cho?",
+    "options": [
+      "Tăng RAM",
+      "Tự xóa document sau một khoảng thời gian dựa field date",
+      "Replication lag",
+      "Full text search"
+    ],
+    "correctAnswer": "Tự xóa document sau một khoảng thời gian dựa field date",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Schema validation (validator) ở collection level cho phép?",
+    "options": [
+      "Chỉ trên Atlas free tier",
+      "Định nghĩa rules JSON Schema cho document insert/update",
+      "Thay engine WiredTiger",
+      "Tắt transaction"
+    ],
+    "correctAnswer": "Định nghĩa rules JSON Schema cho document insert/update",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Compound index là index gì?",
+    "options": [
+      "Chỉ một field",
+      "Nhiều field theo thứ tự; thứ tự ảnh hưởng truy vấn sort/filter",
+      "Chỉ trên _id",
+      "Không hỗ trợ trong MongoDB"
+    ],
+    "correctAnswer": "Nhiều field theo thứ tự; thứ tự ảnh hưởng truy vấn sort/filter",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "MongoDB",
+    "questionText": "Multi-document transaction (phiên bản hỗ trợ) cần lưu ý?",
+    "options": [
+      "Luôn unlimited mọi cluster",
+      "Có overhead và yêu cầu replica set; không phải use-case mặc định như SQL",
+      "Chỉ shell",
+      "Không hỗ trợ từ 4.0"
+    ],
+    "correctAnswer": "Có overhead và yêu cầu replica set; không phải use-case mặc định như SQL",
+    "difficultyLevels": ["medium"]
+  }
+]

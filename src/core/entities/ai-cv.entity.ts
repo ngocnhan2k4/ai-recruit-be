@@ -1,9 +1,4 @@
-import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { aiCvs } from "@/frameworks/data-services/postgres/models";
 import { CvLanguageEnum } from "./enum.entity";
-
-export type NewAiCv = InferInsertModel<typeof aiCvs>;
-export type AiCv = InferSelectModel<typeof aiCvs>;
 
 export interface OptimizeAtsRequest {
   cvText: string;

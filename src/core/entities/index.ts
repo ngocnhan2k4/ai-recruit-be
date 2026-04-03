@@ -31,9 +31,12 @@ import {
   subscriptionFeatures,
   userFeatureUsages,
   userIdentities,
+  aiCvs,
+  tasks,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
+import { skillsSynonyms } from "@/frameworks/data-services/postgres/models/skills-synonyms.model";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
@@ -77,8 +80,17 @@ export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
 export type UserTestSkill = Pick<Skill, "id" | "name">;
 
+export type NewTask = InferInsertModel<typeof tasks>;
+export type Task = InferSelectModel<typeof tasks>;
+
+export type NewSkillSynonym = InferInsertModel<typeof skillsSynonyms>;
+export type SkillSynonym = InferSelectModel<typeof skillsSynonyms>;
+
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
+
+export type NewAiCv = InferInsertModel<typeof aiCvs>;
+export type AiCv = InferSelectModel<typeof aiCvs>;
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;
@@ -94,6 +106,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
+    task?: Pick<Task, "id" | "status" | "type" | "progress" | "result"> | null;
     sender?: {
       name?: string | null;
       avatarUrl?: string | null;

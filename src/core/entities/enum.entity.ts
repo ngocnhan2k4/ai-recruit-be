@@ -121,6 +121,11 @@ export enum SkillLevelEnum {
   ADVANCED = "advanced",
 }
 
+export enum SkillResolutionStatusEnum {
+  MATCHED = "matched",
+  PENDING = "pending",
+}
+
 export enum ResourceTypeEnum {
   VIDEO = "video",
   COURSE = "course",
@@ -191,4 +196,16 @@ export enum SubscriptionEnum {
   BASIC = "BASIC",
   PRO = "PRO",
   ENTERPRISE = "ENTERPRISE",
+}
+
+export enum TaskStatusEnum {
+  PENDING = "pending",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+  FAILED = "failed",
+}
+
+export enum TaskTypeEnum {
+  LEARNING_PATH_GENERATION = "learning_path_generation",
+  CV_GENERATION = "cv_generation",
 }

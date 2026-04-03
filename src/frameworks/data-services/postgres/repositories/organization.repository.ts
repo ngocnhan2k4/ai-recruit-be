@@ -264,11 +264,10 @@ export class OrganizationRepository
       .orderBy(desc(organizations.createdAt))
       .groupBy(organizations.id)
       .limit(limit + 1);
-
     const hasNextPage = results.length > limit;
     const data = hasNextPage ? results.slice(0, limit) : results;
     const nextCursor =
-      !query.page && hasNextPage && data.length > 0
+      hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
@@ -624,5 +623,23 @@ export class OrganizationRepository
       date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
+  }
+
+  async countOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<number> {
+    const [row] = await this.db
+      .select({
+        count: countDistinct(organizations.id).as("count"),
+      })
+      .from(organizations)
+      .where(
+        and(
+          isNull(organizations.deletedAt),
+          inArray(organizations.type, types),
+        ),
+      );
+
+    return Number(row?.count ?? 0);
   }
 }

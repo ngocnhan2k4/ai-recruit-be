@@ -1,0 +1,122 @@
+[
+  {
+    "skill": "TypeScript",
+    "questionText": "TypeScript biên dịch sang ngôn ngữ nào để chạy trên engine JS?",
+    "options": ["Java", "JavaScript", "Python", "WebAssembly"],
+    "correctAnswer": "JavaScript",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Từ khóa nào khai báo kiểu đối tượng có các thuộc tính bắt buộc?",
+    "options": ["type chỉ cho union", "interface hoặc type object", "enum chỉ số", "namespace"],
+    "correctAnswer": "interface hoặc type object",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "any trong TypeScript có nghĩa là?",
+    "options": ["An toàn tuyệt đối", "Tắt kiểm tra kiểu cho biến đó", "Chỉ dùng trong test", "Tương đương unknown"],
+    "correctAnswer": "Tắt kiểm tra kiểu cho biến đó",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "unknown khác any chủ yếu ở điểm nào?",
+    "options": ["unknown an toàn hơn — cần thu hẹp kiểu trước khi dùng", "Không khác", "unknown nhanh hơn", "any chỉ cho class"],
+    "correctAnswer": "unknown an toàn hơn — cần thu hẹp kiểu trước khi dùng",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Union type string | number nghĩa là?",
+    "options": ["Luôn là cả hai", "Giá trị có thể là string hoặc number", "Chỉ literal", "Chỉ object"],
+    "correctAnswer": "Giá trị có thể là string hoặc number",
+    "difficultyLevels": ["easy"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Optional property trong interface ký hiệu thế nào?",
+    "options": ["name!: string", "name?: string", "name# string", "name@string"],
+    "correctAnswer": "name?: string",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Generic <T> trong hàm/tiện ích dùng để?",
+    "options": ["Chỉ trang trí", "Tái sử dụng logic với nhiều kiểu nhưng vẫn type-safe", "Chỉ cho array", "Tắt strict"],
+    "correctAnswer": "Tái sử dụng logic với nhiều kiểu nhưng vẫn type-safe",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "keyof T trả về?",
+    "options": ["Giá trị của T", "Union các tên khóa hợp lệ của T", "Prototype", "Constructor"],
+    "correctAnswer": "Union các tên khóa hợp lệ của T",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Discriminated union thường dùng pattern gì?",
+    "options": [
+      "Không có field chung",
+      "Field literal kind để phân nhánh kiểu (narrowing)",
+      "Chỉ dùng enum số",
+      "Chỉ class"
+    ],
+    "correctAnswer": "Field literal kind để phân nhánh kiểu (narrowing)",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "readonly trong property có tác dụng?",
+    "options": ["Cho phép gán lại compile-time error ở TS", "Runtime khóa object", "Chỉ interface", "Không có tác dụng"],
+    "correctAnswer": "Cho phép gán lại compile-time error ở TS",
+    "difficultyLevels": ["medium"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Utility type Pick<T, K> làm gì?",
+    "options": ["Loại bỏ khóa", "Chọn tập con khóa K từ T", "Làm tất cả optional", "Chuyển thành readonly"],
+    "correctAnswer": "Chọn tập con khóa K từ T",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Conditional type dạng T extends U ? X : Y dùng khi nào?",
+    "options": ["Chỉ runtime", "Ánh xạ kiểu phụ thuộc điều kiện extends ở type level", "Chỉ cho string", "Thay thế interface"],
+    "correctAnswer": "Ánh xạ kiểu phụ thuộc điều kiện extends ở type level",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "const assertion (as const) giúp điều gì?",
+    "options": [
+      "Ép các literal thành kiểu rộng",
+      "Thu hẹp kiểu thành literal/tuple readonly",
+      "Tăng any",
+      "Chỉ dùng trong JSX"
+    ],
+    "correctAnswer": "Thu hẹp kiểu thành literal/tuple readonly",
+    "difficultyLevels": ["hard"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "Module augmentation trong TypeScript phục vụ?",
+    "options": ["Xóa module", "Mở rộng khai báo module/namespace có sẵn", "Bundle tree-shaking", "Chạy GC"],
+    "correctAnswer": "Mở rộng khai báo module/namespace có sẵn",
+    "difficultyLevels": ["advanced"]
+  },
+  {
+    "skill": "TypeScript",
+    "questionText": "satisfies operator (TS 4.9+) giúp?",
+    "options": [
+      "Tắt check",
+      "Giữ narrower literal inference nhưng vẫn kiểm tra khớp type tổng thể",
+      "Chỉ trong .js",
+      "Thay thế runtime check"
+    ],
+    "correctAnswer": "Giữ narrower literal inference nhưng vẫn kiểm tra khớp type tổng thể",
+    "difficultyLevels": ["advanced"]
+  }
+]

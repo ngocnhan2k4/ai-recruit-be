@@ -32,6 +32,7 @@ import {
   ISubscriptionRepository,
   IFeatureRepository,
   IUserFeatureUsageRepository,
+  ITaskRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -77,6 +78,9 @@ import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-
 import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
 import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
 import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
+import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
+import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
+import { TaskRepository } from "./repositories/task.repository";
 
 @Global()
 @Module({
@@ -188,6 +192,10 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
       useClass: SkillRepository,
     },
     {
+      provide: ISkillsSynonymsRepository,
+      useClass: SkillsSynonymsRepository,
+    },
+    {
       provide: IUserOnboardingRepository,
       useClass: UserOnboardingRepository,
     },
@@ -268,6 +276,10 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
       useClass: UserFeatureUsageRepository,
     },
     {
+      provide: ITaskRepository,
+      useClass: TaskRepository,
+    },
+    {
       provide: IUserSubscriptionRepository,
       useClass: UserSubscriptionRepository,
     },
@@ -289,6 +301,7 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
     IJobRepository,
     IProvinceRepository,
     ISkillRepository,
+    ISkillsSynonymsRepository,
     IUserExperienceRepository,
     IUserSkillRepository,
     IUserRepository,
@@ -318,6 +331,7 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
     IUserSubscriptionRepository,
     ISubscriptionFeatureRepository,
     IUserFeatureUsageRepository,
+    ITaskRepository,
   ],
 })
 export class PostgresDataServicesModule {}

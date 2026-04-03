@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { ISkillRepository, Skill } from "@/core";
+import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
 import {
   ApiResponse,
+  BulkReviewSkillDto,
+  CrawledSkillDto,
+  GetCrawledSkillsQueryDto,
   GetSkillsQueryDto,
   PaginatedResultDto,
   SkillDto,
@@ -12,7 +15,10 @@ import { CreateSkillDto } from "@/interfaces/dtos";
 @Injectable()
 export class SkillUseCases {
   private readonly logger = new Logger(SkillUseCases.name);
-  constructor(private readonly skillRepository: ISkillRepository) {}
+  constructor(
+    private readonly skillRepository: ISkillRepository,
+    private readonly skillsSynonymsRepository: ISkillsSynonymsRepository,
+  ) {}
 
   async createMany(
     createSkillDto: CreateSkillDto,
@@ -50,6 +56,42 @@ export class SkillUseCases {
       message: "Skill fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: skill,
+    };
+  }
+
+  async getCrawledSkills(
+    query: GetCrawledSkillsQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<CrawledSkillDto>>> {
+    const data = await this.skillRepository.getCrawledSkills(query);
+
+    const skillNames = data.data.map((s) => s.name);
+    const { matches } =
+      await this.skillsSynonymsRepository.getSynonymsSkills(skillNames);
+
+    const enriched = data.data.map((s) => ({
+      ...s,
+      synonym: matches[s.name]?.resolvedName ?? null,
+    }));
+
+    this.logger.log(`Fetched crawled skills`);
+
+    return {
+      message: "Crawled skills fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: { ...data, data: enriched },
+    };
+  }
+
+  async bulkReviewSkills(dto: BulkReviewSkillDto): Promise<ApiResponse<void>> {
+    await this.skillRepository.bulkReviewSkills(dto.ids, dto.status);
+
+    this.logger.log(
+      `Bulk reviewed skills with IDs: ${dto.ids.join(", ")} and status: ${dto.status}`,
+    );
+
+    return {
+      message: "Skills reviewed successfully",
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 }

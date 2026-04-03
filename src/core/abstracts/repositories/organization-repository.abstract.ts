@@ -91,4 +91,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
   abstract getOrganizationTrends(
     params: OrganizationTrendsQuery,
   ): Promise<OrganizationTrends[]>;
+
+  abstract countOrganizationsByTypes(
+    types: OrganizationTypeEnum[],
+  ): Promise<number>;
 }

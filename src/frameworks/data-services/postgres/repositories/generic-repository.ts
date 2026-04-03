@@ -100,6 +100,8 @@ export class GenericRepository<T, TTable extends object>
     item: Partial<T>[],
     tx?: DBDrizzleTransaction,
   ): Promise<T[]> {
+    if (item.length === 0) return [];
+
     const dbClient = tx ?? this.db;
     const result = await dbClient
       .insert(this._table as any)

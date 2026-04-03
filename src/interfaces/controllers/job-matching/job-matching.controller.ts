@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { GetUser } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
 import { JobStatusEnum } from "@/core";
+import { RoleEnum } from "@/common/constants";
 
 @ApiTags("Job Matching")
 @UseGuards(JwtAuthGuard)
@@ -31,12 +32,25 @@ export class JobMatchingController {
       {
         cursor: query.cursor,
         limit: query.limit || 20,
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+        keyword: query.keyword,
         salaryMin: query.salaryMin,
         salaryMax: query.salaryMax,
+        experienceMin: query.experienceMin,
+        experienceMax: query.experienceMax,
         provinceId: query.provinceId,
         categoryId: query.categoryId,
+        organizationId: query.organizationId,
+        skillIds: query.skillIds,
+        fromDate: query.fromDate,
+        toDate: query.toDate,
         workType: query.workType,
         status: JobStatusEnum.ACTIVE,
+        user: {
+          ...user,
+          roles: [RoleEnum.USER],
+        },
       },
     );
   }
