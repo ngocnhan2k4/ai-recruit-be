@@ -264,11 +264,10 @@ export class OrganizationRepository
       .orderBy(desc(organizations.createdAt))
       .groupBy(organizations.id)
       .limit(limit + 1);
-
     const hasNextPage = results.length > limit;
     const data = hasNextPage ? results.slice(0, limit) : results;
     const nextCursor =
-      !query.page && hasNextPage && data.length > 0
+      hasNextPage && data.length > 0
         ? data[data.length - 1].createdAt.toISOString()
         : null;
 
