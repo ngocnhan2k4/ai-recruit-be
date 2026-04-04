@@ -49,7 +49,6 @@ import {
   User,
   UserInteractionEnum,
   ApplyJob,
-  ApplyJobFilters,
 } from "@/core";
 import {
   Job,
@@ -70,7 +69,12 @@ import {
 } from "@/core";
 import { PaginatedResult, GeneralQuery } from "@/common/types";
 import { organizations } from "../models/organization.model";
-import { JobFilters, JobResponse, StatisticsJobFilter } from "@/core";
+import {
+  ApplyJobFilters,
+  JobFilters,
+  JobResponse,
+  StatisticsJobFilter,
+} from "@/core";
 import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -559,8 +563,6 @@ export class JobRepository
       category: Category;
       totalApplications: number;
     }[];
-
-    console.log(result[7]);
 
     // Check if there's a next page
     const hasNextPage = result.length > limit;
@@ -1398,17 +1400,15 @@ export class JobRepository
   }
 
   async getApplyJobs(
-    jobId: string,
-    filters?: ApplyJobFilters,
+    filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>> {
-    const total = await this.getTotalOfJobApplicationsByJobId(jobId);
-    if (filters?.fields?.includes("total")) {
-      return {
-        data: [],
-        pagination: {
-          total,
-        },
-      };
+    const { jobId } = filters;
+    const limit = Math.max(filters?.limit ?? 10, 1);
+    const cursor = filters?.cursor;
+
+    const whereConditions: SQL[] = [eq(applyJobs.jobId, jobId)];
+    if (cursor && !isNaN(Number(cursor))) {
+      whereConditions.push(lt(applyJobs.createdAt, new Date(Number(cursor))));
     }
 
     const data = await this.db
@@ -1434,11 +1434,14 @@ export class JobRepository
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(users, eq(cvs.userId, users.id))
-      .where(eq(applyJobs.jobId, jobId))
-      .orderBy(desc(applyJobs.createdAt));
+      .where(and(...whereConditions))
+      .orderBy(desc(applyJobs.createdAt))
+      .limit(limit + 1);
 
-    // Convert data to ApplyJobResponse[]
-    const applications = data.map((item) => ({
+    const hasNextPage = data.length > limit;
+    const pageData = hasNextPage ? data.slice(0, limit) : data;
+
+    const applications = pageData.map((item) => ({
       id: item.id,
       jobId: item.jobId,
       status: item.status,
@@ -1449,21 +1452,17 @@ export class JobRepository
       cv: item.cv,
     })) as ApplyJobResponse[];
 
+    const nextCursor = hasNextPage
+      ? applications[applications.length - 1]?.createdAt?.getTime()
+      : undefined;
+
     return {
       data: applications,
       pagination: {
-        total,
+        hasNextPage,
+        nextCursor,
       },
     };
-  }
-
-  async getTotalOfJobApplicationsByJobId(jobId: string): Promise<number> {
-    const result = await this.db
-      .select({ total: countDistinct(applyJobs.id).as("total") })
-      .from(applyJobs)
-      .where(eq(applyJobs.jobId, jobId));
-
-    return Number(result[0]?.total ?? 0);
   }
 
   async saveJob(

@@ -7,11 +7,11 @@ import {
   User,
   JobTrends,
   JobTrendsQuery,
-  ApplyJobFilters,
 } from "@/core/entities";
 import {
   JobResponse,
   JobFilters,
+  ApplyJobFilters,
   StatisticsJobFilter,
   JobAnswer,
   ApplyJobResponse,
@@ -198,11 +198,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   ): Promise<JobResponse | null>;
 
   abstract getApplyJobs(
-    jobId: string,
-    filters?: ApplyJobFilters,
+    filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>>;
-
-  abstract getTotalOfJobApplicationsByJobId(jobId: string): Promise<number>;
 
   abstract getJobCounts(): Promise<JobCounts>;
 

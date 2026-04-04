@@ -36,6 +36,10 @@ export interface JobFilters extends GeneralQuery {
   ids?: string[];
 }
 
+export interface ApplyJobFilters extends GeneralQuery {
+  jobId: string;
+}
+
 export interface StatisticsJobFilter {
   fromDate?: Date;
   toDate?: Date;
@@ -73,10 +77,6 @@ export interface ApplyJobResponse {
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
   cv?: Pick<Cv, "id" | "name" | "fileUrl">;
-}
-
-export interface ApplyJobFilters {
-  fields?: string[];
 }
 
 export interface UserInteractionResponse {
