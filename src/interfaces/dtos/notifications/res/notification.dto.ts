@@ -1,6 +1,25 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString } from "class-validator";
-import { NotificationStatusEnum, NotificationType } from "@/core";
+import {
+  NotificationStatusEnum,
+  NotificationType,
+  TaskStatusEnum,
+  TaskTypeEnum,
+} from "@/core";
+
+export class TaskInNotificationDto {
+  @ApiProperty({ type: "string" })
+  id: string;
+
+  @ApiProperty({ type: "string" })
+  status: TaskStatusEnum;
+
+  @ApiProperty({ enum: TaskTypeEnum })
+  type: TaskTypeEnum;
+
+  @ApiProperty({ nullable: true })
+  result: Record<string, any> | null;
+}
 
 export class NotificationDto {
   @ApiProperty({ type: "string" })
@@ -31,6 +50,7 @@ export class NotificationDto {
     applyId?: string;
     orgInvitationId?: string;
     avatarUrl?: string;
+    taskId?: string;
   } | null;
 
   @ApiProperty({ type: "string", nullable: true })
@@ -52,11 +72,9 @@ export class NotificationDto {
   orgInvitation?: {
     status?: string | null;
   } | null;
-}
 
-export class GetNotificationResponseDto {
-  @ApiProperty({ type: NotificationDto })
-  notification: NotificationDto;
+  @ApiProperty({ type: TaskInNotificationDto, nullable: true })
+  task?: TaskInNotificationDto | null;
 }
 
 export class NotificationActionResponseDto {

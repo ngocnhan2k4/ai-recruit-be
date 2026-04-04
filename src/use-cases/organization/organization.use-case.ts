@@ -1095,6 +1095,7 @@ export class OrganizationUseCase {
       page: query.page,
       sortBy: query.sortBy,
       sortDirection: query.sortDirection,
+      fields: ["totalApplications"],
     });
 
     const transformedJobData = result.data.map((item) => ({

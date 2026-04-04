@@ -448,6 +448,16 @@ export class JobRepository
           WHERE false
         ) apply_user`;
 
+    const fields = filters?.fields || [];
+
+    const totalApplyLateral = fields.includes("totalApplications")
+      ? sql`LATERAL (
+        SELECT COUNT(*) AS total_applications
+        FROM ${applyJobs} aj
+        WHERE aj.job_id = ${jobs.id}
+      ) total_applications_lateral`
+      : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
+
     // Add one extra item to check if there's a next page
     const query = this.db
       .select({
@@ -490,6 +500,10 @@ export class JobRepository
         applyStatus: sql`apply_user.apply_status`.as("applyStatus"),
         applyId: sql`apply_user.apply_id`.as("applyId"),
         category: categories,
+        totalApplications:
+          sql`COALESCE(total_applications_lateral.total_applications, 0)`.as(
+            "totalApplications",
+          ),
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -519,6 +533,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .leftJoin(applyUserLateral, sql`TRUE`)
+      .leftJoin(totalApplyLateral, sql`TRUE`)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
 
     if (isOffsetCursor) {
@@ -542,7 +557,10 @@ export class JobRepository
       organization: any;
       skills: Skill[];
       category: Category;
+      totalApplications: number;
     }[];
+
+    console.log(result[7]);
 
     // Check if there's a next page
     const hasNextPage = result.length > limit;

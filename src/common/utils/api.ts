@@ -1,26 +1,35 @@
 import { Logger } from "@nestjs/common";
+import { IBackoff } from "./backoff";
+
 interface RetryOptions {
   retries?: number;
   interval?: number;
   maxAttempts?: number;
   maxDelay?: number;
+  backoff?: IBackoff;
 }
 
 export async function retry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {},
 ): Promise<T> {
-  const { retries = 3, interval = 1000 } = options;
+  const { retries = 3, interval = 1000, backoff } = options;
+  const attempts = Math.max(1, retries);
 
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries <= 1) throw error;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
 
-    await wait(interval);
-
-    return retry(fn, { retries: retries - 1, interval });
+      const delay = backoff ? backoff.next(attempt) : interval;
+      await wait(delay);
+    }
   }
+
+  throw lastError;
 }
 
 export const wait = (ms: number) =>
