@@ -390,6 +390,7 @@ export class UserRepository
             provinceIds: userOnboardings.provinceIds,
             categoryIds: userOnboardings.categoryIds,
             expectedSalary: userOnboardings.expectedSalary,
+            experienceYears: userOnboardings.experienceYears,
           })
           .from(userOnboardings)
           .where(eq(userOnboardings.userId, userId)),
@@ -409,11 +410,15 @@ export class UserRepository
     }
 
     const onboarding = userOnboardingResult[0];
+    const experienceYearsFromOnboarding = onboarding?.experienceYears;
 
     return {
       userId: user.id,
       skillIds,
-      experienceYears,
+      experienceYears:
+        typeof experienceYearsFromOnboarding === "number"
+          ? Math.max(0, experienceYearsFromOnboarding)
+          : experienceYears,
       provinceIds: onboarding?.provinceIds || [],
       categoryIds: onboarding?.categoryIds || [],
       expectedSalary: onboarding?.expectedSalary

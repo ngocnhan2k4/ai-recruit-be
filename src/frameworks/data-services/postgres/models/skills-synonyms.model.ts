@@ -10,13 +10,7 @@ export const skillsSynonyms = pgTable(
     aliasName: varchar("alias_name", { length: 255 }).notNull(),
     masterName: varchar("master_name", { length: 255 }).notNull(),
   },
-  (table) => {
-    return {
-      // Ensure that the same alias name cannot be duplicated for the same source
-      uniqueAliasSource: unique("unique_alias_source_idx").on(
-        table.aliasName,
-        table.source,
-      ),
-    };
-  },
+  (table) => [
+    unique("unique_alias_source_idx").on(table.aliasName, table.source),
+  ],
 );

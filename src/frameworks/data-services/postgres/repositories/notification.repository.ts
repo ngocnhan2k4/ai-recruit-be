@@ -22,7 +22,12 @@ import {
 } from "drizzle-orm";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { PaginatedResult } from "@/common/types";
-import { organizationInvitations, organizations, users } from "../models";
+import {
+  organizationInvitations,
+  organizations,
+  tasks,
+  users,
+} from "../models";
 
 @Injectable()
 export class NotificationRepository
@@ -150,9 +155,13 @@ export class NotificationRepository
       receiverId: string;
       organizationId?: string;
     }[],
+    tx?: DBDrizzleTransaction,
   ): Promise<Notification[]> {
-    return await this.db.transaction(async (tx) => {
-      return await this.preCreateNotifications(tx, notification, recipients);
+    if (tx) {
+      return this.preCreateNotifications(tx, notification, recipients);
+    }
+    return this.db.transaction(async (tx) => {
+      return this.preCreateNotifications(tx, notification, recipients);
     });
   }
 
@@ -203,6 +212,7 @@ export class NotificationRepository
 
     const orgIdFromPayload = sql<string>`(${notifications.payload} ->> 'orgId')::uuid`;
     const orgInvitationId = sql<string>`(${notifications.payload} ->> 'orgInvitationId')::uuid`;
+    const taskIdFromPayload = sql<string>`(${notifications.payload} ->> 'taskId')::uuid`;
 
     const notificationsResult = await this.db
       .select({
@@ -219,12 +229,20 @@ export class NotificationRepository
         orgInvitation: {
           status: organizationInvitations.status,
         },
+        task: {
+          id: tasks.id,
+          status: tasks.status,
+          type: tasks.type,
+          progress: tasks.progress,
+          result: tasks.result,
+        },
       })
       .from(userNotifications)
       .innerJoin(
         notifications,
         eq(userNotifications.notificationId, notifications.id),
       )
+      .leftJoin(tasks, eq(taskIdFromPayload, tasks.id))
       .leftJoin(users, eq(notifications.senderId, users.id))
       .leftJoin(organizations, eq(orgIdFromPayload, organizations.id))
       .leftJoin(
@@ -254,6 +272,7 @@ export class NotificationRepository
         sender: row.sender,
         organization: row.organization,
         orgInvitation: row.orgInvitation,
+        task: row.task,
       })),
       pagination: {
         nextCursor,

@@ -17,6 +17,7 @@ import {
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { GenericRepository } from "./generic-repository";
 import { ONE_DAY_MS, RESPONSE_CODE } from "@/common/constants";
+import { getTx } from "@/common/utils";
 
 @Injectable()
 export class UserFeatureUsageRepository
@@ -114,7 +115,6 @@ export class UserFeatureUsageRepository
     userId: string,
     featureCode: FeatureCodeEnum,
     amount = 1,
-    tx?: DBDrizzleTransaction,
   ): Promise<{ limit: number; usage: number }> {
     // 1) Get feature, subscription data
     const [result] = await this.db
@@ -199,6 +199,8 @@ export class UserFeatureUsageRepository
         code: RESPONSE_CODE.FEATURE_NOT_INCLUDED_IN_SUBSCRIPTION,
       });
     }
+
+    const tx = getTx();
 
     // Support both usecase use transaction or not
     if (tx) {

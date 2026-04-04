@@ -320,10 +320,12 @@ export class UserUseCases implements OnModuleInit {
         response.expectedSalary = onboarding.expectedSalary
           ? Number(onboarding.expectedSalary)
           : null;
+        response.experienceYears = onboarding.experienceYears ?? null;
       } else {
         response.provinceIds = [];
         response.categoryIds = [];
         response.expectedSalary = null;
+        response.experienceYears = null;
       }
       response.email = user.email || null;
       response.phone = user.phone || null;
@@ -349,8 +351,13 @@ export class UserUseCases implements OnModuleInit {
     }
 
     // Extract preferences from updateUserDto
-    const { provinceIds, categoryIds, expectedSalary, ...userUpdateData } =
-      updateUserDto;
+    const {
+      provinceIds,
+      categoryIds,
+      expectedSalary,
+      experienceYears,
+      ...userUpdateData
+    } = updateUserDto;
 
     const updatedUser = {
       ...user,
@@ -377,7 +384,8 @@ export class UserUseCases implements OnModuleInit {
       if (
         provinceIds !== undefined ||
         categoryIds !== undefined ||
-        expectedSalary !== undefined
+        expectedSalary !== undefined ||
+        experienceYears !== undefined
       ) {
         const preferencesUpdate: Partial<UserOnboarding> = {};
         if (provinceIds !== undefined) {
@@ -388,6 +396,9 @@ export class UserUseCases implements OnModuleInit {
         }
         if (expectedSalary !== undefined) {
           preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
+        }
+        if (experienceYears !== undefined) {
+          preferencesUpdate.experienceYears = experienceYears;
         }
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
