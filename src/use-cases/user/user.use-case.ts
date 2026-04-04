@@ -21,6 +21,7 @@ import {
   IUserSkillRepository,
   IUserOnboardingRepository,
   IAuthService,
+  ISkillRepository,
 } from "../../core/abstracts";
 import { Logger, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -77,6 +78,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly casbinService: CasbinService,
     private readonly userEducationRepository: IUserEducationRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
+    private readonly skillRepository: ISkillRepository,
   ) {}
 
   async onModuleInit() {
@@ -309,8 +311,9 @@ export class UserUseCases implements OnModuleInit {
     };
 
     if (isOwner) {
-      const [userOnboarding] = await Promise.all([
+      const [userOnboarding, skills] = await Promise.all([
         this.userOnboardingRepository.getByField({ userId: user.id }),
+        this.skillRepository.getAll(["id", "name"]),
       ]);
 
       const onboarding = userOnboarding[0];
@@ -321,11 +324,19 @@ export class UserUseCases implements OnModuleInit {
           ? Number(onboarding.expectedSalary)
           : null;
         response.experienceYears = onboarding.experienceYears ?? null;
+        response.currentGoal = onboarding.currentGoal ?? null;
+        response.skills = skills.filter(
+          (skill) =>
+            skill.id ===
+            (onboarding.skills as string[])?.find((id) => id === skill.id),
+        );
       } else {
         response.provinceIds = [];
         response.categoryIds = [];
         response.expectedSalary = null;
         response.experienceYears = null;
+        response.currentGoal = null;
+        response.skills = [];
       }
       response.email = user.email || null;
       response.phone = user.phone || null;
@@ -356,6 +367,8 @@ export class UserUseCases implements OnModuleInit {
       categoryIds,
       expectedSalary,
       experienceYears,
+      currentGoal,
+      skills,
       ...userUpdateData
     } = updateUserDto;
 
@@ -385,7 +398,9 @@ export class UserUseCases implements OnModuleInit {
         provinceIds !== undefined ||
         categoryIds !== undefined ||
         expectedSalary !== undefined ||
-        experienceYears !== undefined
+        experienceYears !== undefined ||
+        currentGoal !== undefined ||
+        skills !== undefined
       ) {
         const preferencesUpdate: Partial<UserOnboarding> = {};
         if (provinceIds !== undefined) {
@@ -399,6 +414,12 @@ export class UserUseCases implements OnModuleInit {
         }
         if (experienceYears !== undefined) {
           preferencesUpdate.experienceYears = experienceYears;
+        }
+        if (currentGoal !== undefined) {
+          preferencesUpdate.currentGoal = currentGoal;
+        }
+        if (skills !== undefined) {
+          preferencesUpdate.skills = skills;
         }
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);

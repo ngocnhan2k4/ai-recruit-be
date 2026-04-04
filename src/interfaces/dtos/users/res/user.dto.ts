@@ -46,6 +46,12 @@ export class UserPublicResponseDto {
   experienceYears?: number | null;
 
   @ApiProperty({ required: false, type: String, nullable: true })
+  currentGoal?: string | null;
+
+  @ApiProperty({ required: false, type: () => [String], nullable: true })
+  skills?: { id: string; name: string }[];
+
+  @ApiProperty({ required: false, type: String, nullable: true })
   email?: string | null;
 
   @ApiProperty({ required: false, type: String, nullable: true })
