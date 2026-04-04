@@ -106,7 +106,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
-    task?: Pick<Task, "id" | "status" | "type" | "progress" | "result"> | null;
+    task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
     sender?: {
       name?: string | null;
       avatarUrl?: string | null;

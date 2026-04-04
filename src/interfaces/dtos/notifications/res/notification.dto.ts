@@ -17,9 +17,6 @@ export class TaskInNotificationDto {
   @ApiProperty({ enum: TaskTypeEnum })
   type: TaskTypeEnum;
 
-  @ApiProperty({ type: "number" })
-  progress: number;
-
   @ApiProperty({ nullable: true })
   result: Record<string, any> | null;
 }

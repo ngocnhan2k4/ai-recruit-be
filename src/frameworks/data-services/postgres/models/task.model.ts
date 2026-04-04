@@ -1,5 +1,5 @@
 import { index, jsonb, text, varchar } from "drizzle-orm/pg-core";
-import { integer, pgTable, uuid } from "drizzle-orm/pg-core";
+import { pgTable, uuid } from "drizzle-orm/pg-core";
 import { TaskStatusEnum, TaskTypeEnum } from "./enums";
 import { timestamps } from "./helpers";
 import { users } from "./user.model";
@@ -16,8 +16,6 @@ export const tasks = pgTable(
 
     status: TaskStatusEnum("status").notNull().default("pending"),
     type: TaskTypeEnum("type").notNull(),
-
-    progress: integer("progress").notNull().default(0),
 
     userId: uuid("user_id")
       .notNull()
