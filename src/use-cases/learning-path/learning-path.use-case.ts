@@ -72,7 +72,6 @@ export class LearningPathUseCase {
             name: `Learning path generation: ${request.targetRole}`,
             type: TaskTypeEnum.LEARNING_PATH_GENERATION,
             status: TaskStatusEnum.PENDING,
-            progress: 0,
             userId,
             input: {
               request,

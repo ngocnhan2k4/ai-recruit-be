@@ -233,7 +233,6 @@ export class NotificationRepository
           id: tasks.id,
           status: tasks.status,
           type: tasks.type,
-          progress: tasks.progress,
           result: tasks.result,
         },
       })
