@@ -64,7 +64,6 @@ export class TaskWorker extends WorkerHost {
     taskData: {
       type: TaskTypeEnum;
       status: TaskStatusEnum;
-      progress: number;
       result?: Record<string, any> | null;
       error?: string | null;
     };
@@ -314,7 +313,6 @@ export class TaskWorker extends WorkerHost {
         taskData: {
           type: TaskTypeEnum.LEARNING_PATH_GENERATION,
           status: TaskStatusEnum.IN_PROGRESS,
-          progress: 0,
         },
       });
 
@@ -330,51 +328,23 @@ export class TaskWorker extends WorkerHost {
           .generateRoadmap(roadmapRequest)
           .subscribe({
             next: (event: any) => {
-              const onNext = async () => {
-                const payload = event?.data;
-                if (!payload) return;
+              const payload = event?.data;
+              if (!payload) return;
 
-                if (payload.type === "result" && payload.data) {
-                  resultData = payload.data;
-                }
+              if (payload.type === "result" && payload.data) {
+                resultData = payload.data;
+              }
 
-                if (payload.type === "error") {
-                  subscription.unsubscribe();
-                  reject(new Error(payload.message || "AI generation failed"));
-                  return;
-                }
-
-                // Keep task progress updated if AI provides it; otherwise keep 0 until completion.
-                const progress =
-                  typeof payload.progress === "number"
-                    ? Math.max(0, Math.min(100, Math.floor(payload.progress)))
-                    : undefined;
-
-                await this.emitAndPersistTask({
-                  taskId,
-                  notificationId,
-                  userId,
-                  payload: { taskId },
-                  message: "Đang tạo lộ trình học tập của bạn...",
-                  taskData: {
-                    type: TaskTypeEnum.LEARNING_PATH_GENERATION,
-                    status: TaskStatusEnum.IN_PROGRESS,
-                    ...(typeof progress === "number"
-                      ? { progress }
-                      : { progress: 0 }),
-                  },
-                });
-
-                if (resultData) {
-                  subscription.unsubscribe();
-                  resolve();
-                }
-              };
-
-              void onNext().catch((err) => {
+              if (payload.type === "error") {
                 subscription.unsubscribe();
-                reject(err instanceof Error ? err : new Error(String(err)));
-              });
+                reject(new Error(payload.message || "AI generation failed"));
+                return;
+              }
+
+              if (resultData) {
+                subscription.unsubscribe();
+                resolve();
+              }
             },
             error: (err: any) =>
               reject(err instanceof Error ? err : new Error(String(err))),
@@ -403,7 +373,6 @@ export class TaskWorker extends WorkerHost {
         taskData: {
           type: TaskTypeEnum.LEARNING_PATH_GENERATION,
           status: TaskStatusEnum.COMPLETED,
-          progress: 100,
           result: { roadmapId: roadmap.id, data: resultData },
         },
       });
@@ -420,7 +389,6 @@ export class TaskWorker extends WorkerHost {
           taskData: {
             type: TaskTypeEnum.LEARNING_PATH_GENERATION,
             status: TaskStatusEnum.FAILED,
-            progress: 0,
             error: error.message || "Unknown error",
             result: { data: resultData },
           },
