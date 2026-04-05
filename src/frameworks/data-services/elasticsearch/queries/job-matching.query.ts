@@ -551,7 +551,6 @@ export class JobMatchingQuery {
       experienceMax,
       fromDate,
       toDate,
-      isJobSystem,
       sortBy,
       sortDirection,
     } = filters;
@@ -613,16 +612,6 @@ export class JobMatchingQuery {
       mustQueries.push({
         term: {
           organizationId,
-        },
-      });
-    }
-
-    if (isJobSystem) {
-      mustQueries.push({
-        bool: {
-          must_not: {
-            exists: { field: "jobRawId" },
-          },
         },
       });
     }
