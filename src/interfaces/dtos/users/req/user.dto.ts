@@ -93,6 +93,24 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
   @IsOptional()
   @IsNumber()
   expectedSalary?: number | null;
+
+  @ApiProperty({
+    required: false,
+    description: "Current career goal",
+  })
+  @IsOptional()
+  @IsString()
+  currentGoal?: string | null;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description: "Array of skill IDs",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skills?: string[] | null;
 }
 
 export enum TypeAvatar {
