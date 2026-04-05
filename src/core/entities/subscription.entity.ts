@@ -8,11 +8,6 @@ export interface SubscriptionFilter extends GeneralQuery {
   fields?: string[];
 }
 
-export interface UserSubscriptionFilter extends GeneralQuery {
-  subscriptionId?: string;
-  status?: UserSubscriptionStatusEnum;
-}
-
 export interface GetListSubscriptionResponse extends Subscription {
   features?: Array<
     Pick<Feature, "id" | "code" | "name"> & {

@@ -1,8 +1,7 @@
-import { ApiProperty, PickType } from "@nestjs/swagger";
+import { ApiProperty } from "@nestjs/swagger";
 import { Expose, plainToInstance } from "class-transformer";
 import { RoleEnum } from "@/common/constants";
 import { GenderEnum, ProviderEnum } from "@/core";
-import { UserDto } from "./user-base.dto";
 
 export class UserPublicResponseDto {
   @ApiProperty()
@@ -155,25 +154,4 @@ export class UserAvatarUpdateResponseDto {
 
   @ApiProperty()
   format: string;
-}
-
-export class GetAllUserResponseDto extends PickType(UserDto, [
-  "id",
-  "email",
-  "name",
-  "username",
-  "emailVerified",
-  "phone",
-  "phoneVerified",
-  "roles",
-  "status",
-  "createdAt",
-  "updatedAt",
-  "deletedAt",
-] as const) {
-  static from(partial: Partial<GetAllUserResponseDto>) {
-    return plainToInstance(GetAllUserResponseDto, partial, {
-      excludeExtraneousValues: true,
-    });
-  }
 }
