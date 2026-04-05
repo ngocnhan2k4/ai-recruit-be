@@ -44,16 +44,15 @@ export class SkillSynonymController {
 
   @ApiOperation({
     summary: "Update skill synonym group",
-    description:
-      "Update aliases of a master skill. Alias list is replaced by provided array.",
+    description: "Update aliases of a skill by id.",
   })
   @ApiResponseDto(SkillSynonymResponseDto)
-  @Patch(":masterName")
+  @Patch(":skillId")
   async updateSkillSynonym(
-    @Param("masterName") masterName: string,
+    @Param("skillId") skillId: string,
     @Body() dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
-    return this.skillSynonymUseCases.updateSkillSynonym(masterName, dto);
+    return this.skillSynonymUseCases.updateSkillSynonym(skillId, dto);
   }
 
   @ApiOperation({

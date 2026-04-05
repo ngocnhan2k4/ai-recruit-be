@@ -117,10 +117,19 @@ export class SkillSynonymUseCases {
   }
 
   async updateSkillSynonym(
-    currentMasterName: string,
+    skillId: string,
     dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
-    const normalizedCurrentMaster = this.normalizeMaster(currentMasterName);
+    if (!skillId) {
+      throw new BadRequestException("skillId is required");
+    }
+
+    const currentSkill = await this.skillRepository.get(skillId);
+    if (!currentSkill) {
+      throw new NotFoundException("Skill not found");
+    }
+
+    const normalizedCurrentMaster = this.normalizeMaster(currentSkill.name);
     const nextSkillName = dto.masterName?.trim();
     const targetMasterName = this.normalizeMaster(
       nextSkillName || normalizedCurrentMaster,
@@ -135,13 +144,6 @@ export class SkillSynonymUseCases {
     }
 
     const allSkills = await this.skillRepository.getAll(["id", "name"]);
-    const currentSkill = allSkills.find(
-      (skill) => this.normalizeMaster(skill.name) === normalizedCurrentMaster,
-    );
-
-    if (!currentSkill) {
-      throw new NotFoundException("Master skill not found");
-    }
 
     if (nextSkillName && targetMasterName !== normalizedCurrentMaster) {
       const duplicatedSkill = allSkills.find(
@@ -211,7 +213,7 @@ export class SkillSynonymUseCases {
     }
 
     this.logger.log(
-      `Updated skill synonyms for master: ${normalizedCurrentMaster} -> ${targetMasterName}`,
+      `Updated skill synonyms for skillId: ${skillId}, ${normalizedCurrentMaster} -> ${targetMasterName}`,
     );
 
     const latestRows = await this.skillsSynonymsRepository.getByField({
