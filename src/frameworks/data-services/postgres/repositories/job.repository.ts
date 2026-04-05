@@ -228,15 +228,15 @@ export class JobRepository
       whereConditions.push(inArray(jobs.categoryId, filters.categoryIds));
     }
 
-    if (filters?.createdAtStart) {
+    if (filters?.fromDate) {
       whereConditions.push(
-        gte(this.getEffectivePostedDateExpr(), filters.createdAtStart),
+        gte(this.getEffectivePostedDateExpr(), new Date(filters.fromDate)),
       );
     }
 
-    if (filters?.createdAtEnd) {
+    if (filters?.toDate) {
       whereConditions.push(
-        lte(this.getEffectivePostedDateExpr(), filters.createdAtEnd),
+        lte(this.getEffectivePostedDateExpr(), new Date(filters.toDate)),
       );
     }
 
@@ -2264,8 +2264,8 @@ export class JobRepository
     appliedJobIds: string[],
     skillIds: string[],
     categoryIds: string[],
-    createdAtStart: Date,
-    createdAtEnd: Date,
+    fromDate: string,
+    toDate: string,
     isJobSystem: boolean,
     limit = 20,
   ): Promise<JobResponse[]> {
@@ -2283,8 +2283,8 @@ export class JobRepository
         userId,
         roles: [],
       },
-      createdAtStart,
-      createdAtEnd,
+      fromDate,
+      toDate,
       isJobSystem,
     };
 

@@ -1073,8 +1073,7 @@ export class OrganizationUseCase {
     query: OrganizationJobQueryDto,
     userId?: string,
   ): Promise<ApiResponse<JobPaginationResponseDto>> {
-    let status = query.status;
-    const { fromDate, toDate, ...restQuery } = query;
+    let { status } = query;
     try {
       const isMember = await this.organizationMembersRepository.isActiveMember(
         orgId,
@@ -1088,10 +1087,7 @@ export class OrganizationUseCase {
     const result = await this.jobRepository.getJobs({
       organizationId: orgId,
       status: status,
-      createdAtStart: fromDate ? new Date(fromDate) : undefined,
-      createdAtEnd: toDate ? new Date(toDate) : undefined,
-      categoryIds: query.categoryIds,
-      ...restQuery,
+      ...query,
     });
 
     const transformedJobData = result.data.map((item) => ({
