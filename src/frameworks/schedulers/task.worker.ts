@@ -292,6 +292,10 @@ export class TaskWorker extends WorkerHost {
     let resultData: AILearningRoadmapResult | null = null;
     let task: Task | null = null;
 
+    this.logger.log(
+      `[processLearningPath] Starting task ${taskId} with notification ${notificationId}`,
+    );
+
     try {
       task = await this.taskRepository.get(taskId);
       if (!task) {
