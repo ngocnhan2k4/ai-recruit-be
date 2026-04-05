@@ -52,6 +52,9 @@ export class JobMatchingQuery {
 
   /**
    * Build Elasticsearch query for job matching với user profile
+   * With custom scoring, I will calculate a relevance score based on:
+   * - If it's a OR condition, I will plus score as long as any matching
+   * - If it's a AND condition, I will calculate score based on how many conditions matched (skill match, location match, category match, experience match, salary match) and boost accordingly
    */
   buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
     const {
@@ -277,7 +280,7 @@ export class JobMatchingQuery {
                             }
                             
                             if (!doc.containsKey('skillIds') || doc['skillIds'].size() == 0) {
-                              return 0;
+                              return 1;
                             }
                             
                             double matchedSkills = 0;
@@ -339,18 +342,15 @@ export class JobMatchingQuery {
                       script_score: {
                         script: {
                           source: `
-                            double matched = 0;
                             double total = params.userProvinceIds.length;
                         
-                            if (total == 0) return 0;
-
                             for (def p : params.userProvinceIds) {
                               if (doc['provinceIds'].contains(p)) {
-                                matched++;
+                                return 1;
                               }
                             }
 
-                            return matched / total;
+                            return 0;
                           `,
                           params: {
                             userProvinceIds: userProvinceIds,
@@ -369,9 +369,9 @@ export class JobMatchingQuery {
                         script: {
                           source: `
                             double matched = 0;
-                            double total = params.userCategoryIds.length;
+                            double total = doc['categoryId'].size();
                         
-                            if (total == 0) return 0;
+                            if (total == 0) return 1; // No category info - neutral score
 
                             for (def p : params.userCategoryIds) {
                               if (doc['categoryId'].contains(p)) {
