@@ -60,8 +60,8 @@ export class JobMatchingUseCases {
             user.appliedJobIds,
             user.skillIds,
             user.categoryIds,
-            subDays(new Date(), 1),
-            new Date(),
+            subDays(new Date(), 3).toISOString(),
+            new Date().toISOString(),
             true,
             20,
           );

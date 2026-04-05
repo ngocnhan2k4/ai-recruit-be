@@ -25,8 +25,6 @@ export interface JobFilters extends GeneralQuery {
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
-  createdAtStart?: Date;
-  createdAtEnd?: Date;
   fromDate?: string;
   toDate?: string;
   isJobSystem?: boolean;

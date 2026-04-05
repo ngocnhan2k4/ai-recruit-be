@@ -259,8 +259,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     appliedJobIds: string[],
     skillIds: string[],
     categoryIds: string[],
-    createdAtStart: Date,
-    createdAtEnd: Date,
+    fromDate: string,
+    toDate: string,
     isJobSystem: boolean,
     limit?: number,
   ): Promise<JobResponse[]>;
