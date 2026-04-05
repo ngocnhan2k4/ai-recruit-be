@@ -6,6 +6,8 @@ import {
   IsBoolean,
   IsEnum,
   IsString,
+  IsInt,
+  Min,
   ValidateNested,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
@@ -124,19 +126,24 @@ export class ApplyJobQueryDto {
   jobId: string;
 
   @ApiProperty({
-    example: true,
-    description: "Only return the total count of applications",
+    example: 10,
+    description: "Number of applications to return",
     required: false,
-    type: Boolean,
   })
   @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === "true") return true;
-    if (value === "false") return false;
-    return value;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
+  @ApiProperty({
+    example: "1743739200000",
+    description: "Cursor from previous response (createdAt timestamp)",
+    required: false,
   })
-  totalOnly?: boolean;
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 }
 
 export class UpdateApplyJobDto {

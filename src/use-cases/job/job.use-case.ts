@@ -55,6 +55,7 @@ import {
 } from "@/interfaces/dtos";
 import {
   ApplyJobResponse,
+  ApplyJobFilters,
   JobEventType,
   JobFilters,
   StatisticsJobFilter,
@@ -1033,10 +1034,13 @@ export class JobUseCases {
   async getApplyJobs(
     query: ApplyJobQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {
-    const result = await this.jobRepository.getApplyJobs(query.jobId, {
-      fields: query.totalOnly ? ["total"] : [],
-    });
-    this.logger.log(`Get job applications for job ${query.jobId}`);
+    const filters: ApplyJobFilters = {
+      jobId: query.jobId,
+      limit: query.limit ?? 10,
+      cursor: query.cursor,
+    };
+
+    const result = await this.jobRepository.getApplyJobs(filters);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

@@ -32,11 +32,11 @@ import {
   userFeatureUsages,
   userIdentities,
   aiCvs,
+  skillsSynonyms,
   tasks,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
-import { skillsSynonyms } from "@/frameworks/data-services/postgres/models/skills-synonyms.model";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
