@@ -5,37 +5,6 @@ import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 
 export class GetSkillsSynonymsQueryDto extends GeneralQueryDto {}
 
-export class CreateSkillSynonymDto {
-  @ApiProperty({
-    example: "javascript",
-    description: "Master skill name",
-  })
-  @IsString()
-  masterName: string;
-
-  @ApiProperty({
-    type: [String],
-    example: ["js", "vanillascript"],
-    description: "Alias names",
-  })
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }) => {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-  })
-  aliasNames: string[];
-
-  @ApiProperty({
-    required: false,
-    description: "Synonym source",
-    example: "manual",
-  })
-  @IsOptional()
-  @IsString()
-  source?: string;
-}
-
 export class UpdateSkillSynonymDto {
   @ApiProperty({
     required: false,

@@ -9,7 +9,7 @@ import {
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { skills, questions, jobSkills } from "../models";
+import { skills, questions, jobSkills, userSkills } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import {
   count,
@@ -243,6 +243,17 @@ export class SkillRepository
     }
 
     // Invalidate the cache whenever skills are reviewed (approved or deleted)
+    await this.cacheManager.del(CACHE_KEYS.skill.getAll());
+  }
+
+  async deleteSkillAndReferences(skillId: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(jobSkills).where(eq(jobSkills.skillId, skillId));
+      await tx.delete(userSkills).where(eq(userSkills.skillId, skillId));
+      await tx.delete(questions).where(eq(questions.skillId, skillId));
+      await tx.delete(skills).where(eq(skills.id, skillId));
+    });
+
     await this.cacheManager.del(CACHE_KEYS.skill.getAll());
   }
 }

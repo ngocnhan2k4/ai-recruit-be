@@ -1,9 +1,13 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { NormalizeString } from "@/common/utils";
-import { ISkillsSynonymsRepository, SkillSynonym } from "@/core";
+import {
+  ISkillRepository,
+  ISkillsSynonymsRepository,
+  Skill,
+  SkillSynonym,
+} from "@/core";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import {
-  CreateSkillSynonymDto,
   GetSkillsSynonymsQueryDto,
   UpdateSkillSynonymDto,
 } from "@/interfaces/dtos/skill-synonym/req/skill-synonym.dto";
@@ -22,6 +26,8 @@ export class SkillSynonymUseCases {
   constructor(
     @Inject(ISkillsSynonymsRepository)
     private readonly skillsSynonymsRepository: ISkillsSynonymsRepository,
+    @Inject(ISkillRepository)
+    private readonly skillRepository: ISkillRepository,
   ) {}
 
   private normalizeAliases(aliasNames: string[]): string[] {
@@ -34,25 +40,37 @@ export class SkillSynonymUseCases {
     );
   }
 
+  private normalizeMaster(value: string): string {
+    return NormalizeString(value);
+  }
+
   private buildGroupedResponse(
+    skills: Pick<Skill, "id" | "name">[],
     rows: Pick<SkillSynonym, "masterName" | "aliasName">[],
   ): SkillSynonymResponseDto[] {
-    const grouped = new Map<string, Set<string>>();
+    const aliasMap = new Map<string, Set<string>>();
 
     for (const row of rows) {
-      if (!grouped.has(row.masterName)) {
-        grouped.set(row.masterName, new Set());
+      const normalizedMaster = this.normalizeMaster(row.masterName);
+      if (!aliasMap.has(normalizedMaster)) {
+        aliasMap.set(normalizedMaster, new Set());
       }
-      grouped.get(row.masterName)!.add(row.aliasName);
+      aliasMap.get(normalizedMaster)!.add(row.aliasName);
     }
 
-    return Array.from(grouped.entries())
-      .map(([masterName, aliases]) => ({
-        masterName,
-        aliasNames: Array.from(aliases.values()).sort((a, b) =>
-          a.localeCompare(b),
-        ),
-      }))
+    return skills
+      .map((skill) => {
+        const normalizedSkillName = this.normalizeMaster(skill.name);
+        const aliases = aliasMap.get(normalizedSkillName);
+
+        return {
+          id: skill.id,
+          masterName: skill.name,
+          aliasNames: Array.from(aliases?.values() ?? []).sort((a, b) =>
+            a.localeCompare(b),
+          ),
+        };
+      })
       .sort((a, b) => a.masterName.localeCompare(b.masterName));
   }
 
@@ -63,23 +81,26 @@ export class SkillSynonymUseCases {
     const limit = Math.max(query?.limit ?? 10, 1);
     const keyword = query?.keyword?.trim().toLowerCase();
 
-    const allRows = await this.skillsSynonymsRepository.getAll([
-      "masterName",
-      "aliasName",
+    const [allSkills, allRows] = await Promise.all([
+      this.skillRepository.getAll(["id", "name"]),
+      this.skillsSynonymsRepository.getAll(["masterName", "aliasName"]),
     ]);
 
-    const filteredRows = keyword
-      ? allRows.filter(
-          (row) =>
-            row.masterName.toLowerCase().includes(keyword) ||
-            row.aliasName.toLowerCase().includes(keyword),
-        )
-      : allRows;
+    const grouped = this.buildGroupedResponse(allSkills, allRows);
 
-    const grouped = this.buildGroupedResponse(filteredRows);
-    const total = grouped.length;
+    const filtered = keyword
+      ? grouped.filter(
+          (item) =>
+            this.normalizeMaster(item.masterName).includes(keyword) ||
+            item.aliasNames.some((alias) =>
+              this.normalizeMaster(alias).includes(keyword),
+            ),
+        )
+      : grouped;
+
+    const total = filtered.length;
     const offset = (page - 1) * limit;
-    const data = grouped.slice(offset, offset + limit);
+    const data = filtered.slice(offset, offset + limit);
     const hasNextPage = offset + limit < total;
 
     return {
@@ -95,67 +116,15 @@ export class SkillSynonymUseCases {
     };
   }
 
-  async createSkillSynonym(
-    dto: CreateSkillSynonymDto,
-  ): Promise<ApiResponse<SkillSynonymResponseDto>> {
-    const masterName = NormalizeString(dto.masterName);
-    const aliasNames = this.normalizeAliases(dto.aliasNames);
-
-    if (!masterName) {
-      throw new BadRequestException("masterName is required");
-    }
-    if (aliasNames.length === 0) {
-      throw new BadRequestException("aliasNames is required");
-    }
-
-    const existingMaster = await this.skillsSynonymsRepository.getByField({
-      masterName,
-    });
-    if (existingMaster.length > 0) {
-      throw new BadRequestException("Master skill already exists");
-    }
-
-    const allRows = await this.skillsSynonymsRepository.getAll([
-      "aliasName",
-      "masterName",
-    ]);
-    const conflicts = aliasNames.filter((alias) =>
-      allRows.some((row) => row.aliasName.toLowerCase() === alias),
-    );
-    if (conflicts.length > 0) {
-      throw new BadRequestException(
-        `Alias already exists: ${conflicts.join(", ")}`,
-      );
-    }
-
-    await this.skillsSynonymsRepository.createMany(
-      aliasNames.map((aliasName) => ({
-        masterName,
-        aliasName,
-        source: dto.source ?? "manual",
-      })),
-    );
-
-    this.logger.log(`Created skill synonyms for master: ${masterName}`);
-
-    return {
-      message: RESPONSE_MESSAGE.CREATED,
-      code: RESPONSE_CODE.SUCCESS,
-      data: {
-        masterName,
-        aliasNames,
-      },
-    };
-  }
-
   async updateSkillSynonym(
     currentMasterName: string,
     dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
-    const normalizedCurrentMaster = NormalizeString(currentMasterName);
-    const targetMasterName = dto.masterName
-      ? NormalizeString(dto.masterName)
-      : normalizedCurrentMaster;
+    const normalizedCurrentMaster = this.normalizeMaster(currentMasterName);
+    const nextSkillName = dto.masterName?.trim();
+    const targetMasterName = this.normalizeMaster(
+      nextSkillName || normalizedCurrentMaster,
+    );
     const aliasNames = this.normalizeAliases(dto.aliasNames);
 
     if (!normalizedCurrentMaster) {
@@ -165,11 +134,32 @@ export class SkillSynonymUseCases {
       throw new BadRequestException("masterName is required");
     }
 
-    const existingRows = await this.skillsSynonymsRepository.getByField({
-      masterName: normalizedCurrentMaster,
-    });
-    if (existingRows.length === 0) {
+    const allSkills = await this.skillRepository.getAll(["id", "name"]);
+    const currentSkill = allSkills.find(
+      (skill) => this.normalizeMaster(skill.name) === normalizedCurrentMaster,
+    );
+
+    if (!currentSkill) {
       throw new NotFoundException("Master skill not found");
+    }
+
+    if (nextSkillName && targetMasterName !== normalizedCurrentMaster) {
+      const duplicatedSkill = allSkills.find(
+        (skill) =>
+          this.normalizeMaster(skill.name) === targetMasterName &&
+          skill.id !== currentSkill.id,
+      );
+
+      if (duplicatedSkill) {
+        throw new BadRequestException(
+          "Master skill already exists in skills table",
+        );
+      }
+
+      await this.skillRepository.update(
+        { id: currentSkill.id },
+        { name: nextSkillName },
+      );
     }
 
     const allRows = await this.skillsSynonymsRepository.getAll([
@@ -179,8 +169,9 @@ export class SkillSynonymUseCases {
     const conflicts = aliasNames.filter((alias) =>
       allRows.some(
         (row) =>
-          row.aliasName.toLowerCase() === alias &&
-          row.masterName.toLowerCase() !== normalizedCurrentMaster,
+          this.normalizeMaster(row.aliasName) === alias &&
+          this.normalizeMaster(row.masterName) !== normalizedCurrentMaster &&
+          this.normalizeMaster(row.masterName) !== targetMasterName,
       ),
     );
 
@@ -190,58 +181,76 @@ export class SkillSynonymUseCases {
       );
     }
 
-    await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
-      await this.skillsSynonymsRepository.deletePermanently(
+    if (normalizedCurrentMaster !== targetMasterName) {
+      await this.skillsSynonymsRepository.update(
         { masterName: normalizedCurrentMaster },
-        tx,
+        { masterName: targetMasterName },
       );
+    }
 
-      if (aliasNames.length > 0) {
-        await this.skillsSynonymsRepository.createMany(
-          aliasNames.map((aliasName) => ({
-            masterName: targetMasterName,
-            aliasName,
-            source: dto.source ?? "manual",
-          })),
-          tx,
-        );
-      }
+    const existingTargetRows = await this.skillsSynonymsRepository.getByField({
+      masterName: targetMasterName,
     });
+
+    const existingAliasSet = new Set(
+      existingTargetRows.map((row) => this.normalizeMaster(row.aliasName)),
+    );
+
+    const aliasToInsert = aliasNames.filter(
+      (alias) => !existingAliasSet.has(alias),
+    );
+
+    if (aliasToInsert.length > 0) {
+      await this.skillsSynonymsRepository.createMany(
+        aliasToInsert.map((aliasName) => ({
+          masterName: targetMasterName,
+          aliasName,
+          source: dto.source ?? "manual",
+        })),
+      );
+    }
 
     this.logger.log(
       `Updated skill synonyms for master: ${normalizedCurrentMaster} -> ${targetMasterName}`,
     );
 
+    const latestRows = await this.skillsSynonymsRepository.getByField({
+      masterName: targetMasterName,
+    });
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        masterName: targetMasterName,
-        aliasNames,
+        id: currentSkill.id,
+        masterName: nextSkillName || currentSkill.name,
+        aliasNames: latestRows
+          .map((row) => row.aliasName)
+          .sort((a, b) => a.localeCompare(b)),
       },
     };
   }
 
-  async deleteSkillSynonym(masterName: string): Promise<ApiResponse<void>> {
-    const normalizedMasterName = NormalizeString(masterName);
-    if (!normalizedMasterName) {
-      throw new BadRequestException("masterName is required");
+  async deleteSkillSynonym(skillId: string): Promise<ApiResponse<void>> {
+    if (!skillId) {
+      throw new BadRequestException("skillId is required");
     }
 
-    const existingRows = await this.skillsSynonymsRepository.getByField({
-      masterName: normalizedMasterName,
-    });
-    if (existingRows.length === 0) {
-      throw new NotFoundException("Master skill not found");
+    const targetSkill = await this.skillRepository.get(skillId);
+
+    if (!targetSkill) {
+      throw new NotFoundException("Skill not found");
     }
+
+    const normalizedMasterName = this.normalizeMaster(targetSkill.name);
+
+    await this.skillRepository.deleteSkillAndReferences(targetSkill.id);
 
     await this.skillsSynonymsRepository.deletePermanently({
       masterName: normalizedMasterName,
     });
 
-    this.logger.log(
-      `Deleted skill synonyms for master: ${normalizedMasterName}`,
-    );
+    this.logger.log(`Deleted skill synonyms for skillId: ${skillId}`);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

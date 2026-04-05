@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -13,7 +12,6 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
   ApiResponseDto,
-  CreateSkillSynonymDto,
   GetSkillsSynonymsQueryDto,
   PaginatedResultDto,
   SkillSynonymResponseDto,
@@ -45,18 +43,6 @@ export class SkillSynonymController {
   }
 
   @ApiOperation({
-    summary: "Create skill synonym group",
-    description: "Create a master skill with its alias list.",
-  })
-  @ApiResponseDto(SkillSynonymResponseDto)
-  @Post()
-  async createSkillSynonym(
-    @Body() dto: CreateSkillSynonymDto,
-  ): Promise<ApiResponse<SkillSynonymResponseDto>> {
-    return this.skillSynonymUseCases.createSkillSynonym(dto);
-  }
-
-  @ApiOperation({
     summary: "Update skill synonym group",
     description:
       "Update aliases of a master skill. Alias list is replaced by provided array.",
@@ -72,12 +58,12 @@ export class SkillSynonymController {
 
   @ApiOperation({
     summary: "Delete skill synonym group",
-    description: "Delete a master skill and all related aliases.",
+    description: "Delete a skill by id and all related aliases.",
   })
-  @Delete(":masterName")
+  @Delete(":skillId")
   async deleteSkillSynonym(
-    @Param("masterName") masterName: string,
+    @Param("skillId") skillId: string,
   ): Promise<ApiResponse<void>> {
-    return this.skillSynonymUseCases.deleteSkillSynonym(masterName);
+    return this.skillSynonymUseCases.deleteSkillSynonym(skillId);
   }
 }
