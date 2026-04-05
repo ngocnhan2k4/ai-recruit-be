@@ -15,7 +15,6 @@ import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-a
 import { SubscriptionUseCases } from "@/use-cases/subscription/subscription.use-case";
 import {
   CreateSubscriptionRequestDto,
-  GetUserSubscriptionsRequestDto,
   SubscriptionFilterDto,
   UpdateUserSubscriptionRequestDto,
   UpdateSubscriptionRequestDto,
@@ -71,12 +70,6 @@ export class AdminSubscriptionController {
     @Body() dto: UpsertSubscriptionFeaturesRequestDto,
   ) {
     return this.subscriptionUseCases.upsertSubscriptionFeatures(id, dto);
-  }
-
-  @ApiOperation({ summary: "List user subscriptions" })
-  @Get("user-subscriptions")
-  getUserSubscriptions(@Query() query: GetUserSubscriptionsRequestDto) {
-    return this.subscriptionUseCases.getUserSubscriptions(query);
   }
 
   @ApiOperation({ summary: "Update user subscription manually" })
