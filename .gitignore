@@ -65,4 +65,4 @@ checkpoints/
 **/data/*.csv
 multi_class_model/
 artifacts/
-skills_synonyms
+crawl_jobs/skills/
