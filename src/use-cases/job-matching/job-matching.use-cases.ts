@@ -90,19 +90,13 @@ export class JobMatchingUseCases {
             `Queued job recommendations email for user ${user.userId} with ${recommendedJobs.length} jobs`,
           );
         } catch (error) {
-          this.logger.error(
-            `Error processing user ${user.userId}: ${error.message}`,
-            error.stack,
-          );
+          this.logger.error(`Error processing user ${user.userId}: ${error}`);
         }
       }
 
       this.logger.log("Job recommendations email process completed");
     } catch (error) {
-      this.logger.error(
-        `Error in sendJobRecommendationsToUsers: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Error in sendJobRecommendationsToUsers: ${error}`);
       throw error;
     }
   }
@@ -117,8 +111,6 @@ export class JobMatchingUseCases {
     userId: string,
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobMatchResultDto>>> {
-    this.logger.log(`Getting matched jobs for user ${userId}`);
-
     const userProfile = await this.userRepository.getUserProfile(userId);
     if (!userProfile) {
       throw new NotFoundException({

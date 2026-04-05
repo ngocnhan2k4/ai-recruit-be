@@ -85,8 +85,6 @@ export class JobUseCases {
     filters: JobFilters,
     isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
-    console.log("Received getJobs request with filters:", filters);
-
     if (filters.cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)

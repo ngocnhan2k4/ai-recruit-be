@@ -9,7 +9,6 @@ export class JobMatchingQuery {
   private readonly sortableFields: Record<string, string> = {
     score: "_score",
     _score: "_score",
-    date_posted: "date_posted",
     datePosted: "datePosted",
     createdAt: "createdAt",
     updatedAt: "updatedAt",
