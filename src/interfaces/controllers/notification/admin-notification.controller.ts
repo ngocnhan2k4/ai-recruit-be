@@ -6,7 +6,7 @@ import {
   ApiResponse,
   ApiResponseDto,
   GetNotificationRequestDto,
-  GetNotificationResponseDto,
+  NotificationDto,
   PaginatedResultDecorator,
   PaginatedResultDto,
 } from "@/interfaces/dtos";
@@ -24,12 +24,12 @@ export class AdminNotificationController {
     summary: "Get admin notifications by user id, org id",
     description: "Retrieve admin notifications (job_posted type only)",
   })
-  @ApiResponseDto(PaginatedResultDecorator(GetNotificationResponseDto))
+  @ApiResponseDto(PaginatedResultDecorator(NotificationDto))
   @Get()
   getNotificationsByAdmin(
     @Query() query: GetNotificationRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<PaginatedResultDto<GetNotificationResponseDto>>> {
+  ): Promise<ApiResponse<PaginatedResultDto<NotificationDto>>> {
     return this.notificationUseCase.getNotificationsByAdmin({
       ...query,
       userId: user.userId,

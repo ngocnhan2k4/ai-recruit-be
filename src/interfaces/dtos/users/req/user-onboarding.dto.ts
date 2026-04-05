@@ -14,15 +14,6 @@ export class UserOnboardingDto {
   dob?: string | null;
   @ApiProperty()
   @IsString()
-  educationLevel?: string | null;
-  @ApiProperty()
-  @IsString()
-  major?: string | null;
-  @ApiProperty()
-  @IsString()
-  school?: string | null;
-  @ApiProperty()
-  @IsString()
   currentGoal?: string | null;
   @ApiProperty({ type: [String] })
   @IsString({ each: true })
@@ -30,7 +21,4 @@ export class UserOnboardingDto {
   @ApiProperty()
   @IsNumber()
   experienceYears?: number | null;
-  @ApiProperty()
-  @IsString()
-  experienceDetails?: string | null;
 }

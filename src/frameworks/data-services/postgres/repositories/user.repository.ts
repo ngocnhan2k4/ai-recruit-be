@@ -9,6 +9,8 @@ import {
   userEducations,
   skills,
   userIdentities,
+  subscriptions,
+  userSubscriptions,
 } from "../models";
 import { organizations } from "../models/organization.model";
 import {
@@ -17,6 +19,8 @@ import {
   UserProfile,
   UserCvData,
   NewUserIdentity,
+  GetAllUserResponse,
+  UserSubscriptionStatusEnum,
 } from "@/core/entities";
 import {
   ilike,
@@ -39,7 +43,6 @@ import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
-import { DrizzleCasbinAdapter } from "@/frameworks/auth-services/casbin/casbin.adapter";
 import { RoleEnum } from "@/common/constants";
 import { differenceInYears } from "date-fns";
 import { convertDateToStr } from "@/common/utils";
@@ -50,10 +53,8 @@ export class UserRepository
   extends GenericRepository<User, typeof users>
   implements IUserRepository
 {
-  private readonly casbinAdapter: DrizzleCasbinAdapter;
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, users);
-    this.casbinAdapter = new DrizzleCasbinAdapter(db);
   }
   async addUserIdentity(
     identity: NewUserIdentity,
@@ -154,47 +155,14 @@ export class UserRepository
 
   async getAllWithOffset(
     query: GetUserQuery,
-  ): Promise<
-    PaginatedResult<
-      Pick<
-        User,
-        | "id"
-        | "email"
-        | "name"
-        | "username"
-        | "emailVerified"
-        | "phone"
-        | "phoneVerified"
-        | "roles"
-        | "status"
-        | "createdAt"
-        | "updatedAt"
-        | "deletedAt"
-      >
-    >
-  > {
-    const conditions: any[] = [];
-    if (query.keyword) {
-      const keyword = `%${query.keyword.toLowerCase()}%`;
-      conditions.push(
-        or(
-          ilike(users.username, keyword),
-          ilike(users.name, keyword),
-          ilike(users.email, keyword),
-        ),
-      );
-    }
-    if (query.isActive !== undefined) {
-      conditions.push(eq(users.status, "active"));
-    }
-    if (query.isDeleted !== undefined) {
-      if (query.isDeleted) {
-        conditions.push(isNotNull(users.deletedAt));
-      } else {
-        conditions.push(isNull(users.deletedAt));
-      }
-    }
-    let queryBuilder = this.db
+  ): Promise<PaginatedResult<GetAllUserResponse>> {
+    const limit = query.limit ?? 10;
+    const page = query.page ?? 1;
+    const offset = (page - 1) * limit;
+
+    const conditions = this.buildGetAllAdminUsersQuery(query);
+
+    const queryBuilder = this.db
       .select({
         id: users.id,
         email: users.email,
@@ -208,36 +176,108 @@ export class UserRepository
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
-      })
-      .from(users) as any; // Type casting to any to bypass the type issue with complex where conditions
 
-    if (conditions.length > 0) {
-      queryBuilder = queryBuilder.where(and(...conditions));
-    }
-    const result = await queryBuilder
-      .limit(query.limit || 10)
-      .offset(query.page ? (query.page - 1) * (query.limit || 10) : 0)
-      .orderBy(
-        query.sortBy
-          ? query.sortDirection === "desc"
-            ? sql`${sql.raw(query.sortBy)} DESC`
-            : sql`${sql.raw(query.sortBy)} ASC`
-          : sql`${users.createdAt} DESC`,
-      );
+        subscription: {
+          id: subscriptions.id,
+          name: subscriptions.name,
+          price: subscriptions.price,
+          billingCycle: subscriptions.billingCycle,
+          isActive: subscriptions.isActive,
+        },
 
-    const total = await this.db
-      .select({
-        count: count(),
+        userSubscription: {
+          id: userSubscriptions.id,
+          startedAt: userSubscriptions.startedAt,
+          expiredAt: userSubscriptions.expiredAt,
+          status: userSubscriptions.status,
+          createdAt: userSubscriptions.createdAt,
+        },
       })
       .from(users)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .leftJoin(
+        userSubscriptions,
+        and(
+          eq(userSubscriptions.userId, users.id),
+          eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+        ),
+      )
+      .leftJoin(
+        subscriptions,
+        eq(userSubscriptions.subscriptionId, subscriptions.id),
+      ) as any; // Type casting to any to bypass the type issue with complex where conditions
+
+    const [items, totalRow] = await Promise.all([
+      queryBuilder
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .limit(limit)
+        .offset(offset)
+        .orderBy(
+          query.sortBy
+            ? query.sortDirection === "desc"
+              ? sql`${sql.raw(query.sortBy)} DESC`
+              : sql`${sql.raw(query.sortBy)} ASC`
+            : sql`${users.createdAt} DESC`,
+        ),
+      this.db
+        .select({
+          count: countDistinct(users.id).as("count"),
+        })
+        .from(users)
+        .leftJoin(userSubscriptions, eq(userSubscriptions.userId, users.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined),
+    ]);
+
+    const total = Number(totalRow[0]?.count ?? 0);
 
     return {
-      data: result,
+      data: items,
       pagination: {
-        total: Number(total[0].count) || 0,
+        total,
       },
     };
+  }
+
+  private buildGetAllAdminUsersQuery(query: GetUserQuery) {
+    const conditions: any[] = [];
+
+    if (query.keyword) {
+      const keyword = `%${query.keyword.toLowerCase()}%`;
+      conditions.push(
+        or(
+          ilike(sql`coalesce(${users.username}, '')`, keyword),
+          ilike(sql`coalesce(${users.name}, '')`, keyword),
+          ilike(users.email, keyword),
+        )!,
+      );
+    }
+
+    if (query.isActive !== undefined) {
+      if (query.isActive) {
+        conditions.push(eq(users.status, "active"));
+      } else {
+        conditions.push(not(eq(users.status, "active")));
+      }
+    }
+
+    if (query.isDeleted !== undefined) {
+      if (query.isDeleted) {
+        conditions.push(isNotNull(users.deletedAt));
+      } else {
+        conditions.push(isNull(users.deletedAt));
+      }
+    }
+
+    if (query.subscriptionId) {
+      conditions.push(
+        eq(userSubscriptions.subscriptionId, query.subscriptionId),
+      );
+    }
+
+    if (query.statusSubscription) {
+      conditions.push(eq(userSubscriptions.status, query.statusSubscription));
+    }
+
+    return conditions;
   }
 
   async createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User> {
@@ -390,6 +430,7 @@ export class UserRepository
             provinceIds: userOnboardings.provinceIds,
             categoryIds: userOnboardings.categoryIds,
             expectedSalary: userOnboardings.expectedSalary,
+            experienceYears: userOnboardings.experienceYears,
           })
           .from(userOnboardings)
           .where(eq(userOnboardings.userId, userId)),
@@ -409,11 +450,15 @@ export class UserRepository
     }
 
     const onboarding = userOnboardingResult[0];
+    const experienceYearsFromOnboarding = onboarding?.experienceYears;
 
     return {
       userId: user.id,
       skillIds,
-      experienceYears,
+      experienceYears:
+        typeof experienceYearsFromOnboarding === "number"
+          ? Math.max(0, experienceYearsFromOnboarding)
+          : experienceYears,
       provinceIds: onboarding?.provinceIds || [],
       categoryIds: onboarding?.categoryIds || [],
       expectedSalary: onboarding?.expectedSalary

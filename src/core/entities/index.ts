@@ -32,10 +32,11 @@ import {
   userFeatureUsages,
   userIdentities,
   aiCvs,
+  skillsSynonyms,
+  tasks,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
-import { skillsSynonyms } from "@/frameworks/data-services/postgres/models/skills-synonyms.model";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
@@ -79,6 +80,9 @@ export type NewSkill = InferInsertModel<typeof skills>;
 export type Skill = InferSelectModel<typeof skills>;
 export type UserTestSkill = Pick<Skill, "id" | "name">;
 
+export type NewTask = InferInsertModel<typeof tasks>;
+export type Task = InferSelectModel<typeof tasks>;
+
 export type NewSkillSynonym = InferInsertModel<typeof skillsSynonyms>;
 export type SkillSynonym = InferSelectModel<typeof skillsSynonyms>;
 
@@ -102,6 +106,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
+    task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
     sender?: {
       name?: string | null;
       avatarUrl?: string | null;
@@ -200,13 +205,7 @@ export type NewSubscription = InferInsertModel<typeof subscriptions>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 
 export type NewUserSubscription = InferInsertModel<typeof userSubscriptions>;
-export type UserSubscription = InferSelectModel<typeof userSubscriptions> & {
-  user: Pick<User, "id" | "name" | "username" | "email" | "avatarUrl">;
-  subscription: Pick<
-    Subscription,
-    "id" | "name" | "price" | "billingCycle" | "isActive"
-  >;
-};
+export type UserSubscription = InferSelectModel<typeof userSubscriptions>;
 
 export type NewSubscriptionFeature = InferInsertModel<
   typeof subscriptionFeatures

@@ -59,8 +59,8 @@ export class JobMatchingUseCases {
             user.appliedJobIds,
             user.skillIds,
             user.categoryIds,
-            subDays(new Date(), 1),
-            new Date(),
+            subDays(new Date(), 3).toISOString(),
+            new Date().toISOString(),
             true,
             20,
           );
@@ -301,7 +301,7 @@ export class JobMatchingUseCases {
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
         applyUrl: jobMap[job.id]?.applyUrl,
-        score: hit._score * 100,
+        score: Number((hit._score * 100).toFixed(2)),
       } as JobMatchResultDto;
     });
   }

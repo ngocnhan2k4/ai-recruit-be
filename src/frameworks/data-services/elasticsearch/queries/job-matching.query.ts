@@ -6,10 +6,55 @@ import { UserProfile, JobFilters } from "@/core/entities";
 export class JobMatchingQuery {
   private readonly logger = new Logger(JobMatchingQuery.name);
 
+  private readonly sortableFields: Record<string, string> = {
+    score: "_score",
+    _score: "_score",
+    datePosted: "datePosted",
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    salaryMin: "salaryMin",
+    salaryMax: "salaryMax",
+    experienceMin: "experienceMin",
+    experienceMax: "experienceMax",
+    title: "title.keyword",
+    status: "status",
+    workType: "workType",
+  };
+
   constructor(private readonly configService: ConfigService) {}
+
+  private buildSort(sortBy?: string, sortDirection: "asc" | "desc" = "asc") {
+    const direction: "asc" | "desc" = sortDirection === "desc" ? "desc" : "asc";
+
+    const mappedSortField = sortBy ? this.sortableFields[sortBy] : undefined;
+
+    // Default ranking-first sort for relevance results.
+    if (!mappedSortField) {
+      return [
+        { _score: { order: "desc" as const } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
+
+    if (mappedSortField === "_score") {
+      return [
+        { _score: { order: direction } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
+
+    return [
+      { [mappedSortField]: { order: direction } },
+      { _score: { order: "desc" as const } },
+      { datePosted: { order: "desc" as const } },
+    ];
+  }
 
   /**
    * Build Elasticsearch query for job matching với user profile
+   * With custom scoring, I will calculate a relevance score based on:
+   * - If it's a OR condition, I will plus score as long as any matching
+   * - If it's a AND condition, I will calculate score based on how many conditions matched (skill match, location match, category match, experience match, salary match) and boost accordingly
    */
   buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
     const {
@@ -29,6 +74,14 @@ export class JobMatchingQuery {
       salaryMax,
       skillIds: filterSkills,
       statuses,
+      organizationId,
+      experienceMin,
+      experienceMax,
+      fromDate,
+      toDate,
+      keyword,
+      sortBy,
+      sortDirection,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -100,6 +153,81 @@ export class JobMatchingQuery {
       });
     }
 
+    if (organizationId) {
+      mustQueries.push({
+        term: {
+          organizationId,
+        },
+      });
+    }
+
+    if (experienceMin !== undefined || experienceMax !== undefined) {
+      if (experienceMin !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMax: { gte: experienceMin },
+          },
+        });
+      }
+
+      if (experienceMax !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMin: { lte: experienceMax },
+          },
+        });
+      }
+    }
+
+    if (fromDate || toDate) {
+      const rangeQuery: any = {};
+      if (fromDate) {
+        rangeQuery.gte = fromDate;
+      }
+      if (toDate) {
+        rangeQuery.lte = toDate;
+      }
+      mustQueries.push({
+        range: {
+          datePosted: rangeQuery,
+        },
+      });
+    }
+
+    if (keyword) {
+      mustQueries.push({
+        bool: {
+          should: [
+            {
+              match: {
+                title: {
+                  query: keyword,
+                  boost: 3.0,
+                },
+              },
+            },
+            {
+              match: {
+                description: {
+                  query: keyword,
+                  boost: 1.0,
+                },
+              },
+            },
+            {
+              match: {
+                skillNames: {
+                  query: keyword,
+                  boost: 2.0,
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      });
+    }
+
     // Should queries cho matching (boost score)
     const shouldQueries: any[] = [];
 
@@ -152,7 +280,7 @@ export class JobMatchingQuery {
                             }
                             
                             if (!doc.containsKey('skillIds') || doc['skillIds'].size() == 0) {
-                              return 0;
+                              return 1;
                             }
                             
                             double matchedSkills = 0;
@@ -214,18 +342,15 @@ export class JobMatchingQuery {
                       script_score: {
                         script: {
                           source: `
-                            double matched = 0;
                             double total = params.userProvinceIds.length;
                         
-                            if (total == 0) return 0;
-
                             for (def p : params.userProvinceIds) {
                               if (doc['provinceIds'].contains(p)) {
-                                matched++;
+                                return 1;
                               }
                             }
 
-                            return matched / total;
+                            return 0;
                           `,
                           params: {
                             userProvinceIds: userProvinceIds,
@@ -244,9 +369,9 @@ export class JobMatchingQuery {
                         script: {
                           source: `
                             double matched = 0;
-                            double total = params.userCategoryIds.length;
+                            double total = doc['categoryId'].size();
                         
-                            if (total == 0) return 0;
+                            if (total == 0) return 1; // No category info - neutral score
 
                             for (def p : params.userCategoryIds) {
                               if (doc['categoryId'].contains(p)) {
@@ -315,18 +440,7 @@ export class JobMatchingQuery {
             boost_mode: "replace", // Sum với query score
           },
         },
-        sort: [
-          {
-            _score: {
-              order: "desc",
-            },
-          },
-          {
-            datePosted: {
-              order: "desc",
-            },
-          },
-        ],
+        sort: this.buildSort(sortBy, sortDirection),
         size: limit + 1,
         ...(searchAfter && { search_after: searchAfter }),
         _source: {
@@ -379,6 +493,8 @@ export class JobMatchingQuery {
       experienceMax,
       fromDate,
       toDate,
+      sortBy,
+      sortDirection,
     } = filters;
 
     let searchAfter: any[] | undefined;
@@ -529,18 +645,7 @@ export class JobMatchingQuery {
             ...(keyword && { minimum_should_match: 1 }),
           },
         },
-        sort: [
-          {
-            _score: {
-              order: "desc",
-            },
-          },
-          {
-            datePosted: {
-              order: "desc",
-            },
-          },
-        ],
+        sort: this.buildSort(sortBy, sortDirection),
         size: limit + 1,
         ...(searchAfter && { search_after: searchAfter }),
       },

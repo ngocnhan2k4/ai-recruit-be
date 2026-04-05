@@ -2,15 +2,16 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import { INotificationRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
-import { ApiResponse } from "@/interfaces/dtos";
+import { ApiResponse, NotificationDto } from "@/interfaces/dtos";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import {
   Notification,
   NotificationStatusEnum,
   NotificationType,
+  TaskStatusEnum,
+  TaskTypeEnum,
 } from "@/core/entities";
 import {
-  GetNotificationResponseDto,
   NotificationActionRequestDto,
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
@@ -41,7 +42,7 @@ export class NotificationUseCase {
     filter: NotificationFilter,
     result: PaginatedResult<Notification>,
     isAdmin: boolean,
-  ): ApiResponse<PaginatedResult<GetNotificationResponseDto>> {
+  ): ApiResponse<PaginatedResult<NotificationDto>> {
     const actor = isAdmin ? "admin" : "user";
     this.logger.log(
       `Get notification of ${actor}: ${filter.userId}, orgId: ${filter.organizationId}, groupType: ${filter.groupType} successfully`,
@@ -51,10 +52,16 @@ export class NotificationUseCase {
       code: RESPONSE_CODE.SUCCESS,
       data: {
         data: result.data.map((d) => ({
-          notification: {
-            ...d,
-            type: d.type as NotificationType,
-          },
+          ...d,
+          type: d.type as NotificationType,
+          task: d.task
+            ? {
+                ...d.task,
+                type: d.task.type as TaskTypeEnum,
+                status: d.task.status as TaskStatusEnum,
+                result: d.task.result as Record<string, any>,
+              }
+            : null,
         })),
         pagination: result.pagination,
       },
@@ -64,7 +71,7 @@ export class NotificationUseCase {
 
   async getNotificationsByUser(
     filter: NotificationFilter,
-  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
+  ): Promise<ApiResponse<PaginatedResult<NotificationDto>>> {
     const adjustedFilter = this.getTypeFilters(filter, false);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);
@@ -73,7 +80,7 @@ export class NotificationUseCase {
 
   async getNotificationsByAdmin(
     filter: NotificationFilter,
-  ): Promise<ApiResponse<PaginatedResult<GetNotificationResponseDto>>> {
+  ): Promise<ApiResponse<PaginatedResult<NotificationDto>>> {
     const adjustedFilter = this.getTypeFilters(filter, true);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);

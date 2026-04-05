@@ -17,7 +17,9 @@ type JobIndexData = {
   organizationName: string;
 };
 
-@Processor(JOB_INDEX_QUEUE)
+@Processor(JOB_INDEX_QUEUE, {
+  concurrency: 2,
+})
 export class JobIndexWorker extends WorkerHost {
   private readonly logger = new Logger(JobIndexWorker.name);
 

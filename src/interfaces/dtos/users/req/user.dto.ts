@@ -7,10 +7,11 @@ import {
   IsString,
   IsArray,
   IsNumber,
+  IsUUID,
 } from "class-validator";
-import { ApiProperty, PartialType } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
-import { GenderEnum } from "@/core";
+import { GenderEnum, UserSubscriptionStatusEnum } from "@/core";
 import { RoleEnum } from "@/common/constants";
 
 export class CreateUserRequestDto {
@@ -57,6 +58,15 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
 
   @ApiProperty({
     required: false,
+    description: "Total years of experience for matching",
+    example: 5,
+  })
+  @IsOptional()
+  @IsNumber()
+  experienceYears?: number | null;
+
+  @ApiProperty({
+    required: false,
     type: [String],
     description: "Array of province IDs where user wants to work",
   })
@@ -83,6 +93,24 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
   @IsOptional()
   @IsNumber()
   expectedSalary?: number | null;
+
+  @ApiProperty({
+    required: false,
+    description: "Current career goal",
+  })
+  @IsOptional()
+  @IsString()
+  currentGoal?: string | null;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description: "Array of skill IDs",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skills?: string[] | null;
 }
 
 export enum TypeAvatar {
@@ -106,6 +134,22 @@ export class GetUserQueryDto extends GeneralQueryDto {
   @IsOptional()
   @IsBoolean()
   isDeleted?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Filter by subscription id",
+    example: "550e8400-e29b-41d4-a716-446655440001",
+  })
+  @IsOptional()
+  @IsUUID()
+  subscriptionId?: string;
+
+  @ApiPropertyOptional({
+    enum: UserSubscriptionStatusEnum,
+    description: "Filter by status",
+  })
+  @IsOptional()
+  @IsEnum(UserSubscriptionStatusEnum)
+  statusSubscription?: UserSubscriptionStatusEnum;
 }
 
 export class AdminUpdateUserRequestDto {

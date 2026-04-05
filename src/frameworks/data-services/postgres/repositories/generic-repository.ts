@@ -8,10 +8,9 @@ import {
 import { ID } from "@/common/types";
 import { getTx, txStorage } from "@/common/utils";
 
-export class GenericRepository<
-  T,
-  TTable extends object,
-> implements IGenericRepository<T> {
+export class GenericRepository<T, TTable extends object>
+  implements IGenericRepository<T>
+{
   protected _table: TTable;
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
@@ -101,6 +100,8 @@ export class GenericRepository<
     item: Partial<T>[],
     tx?: DBDrizzleTransaction,
   ): Promise<T[]> {
+    if (item.length === 0) return [];
+
     const dbClient = tx ?? this.db;
     const result = await dbClient
       .insert(this._table as any)

@@ -1,5 +1,4 @@
 import { ISkillRepository, SkillSynonym } from "@/core";
-import { skillsSynonyms } from "../models/skills-synonyms.model";
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { GenericRepository } from "./generic-repository";
 import type { DBDrizzle } from "../types";
@@ -10,6 +9,7 @@ import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { CACHE_KEYS, SHORT_TTL, VERY_LONG_TTL } from "@/common/constants";
 import type { Cache } from "cache-manager";
 import { cacheWithDedup } from "@/common/utils";
+import { skillsSynonyms } from "../models";
 
 @Injectable()
 export class SkillsSynonymsRepository
