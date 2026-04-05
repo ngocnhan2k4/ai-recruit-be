@@ -8,7 +8,6 @@ import {
   IJobRepository,
   IOrganizationRepository,
   ISearchService,
-  ISkillsSynonymsRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -80,13 +79,14 @@ export class JobUseCases {
     private readonly messageQueueService: IMessageQueueService,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
-    private readonly skillsSynonymRepo: ISkillsSynonymsRepository,
   ) {}
 
   async getJobs(
     filters: JobFilters,
     isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    console.log("Received getJobs request with filters:", filters);
+
     if (filters.cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)

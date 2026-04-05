@@ -9,9 +9,11 @@ export class JobMatchingQuery {
   private readonly sortableFields: Record<string, string> = {
     score: "_score",
     _score: "_score",
+    date_posted: "date_posted",
     datePosted: "datePosted",
     createdAt: "createdAt",
     updatedAt: "updatedAt",
+    salary: "salary",
     salaryMin: "salaryMin",
     salaryMax: "salaryMax",
     experienceMin: "experienceMin",
@@ -27,6 +29,62 @@ export class JobMatchingQuery {
     const direction: "asc" | "desc" = sortDirection === "desc" ? "desc" : "asc";
 
     const mappedSortField = sortBy ? this.sortableFields[sortBy] : undefined;
+
+    if (mappedSortField === "salary") {
+      return [
+        {
+          _script: {
+            type: "number" as const,
+            order: direction,
+            script: {
+              lang: "painless",
+              source: `
+                def hasMin = doc.containsKey('salaryMin') && doc['salaryMin'].size() > 0;
+                def hasMax = doc.containsKey('salaryMax') && doc['salaryMax'].size() > 0;
+
+                if (hasMin && hasMax) {
+                  return (doc['salaryMin'].value + doc['salaryMax'].value) / 2.0;
+                }
+                if (hasMin) {
+                  return doc['salaryMin'].value;
+                }
+                if (hasMax) {
+                  return doc['salaryMax'].value;
+                }
+                return 0;
+              `,
+            },
+          },
+        },
+        { _score: { order: "desc" as const } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
+
+    if (mappedSortField === "date_posted") {
+      return [
+        {
+          _script: {
+            type: "number" as const,
+            order: direction,
+            script: {
+              lang: "painless",
+              source: `
+                if (doc.containsKey('datePosted') && doc['datePosted'].size() > 0) {
+                  return doc['datePosted'].value.toInstant().toEpochMilli();
+                }
+                if (doc.containsKey('createdAt') && doc['createdAt'].size() > 0) {
+                  return doc['createdAt'].value.toInstant().toEpochMilli();
+                }
+                return 0;
+              `,
+            },
+          },
+        },
+        { _score: { order: "desc" as const } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
 
     // Default ranking-first sort for relevance results.
     if (!mappedSortField) {
@@ -484,6 +542,7 @@ export class JobMatchingQuery {
       workType,
       provinceId,
       categoryId,
+      categoryIds,
       keyword,
       skillIds,
       organizationId,
@@ -493,6 +552,7 @@ export class JobMatchingQuery {
       experienceMax,
       fromDate,
       toDate,
+      isJobSystem,
       sortBy,
       sortDirection,
     } = filters;
@@ -538,6 +598,10 @@ export class JobMatchingQuery {
       mustQueries.push({ term: { categoryId } });
     }
 
+    if (categoryIds && categoryIds.length > 0) {
+      mustQueries.push({ terms: { categoryId: categoryIds } });
+    }
+
     if (skillIds && skillIds.length > 0) {
       mustQueries.push({
         terms: {
@@ -550,6 +614,16 @@ export class JobMatchingQuery {
       mustQueries.push({
         term: {
           organizationId,
+        },
+      });
+    }
+
+    if (isJobSystem) {
+      mustQueries.push({
+        bool: {
+          must_not: {
+            exists: { field: "jobRawId" },
+          },
         },
       });
     }
@@ -591,16 +665,45 @@ export class JobMatchingQuery {
     }
 
     if (fromDate || toDate) {
-      const rangeQuery: any = {};
+      const datePostedRangeQuery: any = {};
+      const createdAtRangeQuery: any = {};
+
       if (fromDate) {
-        rangeQuery.gte = fromDate;
+        const fromDateIso = new Date(fromDate).toISOString();
+        datePostedRangeQuery.gte = fromDateIso;
+        createdAtRangeQuery.gte = fromDateIso;
       }
+
       if (toDate) {
-        rangeQuery.lte = toDate;
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        const toDateIso = toDateObj.toISOString();
+        datePostedRangeQuery.lte = toDateIso;
+        createdAtRangeQuery.lte = toDateIso;
       }
+
       mustQueries.push({
-        range: {
-          datePosted: rangeQuery,
+        bool: {
+          should: [
+            {
+              range: {
+                datePosted: datePostedRangeQuery,
+              },
+            },
+            {
+              bool: {
+                must_not: {
+                  exists: { field: "datePosted" },
+                },
+                filter: {
+                  range: {
+                    createdAt: createdAtRangeQuery,
+                  },
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
         },
       });
     }
