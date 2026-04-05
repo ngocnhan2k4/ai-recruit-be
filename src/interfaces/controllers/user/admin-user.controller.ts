@@ -21,7 +21,6 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import {
   ApiResponse,
   ApiResponseDto,
-  GetAllUserResponseDto,
   GetUserQueryDto,
   GetUserResponseDto,
   UserTrendsQueryDto,
@@ -46,7 +45,6 @@ export class AdminUserController {
 
   @ApiOperation({ summary: "Get all users" })
   @Get()
-  @ApiResponseDto(GetAllUserResponseDto)
   async getAllUsers(@Query() query: GetUserQueryDto) {
     return await this.userUseCases.getAllUsers(query);
   }

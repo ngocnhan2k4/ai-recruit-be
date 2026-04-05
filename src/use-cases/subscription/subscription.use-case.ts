@@ -20,10 +20,7 @@ import {
 } from "@/core";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { PaginatedResult } from "@/common/types";
-import {
-  GetListSubscriptionResponse,
-  UserSubscriptionFilter,
-} from "@/core/entities/subscription.entity";
+import { GetListSubscriptionResponse } from "@/core/entities/subscription.entity";
 
 @Injectable()
 export class SubscriptionUseCases {
@@ -151,18 +148,6 @@ export class SubscriptionUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: { affected },
-    };
-  }
-
-  async getUserSubscriptions(
-    query: UserSubscriptionFilter,
-  ): Promise<ApiResponse<PaginatedResult<UserSubscription>>> {
-    const result = await this.subscriptionRepo.getListUserSubscriptions(query);
-
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
     };
   }
 

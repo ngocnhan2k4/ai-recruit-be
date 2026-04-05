@@ -12,7 +12,6 @@ import {
   ProviderEnum,
   Skill,
   User,
-  UserStatusEnum,
 } from "../../core";
 import {
   IBloomFilterService,
@@ -37,21 +36,19 @@ import {
   UpdateUserRequestDto,
   UserPublicResponseDto,
   UserOnboardingDto,
-  GetAllUserResponseDto,
   AdminUpdateUserRequestDto,
   UserTrendsResponseDto,
   UserTrendsQueryDto,
 } from "@/interfaces/dtos";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { TokenPayload } from "@/common/types";
+import { PaginatedResult, TokenPayload } from "@/common/types";
 import { MultipartFile } from "@fastify/multipart";
 import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
 import {
   CreateUserExperienceRequestDto,
   UserExperiencesResponseDto,
 } from "@/interfaces/dtos";
-import { GetUserQuery } from "@/core/entities/user.entity";
-import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
+import { GetAllUserResponse, GetUserQuery } from "@/core/entities/user.entity";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { RoleEnum } from "@/common/constants";
 import {
@@ -778,17 +775,10 @@ export class UserUseCases implements OnModuleInit {
 
   async getAllUsers(
     query: GetUserQuery,
-  ): Promise<ApiResponse<PaginatedResultDto<GetAllUserResponseDto>>> {
+  ): Promise<ApiResponse<PaginatedResult<GetAllUserResponse>>> {
     const result = await this.userRepository.getAllWithOffset(query);
     return {
-      data: {
-        data: result.data.map((user) => ({
-          ...user,
-          status: user.status as UserStatusEnum,
-          roles: user.roles as RoleEnum[],
-        })),
-        pagination: result.pagination,
-      },
+      data: result,
       message: "Users retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
