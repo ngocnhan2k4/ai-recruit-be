@@ -9,7 +9,8 @@ import {
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { skills, questions, jobSkills } from "../models";
+import { skills, questions, jobSkills, userSkills } from "../models";
+import { jobs } from "../models/job.model";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import {
   count,
@@ -22,6 +23,7 @@ import {
   desc,
   eq,
   inArray,
+  gte,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -243,6 +245,47 @@ export class SkillRepository
     }
 
     // Invalidate the cache whenever skills are reviewed (approved or deleted)
+    await this.cacheManager.del(CACHE_KEYS.skill.getAll());
+  }
+
+  async getTopDemandedSkills(
+    months: number,
+    limit: number,
+  ): Promise<{ name: string; jobCount: number }[]> {
+    const fromDate = sql`NOW() - (${months} || ' months')::interval`;
+
+    const result = await this.db
+      .select({
+        name: skills.name,
+        jobCount: count(jobSkills.jobId).as("jobCount"),
+      })
+      .from(skills)
+      .innerJoin(jobSkills, eq(skills.id, jobSkills.skillId))
+      .innerJoin(jobs, eq(jobs.id, jobSkills.jobId))
+      .where(
+        and(
+          eq(skills.isApproved, true),
+          gte(jobs.datePosted, sql`${fromDate}`),
+        ),
+      )
+      .groupBy(skills.name)
+      .orderBy(desc(count(jobSkills.jobId)))
+      .limit(limit);
+
+    return result.map((r) => ({
+      name: r.name,
+      jobCount: Number(r.jobCount),
+    }));
+  }
+
+  async deleteSkillAndReferences(skillId: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(jobSkills).where(eq(jobSkills.skillId, skillId));
+      await tx.delete(userSkills).where(eq(userSkills.skillId, skillId));
+      await tx.delete(questions).where(eq(questions.skillId, skillId));
+      await tx.delete(skills).where(eq(skills.id, skillId));
+    });
+
     await this.cacheManager.del(CACHE_KEYS.skill.getAll());
   }
 }

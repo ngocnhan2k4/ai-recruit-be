@@ -56,6 +56,7 @@ export enum NotificationType {
   CV_REJECTED = "cv_rejected",
   ORGANIZATION_INVITED = "organization_invited",
   SYSTEM = "system",
+  FEEDBACK_ASSIGNED = "feedback_assigned",
 }
 export enum NotificationStatusEnum {
   READ = "read",
@@ -156,6 +157,7 @@ export enum EmailJobType {
   ORGANIZATION_VERIFICATION = "organization_verification",
   ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
   JOB_RECOMMENDATIONS = "job_recommendations",
+  FEEDBACK_ASSIGNED = "feedback_assigned",
   CUSTOM = "custom",
 }
 

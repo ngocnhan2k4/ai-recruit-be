@@ -50,7 +50,7 @@ export class NotificationRepository
       "profile_viewed",
     ],
     [NotiGroupTypeEnum.ORG]: ["organization_invitation"],
-    [NotiGroupTypeEnum.SYSTEM]: ["system", "job_approved"],
+    [NotiGroupTypeEnum.SYSTEM]: ["system", "job_approved", "feedback_assigned"],
   };
 
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {

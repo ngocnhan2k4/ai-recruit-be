@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { PaginationResponseDto } from "../../common/query";
 import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
+import { RelatedEntityDto } from "../..";
 
 export class FeedbackDto {
   @ApiProperty({ type: "string" })
@@ -11,6 +11,13 @@ export class FeedbackDto {
 
   @ApiProperty({ type: "string", nullable: true })
   userId: string | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+    description: "User id of the assigned handler (admin/staff)",
+  })
+  assignedToUserId: string | null;
 
   @ApiProperty({ type: "string" })
   name: string;
@@ -36,15 +43,7 @@ export class CreateFeedbackResponseDto {
   feedback: FeedbackDto;
 }
 
-export class GetFeedbacksResponseDto {
-  @ApiProperty({
-    type: [FeedbackDto],
-    description: "Array of job responses",
-  })
-  data: FeedbackDto[];
-
-  @ApiProperty({
-    type: PaginationResponseDto,
-  })
-  pagination: PaginationResponseDto;
+export class GetFeedbacksResponseDto extends FeedbackDto {
+  @ApiProperty({ type: RelatedEntityDto, nullable: true })
+  assignedToUser?: RelatedEntityDto | null;
 }

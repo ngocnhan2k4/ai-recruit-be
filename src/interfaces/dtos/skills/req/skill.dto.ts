@@ -48,6 +48,30 @@ export class GetSkillsQueryDto extends GeneralQueryDto {
 
 export class GetCrawledSkillsQueryDto extends GeneralQueryDto {}
 
+export class GetTopDemandedSkillsQueryDto {
+  @ApiProperty({
+    type: Number,
+    required: false,
+    default: 3,
+    description: "Number of months to look back from now",
+    example: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  months?: number = 3;
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    default: 10,
+    description: "Number of top skills to return",
+    example: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number = 10;
+}
+
 export class BulkReviewSkillDto {
   @ApiProperty({ type: [String], format: "uuid" })
   @IsArray()

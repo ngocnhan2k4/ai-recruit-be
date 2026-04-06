@@ -6,11 +6,13 @@ import {
   CrawledSkillDto,
   GetCrawledSkillsQueryDto,
   GetSkillsQueryDto,
+  GetTopDemandedSkillsQueryDto,
   PaginatedResultDto,
   SkillDto,
+  TopDemandedSkillItemDto,
+  CreateSkillDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
-import { CreateSkillDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class SkillUseCases {
@@ -92,6 +94,32 @@ export class SkillUseCases {
     return {
       message: "Skills reviewed successfully",
       code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async deleteSkill(id: string): Promise<ApiResponse<void>> {
+    await this.skillRepository.deleteSkillAndReferences(id);
+    return {
+      message: "Skill deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getTopDemandedSkills(
+    query: GetTopDemandedSkillsQueryDto,
+  ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
+    const months = query.months ?? 3;
+    const limit = query.limit ?? 10;
+
+    const data = await this.skillRepository.getTopDemandedSkills(months, limit);
+    this.logger.log(
+      `Fetched top ${limit} demanded skills in last ${months} months`,
+    );
+
+    return {
+      message: "Top demanded skills fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data,
     };
   }
 }

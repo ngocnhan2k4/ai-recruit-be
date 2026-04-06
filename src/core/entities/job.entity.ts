@@ -17,8 +17,6 @@ export interface JobFilters extends GeneralQuery {
   experienceMin?: number;
   experienceMax?: number;
   provinceId?: Province["id"];
-  // provinceIds?: Province["id"][];
-  // companyId?: Company["id"];
   categoryId?: Category["id"];
   categoryIds?: Category["id"][];
   workType?: WorkTypeEnum;
@@ -29,7 +27,6 @@ export interface JobFilters extends GeneralQuery {
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
-
   fields?: string[];
   ids?: string[];
 }
