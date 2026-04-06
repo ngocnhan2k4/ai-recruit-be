@@ -13,7 +13,6 @@ import {
   Skill,
   Category,
   OrganizationWithDetails,
-  UserProfile,
 } from "@/core/entities";
 import { JobFilters, JobResponse } from "@/core/entities/job.entity";
 import { randomUUID } from "crypto";
@@ -60,8 +59,8 @@ export class JobMatchingUseCases {
             user.appliedJobIds,
             user.skillIds,
             user.categoryIds,
-            subDays(new Date(), 1),
-            new Date(),
+            subDays(new Date(), 3).toISOString(),
+            new Date().toISOString(),
             true,
             20,
           );
@@ -178,7 +177,6 @@ export class JobMatchingUseCases {
     ]);
     const organizationMap = keyBy(organizations, "id");
     const jobMap = keyBy(jobInfos.data, "job.id");
-    const profileConfidence = this.calculateProfileConfidence(userProfile);
 
     // Transform ES results to JobMatchResult (extends JobResponse)
     const jobs = this.convertHitToDto(
@@ -186,7 +184,6 @@ export class JobMatchingUseCases {
       organizationMap,
       userJobStatusMap,
       jobMap,
-      profileConfidence,
     );
 
     // Generate next cursor if there are more results
@@ -227,7 +224,6 @@ export class JobMatchingUseCases {
       }
     >,
     jobMap: Dictionary<JobResponse>,
-    profileConfidence: number,
   ): JobMatchResultDto[] {
     return actualHits.map((hit: any) => {
       const source = hit._source;
@@ -305,27 +301,8 @@ export class JobMatchingUseCases {
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
         applyUrl: jobMap[job.id]?.applyUrl,
-        score: Number((hit._score * 100 * profileConfidence).toFixed(2)),
+        score: Number((hit._score * 100).toFixed(2)),
       } as JobMatchResultDto;
     });
-  }
-
-  private calculateProfileConfidence(userProfile: UserProfile): number {
-    const skillCount = Math.min(userProfile.skillIds?.length ?? 0, 3);
-    const provinceCount = Math.min(userProfile.provinceIds?.length ?? 0, 2);
-    const categoryCount = Math.min(userProfile.categoryIds?.length ?? 0, 2);
-    const hasExperience = (userProfile.experienceYears ?? 0) > 0 ? 1 : 0;
-    const hasExpectedSalary = (userProfile.expectedSalary ?? 0) > 0 ? 1 : 0;
-
-    const criteriaCount =
-      skillCount +
-      provinceCount +
-      categoryCount +
-      hasExperience +
-      hasExpectedSalary;
-    const maxCriteriaCount = 9;
-
-    // Keep a floor so new users still see usable scores while rewarding richer profiles.
-    return Math.max(0.4, criteriaCount / maxCriteriaCount);
   }
 }

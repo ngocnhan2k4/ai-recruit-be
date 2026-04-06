@@ -2,24 +2,16 @@ import {
   ISubscriptionRepository,
   Subscription,
   UpsertSubscriptionFeatureInput,
-  UserSubscription,
 } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import {
-  features,
-  subscriptionFeatures,
-  subscriptions,
-  users,
-  userSubscriptions,
-} from "../models";
+import { features, subscriptionFeatures, subscriptions } from "../models";
 import { PaginatedResult } from "@/common/types";
-import { and, count, desc, ilike, isNull, or, SQL, sql } from "drizzle-orm";
+import { and, count, desc, ilike, isNull, SQL, sql } from "drizzle-orm";
 import {
   GetListSubscriptionResponse,
   SubscriptionFilter,
-  UserSubscriptionFilter,
 } from "@/core/entities";
 import { eq } from "drizzle-orm";
 
@@ -133,93 +125,5 @@ export class SubscriptionRepository
       .returning();
 
     return result.length;
-  }
-
-  async getListUserSubscriptions(
-    query: UserSubscriptionFilter,
-  ): Promise<PaginatedResult<UserSubscription>> {
-    const limit = query.limit ?? 10;
-    const page = query.page ?? 1;
-    const keyword = query.keyword ?? "";
-    const offset = (page - 1) * limit;
-
-    const whereConditions: SQL[] = [isNull(userSubscriptions.deletedAt)];
-
-    if (query.subscriptionId) {
-      whereConditions.push(
-        eq(userSubscriptions.subscriptionId, query.subscriptionId),
-      );
-    }
-
-    if (query.status) {
-      whereConditions.push(eq(userSubscriptions.status, query.status as any));
-    }
-
-    if (keyword) {
-      whereConditions.push(
-        or(
-          ilike(users.name, `%${keyword}%`),
-          ilike(users.email, `%${keyword}%`),
-        )!,
-      );
-    }
-
-    const [items, totalRow] = await Promise.all([
-      this.db
-        .select({
-          id: userSubscriptions.id,
-          userId: userSubscriptions.userId,
-          subscriptionId: userSubscriptions.subscriptionId,
-          startedAt: userSubscriptions.startedAt,
-          expiredAt: userSubscriptions.expiredAt,
-          status: userSubscriptions.status,
-          createdAt: userSubscriptions.createdAt,
-          updatedAt: userSubscriptions.updatedAt,
-          deletedAt: userSubscriptions.deletedAt,
-          user: {
-            id: users.id,
-            name: users.name,
-            username: users.username,
-            email: users.email,
-            avatarUrl: users.avatarUrl,
-          },
-          subscription: {
-            id: subscriptions.id,
-            name: subscriptions.name,
-            price: subscriptions.price,
-            billingCycle: subscriptions.billingCycle,
-            isActive: subscriptions.isActive,
-          },
-        })
-        .from(userSubscriptions)
-        .innerJoin(users, eq(userSubscriptions.userId, users.id))
-        .innerJoin(
-          subscriptions,
-          eq(userSubscriptions.subscriptionId, subscriptions.id),
-        )
-        .where(and(...whereConditions))
-        .limit(limit)
-        .offset(offset),
-      this.db
-        .select({ count: count(userSubscriptions.id) })
-        .from(userSubscriptions)
-        .innerJoin(users, eq(userSubscriptions.userId, users.id))
-        .innerJoin(
-          subscriptions,
-          eq(userSubscriptions.subscriptionId, subscriptions.id),
-        )
-        .where(and(...whereConditions)),
-    ]);
-
-    const total = Number(totalRow[0]?.count ?? 0);
-    const hasNext = offset + items.length < total;
-
-    return {
-      data: items as UserSubscription[],
-      pagination: {
-        hasNextPage: hasNext,
-        total,
-      },
-    };
   }
 }

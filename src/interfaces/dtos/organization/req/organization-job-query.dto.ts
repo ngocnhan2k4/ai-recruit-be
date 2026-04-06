@@ -34,4 +34,13 @@ export class OrganizationJobQueryDto extends GeneralQueryDto {
     Array.isArray(value) ? value : value ? [value] : undefined,
   )
   categoryIds?: string[];
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : value ? [value] : undefined,
+  )
+  fields?: string[];
 }

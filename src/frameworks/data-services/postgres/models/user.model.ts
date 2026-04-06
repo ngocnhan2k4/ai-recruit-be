@@ -150,12 +150,8 @@ export const userOnboardings = pgTable(
       .notNull()
       .unique()
       .references(() => users.id),
-    educationLevel: EducationLevelEnum("education_level"),
-    major: varchar("major", { length: 255 }),
-    school: varchar("school", { length: 255 }),
     currentGoal: varchar("current_goal", { length: 500 }),
     experienceYears: integer("experience_years"),
-    experienceDetails: varchar("experience_details", { length: 500 }),
     skills: jsonb("skills"),
     provinceIds: uuid("province_ids").array(),
     categoryIds: uuid("category_ids").array(),
