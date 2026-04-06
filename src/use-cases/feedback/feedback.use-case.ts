@@ -63,6 +63,8 @@ export class FeedbackUseCase {
   ): Promise<ApiResponse<GetFeedbacksResponseDto>> {
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
+    console.log("Retrieved feedbacks:", result);
+
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
 
     return {
@@ -120,6 +122,8 @@ export class FeedbackUseCase {
       fromDate: query.fromDate,
       toDate: query.toDate,
     });
+
+    console.log("Retrieved feedback trends:", trends);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
