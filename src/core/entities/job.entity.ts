@@ -51,8 +51,8 @@ export interface JobResponse {
   skills: Skill[];
   isSaved?: boolean;
   isApplied?: boolean;
-  applyStatus?: string;
-  applyId?: string;
+  applyStatus?: string | null;
+  applyId?: string | null;
   applyUrl?: string | null;
   category: Category;
 }

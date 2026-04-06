@@ -1,6 +1,8 @@
 import { JobUseCases } from "@/use-cases/job/job.use-case";
 import { Body, Controller, Put, Param, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 import {
   ApiResponse,
   ApiResponseDto,
@@ -21,7 +23,7 @@ export class OrganizationJobController {
   @ApiOperation({
     summary: "Update organization job",
     description:
-      "Update an existing job posting scoped to a specific organization. Organizations can only transition jobs to active, closed, or paused states.",
+      "Update an existing job posting scoped to a specific organization. Any organization edit resets the job status to pending approval for admin review.",
   })
   @ApiResponseDto(JobDto)
   @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
@@ -29,7 +31,8 @@ export class OrganizationJobController {
   async updateJob(
     @Param("jobId") jobId: string,
     @Body() updateJobDto: UpdateJobDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.updateJob(jobId, updateJobDto);
+    return await this.jobUseCases.updateJob(jobId, updateJobDto, user.userId);
   }
 }

@@ -472,6 +472,7 @@ export class JobRepository
           title: jobs.title,
           description: jobs.description,
           datePosted: jobs.datePosted,
+          endDate: jobs.endDate,
           salaryMin: jobs.salaryMin,
           salaryMax: jobs.salaryMax,
           experienceMin: jobs.experienceMin,
@@ -1687,9 +1688,66 @@ export class JobRepository
       skillNames?: string[];
       provinceIds?: string[];
     },
+    options?: {
+      sendNotifications?: boolean;
+      senderUserId?: string;
+    },
   ): Promise<Job | null> {
     return this.db.transaction(async (tx) => {
-      return this.preUpdateJob(tx, jobId, job);
+      const [currentJob] = await tx
+        .select({
+          status: jobs.status,
+          title: jobs.title,
+          organizationId: jobs.organizationId,
+        })
+        .from(jobs)
+        .where(eq(jobs.id, jobId))
+        .limit(1);
+
+      const updatedJob = await this.preUpdateJob(tx, jobId, job);
+      if (!updatedJob) {
+        return null;
+      }
+
+      const shouldNotifyAdmins =
+        options?.sendNotifications &&
+        options.senderUserId &&
+        currentJob &&
+        currentJob.status !== "pending_approval";
+
+      if (!shouldNotifyAdmins) {
+        return updatedJob;
+      }
+
+      const adminUsers = await this.userRepository.getAllAdminUsers({
+        page: 1,
+        limit: 100,
+        isActive: true,
+        isDeleted: false,
+      });
+
+      const recipients = adminUsers.data.map((m) => ({
+        receiverId: m.id,
+      }));
+
+      if (recipients.length > 0) {
+        await this.notificationRepository.preCreateNotifications(
+          tx,
+          {
+            title: "Công việc được cập nhật",
+            message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+            type: NotificationType.JOB_UPDATED,
+            senderId: options.senderUserId,
+            payload: {
+              jobId: updatedJob.id,
+              orgId: updatedJob.organizationId,
+            },
+          },
+          recipients,
+        );
+      }
+
+      return updatedJob;
     });
   }
 
@@ -2074,10 +2132,10 @@ export class JobRepository
           provinces: data.provinces as Province[],
           organization: data.organization as OrganizationWithDetails,
           skills: data.skills as Skill[],
-          isSaved: (data.isSaved || undefined) as boolean | undefined,
-          isApplied: (data.isApplied || undefined) as boolean | undefined,
-          applyStatus: (data.applyStatus || undefined) as string | undefined,
-          applyId: (data.applyId || undefined) as string | undefined,
+          isSaved: Boolean(data.isSaved),
+          isApplied: Boolean(data.isApplied),
+          applyStatus: (data.applyStatus as string | null) ?? null,
+          applyId: (data.applyId as string | null) ?? null,
           applyUrl: (data.job as any).applyUrl as string | null | undefined,
           category: data.category as Category,
         };

@@ -864,14 +864,24 @@ export class JobUseCases {
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto,
+    senderUserId: string,
   ): Promise<ApiResponse<JobDto>> {
+    const organizationUpdateDto: UpdateJobDto = {
+      ...updateJobDto,
+      status: JobStatusEnum.PENDING_APPROVAL,
+    };
+
     const { transformedJob } = await this.processJobUpdate(
       jobId,
-      updateJobDto,
+      organizationUpdateDto,
       async (updateData) => {
         const updatedJob = await this.jobRepository.updateJob(
           jobId,
           updateData,
+          {
+            sendNotifications: true,
+            senderUserId,
+          },
         );
         return { updatedJob };
       },
@@ -989,9 +999,10 @@ export class JobUseCases {
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
-      applyStatus?: string;
-      applyId?: string;
+      applyStatus?: string | null;
+      applyId?: string | null;
       applyUrl?: string | null;
+      category?: Category;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
       this.logger.error(
@@ -1012,15 +1023,7 @@ export class JobUseCases {
         status: job.job.status as JobStatusEnum,
         workType: job.job.workType as WorkTypeEnum,
       },
-      organization: {
-        id: job.organization.id,
-        name: job.organization.name,
-        slug: job.organization.slug,
-        type: job.organization.type,
-        description: job.organization.description,
-        address: job.organization.address,
-        logoUrl: job.organization.logoUrl,
-      } as OrganizationWithDetailsDto,
+      organization: job.organization as OrganizationWithDetailsDto,
     };
 
     return {
