@@ -58,10 +58,12 @@ export class FeedbackRepository
     }
 
     if (filter.keyword) {
+      const keyword = `%${filter.keyword}%`;
+
       whereConditions.push(
         or(
-          ilike(sql`coalesce(${feedbacks.id}, '')`, filter.keyword),
-          ilike(sql`coalesce(${feedbacks.name}, '')`, filter.keyword),
+          ilike(sql`${feedbacks.id}::text`, keyword),
+          ilike(feedbacks.name, keyword),
         )!,
       );
     }
