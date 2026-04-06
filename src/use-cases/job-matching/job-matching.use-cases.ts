@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
-  IEmailQueueStorageService,
+  IMessageQueueService,
   IJobRepository,
   IUserRepository,
   ISearchService,
@@ -15,9 +15,7 @@ import {
   OrganizationWithDetails,
 } from "@/core/entities";
 import { JobFilters, JobResponse } from "@/core/entities/job.entity";
-import { randomUUID } from "crypto";
 import { subDays } from "date-fns/subDays";
-import { EmailJob } from "@/core/entities/email.entity";
 import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
@@ -34,7 +32,7 @@ export class JobMatchingUseCases {
 
   constructor(
     private readonly jobRepository: IJobRepository,
-    private readonly emailStorageService: IEmailQueueStorageService,
+    private readonly messageQueueService: IMessageQueueService,
     private readonly userRepository: IUserRepository,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
@@ -72,20 +70,21 @@ export class JobMatchingUseCases {
             continue;
           }
 
-          const emailJob: EmailJob = {
-            id: randomUUID(),
-            type: EmailJobType.JOB_RECOMMENDATIONS,
-            data: {
+          await this.messageQueueService.addTask(
+            EmailJobType.JOB_RECOMMENDATIONS,
+            {
               to: user.email,
               userName: user.name,
               jobs: recommendedJobs.slice(0, 10),
             },
-            attempts: 0,
-            maxAttempts: 3,
-            createdAt: new Date(),
-          };
-
-          this.emailStorageService.addToQueue(emailJob);
+            {
+              attempts: 3,
+              backoff: {
+                type: "exponential",
+                delay: 5000,
+              },
+            },
+          );
           this.logger.log(
             `Queued job recommendations email for user ${user.userId} with ${recommendedJobs.length} jobs`,
           );

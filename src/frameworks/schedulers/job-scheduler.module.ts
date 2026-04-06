@@ -10,6 +10,7 @@ import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.mod
 import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
+import { EmailModule } from "@/frameworks/email-services/email.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
     AIServicesModule,
     PostgresDataServicesModule,
     WebSocketModule,
+    EmailModule,
   ],
   providers: [JobMatchingScheduler, JobIndexWorker, TaskWorker],
 })

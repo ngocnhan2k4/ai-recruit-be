@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { MailerModule } from "@nestjs-modules/mailer";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EmailService } from "./email.service";
-import { EmailWorkerService } from "./email-worker.service";
 import { EmailQueueStorageModule } from "./email-queue-storage/email-queue-storage.module";
 
 @Module({
@@ -27,7 +26,7 @@ import { EmailQueueStorageModule } from "./email-queue-storage/email-queue-stora
       inject: [ConfigService],
     }),
   ],
-  providers: [EmailService, EmailWorkerService],
+  providers: [EmailService],
   exports: [EmailService, EmailQueueStorageModule],
 })
 export class EmailModule {}
