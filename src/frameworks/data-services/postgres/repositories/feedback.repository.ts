@@ -2,7 +2,7 @@ import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { feedbacks } from "../models/feedback.model";
-import { Feedback } from "@/core/entities";
+import { Feedback, ListFeedbackResponse } from "@/core/entities";
 import { IFeedbackRepository } from "@/core/abstracts/repositories/feedback-repository.abstract";
 import {
   eq,
@@ -20,8 +20,9 @@ import {
   or,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
-import { PaginatedResult } from "@/common/types";
+import { PaginatedResult, RelatedEntity } from "@/common/types";
 import { convertDateToStr } from "@/common/utils";
+import { users } from "../models";
 
 @Injectable()
 export class FeedbackRepository
@@ -34,7 +35,7 @@ export class FeedbackRepository
 
   async getFeedbacks(
     filter: FeedbackFilter,
-  ): Promise<PaginatedResult<Feedback>> {
+  ): Promise<PaginatedResult<ListFeedbackResponse>> {
     const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
     if (filter.assignedToUserId) {
@@ -66,9 +67,27 @@ export class FeedbackRepository
 
     const [feedbacksResult, total] = await Promise.all([
       this.db
-        .select()
+        .select({
+          id: feedbacks.id,
+          name: feedbacks.name,
+          message: feedbacks.message,
+          subject: feedbacks.subject,
+          images: feedbacks.images,
+          status: feedbacks.status,
+          assignedToUserId: feedbacks.assignedToUserId,
+          createdAt: feedbacks.createdAt,
+          updatedAt: feedbacks.updatedAt,
+          assignedToUser: sql<
+            RelatedEntity | undefined
+          >`json_build_object('id', ${users.id}, 'name', ${users.name})`.as(
+            "assignedToUser",
+          ),
+          deletedAt: feedbacks.deletedAt,
+          userId: feedbacks.userId,
+        })
         .from(feedbacks)
         .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+        .leftJoin(users, eq(feedbacks.assignedToUserId, users.id))
         .orderBy(desc(feedbacks.createdAt))
         .limit(filter.limit)
         .offset((filter.page! - 1) * filter.limit),

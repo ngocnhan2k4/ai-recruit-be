@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 
 import { applyDecorators, Type } from "@nestjs/common";
 import { ApiExtraModels, ApiOkResponse, getSchemaPath } from "@nestjs/swagger";
+import type { ID } from "@/common/types";
 
 export class ApiResponse<T> {
   @ApiProperty({ example: "SUCCESS" })
@@ -54,3 +55,11 @@ export const ApiResponseDto = <
     }),
   );
 };
+
+export class RelatedEntityDto {
+  @ApiProperty({ type: "string" })
+  id: ID;
+
+  @ApiProperty({ type: "string" })
+  name: string;
+}

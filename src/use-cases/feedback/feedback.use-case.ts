@@ -23,6 +23,7 @@ import {
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
 import { randomUUID } from "crypto";
+import { PaginatedResult } from "@/common/types";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -67,7 +68,7 @@ export class FeedbackUseCase {
 
   async getFeedbacks(
     filter: FeedbackFilter,
-  ): Promise<ApiResponse<GetFeedbacksResponseDto>> {
+  ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
