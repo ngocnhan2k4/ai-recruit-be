@@ -38,6 +38,8 @@ import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
 import { cacheWithDedup, convertDateToStr } from "@/common/utils";
+import { startOfDay } from "node_modules/date-fns/startOfDay";
+import { endOfDay } from "node_modules/date-fns/endOfDay";
 
 @Injectable()
 export class OrganizationRepository
@@ -601,10 +603,14 @@ export class OrganizationRepository
     const whereConditions: SQL[] = [isNull(organizations.deletedAt)];
 
     if (fromDate) {
-      whereConditions.push(gte(organizations.createdAt, new Date(fromDate)));
+      whereConditions.push(
+        gte(organizations.createdAt, startOfDay(new Date(fromDate))),
+      );
     }
     if (toDate) {
-      whereConditions.push(lte(organizations.createdAt, new Date(toDate)));
+      whereConditions.push(
+        lte(organizations.createdAt, endOfDay(new Date(toDate))),
+      );
     }
 
     const dateExpr = sql`DATE(${organizations.createdAt})`;

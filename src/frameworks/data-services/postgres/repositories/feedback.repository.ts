@@ -23,6 +23,7 @@ import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
 import { PaginatedResult, RelatedEntity } from "@/common/types";
 import { convertDateToStr } from "@/common/utils";
 import { users } from "../models";
+import { endOfDay, startOfDay } from "date-fns";
 
 @Injectable()
 export class FeedbackRepository
@@ -113,10 +114,14 @@ export class FeedbackRepository
     const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
     if (fromDate) {
-      whereConditions.push(gte(feedbacks.createdAt, new Date(fromDate)));
+      whereConditions.push(
+        gte(feedbacks.createdAt, startOfDay(new Date(fromDate))),
+      );
     }
     if (toDate) {
-      whereConditions.push(lte(feedbacks.createdAt, new Date(toDate)));
+      whereConditions.push(
+        lte(feedbacks.createdAt, endOfDay(new Date(toDate))),
+      );
     }
 
     const dateExpr = sql`DATE(${feedbacks.createdAt})`;
