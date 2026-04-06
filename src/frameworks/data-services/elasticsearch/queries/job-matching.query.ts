@@ -541,7 +541,6 @@ export class JobMatchingQuery {
       workType,
       provinceId,
       categoryId,
-      categoryIds,
       keyword,
       skillIds,
       organizationId,
@@ -594,10 +593,6 @@ export class JobMatchingQuery {
 
     if (categoryId) {
       mustQueries.push({ term: { categoryId } });
-    }
-
-    if (categoryIds && categoryIds.length > 0) {
-      mustQueries.push({ terms: { categoryId: categoryIds } });
     }
 
     if (skillIds && skillIds.length > 0) {

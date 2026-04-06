@@ -38,8 +38,8 @@ import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { provinces } from "../models";
 import { GeneralQuery } from "@/common/types";
 import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { startOfDay } from "node_modules/date-fns/startOfDay";
-import { endOfDay } from "node_modules/date-fns/endOfDay";
+import { startOfDay } from "date-fns/startOfDay";
+import { endOfDay } from "date-fns/endOfDay";
 
 @Injectable()
 export class OrganizationRepository
