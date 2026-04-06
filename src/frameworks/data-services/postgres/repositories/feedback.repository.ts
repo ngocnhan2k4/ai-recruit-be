@@ -2,7 +2,7 @@ import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { feedbacks } from "../models/feedback.model";
-import { Feedback } from "@/core/entities";
+import { Feedback, ListFeedbackResponse } from "@/core/entities";
 import { IFeedbackRepository } from "@/core/abstracts/repositories/feedback-repository.abstract";
 import {
   eq,
@@ -16,10 +16,13 @@ import {
   countDistinct,
   asc,
   sql,
+  ilike,
+  or,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
-import { PaginatedResult } from "@/common/types";
+import { PaginatedResult, RelatedEntity } from "@/common/types";
 import { convertDateToStr } from "@/common/utils";
+import { users } from "../models";
 import { endOfDay, startOfDay } from "date-fns";
 
 @Injectable()
@@ -33,11 +36,13 @@ export class FeedbackRepository
 
   async getFeedbacks(
     filter: FeedbackFilter,
-  ): Promise<PaginatedResult<Feedback>> {
+  ): Promise<PaginatedResult<ListFeedbackResponse>> {
     const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
-    if (filter.userId) {
-      whereConditions.push(eq(feedbacks.userId, filter.userId));
+    if (filter.assignedToUserId) {
+      whereConditions.push(
+        eq(feedbacks.assignedToUserId, filter.assignedToUserId),
+      );
     }
 
     if (filter.status) {
@@ -52,20 +57,48 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, filter.endDate));
     }
 
-    console.log("filter", filter);
+    if (filter.keyword) {
+      whereConditions.push(
+        or(
+          ilike(sql`coalesce(${feedbacks.id}, '')`, filter.keyword),
+          ilike(sql`coalesce(${feedbacks.name}, '')`, filter.keyword),
+        )!,
+      );
+    }
 
-    const feedbacksResult = await this.db
-      .select()
-      .from(feedbacks)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(feedbacks.createdAt))
-      .limit(filter.limit)
-      .offset((filter.page! - 1) * filter.limit);
-
-    const total = await this.db
-      .select({ count: count() })
-      .from(feedbacks)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+    const [feedbacksResult, total] = await Promise.all([
+      this.db
+        .select({
+          id: feedbacks.id,
+          name: feedbacks.name,
+          message: feedbacks.message,
+          subject: feedbacks.subject,
+          images: feedbacks.images,
+          status: feedbacks.status,
+          assignedToUserId: feedbacks.assignedToUserId,
+          createdAt: feedbacks.createdAt,
+          updatedAt: feedbacks.updatedAt,
+          assignedToUser: sql<
+            RelatedEntity | undefined
+          >`json_build_object('id', ${users.id}, 'name', COALESCE(${users.name}, ${users.email}))`.as(
+            "assignedToUser",
+          ),
+          deletedAt: feedbacks.deletedAt,
+          userId: feedbacks.userId,
+        })
+        .from(feedbacks)
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+        .leftJoin(users, eq(feedbacks.assignedToUserId, users.id))
+        .orderBy(desc(feedbacks.createdAt))
+        .limit(filter.limit)
+        .offset((filter.page! - 1) * filter.limit),
+      this.db
+        .select({ count: count() })
+        .from(feedbacks)
+        .where(
+          whereConditions.length > 0 ? and(...whereConditions) : undefined,
+        ),
+    ]);
 
     return {
       data: feedbacksResult,

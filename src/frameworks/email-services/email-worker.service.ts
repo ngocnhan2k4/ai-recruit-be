@@ -101,6 +101,14 @@ export class EmailWorkerService implements OnModuleInit {
         );
         break;
 
+      case EmailJobType.FEEDBACK_ASSIGNED:
+        await this.emailService.sendFeedbackAssignedEmail(
+          getFirstEmail(job.data.to),
+          String(job.data.recipientName ?? "bạn"),
+          String(job.data.feedbackSubject),
+        );
+        break;
+
       case EmailJobType.CUSTOM:
         await this.emailService.sendEmail({
           to: job.data.to,

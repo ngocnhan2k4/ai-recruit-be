@@ -30,6 +30,7 @@ export const notifications = pgTable("notifications", {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    feedbackId?: string;
   }>(),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
