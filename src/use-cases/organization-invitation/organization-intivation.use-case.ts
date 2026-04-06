@@ -231,7 +231,7 @@ export class OrganizationInvitationUseCase {
           [OrganizationRoleEnum.ORGANIZATION_VIEWER]: "Thành viên",
         };
 
-        await this.messageQueueService.addTask(
+        await this.messageQueueService.addEmail(
           EmailJobType.ORGANIZATION_INVITATION,
           {
             to: invitee.email,

@@ -70,7 +70,7 @@ export class JobMatchingUseCases {
             continue;
           }
 
-          await this.messageQueueService.addTask(
+          await this.messageQueueService.addEmail(
             EmailJobType.JOB_RECOMMENDATIONS,
             {
               to: user.email,

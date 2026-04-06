@@ -465,7 +465,7 @@ export class OrganizationUseCase {
       );
 
       // Send OTP to the NEW email address
-      await this.messageQueueService.addTask(
+      await this.messageQueueService.addEmail(
         EmailJobType.ORGANIZATION_CHANGE_EMAIL,
         {
           to: newEmail,
@@ -617,7 +617,7 @@ export class OrganizationUseCase {
     );
 
     // Send email with OTP via queue
-    await this.messageQueueService.addTask(
+    await this.messageQueueService.addEmail(
       EmailJobType.ORGANIZATION_VERIFICATION,
       {
         to: email,

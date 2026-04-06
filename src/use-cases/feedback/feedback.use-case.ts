@@ -123,8 +123,6 @@ export class FeedbackUseCase {
       toDate: query.toDate,
     });
 
-    console.log("Retrieved feedback trends:", trends);
-
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,

@@ -14,7 +14,6 @@ import {
 } from "@/core/abstracts";
 import {
   AILearningRoadmapResult,
-  EmailJobType,
   NotificationType,
   RoadmapSkillData,
   SkillOption,
@@ -24,8 +23,6 @@ import {
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
-import { EmailService } from "@/frameworks/email-services/email.service";
-import { JobResponse } from "@/core/entities/job.entity";
 
 type LearningPathTaskData = {
   taskId: string;
@@ -37,7 +34,6 @@ type LearningPathTaskData = {
 })
 export class TaskWorker extends WorkerHost {
   private readonly logger = new Logger(TaskWorker.name);
-  private readonly emailJobTypes = new Set<string>(Object.values(EmailJobType));
 
   constructor(
     private readonly aiService: IAIService,
@@ -48,7 +44,6 @@ export class TaskWorker extends WorkerHost {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly notificationRepository: INotificationRepository,
-    private readonly emailService: EmailService,
   ) {
     super();
   }
@@ -57,61 +52,7 @@ export class TaskWorker extends WorkerHost {
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
       return this.processLearningPath(job.data as LearningPathTaskData);
     }
-    if (this.emailJobTypes.has(job.name)) {
-      return this.processEmailTask(job.name as EmailJobType, job.data);
-    }
     this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-  }
-
-  private async processEmailTask(type: EmailJobType, data: any) {
-    const getFirstEmail = (to: string | string[]): string => {
-      return Array.isArray(to) ? to[0] : String(to);
-    };
-
-    switch (type) {
-      case EmailJobType.ORGANIZATION_INVITATION:
-        await this.emailService.sendOrganizationInvitationEmail(
-          getFirstEmail(data.to),
-          data.organizationName,
-          data.inviterName,
-          data.invitationLink,
-          data.role,
-        );
-        return;
-      case EmailJobType.JOB_RECOMMENDATIONS:
-        await this.emailService.sendJobRecommendationsEmail(
-          data.to as string,
-          data.userName as string,
-          data.jobs as JobResponse[],
-        );
-        return;
-      case EmailJobType.ORGANIZATION_VERIFICATION:
-        await this.emailService.sendVerifyOrganizationEmailOtp(
-          getFirstEmail(data.to),
-          data.organizationName,
-          data.otpCode,
-        );
-        return;
-      case EmailJobType.ORGANIZATION_CHANGE_EMAIL:
-        await this.emailService.sendChangeOrganizationEmailOtp(
-          getFirstEmail(data.to),
-          data.organizationName,
-          data.otpCode,
-        );
-        return;
-      case EmailJobType.CUSTOM:
-        await this.emailService.sendEmail({
-          to: data.to,
-          subject: data.subject || "Notification",
-          html: data.html,
-          text: data.text,
-        });
-        return;
-      default:
-        this.logger.warn(
-          `[processEmailTask] Unknown email task type: ${type as any}`,
-        );
-    }
   }
 
   private async emitAndPersistTask(params: {
