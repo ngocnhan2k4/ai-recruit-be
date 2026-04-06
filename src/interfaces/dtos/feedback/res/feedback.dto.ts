@@ -12,6 +12,13 @@ export class FeedbackDto {
   @ApiProperty({ type: "string", nullable: true })
   userId: string | null;
 
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+    description: "User id of the assigned handler (admin/staff)",
+  })
+  assignedToUserId: string | null;
+
   @ApiProperty({ type: "string" })
   name: string;
 

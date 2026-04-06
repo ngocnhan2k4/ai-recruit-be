@@ -1,6 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
-import { IsArray, IsEnum, IsDate, IsOptional, IsString } from "class-validator";
+import {
+  IsArray,
+  IsEnum,
+  IsDate,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateIf,
+} from "class-validator";
 import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
 
 export class CreateFeedbackRequestDto {
@@ -38,6 +46,14 @@ export class GetFeedbacksRequestDto extends GeneralQueryDto {
   @IsEnum(FeedbackStatusEnum)
   status?: FeedbackStatusEnum;
 
+  @ApiProperty({
+    required: false,
+    description: "Filter by assigned handler user id",
+  })
+  @IsOptional()
+  @IsUUID()
+  assignedToUserId?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
@@ -54,4 +70,18 @@ export class UpdateFeedbackRequestDto {
   @IsOptional()
   @IsEnum(FeedbackStatusEnum)
   status?: FeedbackStatusEnum;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
+      "User id of the staff member handling this feedback; null to unassign",
+  })
+  @IsOptional()
+  @ValidateIf(
+    (o: UpdateFeedbackRequestDto) =>
+      o.assignedToUserId !== null && o.assignedToUserId !== undefined,
+  )
+  @IsUUID()
+  assignedToUserId?: string | null;
 }

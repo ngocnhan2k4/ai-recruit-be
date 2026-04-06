@@ -16,6 +16,8 @@ import {
   countDistinct,
   asc,
   sql,
+  ilike,
+  or,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
 import { PaginatedResult } from "@/common/types";
@@ -39,6 +41,12 @@ export class FeedbackRepository
       whereConditions.push(eq(feedbacks.userId, filter.userId));
     }
 
+    if (filter.assignedToUserId) {
+      whereConditions.push(
+        eq(feedbacks.assignedToUserId, filter.assignedToUserId),
+      );
+    }
+
     if (filter.status) {
       whereConditions.push(eq(feedbacks.status, filter.status));
     }
@@ -51,20 +59,30 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, filter.endDate));
     }
 
-    console.log("filter", filter);
+    if (filter.keyword) {
+      whereConditions.push(
+        or(
+          ilike(sql`coalesce(${feedbacks.id}, '')`, filter.keyword),
+          ilike(sql`coalesce(${feedbacks.name}, '')`, filter.keyword),
+        )!,
+      );
+    }
 
-    const feedbacksResult = await this.db
-      .select()
-      .from(feedbacks)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(feedbacks.createdAt))
-      .limit(filter.limit)
-      .offset((filter.page! - 1) * filter.limit);
-
-    const total = await this.db
-      .select({ count: count() })
-      .from(feedbacks)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+    const [feedbacksResult, total] = await Promise.all([
+      this.db
+        .select()
+        .from(feedbacks)
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+        .orderBy(desc(feedbacks.createdAt))
+        .limit(filter.limit)
+        .offset((filter.page! - 1) * filter.limit),
+      this.db
+        .select({ count: count() })
+        .from(feedbacks)
+        .where(
+          whereConditions.length > 0 ? and(...whereConditions) : undefined,
+        ),
+    ]);
 
     return {
       data: feedbacksResult,

@@ -22,6 +22,8 @@ import {
   JwtAuthGuard,
   SystemAuthorizeGuard,
 } from "@/frameworks/auth-services/guards";
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
 
 @ApiTags("Feedback Admin")
 @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
@@ -42,15 +44,17 @@ export class FeedbackAdminController {
   }
 
   @ApiOperation({
-    summary: "Update feedback status",
-    description: "Update the status of a feedback (Admin only)",
+    summary: "Update feedback",
+    description:
+      "Update status and/or assign a handler (assignedToUserId). Assigning sends in-app notification and email to the assignee (Admin only)",
   })
   @Patch(":id")
   async updateFeedbackStatus(
     @Param("id") id: string,
     @Body() data: UpdateFeedbackRequestDto,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<void>> {
-    return this.feedbackUseCase.updateFeedback(id, data);
+    return this.feedbackUseCase.updateFeedback(id, data, user.userId);
   }
 
   @ApiOperation({

@@ -1,23 +1,28 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
+  EmailJobType,
   FeedbackStatusEnum,
   IFeedbackRepository,
+  IEmailQueueStorageService,
   IUserRepository,
   NewFeedback,
+  NotificationType,
 } from "@/core";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
 import {
   ApiResponse,
   FeedbackTrendsResponseDto,
   FeedbackTrendsQueryDto,
 } from "@/interfaces/dtos";
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import {
   CreateFeedbackRequestDto,
   CreateFeedbackResponseDto,
   GetFeedbacksResponseDto,
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -26,6 +31,8 @@ export class FeedbackUseCase {
   constructor(
     private readonly feedbackRepository: IFeedbackRepository,
     private readonly userRepository: IUserRepository,
+    private readonly notificationService: INotificationService,
+    private readonly emailQueueStorage: IEmailQueueStorageService,
   ) {}
 
   async createFeedback(
@@ -71,6 +78,7 @@ export class FeedbackUseCase {
         data: result.data.map((feedback) => ({
           ...feedback,
           status: feedback.status as FeedbackStatusEnum,
+          assignedToUserId: feedback.assignedToUserId ?? null,
         })),
         pagination: result.pagination,
       },
@@ -81,16 +89,91 @@ export class FeedbackUseCase {
   async updateFeedback(
     id: string,
     data: UpdateFeedbackRequestDto,
+    assignedByUserId?: string,
   ): Promise<ApiResponse<void>> {
-    const feedback = await this.feedbackRepository.update({ id }, data);
-
-    if (!feedback) {
+    const existing = await this.feedbackRepository.get(id);
+    if (!existing) {
       return {
         code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
         message: "Feedback not found",
       };
     }
+    const previousAssigneeId = existing.assignedToUserId ?? null;
+    let resolvedAssignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
+    if (data.assignedToUserId != null) {
+      const assignee = await this.userRepository.get(data.assignedToUserId);
+      if (!assignee) {
+        return {
+          code: RESPONSE_CODE.USER_NOT_FOUND,
+          message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        };
+      }
+      resolvedAssignee = assignee;
+    }
+    const assigneeChanged =
+      data.assignedToUserId != null &&
+      data.assignedToUserId !== previousAssigneeId;
+    if (!assigneeChanged) {
+      const updatedRows = await this.feedbackRepository.update({ id }, data);
+      if (updatedRows.length === 0) {
+        return {
+          code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
+          message: "Feedback not found",
+        };
+      }
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: "Feedback updated successfully",
+      };
+    }
+    const assignee = resolvedAssignee!;
+    let feedbackSubjectForEmail = existing.subject;
 
+    await this.feedbackRepository.executeWithTransaction(async (tx) => {
+      const updatedRows = await this.feedbackRepository.update(
+        { id },
+        data,
+        tx,
+      );
+      if (updatedRows.length === 0) {
+        throw new BadRequestException({
+          code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
+          message: "Feedback not found",
+        });
+      }
+      const updated = updatedRows[0];
+      feedbackSubjectForEmail = updated.subject;
+      const messageBody =
+        updated.subject.length > 480
+          ? `${updated.subject.slice(0, 477)}...`
+          : updated.subject;
+      await this.notificationService.createAndSendToUser(
+        {
+          title: "Bạn được giao xử lý feedback",
+          message: `Phản hồi: ${messageBody}`,
+          type: NotificationType.FEEDBACK_ASSIGNED,
+          senderId: assignedByUserId ?? undefined,
+          payload: { feedbackId: id },
+        },
+        { userId: data.assignedToUserId! },
+        tx,
+      );
+    });
+
+    if (assignee.email) {
+      this.emailQueueStorage.addToQueue({
+        id: randomUUID(),
+        type: EmailJobType.FEEDBACK_ASSIGNED,
+        data: {
+          to: assignee.email,
+          recipientName: assignee.name ?? "bạn",
+          feedbackSubject: feedbackSubjectForEmail,
+        },
+        attempts: 0,
+        maxAttempts: 3,
+        createdAt: new Date(),
+      });
+    }
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: "Feedback updated successfully",

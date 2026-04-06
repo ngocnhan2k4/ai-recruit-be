@@ -13,6 +13,10 @@ export const feedbacks = pgTable(
       onDelete: "set null",
     }),
 
+    assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
     name: varchar("name", { length: 255 }).notNull(),
     subject: varchar("subject", { length: 500 }).notNull(),
     message: text("message").notNull(),

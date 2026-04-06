@@ -10,4 +10,6 @@ export abstract class INotificationService {
     },
     tx?: DBDrizzleTransaction,
   ): Promise<{ success: boolean; notification?: Notification }>;
+
+  abstract sendNotification(notification: Notification): boolean;
 }

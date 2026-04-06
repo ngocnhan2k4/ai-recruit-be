@@ -3,6 +3,7 @@ import { FeedbackStatusEnum, User } from ".";
 
 export interface FeedbackFilter extends GeneralQuery {
   userId?: User["id"];
+  assignedToUserId?: User["id"];
   startDate?: Date;
   endDate?: Date;
   status?: FeedbackStatusEnum;
