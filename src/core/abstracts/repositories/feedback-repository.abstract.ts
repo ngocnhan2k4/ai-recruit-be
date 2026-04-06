@@ -5,12 +5,13 @@ import {
   FeedbackFilter,
   FeedbackTrends,
   FeedbackTrendsQuery,
+  ListFeedbackResponse,
 } from "@/core";
 
 export abstract class IFeedbackRepository extends IGenericRepository<Feedback> {
   abstract getFeedbacks(
     filter: FeedbackFilter,
-  ): Promise<PaginatedResult<Feedback>>;
+  ): Promise<PaginatedResult<ListFeedbackResponse>>;
   abstract getFeedbackTrends(
     params: FeedbackTrendsQuery,
   ): Promise<FeedbackTrends[]>;

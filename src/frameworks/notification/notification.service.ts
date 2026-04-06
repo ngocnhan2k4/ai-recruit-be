@@ -35,24 +35,7 @@ export class NotificationService implements INotificationService {
           tx,
         );
 
-      // Send via WebSocket
-      const sent = this.webSocketGateway.sendToUser(
-        {
-          userId: notification.receiverId,
-          organizationId: notification.organizationId || undefined,
-        },
-        notification,
-      );
-
-      if (sent) {
-        this.logger.log(
-          `Notification created and sent to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
-        );
-      } else {
-        this.logger.warn(
-          `Notification created but user ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
-        );
-      }
+      this.sendNotification(notification);
 
       return { success: true, notification };
     } catch (error) {
@@ -62,5 +45,27 @@ export class NotificationService implements INotificationService {
       );
       return { success: false };
     }
+  }
+
+  sendNotification(notification: Notification): boolean {
+    const sent = this.webSocketGateway.sendToUser(
+      {
+        userId: notification.receiverId,
+        organizationId: notification.organizationId || undefined,
+      },
+      notification,
+    );
+
+    if (sent) {
+      this.logger.log(
+        `Notification delivered to user ${notification.receiverId}, orgId ${notification.organizationId || "none"}: ${notification.title}`,
+      );
+    } else {
+      this.logger.warn(
+        `User ${notification.receiverId}, orgId ${notification.organizationId || "none"} not connected for WebSocket delivery`,
+      );
+    }
+
+    return sent;
   }
 }
