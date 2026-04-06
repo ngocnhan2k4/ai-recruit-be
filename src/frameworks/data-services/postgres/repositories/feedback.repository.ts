@@ -37,10 +37,6 @@ export class FeedbackRepository
   ): Promise<PaginatedResult<Feedback>> {
     const whereConditions: SQL[] = [isNull(feedbacks.deletedAt)];
 
-    if (filter.userId) {
-      whereConditions.push(eq(feedbacks.userId, filter.userId));
-    }
-
     if (filter.assignedToUserId) {
       whereConditions.push(
         eq(feedbacks.assignedToUserId, filter.assignedToUserId),

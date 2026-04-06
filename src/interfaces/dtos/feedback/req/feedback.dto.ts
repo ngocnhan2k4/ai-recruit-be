@@ -38,11 +38,6 @@ export class CreateFeedbackRequestDto {
 export class GetFeedbacksRequestDto extends GeneralQueryDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsString()
-  userId?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
   @IsEnum(FeedbackStatusEnum)
   status?: FeedbackStatusEnum;
 

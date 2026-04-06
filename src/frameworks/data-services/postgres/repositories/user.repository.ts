@@ -277,6 +277,10 @@ export class UserRepository
       conditions.push(eq(userSubscriptions.status, query.statusSubscription));
     }
 
+    if (query.roles) {
+      conditions.push(arrayOverlaps(users.roles, query.roles));
+    }
+
     return conditions;
   }
 

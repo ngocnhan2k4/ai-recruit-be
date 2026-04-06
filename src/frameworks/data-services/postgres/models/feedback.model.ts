@@ -3,6 +3,7 @@ import { users } from "./user.model";
 import { timestamps } from "./helpers";
 import { FeedbackStatusEnum } from "./enums";
 import { index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const feedbacks = pgTable(
   "feedbacks",
@@ -26,10 +27,15 @@ export const feedbacks = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_feedbacks_user_status_created").on(
-      table.userId,
-      table.status,
-      table.createdAt,
+    index("idx_feedbacks_assigned_created").on(
+      table.assignedToUserId,
+      table.createdAt.desc(),
     ),
+
+    index("idx_feedbacks_active")
+      .on(table.assignedToUserId, table.status, table.createdAt.desc())
+      .where(sql`deleted_at IS NULL`),
+
+    index("idx_feedbacks_created_at").on(table.createdAt.desc()),
   ],
 );
