@@ -106,7 +106,7 @@ export class LearningPathUseCase {
     this.webSocketGateway.sendToUser({ userId }, result.notification);
 
     // [TODO] Implement outbox pattern to ensure message queue is reliable
-    retry(
+    await retry(
       async () => {
         await this.messageQueueService.addTask(
           TaskTypeEnum.LEARNING_PATH_GENERATION,

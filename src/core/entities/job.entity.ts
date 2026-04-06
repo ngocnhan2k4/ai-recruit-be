@@ -17,23 +17,22 @@ export interface JobFilters extends GeneralQuery {
   experienceMin?: number;
   experienceMax?: number;
   provinceId?: Province["id"];
-  // provinceIds?: Province["id"][];
-  // companyId?: Company["id"];
   categoryId?: Category["id"];
   categoryIds?: Category["id"][];
   workType?: WorkTypeEnum;
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
-  createdAtStart?: Date;
-  createdAtEnd?: Date;
   fromDate?: string;
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
-
   fields?: string[];
   ids?: string[];
+}
+
+export interface ApplyJobFilters extends GeneralQuery {
+  jobId: string;
 }
 
 export interface StatisticsJobFilter {
@@ -73,10 +72,6 @@ export interface ApplyJobResponse {
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
   cv?: Pick<Cv, "id" | "name" | "fileUrl">;
-}
-
-export interface ApplyJobFilters {
-  fields?: string[];
 }
 
 export interface UserInteractionResponse {

@@ -12,6 +12,7 @@ export class JobMatchingQuery {
     datePosted: "datePosted",
     createdAt: "createdAt",
     updatedAt: "updatedAt",
+    salary: "salary",
     salaryMin: "salaryMin",
     salaryMax: "salaryMax",
     experienceMin: "experienceMin",
@@ -27,6 +28,62 @@ export class JobMatchingQuery {
     const direction: "asc" | "desc" = sortDirection === "desc" ? "desc" : "asc";
 
     const mappedSortField = sortBy ? this.sortableFields[sortBy] : undefined;
+
+    if (mappedSortField === "salary") {
+      return [
+        {
+          _script: {
+            type: "number" as const,
+            order: direction,
+            script: {
+              lang: "painless",
+              source: `
+                def hasMin = doc.containsKey('salaryMin') && doc['salaryMin'].size() > 0;
+                def hasMax = doc.containsKey('salaryMax') && doc['salaryMax'].size() > 0;
+
+                if (hasMin && hasMax) {
+                  return (doc['salaryMin'].value + doc['salaryMax'].value) / 2.0;
+                }
+                if (hasMin) {
+                  return doc['salaryMin'].value;
+                }
+                if (hasMax) {
+                  return doc['salaryMax'].value;
+                }
+                return 0;
+              `,
+            },
+          },
+        },
+        { _score: { order: "desc" as const } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
+
+    if (mappedSortField === "date_posted") {
+      return [
+        {
+          _script: {
+            type: "number" as const,
+            order: direction,
+            script: {
+              lang: "painless",
+              source: `
+                if (doc.containsKey('datePosted') && doc['datePosted'].size() > 0) {
+                  return doc['datePosted'].value.toInstant().toEpochMilli();
+                }
+                if (doc.containsKey('createdAt') && doc['createdAt'].size() > 0) {
+                  return doc['createdAt'].value.toInstant().toEpochMilli();
+                }
+                return 0;
+              `,
+            },
+          },
+        },
+        { _score: { order: "desc" as const } },
+        { datePosted: { order: "desc" as const } },
+      ];
+    }
 
     // Default ranking-first sort for relevance results.
     if (!mappedSortField) {
@@ -52,6 +109,9 @@ export class JobMatchingQuery {
 
   /**
    * Build Elasticsearch query for job matching với user profile
+   * With custom scoring, I will calculate a relevance score based on:
+   * - If it's a OR condition, I will plus score as long as any matching
+   * - If it's a AND condition, I will calculate score based on how many conditions matched (skill match, location match, category match, experience match, salary match) and boost accordingly
    */
   buildMatchQuery(userProfile: UserProfile, filters: JobFilters): any {
     const {
@@ -277,7 +337,7 @@ export class JobMatchingQuery {
                             }
                             
                             if (!doc.containsKey('skillIds') || doc['skillIds'].size() == 0) {
-                              return 0;
+                              return 1;
                             }
                             
                             double matchedSkills = 0;
@@ -339,18 +399,15 @@ export class JobMatchingQuery {
                       script_score: {
                         script: {
                           source: `
-                            double matched = 0;
                             double total = params.userProvinceIds.length;
                         
-                            if (total == 0) return 0;
-
                             for (def p : params.userProvinceIds) {
                               if (doc['provinceIds'].contains(p)) {
-                                matched++;
+                                return 1;
                               }
                             }
 
-                            return matched / total;
+                            return 0;
                           `,
                           params: {
                             userProvinceIds: userProvinceIds,
@@ -369,9 +426,9 @@ export class JobMatchingQuery {
                         script: {
                           source: `
                             double matched = 0;
-                            double total = params.userCategoryIds.length;
+                            double total = doc['categoryId'].size();
                         
-                            if (total == 0) return 0;
+                            if (total == 0) return 1; // No category info - neutral score
 
                             for (def p : params.userCategoryIds) {
                               if (doc['categoryId'].contains(p)) {
@@ -591,16 +648,45 @@ export class JobMatchingQuery {
     }
 
     if (fromDate || toDate) {
-      const rangeQuery: any = {};
+      const datePostedRangeQuery: any = {};
+      const createdAtRangeQuery: any = {};
+
       if (fromDate) {
-        rangeQuery.gte = fromDate;
+        const fromDateIso = new Date(fromDate).toISOString();
+        datePostedRangeQuery.gte = fromDateIso;
+        createdAtRangeQuery.gte = fromDateIso;
       }
+
       if (toDate) {
-        rangeQuery.lte = toDate;
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        const toDateIso = toDateObj.toISOString();
+        datePostedRangeQuery.lte = toDateIso;
+        createdAtRangeQuery.lte = toDateIso;
       }
+
       mustQueries.push({
-        range: {
-          datePosted: rangeQuery,
+        bool: {
+          should: [
+            {
+              range: {
+                datePosted: datePostedRangeQuery,
+              },
+            },
+            {
+              bool: {
+                must_not: {
+                  exists: { field: "datePosted" },
+                },
+                filter: {
+                  range: {
+                    createdAt: createdAtRangeQuery,
+                  },
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
         },
       });
     }

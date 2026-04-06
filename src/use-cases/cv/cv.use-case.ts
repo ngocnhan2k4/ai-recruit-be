@@ -88,7 +88,7 @@ export class CvUseCases {
       folder: CV_FOLDER,
     });
 
-    if (!uploadResult.data) {
+    if (!uploadResult || !uploadResult.secure_url) {
       throw new BadRequestException({
         message: "Failed to upload file to storage",
         code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
@@ -100,14 +100,14 @@ export class CvUseCases {
       userId: userId,
       aiCvId: createCvDto.aiCvId,
       name: createCvDto.name,
-      fileUrl: uploadResult.data.url,
+      fileUrl: uploadResult.secure_url,
       fileName: createCvDto.fileName,
       mimeType: createCvDto.mimeType,
       lastUsed: new Date(),
     });
 
     this.logger.log(
-      `[createCv] [create]Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.data.url}`,
+      `[createCv] [create]Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.secure_url}`,
     );
 
     const cvDto: CvDto = {
@@ -146,13 +146,13 @@ export class CvUseCases {
       uploadResult = await this.cloudinaryService.uploadFile(file, {
         folder: CV_FOLDER,
       });
-      if (!uploadResult.data) {
+      if (!uploadResult || !uploadResult.secure_url) {
         throw new BadRequestException({
           message: "Failed to upload file to storage",
           code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
         });
       }
-      fileUrl = uploadResult.data.url;
+      fileUrl = uploadResult.secure_url;
     }
 
     // Check if CV exists and belongs to user

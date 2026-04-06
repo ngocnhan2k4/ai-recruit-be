@@ -49,7 +49,6 @@ import {
   User,
   UserInteractionEnum,
   ApplyJob,
-  ApplyJobFilters,
 } from "@/core";
 import {
   Job,
@@ -70,12 +69,19 @@ import {
 } from "@/core";
 import { PaginatedResult, GeneralQuery } from "@/common/types";
 import { organizations } from "../models/organization.model";
-import { JobFilters, JobResponse, StatisticsJobFilter } from "@/core";
+import {
+  ApplyJobFilters,
+  JobFilters,
+  JobResponse,
+  StatisticsJobFilter,
+} from "@/core";
 import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
+import { endOfDay } from "date-fns/endOfDay";
+import { startOfDay } from "date-fns/startOfDay";
 
 @Injectable()
 export class JobRepository
@@ -224,15 +230,15 @@ export class JobRepository
       whereConditions.push(inArray(jobs.categoryId, filters.categoryIds));
     }
 
-    if (filters?.createdAtStart) {
+    if (filters?.fromDate) {
       whereConditions.push(
-        gte(this.getEffectivePostedDateExpr(), filters.createdAtStart),
+        gte(this.getEffectivePostedDateExpr(), new Date(filters.fromDate)),
       );
     }
 
-    if (filters?.createdAtEnd) {
+    if (filters?.toDate) {
       whereConditions.push(
-        lte(this.getEffectivePostedDateExpr(), filters.createdAtEnd),
+        lte(this.getEffectivePostedDateExpr(), new Date(filters.toDate)),
       );
     }
 
@@ -448,6 +454,16 @@ export class JobRepository
           WHERE false
         ) apply_user`;
 
+    const fields = filters?.fields || [];
+
+    const totalApplyLateral = fields.includes("totalApplications")
+      ? sql`LATERAL (
+        SELECT COUNT(*) AS total_applications
+        FROM ${applyJobs} aj
+        WHERE aj.job_id = ${jobs.id}
+      ) total_applications_lateral`
+      : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
+
     // Add one extra item to check if there's a next page
     const query = this.db
       .select({
@@ -490,6 +506,10 @@ export class JobRepository
         applyStatus: sql`apply_user.apply_status`.as("applyStatus"),
         applyId: sql`apply_user.apply_id`.as("applyId"),
         category: categories,
+        totalApplications:
+          sql`COALESCE(total_applications_lateral.total_applications, 0)`.as(
+            "totalApplications",
+          ),
       })
       .from(jobs)
       .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
@@ -519,6 +539,7 @@ export class JobRepository
       )
       .leftJoin(categories, eq(jobs.categoryId, categories.id))
       .leftJoin(applyUserLateral, sql`TRUE`)
+      .leftJoin(totalApplyLateral, sql`TRUE`)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
 
     if (isOffsetCursor) {
@@ -542,6 +563,7 @@ export class JobRepository
       organization: any;
       skills: Skill[];
       category: Category;
+      totalApplications: number;
     }[];
 
     // Check if there's a next page
@@ -1380,17 +1402,15 @@ export class JobRepository
   }
 
   async getApplyJobs(
-    jobId: string,
-    filters?: ApplyJobFilters,
+    filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>> {
-    const total = await this.getTotalOfJobApplicationsByJobId(jobId);
-    if (filters?.fields?.includes("total")) {
-      return {
-        data: [],
-        pagination: {
-          total,
-        },
-      };
+    const { jobId } = filters;
+    const limit = Math.max(filters?.limit ?? 10, 1);
+    const cursor = filters?.cursor;
+
+    const whereConditions: SQL[] = [eq(applyJobs.jobId, jobId)];
+    if (cursor && !isNaN(Number(cursor))) {
+      whereConditions.push(lt(applyJobs.createdAt, new Date(Number(cursor))));
     }
 
     const data = await this.db
@@ -1416,11 +1436,14 @@ export class JobRepository
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(users, eq(cvs.userId, users.id))
-      .where(eq(applyJobs.jobId, jobId))
-      .orderBy(desc(applyJobs.createdAt));
+      .where(and(...whereConditions))
+      .orderBy(desc(applyJobs.createdAt))
+      .limit(limit + 1);
 
-    // Convert data to ApplyJobResponse[]
-    const applications = data.map((item) => ({
+    const hasNextPage = data.length > limit;
+    const pageData = hasNextPage ? data.slice(0, limit) : data;
+
+    const applications = pageData.map((item) => ({
       id: item.id,
       jobId: item.jobId,
       status: item.status,
@@ -1431,21 +1454,17 @@ export class JobRepository
       cv: item.cv,
     })) as ApplyJobResponse[];
 
+    const nextCursor = hasNextPage
+      ? applications[applications.length - 1]?.createdAt?.getTime()
+      : undefined;
+
     return {
       data: applications,
       pagination: {
-        total,
+        hasNextPage,
+        nextCursor,
       },
     };
-  }
-
-  async getTotalOfJobApplicationsByJobId(jobId: string): Promise<number> {
-    const result = await this.db
-      .select({ total: countDistinct(applyJobs.id).as("total") })
-      .from(applyJobs)
-      .where(eq(applyJobs.jobId, jobId));
-
-    return Number(result[0]?.total ?? 0);
   }
 
   async saveJob(
@@ -2247,8 +2266,8 @@ export class JobRepository
     appliedJobIds: string[],
     skillIds: string[],
     categoryIds: string[],
-    createdAtStart: Date,
-    createdAtEnd: Date,
+    fromDate: string,
+    toDate: string,
     isJobSystem: boolean,
     limit = 20,
   ): Promise<JobResponse[]> {
@@ -2266,8 +2285,8 @@ export class JobRepository
         userId,
         roles: [],
       },
-      createdAtStart,
-      createdAtEnd,
+      fromDate,
+      toDate,
       isJobSystem,
     };
 
@@ -2409,10 +2428,10 @@ export class JobRepository
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
     if (fromDate) {
-      whereConditions.push(gte(jobs.createdAt, new Date(fromDate)));
+      whereConditions.push(gte(jobs.createdAt, startOfDay(new Date(fromDate))));
     }
     if (toDate) {
-      whereConditions.push(lte(jobs.createdAt, new Date(toDate)));
+      whereConditions.push(lte(jobs.createdAt, endOfDay(new Date(toDate))));
     }
 
     if (type === JobTrendTypeEnum.CREATED) {

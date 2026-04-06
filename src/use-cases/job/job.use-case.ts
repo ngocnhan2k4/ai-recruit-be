@@ -8,7 +8,6 @@ import {
   IJobRepository,
   IOrganizationRepository,
   ISearchService,
-  ISkillsSynonymsRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -55,6 +54,7 @@ import {
 } from "@/interfaces/dtos";
 import {
   ApplyJobResponse,
+  ApplyJobFilters,
   JobEventType,
   JobFilters,
   StatisticsJobFilter,
@@ -79,7 +79,6 @@ export class JobUseCases {
     private readonly messageQueueService: IMessageQueueService,
     private readonly searchService: ISearchService,
     private readonly jobMatchingQuery: JobMatchingQuery,
-    private readonly skillsSynonymRepo: ISkillsSynonymsRepository,
   ) {}
 
   async getJobs(
@@ -1033,10 +1032,13 @@ export class JobUseCases {
   async getApplyJobs(
     query: ApplyJobQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {
-    const result = await this.jobRepository.getApplyJobs(query.jobId, {
-      fields: query.totalOnly ? ["total"] : [],
-    });
-    this.logger.log(`Get job applications for job ${query.jobId}`);
+    const filters: ApplyJobFilters = {
+      jobId: query.jobId,
+      limit: query.limit ?? 10,
+      cursor: query.cursor,
+    };
+
+    const result = await this.jobRepository.getApplyJobs(filters);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

@@ -5,12 +5,19 @@ import {
   OrganizationWithDetails,
   Province,
   Skill,
+  Subscription,
   User,
+  UserSubscription,
+  UserSubscriptionStatusEnum,
 } from ".";
+import { RoleEnum } from "@/common/constants";
 
 export interface GetUserQuery extends GeneralQuery {
   isActive?: boolean;
   isDeleted?: boolean;
+  subscriptionId?: string;
+  statusSubscription?: UserSubscriptionStatusEnum;
+  roles?: RoleEnum[];
 }
 
 export class CreateUserExperience {
@@ -71,4 +78,30 @@ export interface UserTrends {
 export interface UserTrendsQuery {
   fromDate?: string;
   toDate?: string;
+}
+
+export interface GetAllUserResponse
+  extends Pick<
+    User,
+    | "id"
+    | "email"
+    | "name"
+    | "username"
+    | "emailVerified"
+    | "phone"
+    | "phoneVerified"
+    | "roles"
+    | "status"
+    | "createdAt"
+    | "updatedAt"
+    | "deletedAt"
+  > {
+  subscription?: Pick<
+    Subscription,
+    "id" | "name" | "price" | "billingCycle" | "isActive"
+  >;
+  userSubscription?: Pick<
+    UserSubscription,
+    "id" | "startedAt" | "expiredAt" | "status" | "createdAt"
+  >;
 }

@@ -147,4 +147,24 @@ export class EmailService {
       html,
     });
   }
+
+  async sendFeedbackAssignedEmail(
+    to: string,
+    recipientName: string,
+    feedbackSubject: string,
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL") ?? "";
+    const adminFeedbacksUrl = `${frontendUrl.replace(/\/$/, "")}/admin/feedbacks`;
+    const html = compileTemplate("feedback-assigned.hbs", {
+      recipientName,
+      feedbackSubject,
+      adminFeedbacksUrl,
+    });
+    await this.sendEmail({
+      to,
+      subject: "Bạn được giao xử lý feedback",
+      html,
+      text: `Bạn được giao xử lý feedback: ${feedbackSubject}. ${adminFeedbacksUrl}`,
+    });
+  }
 }
