@@ -7,15 +7,6 @@ export class GetSkillsSynonymsQueryDto extends GeneralQueryDto {}
 
 export class UpdateSkillSynonymDto {
   @ApiProperty({
-    required: false,
-    example: "javascript",
-    description: "New master skill name",
-  })
-  @IsOptional()
-  @IsString()
-  masterName?: string;
-
-  @ApiProperty({
     type: [String],
     example: ["js", "ecmascript"],
     description: "Updated alias names",

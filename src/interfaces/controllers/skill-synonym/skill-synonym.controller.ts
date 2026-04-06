@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Patch,
@@ -53,16 +52,5 @@ export class SkillSynonymController {
     @Body() dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
     return this.skillSynonymUseCases.updateSkillSynonym(skillId, dto);
-  }
-
-  @ApiOperation({
-    summary: "Delete skill synonym group",
-    description: "Delete a skill by id and all related aliases.",
-  })
-  @Delete(":skillId")
-  async deleteSkillSynonym(
-    @Param("skillId") skillId: string,
-  ): Promise<ApiResponse<void>> {
-    return this.skillSynonymUseCases.deleteSkillSynonym(skillId);
   }
 }

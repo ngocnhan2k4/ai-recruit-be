@@ -16,8 +16,6 @@ import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,
   OptimizeAtsUploadDto,
-} from "@/interfaces/dtos";
-import {
   AiCvDto,
   AiCvListResponseDto,
   AiCvRequestDto,
