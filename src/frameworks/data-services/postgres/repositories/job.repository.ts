@@ -80,6 +80,8 @@ import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
+import { endOfDay } from "node_modules/date-fns/endOfDay";
+import { startOfDay } from "node_modules/date-fns/startOfDay";
 
 @Injectable()
 export class JobRepository
@@ -2426,10 +2428,10 @@ export class JobRepository
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
     if (fromDate) {
-      whereConditions.push(gte(jobs.createdAt, new Date(fromDate)));
+      whereConditions.push(gte(jobs.createdAt, startOfDay(new Date(fromDate))));
     }
     if (toDate) {
-      whereConditions.push(lte(jobs.createdAt, new Date(toDate)));
+      whereConditions.push(lte(jobs.createdAt, endOfDay(new Date(toDate))));
     }
 
     if (type === JobTrendTypeEnum.CREATED) {
