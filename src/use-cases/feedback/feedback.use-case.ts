@@ -71,6 +71,8 @@ export class FeedbackUseCase {
   ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
+    console.log("Retrieved feedbacks:", result);
+
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
 
     return {
