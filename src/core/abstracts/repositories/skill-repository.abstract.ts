@@ -27,4 +27,6 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
     ids: string[],
     status: SkillReviewStatus,
   ): Promise<void>;
+
+  abstract deleteSkillAndReferences(skillId: string): Promise<void>;
 }

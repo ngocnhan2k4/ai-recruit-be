@@ -80,8 +80,8 @@ import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
-import { endOfDay } from "node_modules/date-fns/endOfDay";
-import { startOfDay } from "node_modules/date-fns/startOfDay";
+import { endOfDay } from "date-fns/endOfDay";
+import { startOfDay } from "date-fns/startOfDay";
 
 @Injectable()
 export class JobRepository

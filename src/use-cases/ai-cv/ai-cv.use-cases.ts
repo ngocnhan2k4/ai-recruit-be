@@ -16,8 +16,6 @@ import {
   CvFieldSuggestionRequestDto,
   CvFieldSuggestionResponseDto,
   OptimizeAtsUploadDto,
-} from "@/interfaces/dtos";
-import {
   AiCvDto,
   AiCvListResponseDto,
   AiCvRequestDto,
@@ -48,22 +46,10 @@ export class AiCvUseCases {
     const aiCvs = await this.aiCvRepository.getByField({ userId: userId });
 
     const aiCvsDto: AiCvDto[] = aiCvs.map((aiCv) => ({
-      id: aiCv.id,
-      userId: aiCv.userId,
-      title: aiCv.title,
-      targetJobTitle: aiCv.targetJobTitle,
+      ...aiCv,
       cvData: aiCv.cvData as OptimizedCvDataDto,
-      atsScore: aiCv.atsScore,
-      matchingSkills: aiCv.matchingSkills,
-      missingSkills: aiCv.missingSkills,
-      recommendation: aiCv.recommendation,
-      jobDescription: aiCv.jobDescription,
-      originalCvFilename: aiCv.originalCvFilename,
       language: aiCv.language as CvLanguageEnum,
-      isFavorite: aiCv.isFavorite,
       template: aiCv.template as CvTemplateEnum,
-      createdAt: aiCv.createdAt,
-      updatedAt: aiCv.updatedAt,
     }));
 
     return {
@@ -106,7 +92,6 @@ export class AiCvUseCases {
       isFavorite: createAiCvDto.isFavorite ?? false,
       language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
       template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
-      cvData: createAiCvDto.cvData,
     };
 
     const newAiCv = await this.aiCvRepository.create(aiCvData);
@@ -221,10 +206,8 @@ export class AiCvUseCases {
     );
 
     const result = await this.aiService.suggestCvField({
+      ...request,
       cvData: request.cvData as any,
-      targetField: request.targetField,
-      fieldContext: request.fieldContext,
-      jobDescription: request.jobDescription,
     });
 
     const response: CvFieldSuggestionResponseDto = {
@@ -292,9 +275,9 @@ export class AiCvUseCases {
         code: RESPONSE_CODE.SUCCESS,
       };
     } catch (error) {
-      this.logger.error(error.message);
+      this.logger.error(error);
       throw new BadRequestException({
-        message: error.message,
+        message: error,
         code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
       });
     }
