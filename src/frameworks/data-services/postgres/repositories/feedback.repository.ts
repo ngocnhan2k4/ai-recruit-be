@@ -79,7 +79,7 @@ export class FeedbackRepository
           updatedAt: feedbacks.updatedAt,
           assignedToUser: sql<
             RelatedEntity | undefined
-          >`json_build_object('id', ${users.id}, 'name', ${users.name})`.as(
+          >`json_build_object('id', ${users.id}, 'name', COALESCE(${users.name}, ${users.email}))`.as(
             "assignedToUser",
           ),
           deletedAt: feedbacks.deletedAt,
