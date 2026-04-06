@@ -51,6 +51,7 @@ export class NotificationDto {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    feedbackId?: string;
   } | null;
 
   @ApiProperty({ type: "string", nullable: true })

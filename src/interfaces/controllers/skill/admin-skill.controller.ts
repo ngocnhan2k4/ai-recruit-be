@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
@@ -39,5 +48,14 @@ export class AdminSkillController {
     @Body() dto: BulkReviewSkillDto,
   ): Promise<ApiResponse<void>> {
     return this.skillUseCases.bulkReviewSkills(dto);
+  }
+
+  @ApiOperation({
+    summary: "Delete a skill",
+    description: "Delete a skill by ID, along with all its references.",
+  })
+  @Delete(":id")
+  async deleteSkill(@Param("id") id: string): Promise<ApiResponse<void>> {
+    return this.skillUseCases.deleteSkill(id);
   }
 }

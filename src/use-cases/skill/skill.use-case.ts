@@ -8,9 +8,9 @@ import {
   GetSkillsQueryDto,
   PaginatedResultDto,
   SkillDto,
+  CreateSkillDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
-import { CreateSkillDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class SkillUseCases {
@@ -91,6 +91,14 @@ export class SkillUseCases {
 
     return {
       message: "Skills reviewed successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async deleteSkill(id: string): Promise<ApiResponse<void>> {
+    await this.skillRepository.deleteSkillAndReferences(id);
+    return {
+      message: "Skill deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

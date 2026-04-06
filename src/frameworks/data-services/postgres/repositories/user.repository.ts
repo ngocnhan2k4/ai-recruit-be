@@ -44,7 +44,7 @@ import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { RoleEnum } from "@/common/constants";
-import { differenceInYears } from "date-fns";
+import { differenceInYears, endOfDay, startOfDay } from "date-fns";
 import { convertDateToStr } from "@/common/utils";
 import { ProviderEnum } from "@/core";
 
@@ -275,6 +275,10 @@ export class UserRepository
 
     if (query.statusSubscription) {
       conditions.push(eq(userSubscriptions.status, query.statusSubscription));
+    }
+
+    if (query.roles) {
+      conditions.push(arrayOverlaps(users.roles, query.roles));
     }
 
     return conditions;
@@ -549,10 +553,12 @@ export class UserRepository
     const whereConditions: SQL[] = [];
 
     if (fromDate) {
-      whereConditions.push(gte(users.createdAt, new Date(fromDate)));
+      whereConditions.push(
+        gte(users.createdAt, startOfDay(new Date(fromDate))),
+      );
     }
     if (toDate) {
-      whereConditions.push(lte(users.createdAt, new Date(toDate)));
+      whereConditions.push(lte(users.createdAt, endOfDay(new Date(toDate))));
     }
     const dateExpr = sql`DATE(${users.createdAt})`;
 
