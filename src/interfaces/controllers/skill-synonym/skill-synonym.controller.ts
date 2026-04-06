@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -46,7 +46,7 @@ export class SkillSynonymController {
     description: "Update aliases of a skill by id.",
   })
   @ApiResponseDto(SkillSynonymResponseDto)
-  @Patch(":skillId")
+  @Put(":skillId")
   async updateSkillSynonym(
     @Param("skillId") skillId: string,
     @Body() dto: UpdateSkillSynonymDto,

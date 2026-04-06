@@ -132,20 +132,12 @@ export class SkillSynonymUseCases {
     }
 
     const normalizedCurrentMaster = NormalizeString(currentSkill.name);
+    const aliasNames = dto.aliasNames || [];
 
     const allRows = await this.skillsSynonymsRepository.getAll([
       "aliasName",
       "masterName",
     ]);
-
-    const aliasNames = dto.aliasNames;
-
-    if (aliasNames.length === 0) {
-      throw new BadRequestException({
-        message: "aliasNames is required",
-        code: RESPONSE_CODE.BAD_REQUEST,
-      });
-    }
 
     const conflicts = aliasNames.filter((alias) =>
       allRows.some(
@@ -162,27 +154,23 @@ export class SkillSynonymUseCases {
       });
     }
 
-    const existingTargetRows = await this.skillsSynonymsRepository.getByField({
-      masterName: normalizedCurrentMaster,
-    });
-
-    const existingAliasSet = new Set(
-      existingTargetRows.map((row) => NormalizeString(row.aliasName)),
-    );
-
-    const aliasToInsert = aliasNames.filter(
-      (alias) => !existingAliasSet.has(alias),
-    );
-
-    if (aliasToInsert.length > 0) {
-      await this.skillsSynonymsRepository.createMany(
-        aliasToInsert.map((aliasName) => ({
-          masterName: normalizedCurrentMaster,
-          aliasName,
-          source: dto.source ?? "manual",
-        })),
+    await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
+      await this.skillsSynonymsRepository.deletePermanently(
+        { masterName: normalizedCurrentMaster },
+        tx,
       );
-    }
+
+      if (aliasNames.length > 0) {
+        await this.skillsSynonymsRepository.createMany(
+          aliasNames.map((aliasName) => ({
+            masterName: normalizedCurrentMaster,
+            aliasName,
+            source: dto.source ?? "manual",
+          })),
+          tx,
+        );
+      }
+    });
 
     const latestRows = await this.skillsSynonymsRepository.getByField({
       masterName: normalizedCurrentMaster,
