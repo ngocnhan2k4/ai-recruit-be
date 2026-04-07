@@ -10,7 +10,11 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  PaginatedResultDto,
+} from "@/interfaces/dtos";
 import {
   GetFeedbacksRequestDto,
   GetFeedbacksResponseDto,
@@ -39,7 +43,7 @@ export class FeedbackAdminController {
   @Get()
   async getFeedbacks(
     @Query() query: GetFeedbacksRequestDto,
-  ): Promise<ApiResponse<GetFeedbacksResponseDto>> {
+  ): Promise<ApiResponse<PaginatedResultDto<GetFeedbacksResponseDto>>> {
     return this.feedbackUseCase.getFeedbacks(query);
   }
 

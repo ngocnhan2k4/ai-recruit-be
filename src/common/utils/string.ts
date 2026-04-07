@@ -48,3 +48,7 @@ export const getJobStatus = (status: JobStatusEnum) => {
       return "chuyển sang chờ xác nhận";
   }
 };
+
+export const NormalizeString = (value: string): string => {
+  return value.trim().toLowerCase();
+};

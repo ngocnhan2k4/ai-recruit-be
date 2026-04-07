@@ -23,6 +23,7 @@ import {
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
 import { randomUUID } from "crypto";
+import { PaginatedResult } from "@/common/types";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -67,7 +68,7 @@ export class FeedbackUseCase {
 
   async getFeedbacks(
     filter: FeedbackFilter,
-  ): Promise<ApiResponse<GetFeedbacksResponseDto>> {
+  ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
@@ -99,20 +100,20 @@ export class FeedbackUseCase {
       };
     }
     const previousAssigneeId = existing.assignedToUserId ?? null;
-    let resolvedAssignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
+    let assignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
     if (data.assignedToUserId != null) {
-      const assignee = await this.userRepository.get(data.assignedToUserId);
+      assignee = await this.userRepository.get(data.assignedToUserId);
       if (!assignee) {
         return {
           code: RESPONSE_CODE.USER_NOT_FOUND,
           message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         };
       }
-      resolvedAssignee = assignee;
     }
     const assigneeChanged =
       data.assignedToUserId != null &&
       data.assignedToUserId !== previousAssigneeId;
+
     if (!assigneeChanged) {
       const updatedRows = await this.feedbackRepository.update({ id }, data);
       if (updatedRows.length === 0) {
@@ -126,7 +127,6 @@ export class FeedbackUseCase {
         message: "Feedback updated successfully",
       };
     }
-    const assignee = resolvedAssignee!;
     let feedbackSubjectForEmail = existing.subject;
 
     await this.feedbackRepository.executeWithTransaction(async (tx) => {
@@ -140,6 +140,11 @@ export class FeedbackUseCase {
           code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
           message: "Feedback not found",
         });
+      }
+
+      // Return if the assign myself
+      if (assignedByUserId === data.assignedToUserId) {
+        return;
       }
       const updated = updatedRows[0];
       feedbackSubjectForEmail = updated.subject;
@@ -160,7 +165,7 @@ export class FeedbackUseCase {
       );
     });
 
-    if (assignee.email) {
+    if (assignee?.email && assignedByUserId !== data.assignedToUserId) {
       this.emailQueueStorage.addToQueue({
         id: randomUUID(),
         type: EmailJobType.FEEDBACK_ASSIGNED,

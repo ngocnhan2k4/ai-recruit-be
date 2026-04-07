@@ -1,3 +1,5 @@
+import { ID } from "./db";
+
 export interface GeneralController {
   getApiStatus: () => Promise<GeneralResponse>;
 }
@@ -25,4 +27,9 @@ export interface GeneralQuery {
   sortBy?: string;
   sortDirection?: "asc" | "desc";
   keyword?: string;
+}
+
+export interface RelatedEntity {
+  id: ID;
+  name: string;
 }

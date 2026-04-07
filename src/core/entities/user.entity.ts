@@ -10,12 +10,14 @@ import {
   UserSubscription,
   UserSubscriptionStatusEnum,
 } from ".";
+import { RoleEnum } from "@/common/constants";
 
 export interface GetUserQuery extends GeneralQuery {
   isActive?: boolean;
   isDeleted?: boolean;
   subscriptionId?: string;
   statusSubscription?: UserSubscriptionStatusEnum;
+  roles?: RoleEnum[];
 }
 
 export class CreateUserExperience {

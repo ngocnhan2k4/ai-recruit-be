@@ -18,10 +18,15 @@ import {
   CreateSkillDto,
   PaginatedResultDto,
   GetSkillsQueryDto,
+  GetTopDemandedSkillsQueryDto,
+  TopDemandedSkillItemDto,
 } from "../../dtos";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
+import {
+  JwtAuthGuard,
+  OptionalJwtAuthGuard,
+} from "@/frameworks/auth-services/guards";
 
 @ApiTags("Skills")
 @Controller("skills")
@@ -49,6 +54,20 @@ export class SkillController {
     @Query() query: GetSkillsQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<SkillDto>>> {
     return await this.skillUseCases.getPaginatedSkills(query);
+  }
+
+  @ApiOperation({
+    summary: "Get top demanded skills",
+  })
+  @ApiResponseDto(TopDemandedSkillItemDto, { isArray: true })
+  @UseGuards(OptionalJwtAuthGuard)
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LLONG_TTL)
+  @Get("statistics/top-demanded")
+  async getTopDemandedSkills(
+    @Query() query: GetTopDemandedSkillsQueryDto,
+  ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
+    return await this.skillUseCases.getTopDemandedSkills(query);
   }
 
   @ApiOperation({

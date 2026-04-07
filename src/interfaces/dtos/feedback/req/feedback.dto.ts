@@ -10,6 +10,7 @@ import {
   ValidateIf,
 } from "class-validator";
 import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
+import { Type } from "class-transformer";
 
 export class CreateFeedbackRequestDto {
   @ApiProperty({ description: "Name of the user submitting feedback" })
@@ -38,11 +39,6 @@ export class CreateFeedbackRequestDto {
 export class GetFeedbacksRequestDto extends GeneralQueryDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsString()
-  userId?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
   @IsEnum(FeedbackStatusEnum)
   status?: FeedbackStatusEnum;
 
@@ -56,11 +52,13 @@ export class GetFeedbacksRequestDto extends GeneralQueryDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Type(() => Date)
   @IsDate()
   startDate?: Date;
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Type(() => Date)
   @IsDate()
   endDate?: Date;
 }
