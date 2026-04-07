@@ -43,3 +43,9 @@ export interface OrganizationChangeEmailData {
   organizationName: string;
   otpCode: string;
 }
+
+export class FeedbackAssignedEmailData {
+  to: string;
+  recipientName: string;
+  feedbackSubject: string;
+}
