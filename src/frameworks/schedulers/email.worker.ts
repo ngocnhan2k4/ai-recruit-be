@@ -34,47 +34,69 @@ export class EmailWorker extends WorkerHost {
   }
 
   private async processEmailTask(type: EmailJobType, data: EmailJobData) {
-    switch (type) {
-      case EmailJobType.ORGANIZATION_INVITATION: {
-        const orgInvite = data as OrganizationInvitationEmailData;
-        await this.emailService.sendOrganizationInvitationEmail(
-          orgInvite.to,
-          orgInvite.organizationName,
-          orgInvite.inviterName,
-          orgInvite.invitationLink,
-          orgInvite.role,
-        );
-        return;
+    try {
+      switch (type) {
+        case EmailJobType.ORGANIZATION_INVITATION: {
+          const orgInvite = data as OrganizationInvitationEmailData;
+          await this.emailService.sendOrganizationInvitationEmail(
+            orgInvite.to,
+            orgInvite.organizationName,
+            orgInvite.inviterName,
+            orgInvite.invitationLink,
+            orgInvite.role,
+          );
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent organization invitation email to ${orgInvite.to} for organization ${orgInvite.organizationName}`,
+          );
+          return;
+        }
+        case EmailJobType.JOB_RECOMMENDATIONS: {
+          const jobRec = data as JobRecommendationsEmailData;
+          await this.emailService.sendJobRecommendationsEmail(
+            jobRec.to,
+            jobRec.userName,
+            jobRec.jobs,
+          );
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent job recommendations email to ${jobRec.to} for user ${jobRec.userName}`,
+          );
+          return;
+        }
+        case EmailJobType.ORGANIZATION_VERIFICATION: {
+          const orgVerify = data as OrganizationVerificationEmailData;
+          await this.emailService.sendVerifyOrganizationEmailOtp(
+            orgVerify.to,
+            orgVerify.organizationName,
+            orgVerify.otpCode,
+          );
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent organization verification email to ${orgVerify.to} for organization ${orgVerify.organizationName}`,
+          );
+          return;
+        }
+        case EmailJobType.ORGANIZATION_CHANGE_EMAIL: {
+          const orgChange = data as OrganizationChangeEmailData;
+          await this.emailService.sendChangeOrganizationEmailOtp(
+            orgChange.to,
+            orgChange.organizationName,
+            orgChange.otpCode,
+          );
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent organization change email to ${orgChange.to} for organization ${orgChange.organizationName}`,
+          );
+          return;
+        }
+        default:
+          this.logger.warn(
+            "[email.worker] [processEmailTask] Unknown email task type",
+          );
       }
-      case EmailJobType.JOB_RECOMMENDATIONS: {
-        const jobRec = data as JobRecommendationsEmailData;
-        await this.emailService.sendJobRecommendationsEmail(
-          jobRec.to,
-          jobRec.userName,
-          jobRec.jobs,
-        );
-        return;
-      }
-      case EmailJobType.ORGANIZATION_VERIFICATION: {
-        const orgVerify = data as OrganizationVerificationEmailData;
-        await this.emailService.sendVerifyOrganizationEmailOtp(
-          orgVerify.to,
-          orgVerify.organizationName,
-          orgVerify.otpCode,
-        );
-        return;
-      }
-      case EmailJobType.ORGANIZATION_CHANGE_EMAIL: {
-        const orgChange = data as OrganizationChangeEmailData;
-        await this.emailService.sendChangeOrganizationEmailOtp(
-          orgChange.to,
-          orgChange.organizationName,
-          orgChange.otpCode,
-        );
-        return;
-      }
-      default:
-        this.logger.warn("[processEmailTask] Unknown email task type");
+    } catch (error) {
+      this.logger.error(
+        `[email.worker] [processEmailTask] Failed to process email task of type ${type} with data ${JSON.stringify(
+          data,
+        )}. Error: ${error.message}`,
+      );
     }
   }
 }
