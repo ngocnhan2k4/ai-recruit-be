@@ -2,7 +2,11 @@ import { Logger } from "@nestjs/common";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { EMAIL_QUEUE } from "@/common/constants";
-import { EmailJobType, OrganizationChangeEmailData } from "@/core";
+import {
+  EmailJobType,
+  FeedbackAssignedEmailData,
+  OrganizationChangeEmailData,
+} from "@/core";
 import { EmailService } from "@/frameworks/email-services/email.service";
 import {
   JobRecommendationsEmailData,
@@ -15,6 +19,7 @@ type EmailJobDataMap = {
   [EmailJobType.JOB_RECOMMENDATIONS]: JobRecommendationsEmailData;
   [EmailJobType.ORGANIZATION_VERIFICATION]: OrganizationVerificationEmailData;
   [EmailJobType.ORGANIZATION_CHANGE_EMAIL]: OrganizationChangeEmailData;
+  [EmailJobType.FEEDBACK_ASSIGNED]: FeedbackAssignedEmailData;
 };
 
 type EmailJobData = EmailJobDataMap[keyof EmailJobDataMap];
@@ -83,6 +88,18 @@ export class EmailWorker extends WorkerHost {
           );
           this.logger.log(
             `[email.worker] [processEmailTask] Sent organization change email to ${orgChange.to} for organization ${orgChange.organizationName}`,
+          );
+          return;
+        }
+        case EmailJobType.FEEDBACK_ASSIGNED: {
+          const feedbackAssigned = data as FeedbackAssignedEmailData;
+          await this.emailService.sendFeedbackAssignedEmail(
+            feedbackAssigned.to,
+            feedbackAssigned.recipientName ?? "bạn",
+            feedbackAssigned.feedbackSubject,
+          );
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent feedback assigned email to ${feedbackAssigned.to} for feedback ${feedbackAssigned.feedbackSubject}`,
           );
           return;
         }
