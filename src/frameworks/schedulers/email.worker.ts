@@ -97,6 +97,7 @@ export class EmailWorker extends WorkerHost {
           data,
         )}. Error: ${error.message}`,
       );
+      throw error;
     }
   }
 }
