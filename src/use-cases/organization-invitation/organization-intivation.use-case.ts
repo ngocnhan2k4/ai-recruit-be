@@ -9,6 +9,7 @@ import {
   IOrganizationRepository,
   EmailJobType,
   IMessageQueueService,
+  OrganizationInvitationEmailData,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -239,7 +240,7 @@ export class OrganizationInvitationUseCase {
             inviterName: inviter.name,
             invitationLink,
             role: roleMap[role] || role,
-          },
+          } as OrganizationInvitationEmailData,
           {
             attempts: 3,
             backoff: {

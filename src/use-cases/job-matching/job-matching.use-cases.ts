@@ -13,6 +13,7 @@ import {
   Skill,
   Category,
   OrganizationWithDetails,
+  JobRecommendationsEmailData,
 } from "@/core/entities";
 import { JobFilters, JobResponse } from "@/core/entities/job.entity";
 import { subDays } from "date-fns/subDays";
@@ -76,7 +77,7 @@ export class JobMatchingUseCases {
               to: user.email,
               userName: user.name,
               jobs: recommendedJobs.slice(0, 10),
-            },
+            } as JobRecommendationsEmailData,
             {
               attempts: 3,
               backoff: {
