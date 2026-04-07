@@ -22,7 +22,8 @@ export class AdminNotificationController {
 
   @ApiOperation({
     summary: "Get admin notifications by user id, org id",
-    description: "Retrieve admin notifications (job_posted type only)",
+    description:
+      "Retrieve admin notifications (job_posted and job_updated types)",
   })
   @ApiResponseDto(PaginatedResultDecorator(NotificationDto))
   @Get()

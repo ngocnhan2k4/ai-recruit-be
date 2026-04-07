@@ -31,10 +31,12 @@ export class NotificationUseCase {
 
     if (isAdmin) {
       includeTypes.push(NotificationType.JOB_POSTED);
+      includeTypes.push(NotificationType.JOB_UPDATED);
       return { ...filter, includeTypes, excludeTypes: undefined };
     }
 
     excludeTypes.push(NotificationType.JOB_POSTED);
+    excludeTypes.push(NotificationType.JOB_UPDATED);
     return { ...filter, excludeTypes, includeTypes: undefined };
   }
 
