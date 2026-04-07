@@ -1696,63 +1696,41 @@ export class JobRepository
     options?: {
       sendNotifications?: boolean;
       senderUserId?: string;
+      recipients?: {
+        receiverId: string;
+      }[];
+      senderAvatarUrl?: string;
     },
-  ): Promise<Job | null> {
-    return this.db.transaction(async (tx) => {
-      const [currentJob] = await tx
-        .select({
-          status: jobs.status,
-          title: jobs.title,
-          organizationId: jobs.organizationId,
-        })
-        .from(jobs)
-        .where(eq(jobs.id, jobId))
-        .limit(1);
+  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
+    const recipients = options?.recipients ?? [];
 
+    return this.db.transaction(async (tx) => {
       const updatedJob = await this.preUpdateJob(tx, jobId, job);
       if (!updatedJob) {
-        return null;
+        return { job: null, newNotifications: [] };
       }
 
-      const shouldNotifyAdmins =
-        options?.sendNotifications &&
-        options.senderUserId &&
-        currentJob &&
-        currentJob.status !== "pending_approval";
-
-      if (!shouldNotifyAdmins) {
-        return updatedJob;
-      }
-
-      const adminUsers = await this.userRepository.getAllAdminUsers({
-        page: 1,
-        limit: 100,
-        isActive: true,
-        isDeleted: false,
-      });
-
-      const recipients = adminUsers.data.map((m) => ({
-        receiverId: m.id,
-      }));
-
-      if (recipients.length > 0) {
-        await this.notificationRepository.preCreateNotifications(
-          tx,
-          {
-            title: "Công việc được cập nhật",
-            message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
-            type: NotificationType.JOB_UPDATED,
-            senderId: options.senderUserId,
-            payload: {
-              jobId: updatedJob.id,
-              orgId: updatedJob.organizationId,
+      let newNotifications: Notification[] = [];
+      if (options?.sendNotifications && recipients.length > 0) {
+        newNotifications =
+          await this.notificationRepository.preCreateNotifications(
+            tx,
+            {
+              title: "Công việc được cập nhật",
+              message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+              type: NotificationType.JOB_UPDATED,
+              senderId: options.senderUserId!,
+              payload: {
+                jobId: updatedJob.id,
+                orgId: updatedJob.organizationId,
+                avatarUrl: options.senderAvatarUrl,
+              },
             },
-          },
-          recipients,
-        );
+            recipients,
+          );
       }
 
-      return updatedJob;
+      return { job: updatedJob, newNotifications };
     });
   }
 
@@ -1827,7 +1805,16 @@ export class JobRepository
       provinceIds?: string[];
     },
     userId: string,
+    options?: {
+      recipients?: {
+        receiverId: string;
+        organizationId?: string;
+      }[];
+      senderAvatarUrl?: string;
+    },
   ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
+    const recipients = options?.recipients ?? [];
+
     const result = await this.db.transaction(async (tx) => {
       const [updatedJob] = await tx
         .update(jobs)
@@ -1874,23 +1861,9 @@ export class JobRepository
         }
       }
 
-      // Get all organization members to notify
-      const orgUsers =
-        await this.organizationRepository.getMemberIdsOfOrganization(
-          updatedJob.organizationId,
-        );
-
-      if (orgUsers.length === 0) {
+      if (recipients.length === 0) {
         return { job: updatedJob as Job, newNotifications: [] };
       }
-      const recipients = orgUsers.map((ou) => {
-        return { receiverId: ou.id, organizationId: updatedJob.organizationId };
-      });
-      const [senderInfo] = await tx
-        .select({ avatarUrl: users.avatarUrl })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
 
       const notificationPayload: {
         jobId: string;
@@ -1901,8 +1874,8 @@ export class JobRepository
         orgId: updatedJob.organizationId,
       };
 
-      if (senderInfo?.avatarUrl) {
-        notificationPayload.avatarUrl = senderInfo.avatarUrl;
+      if (options?.senderAvatarUrl) {
+        notificationPayload.avatarUrl = options.senderAvatarUrl;
       }
 
       const notifications =

@@ -8,6 +8,7 @@ import {
   IJobRepository,
   IOrganizationRepository,
   IJobSearchService,
+  IUserRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -74,6 +75,7 @@ export class JobUseCases {
   constructor(
     private readonly jobRepository: IJobRepository,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly userRepository: IUserRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobSearchService: IJobSearchService,
@@ -753,18 +755,11 @@ export class JobUseCases {
     };
   }
 
-  private async processJobUpdate(
+  private async prepareJobUpdateData(
     jobId: string,
     updateJobDto: UpdateJobDto,
-    executeUpdate: (
-      updateData: Partial<Job>,
-    ) => Promise<{ updatedJob: Job | null; notifications?: Notification[] }>,
     isAdminUpdate = false,
-  ): Promise<{
-    transformedJob: JobDto;
-    updatedJob: Job;
-    notifications?: Notification[];
-  }> {
+  ): Promise<{ updateData: Partial<Job>; currentJob: Job }> {
     const organizationAllowedStatuses = [
       JobStatusEnum.ACTIVE,
       JobStatusEnum.CLOSED,
@@ -805,14 +800,28 @@ export class JobUseCases {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
-    const updateData: Partial<Job> = {
-      ...updateJobDto,
-      status: updateJobDto.status || undefined,
-      questions: updateJobDto.questions || undefined,
-      workType: updateJobDto.workType,
-    };
 
-    const { updatedJob, notifications } = await executeUpdate(updateData);
+    return {
+      updateData: {
+        ...updateJobDto,
+        status: updateJobDto.status || undefined,
+        questions: updateJobDto.questions || undefined,
+        workType: updateJobDto.workType,
+      },
+      currentJob: job,
+    };
+  }
+
+  private async finalizeJobUpdate(
+    jobId: string,
+    updatedJob: Job | null,
+  ): Promise<{ transformedJob: JobDto; updatedJob: Job }> {
+    const organizationAllowedStatuses = [
+      JobStatusEnum.ACTIVE,
+      JobStatusEnum.CLOSED,
+      JobStatusEnum.PAUSED,
+    ];
+
     if (!updatedJob) {
       throw new BadRequestException({
         message: "Failed to update job",
@@ -838,7 +847,7 @@ export class JobUseCases {
       });
     }
 
-    return { transformedJob, updatedJob, notifications };
+    return { transformedJob, updatedJob };
   }
 
   async updateJob(
@@ -851,21 +860,50 @@ export class JobUseCases {
       status: JobStatusEnum.PENDING_APPROVAL,
     };
 
-    const { transformedJob } = await this.processJobUpdate(
+    const { updateData, currentJob } = await this.prepareJobUpdateData(
       jobId,
       organizationUpdateDto,
-      async (updateData) => {
-        const updatedJob = await this.jobRepository.updateJob(
-          jobId,
-          updateData,
-          {
-            sendNotifications: true,
-            senderUserId,
-          },
-        );
-        return { updatedJob };
-      },
     );
+    const shouldNotifyAdmins =
+      (currentJob.status as JobStatusEnum) !== JobStatusEnum.PENDING_APPROVAL;
+
+    const recipients = shouldNotifyAdmins
+      ? (
+          await this.userRepository.getAllAdminUsers({
+            page: 1,
+            limit: 100,
+            isActive: true,
+            isDeleted: false,
+          })
+        ).data.map((m) => ({
+          receiverId: m.id,
+        }))
+      : [];
+
+    const sender = shouldNotifyAdmins
+      ? await this.userRepository.get(senderUserId)
+      : null;
+
+    const { job: updatedJob, newNotifications } =
+      await this.jobRepository.updateJob(jobId, updateData, {
+        sendNotifications: shouldNotifyAdmins,
+        senderUserId,
+        recipients,
+        senderAvatarUrl: sender?.avatarUrl ?? undefined,
+      });
+
+    if (newNotifications.length > 0) {
+      this.webSocketGateway.sendToRoom(
+        ROOM_NOTIFICATIONS.admin,
+        newNotifications[0],
+      );
+      this.logger.log(
+        `Broadcast job-updated notification to admin room for job "${updatedJob?.title}" (${newNotifications.length} notifications created in DB)`,
+      );
+    }
+
+    const { transformedJob } = await this.finalizeJobUpdate(jobId, updatedJob);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -878,29 +916,44 @@ export class JobUseCases {
     updateJobDto: UpdateJobDto,
     user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    const { transformedJob, updatedJob, notifications } =
-      await this.processJobUpdate(
-        jobId,
-        updateJobDto,
-        async (updateData) => {
-          const { job, newNotifications } =
-            await this.jobRepository.updateJobWithNotifications(
-              jobId,
-              updateData,
-              user.userId,
-            );
-          return { updatedJob: job, notifications: newNotifications };
-        },
-        true,
+    const { updateData, currentJob } = await this.prepareJobUpdateData(
+      jobId,
+      updateJobDto,
+      true,
+    );
+
+    const orgUsers =
+      await this.organizationRepository.getMemberIdsOfOrganization(
+        currentJob.organizationId,
       );
+
+    const recipients = orgUsers.map((ou) => ({
+      receiverId: ou.id,
+      organizationId: currentJob.organizationId,
+    }));
+
+    const sender = await this.userRepository.get(user.userId);
+
+    const { job: updatedJob, newNotifications: notifications } =
+      await this.jobRepository.updateJobWithNotifications(
+        jobId,
+        updateData,
+        user.userId,
+        {
+          recipients,
+          senderAvatarUrl: sender?.avatarUrl ?? undefined,
+        },
+      );
+    const { transformedJob, updatedJob: finalizedJob } =
+      await this.finalizeJobUpdate(jobId, updatedJob);
 
     if (notifications && notifications.length > 0) {
       const orgRoom = ROOM_NOTIFICATIONS.org({
-        orgId: updatedJob.organizationId,
+        orgId: finalizedJob.organizationId,
       });
       this.webSocketGateway.sendToRoom(orgRoom, notifications[0]);
       this.logger.log(
-        `Broadcast job-updated notification to org room ${orgRoom} for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
+        `Broadcast job-updated notification to org room ${orgRoom} for job "${finalizedJob.title}" (${notifications.length} notifications created in DB)`,
       );
     }
     return {
