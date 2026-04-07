@@ -7,7 +7,7 @@ import { EmailService } from "@/frameworks/email-services/email.service";
 import { JobResponse } from "@/core/entities/job.entity";
 
 @Processor(EMAIL_QUEUE, {
-  concurrency: 4,
+  concurrency: 1, // This is a normal queue, so we need to limit the concurrency to 1
 })
 export class EmailWorker extends WorkerHost {
   private readonly logger = new Logger(EmailWorker.name);
