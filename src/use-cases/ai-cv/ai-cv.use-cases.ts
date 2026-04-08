@@ -5,7 +5,6 @@ import {
   CvTemplateEnum,
   FeatureCodeEnum,
   IAIService,
-  IUserFeatureUsageRepository,
   IUserRepository,
   NewAiCv,
   OptimizeAtsResponse,
@@ -29,6 +28,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { FeatureService } from "@/services/feature/feature.service";
 
 @Injectable()
 export class AiCvUseCases {
@@ -37,7 +37,7 @@ export class AiCvUseCases {
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
-    private readonly userFeatureUsageRepo: IUserFeatureUsageRepository,
+    private readonly featureService: FeatureService,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -200,7 +200,7 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
-    await this.userFeatureUsageRepo.consumeFeature(
+    await this.featureService.consumeFeature(
       userId,
       FeatureCodeEnum.SUGGEST_CV_FIELD,
     );
@@ -229,7 +229,7 @@ export class AiCvUseCases {
     useUserCV: boolean,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     // Call AI service to optimize CV
-    await this.userFeatureUsageRepo.consumeFeature(
+    await this.featureService.consumeFeature(
       userId,
       FeatureCodeEnum.OPTIMIZE_CV,
     );
