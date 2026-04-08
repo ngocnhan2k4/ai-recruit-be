@@ -119,3 +119,28 @@ export interface JobTrendsQuery {
   toDate?: string;
   type?: JobTrendTypeEnum;
 }
+
+export interface JobSearchDocument {
+  id: string;
+  title?: string;
+  description?: string;
+  organizationId?: string;
+  organizationName?: string;
+  skillIds?: string[];
+  skillNames?: string[];
+  provinceIds?: string[];
+  provinceNames?: string[];
+  salaryMin?: number;
+  salaryMax?: number;
+  experienceMin?: number;
+  experienceMax?: number;
+  workType?: WorkTypeEnum | string;
+  status?: JobStatusEnum | string;
+  endDate?: string;
+  datePosted?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  categoryId?: string;
+  categoryName?: string;
+  score?: number;
+}

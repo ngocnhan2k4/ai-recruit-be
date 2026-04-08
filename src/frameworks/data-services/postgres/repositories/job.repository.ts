@@ -186,8 +186,13 @@ export class JobRepository
     // Build where conditions
     const whereConditions: SQL[] = [];
     const { limit, page } = filters;
+
     if (filters?.keyword) {
-      whereConditions.push(ilike(jobs.title, `%${filters.keyword}%`));
+      const keyword = `%${filters.keyword}%`;
+
+      whereConditions.push(
+        or(ilike(jobs.id, keyword), ilike(jobs.title, keyword))!,
+      );
     }
     if (filters?.salaryMin !== undefined) {
       whereConditions.push(gte(jobs.salaryMin, filters.salaryMin.toString()));
