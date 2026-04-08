@@ -4,7 +4,7 @@ import {
   UpsertSubscriptionFeatureInput,
 } from "@/core";
 import { GenericRepository } from "./generic-repository";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { features, subscriptionFeatures, subscriptions } from "../models";
 import { PaginatedResult } from "@/common/types";
@@ -14,14 +14,67 @@ import {
   SubscriptionFilter,
 } from "@/core/entities";
 import { eq } from "drizzle-orm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { cacheWithDedup } from "@/common/utils";
+import type { FeatureCodeEnum } from "@/core";
+import { CACHE_KEYS, LONG_TTL } from "@/common/constants";
+import type { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 @Injectable()
 export class SubscriptionRepository
   extends GenericRepository<Subscription, typeof subscriptions>
   implements ISubscriptionRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  private readonly logger = new Logger(SubscriptionRepository.name);
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, subscriptions);
+  }
+
+  async update(
+    where: Partial<Subscription>,
+    item: Partial<Subscription>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<Subscription[]> {
+    const updated = await super.update(where, item, tx);
+    const keys: string[] = [];
+    for (const subscription of updated) {
+      const keyGet = CACHE_KEYS.subscription.getFeatures(subscription.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for Subscription ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return updated;
+  }
+
+  async delete(
+    where: Partial<Subscription>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<Subscription[]> {
+    const deleted = await super.delete(where, tx);
+    const keys: string[] = [];
+    for (const subscription of deleted) {
+      const keyGet = CACHE_KEYS.subscription.getFeatures(subscription.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for Subscription ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return deleted;
   }
 
   async getListSubscriptions(
@@ -124,6 +177,64 @@ export class SubscriptionRepository
       })
       .returning();
 
+    await this.cacheManager.del(
+      CACHE_KEYS.subscription.getFeatures(subscriptionId),
+    );
+
     return result.length;
+  }
+
+  async getSubscriptionFeatures(subscriptionId: string): Promise<
+    Array<{
+      id: number;
+      code: FeatureCodeEnum;
+      name: string;
+      description: string | null;
+      limit: number;
+    }>
+  > {
+    const cacheKey = CACHE_KEYS.subscription.getFeatures(subscriptionId);
+
+    return cacheWithDedup(
+      cacheKey,
+      () =>
+        this.cacheManager.get<
+          | Array<{
+              id: number;
+              code: FeatureCodeEnum;
+              name: string;
+              description: string | null;
+              limit: number;
+            }>
+          | undefined
+        >(cacheKey),
+      async () => {
+        const rows = await this.db
+          .select({
+            featureId: features.id,
+            code: features.code,
+            name: features.name,
+            description: features.description,
+            limit: subscriptionFeatures.limit,
+          })
+          .from(subscriptionFeatures)
+          .innerJoin(features, eq(features.id, subscriptionFeatures.featureId))
+          .where(
+            and(
+              eq(subscriptionFeatures.subscriptionId, subscriptionId),
+              eq(features.isActive, true),
+            ),
+          );
+
+        return rows.map((r) => ({
+          id: r.featureId,
+          code: r.code as FeatureCodeEnum,
+          name: r.name,
+          description: r.description,
+          limit: r.limit,
+        }));
+      },
+      (data) => this.cacheManager.set(cacheKey, data, LONG_TTL),
+    );
   }
 }
