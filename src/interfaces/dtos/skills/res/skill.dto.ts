@@ -8,6 +8,17 @@ export class TopDemandedSkillItemDto {
   jobCount: number;
 }
 
+export class DemandedSkillItemDto {
+  @ApiProperty({ type: "string", format: "uuid" })
+  id: string;
+
+  @ApiProperty({ type: "string", example: "React" })
+  name: string;
+
+  @ApiProperty({ type: "number", example: 42 })
+  jobCount: number;
+}
+
 export class SkillDto {
   @ApiProperty({ type: "string", format: "uuid" })
   id: string;

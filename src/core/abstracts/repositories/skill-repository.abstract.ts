@@ -34,4 +34,8 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
     months: number,
     limit: number,
   ): Promise<{ name: string; jobCount: number }[]>;
+
+  abstract getDemandedSkills(
+    months?: number,
+  ): Promise<{ id: string; name: string; jobCount: number }[]>;
 }

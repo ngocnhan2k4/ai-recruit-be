@@ -20,6 +20,8 @@ import {
   GetSkillsQueryDto,
   GetTopDemandedSkillsQueryDto,
   TopDemandedSkillItemDto,
+  GetDemandedSkillsQueryDto,
+  DemandedSkillItemDto,
 } from "../../dtos";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
@@ -68,6 +70,20 @@ export class SkillController {
     @Query() query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
     return await this.skillUseCases.getTopDemandedSkills(query);
+  }
+
+  @ApiOperation({
+    summary: "Get all demanded skills (skills appearing in job postings)",
+  })
+  @ApiResponseDto(DemandedSkillItemDto, { isArray: true })
+  @UseGuards(OptionalJwtAuthGuard)
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(LLONG_TTL)
+  @Get("statistics/demanded")
+  async getDemandedSkills(
+    @Query() query: GetDemandedSkillsQueryDto,
+  ): Promise<ApiResponse<DemandedSkillItemDto[]>> {
+    return await this.skillUseCases.getDemandedSkills(query);
   }
 
   @ApiOperation({

@@ -278,6 +278,39 @@ export class SkillRepository
     }));
   }
 
+  async getDemandedSkills(
+    months: number = 0,
+  ): Promise<{ id: string; name: string; jobCount: number }[]> {
+    const fromDate =
+      months && months > 0
+        ? sql`NOW() - (${months} || ' months')::interval`
+        : null;
+
+    const whereClause = fromDate
+      ? and(eq(skills.isApproved, true), gte(jobs.datePosted, sql`${fromDate}`))
+      : and(eq(skills.isApproved, true));
+
+    const result = await this.db
+      .select({
+        id: skills.id,
+        name: skills.name,
+        jobCount: count(jobSkills.jobId).as("jobCount"),
+      })
+      .from(skills)
+      .innerJoin(jobSkills, eq(skills.id, jobSkills.skillId))
+      .innerJoin(jobs, eq(jobs.id, jobSkills.jobId))
+      .where(whereClause)
+      .groupBy(skills.id, skills.name)
+      .orderBy(desc(count(jobSkills.jobId)), skills.name)
+      .limit(10_000);
+
+    return result.map((r) => ({
+      id: r.id,
+      name: r.name,
+      jobCount: Number(r.jobCount),
+    }));
+  }
+
   async deleteSkillAndReferences(skillId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx.delete(jobSkills).where(eq(jobSkills.skillId, skillId));

@@ -72,6 +72,20 @@ export class GetTopDemandedSkillsQueryDto {
   limit?: number = 10;
 }
 
+export class GetDemandedSkillsQueryDto {
+  @ApiProperty({
+    type: Number,
+    required: false,
+    default: 0,
+    description:
+      "Number of months to look back from now. 0 means all-time (no date filter).",
+    example: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  months?: number = 0;
+}
+
 export class BulkReviewSkillDto {
   @ApiProperty({ type: [String], format: "uuid" })
   @IsArray()

@@ -5,10 +5,12 @@ import {
   BulkReviewSkillDto,
   CrawledSkillDto,
   GetCrawledSkillsQueryDto,
+  GetDemandedSkillsQueryDto,
   GetSkillsQueryDto,
   GetTopDemandedSkillsQueryDto,
   PaginatedResultDto,
   SkillDto,
+  DemandedSkillItemDto,
   TopDemandedSkillItemDto,
   CreateSkillDto,
 } from "@/interfaces/dtos";
@@ -118,6 +120,22 @@ export class SkillUseCases {
 
     return {
       message: "Top demanded skills fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data,
+    };
+  }
+
+  async getDemandedSkills(
+    query: GetDemandedSkillsQueryDto,
+  ): Promise<ApiResponse<DemandedSkillItemDto[]>> {
+    const months = query.months ?? 0;
+    const data = await this.skillRepository.getDemandedSkills(months);
+    this.logger.log(
+      `Fetched demanded skills (skills appearing in job postings) in last ${months} months`,
+    );
+
+    return {
+      message: "Demanded skills fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
       data,
     };
