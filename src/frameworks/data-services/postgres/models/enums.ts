@@ -169,3 +169,10 @@ export const TaskTypeEnum = pgEnum("task_type", [
   "learning_path_generation",
   "cv_generation",
 ]);
+
+export const blogPostStatusEnum = pgEnum("blog_post_status", [
+  "DRAFT",
+  "PENDING",
+  "PUBLISHED",
+  "REJECTED",
+]);
