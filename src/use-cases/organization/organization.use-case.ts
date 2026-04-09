@@ -21,6 +21,8 @@ import {
   OrganizationWithDetails,
   User,
   JobStatusEnum,
+  OrganizationChangeEmailData,
+  OrganizationVerificationEmailData,
 } from "@/core";
 import {
   ApiResponse,
@@ -47,8 +49,7 @@ import { slugify } from "@/common/utils";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { MultipartFile } from "@fastify/multipart";
-import { IOtpService, OtpPurpose, IEmailQueueStorageService } from "@/core";
-import { randomUUID } from "crypto";
+import { IOtpService, OtpPurpose } from "@/core";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
 @Injectable()
@@ -64,7 +65,6 @@ export class OrganizationUseCase {
     private readonly schoolRepository: ISchoolRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly otpService: IOtpService,
-    private readonly emailQueueStorage: IEmailQueueStorageService,
     private readonly casbinService: CasbinService,
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobRepository: IJobRepository,
@@ -467,18 +467,21 @@ export class OrganizationUseCase {
       );
 
       // Send OTP to the NEW email address
-      this.emailQueueStorage.addToQueue({
-        id: randomUUID(),
-        type: EmailJobType.ORGANIZATION_CHANGE_EMAIL,
-        data: {
+      await this.messageQueueService.addEmail(
+        EmailJobType.ORGANIZATION_CHANGE_EMAIL,
+        {
           to: newEmail,
           organizationName: org.name,
           otpCode: otp,
+        } as OrganizationChangeEmailData,
+        {
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 5000,
+          },
         },
-        attempts: 0,
-        maxAttempts: 3,
-        createdAt: new Date(),
-      });
+      );
 
       this.logger.log(
         `Email change OTP sent to ${newEmail} for organization ${orgId}`,
@@ -616,18 +619,21 @@ export class OrganizationUseCase {
     );
 
     // Send email with OTP via queue
-    this.emailQueueStorage.addToQueue({
-      id: randomUUID(),
-      type: EmailJobType.ORGANIZATION_VERIFICATION,
-      data: {
+    await this.messageQueueService.addEmail(
+      EmailJobType.ORGANIZATION_VERIFICATION,
+      {
         to: email,
         organizationName: org.name,
         otpCode: otpCode,
+      } as OrganizationVerificationEmailData,
+      {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 5000,
+        },
       },
-      attempts: 0,
-      maxAttempts: 3,
-      createdAt: new Date(),
-    });
+    );
 
     this.logger.log(
       `Email verification OTP sent to ${email} for organization ${orgId}`,

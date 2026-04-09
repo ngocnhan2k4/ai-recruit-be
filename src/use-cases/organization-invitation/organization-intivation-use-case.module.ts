@@ -4,6 +4,7 @@ import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/
 import { NotificationModule } from "@/frameworks/notification/notification.module";
 import { EmailModule } from "@/frameworks/email-services/email.module";
 import { CasbinModule } from "@/frameworks/auth-services/casbin/casbin.module";
+import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { CasbinModule } from "@/frameworks/auth-services/casbin/casbin.module";
     NotificationModule,
     EmailModule,
     CasbinModule,
+    MessageQueueModule,
   ],
   providers: [OrganizationInvitationUseCase],
   exports: [OrganizationInvitationUseCase],

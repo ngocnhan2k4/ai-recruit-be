@@ -46,6 +46,7 @@ export enum UserStatusEnum {
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
+  JOB_UPDATED = "job_updated",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
   ADMIN_JOB_APPROVED = "admin_job_approved",
@@ -158,7 +159,6 @@ export enum EmailJobType {
   ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
-  CUSTOM = "custom",
 }
 
 export enum OtpPurpose {

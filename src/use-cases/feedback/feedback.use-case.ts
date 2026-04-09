@@ -3,10 +3,11 @@ import {
   EmailJobType,
   FeedbackStatusEnum,
   IFeedbackRepository,
-  IEmailQueueStorageService,
   IUserRepository,
   NewFeedback,
   NotificationType,
+  IMessageQueueService,
+  FeedbackAssignedEmailData,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
@@ -22,7 +23,6 @@ import {
   GetFeedbacksResponseDto,
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
-import { randomUUID } from "crypto";
 import { PaginatedResult } from "@/common/types";
 
 @Injectable()
@@ -33,7 +33,7 @@ export class FeedbackUseCase {
     private readonly feedbackRepository: IFeedbackRepository,
     private readonly userRepository: IUserRepository,
     private readonly notificationService: INotificationService,
-    private readonly emailQueueStorage: IEmailQueueStorageService,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async createFeedback(
@@ -166,18 +166,21 @@ export class FeedbackUseCase {
     });
 
     if (assignee?.email && assignedByUserId !== data.assignedToUserId) {
-      this.emailQueueStorage.addToQueue({
-        id: randomUUID(),
-        type: EmailJobType.FEEDBACK_ASSIGNED,
-        data: {
+      this.messageQueueService.addEmail(
+        EmailJobType.FEEDBACK_ASSIGNED,
+        {
           to: assignee.email,
           recipientName: assignee.name ?? "bạn",
           feedbackSubject: feedbackSubjectForEmail,
+        } as FeedbackAssignedEmailData,
+        {
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 5000,
+          },
         },
-        attempts: 0,
-        maxAttempts: 3,
-        createdAt: new Date(),
-      });
+      );
     }
     return {
       code: RESPONSE_CODE.SUCCESS,

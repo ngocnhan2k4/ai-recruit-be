@@ -6,6 +6,7 @@ import { ProvinceDto } from "@/interfaces/dtos/provinces/res/province.dto";
 import { IsBoolean } from "class-validator";
 import { OrganizationWithDetailsDto } from "@/interfaces/dtos/organization/res/organization.dto";
 import { JobDto as JobBaseDto } from "./job-base.dto";
+import { CategoryDto } from "../../category";
 
 export class JobStatusCountDto {
   @ApiProperty({})
@@ -56,18 +57,20 @@ export class JobResponseDto {
   @ApiProperty({
     example: "applied",
     required: false,
+    nullable: true,
     description:
       "Application status if user has applied for this job (only present for authenticated users)",
   })
-  applyStatus?: string;
+  applyStatus?: string | null;
 
   @ApiProperty({
     example: "uuid-apply-id",
     required: false,
+    nullable: true,
     description:
       "Application ID if user has applied for this job (only present for authenticated users)",
   })
-  applyId?: string;
+  applyId?: string | null;
 
   @ApiProperty({
     example: "https://company.com/apply/job-123",
@@ -76,6 +79,14 @@ export class JobResponseDto {
     description: "External application URL",
   })
   applyUrl?: string | null;
+
+  @ApiProperty({
+    type: CategoryDto,
+    required: false,
+    nullable: true,
+    description: "Job category information",
+  })
+  category?: CategoryDto | null;
 }
 
 export class SavedJobsResponseDto {
