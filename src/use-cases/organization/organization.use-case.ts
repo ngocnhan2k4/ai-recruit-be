@@ -21,6 +21,8 @@ import {
   OrganizationWithDetails,
   User,
   JobStatusEnum,
+  OrganizationChangeEmailData,
+  OrganizationVerificationEmailData,
 } from "@/core";
 import {
   ApiResponse,
@@ -471,7 +473,7 @@ export class OrganizationUseCase {
           to: newEmail,
           organizationName: org.name,
           otpCode: otp,
-        },
+        } as OrganizationChangeEmailData,
         {
           attempts: 3,
           backoff: {
@@ -623,7 +625,7 @@ export class OrganizationUseCase {
         to: email,
         organizationName: org.name,
         otpCode: otpCode,
-      },
+      } as OrganizationVerificationEmailData,
       {
         attempts: 3,
         backoff: {

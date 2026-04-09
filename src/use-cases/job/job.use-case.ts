@@ -7,7 +7,7 @@ import {
 import {
   IJobRepository,
   IOrganizationRepository,
-  ISearchService,
+  IJobSearchService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -67,7 +67,6 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 
 @Injectable()
 export class JobUseCases {
@@ -77,8 +76,7 @@ export class JobUseCases {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
-    private readonly searchService: ISearchService,
-    private readonly jobMatchingQuery: JobMatchingQuery,
+    private readonly jobSearchService: IJobSearchService,
   ) {}
 
   async getJobs(
@@ -107,26 +105,18 @@ export class JobUseCases {
       ];
     }
 
-    const esQuery = this.jobMatchingQuery.buildSearchQuery(filters);
-
-    // Execute query
-    const response = await this.searchService.search(
-      esQuery.index as string,
-      esQuery.body,
-    );
-
-    // Check if we got more results than requested (to determine hasMore)
-    const hits = response.hits.hits;
-    const hasMore = hits.length > filters.limit;
-    const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
+    const {
+      data: docs,
+      pagination: { nextCursor, hasNextPage: hasMore },
+    } = await this.jobSearchService.searchJobs(filters);
 
     const jobIds: string[] = [];
     const orgIds: string[] = [];
 
-    for (const hit of actualHits) {
-      const source = hit._source;
-      jobIds.push(source.id);
-      const orgId = source.organizationId;
+    for (const doc of docs) {
+      if (!doc?.id) continue;
+      jobIds.push(doc.id);
+      const orgId = doc.organizationId;
       if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
     }
 
@@ -155,20 +145,12 @@ export class JobUseCases {
     const organizationMap = keyBy(organizations, "id");
     const jobMap = keyBy(jobInfos.data, "job.id");
 
-    // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
-    if (hasMore) {
-      const lastHit = actualHits[actualHits.length - 1];
-      const searchAfter = lastHit.sort;
-      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
-    }
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
         data: this.convertHitToDto(
-          actualHits,
+          docs,
           organizationMap,
           userJobStatusMap,
           jobMap,
@@ -195,9 +177,7 @@ export class JobUseCases {
     >,
     jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
-    return actualHits.map((hit: any) => {
-      const source = hit._source;
-
+    return actualHits.map((source: any) => {
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -864,14 +844,24 @@ export class JobUseCases {
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto,
+    senderUserId: string,
   ): Promise<ApiResponse<JobDto>> {
+    const organizationUpdateDto: UpdateJobDto = {
+      ...updateJobDto,
+      status: JobStatusEnum.PENDING_APPROVAL,
+    };
+
     const { transformedJob } = await this.processJobUpdate(
       jobId,
-      updateJobDto,
+      organizationUpdateDto,
       async (updateData) => {
         const updatedJob = await this.jobRepository.updateJob(
           jobId,
           updateData,
+          {
+            sendNotifications: true,
+            senderUserId,
+          },
         );
         return { updatedJob };
       },
@@ -989,9 +979,10 @@ export class JobUseCases {
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
-      applyStatus?: string;
-      applyId?: string;
+      applyStatus?: string | null;
+      applyId?: string | null;
       applyUrl?: string | null;
+      category?: Category;
     } | null = await this.jobRepository.getFullJobById(jobId, userId);
     if (!job) {
       this.logger.error(
@@ -1012,15 +1003,7 @@ export class JobUseCases {
         status: job.job.status as JobStatusEnum,
         workType: job.job.workType as WorkTypeEnum,
       },
-      organization: {
-        id: job.organization.id,
-        name: job.organization.name,
-        slug: job.organization.slug,
-        type: job.organization.type,
-        description: job.organization.description,
-        address: job.organization.address,
-        logoUrl: job.organization.logoUrl,
-      } as OrganizationWithDetailsDto,
+      organization: job.organization as OrganizationWithDetailsDto,
     };
 
     return {

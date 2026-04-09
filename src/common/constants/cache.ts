@@ -19,4 +19,8 @@ export const CACHE_KEYS = {
   skill: {
     getAll: () => `skill:getAll`,
   },
+  subscription: {
+    getFeatures: (subscriptionId: string) =>
+      `sub:${subscriptionId}:getFeatures`,
+  },
 };

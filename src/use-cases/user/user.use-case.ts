@@ -58,6 +58,7 @@ import {
 } from "@/interfaces/dtos";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
+import { ONE_DAY_MS } from "@/common/constants";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -1063,14 +1064,35 @@ export class UserUseCases implements OnModuleInit {
       },
     };
   }
-
+  // [TODO]: Check if any two days have expired -> send notification
+  // If expired -> downgrade free subscription
   async getMyFeatures(
     userId: string,
   ): Promise<ApiResponse<GetUserFeaturesResponse>> {
-    const features =
+    const now = new Date();
+    const current =
       await this.userFeatureUsageRepository.getUserFeatures(userId);
-    // [TODO]: Check if any two days have expired -> send notification
-    // If expired -> downgrade free subscription
+
+    const candidates = (current.features || [])
+      .filter((f) => {
+        const last = f.lastRefillAt ? new Date(f.lastRefillAt) : null;
+        if (!last) return true;
+        return now.getTime() - last.getTime() >= ONE_DAY_MS;
+      })
+      .map((f) => f.id);
+
+    if (candidates.length) {
+      await this.userFeatureUsageRepository.refillExpiredFeatureUsages(
+        userId,
+        candidates,
+        now,
+      );
+    }
+
+    const features = candidates.length
+      ? await this.userFeatureUsageRepository.getUserFeatures(userId)
+      : current;
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,

@@ -3,8 +3,8 @@ import {
   IMessageQueueService,
   IJobRepository,
   IUserRepository,
-  ISearchService,
   IOrganizationRepository,
+  IJobSearchService,
 } from "@/core";
 import {
   EmailJobType,
@@ -13,10 +13,10 @@ import {
   Skill,
   Category,
   OrganizationWithDetails,
+  JobRecommendationsEmailData,
 } from "@/core/entities";
 import { JobFilters, JobResponse } from "@/core/entities/job.entity";
 import { subDays } from "date-fns/subDays";
-import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import {
@@ -34,8 +34,7 @@ export class JobMatchingUseCases {
     private readonly jobRepository: IJobRepository,
     private readonly messageQueueService: IMessageQueueService,
     private readonly userRepository: IUserRepository,
-    private readonly searchService: ISearchService,
-    private readonly jobMatchingQuery: JobMatchingQuery,
+    private readonly jobSearchService: IJobSearchService,
     private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
@@ -76,7 +75,7 @@ export class JobMatchingUseCases {
               to: user.email,
               userName: user.name,
               jobs: recommendedJobs.slice(0, 10),
-            },
+            } as JobRecommendationsEmailData,
             {
               attempts: 3,
               backoff: {
@@ -118,27 +117,19 @@ export class JobMatchingUseCases {
       });
     }
 
-    const esQuery = this.jobMatchingQuery.buildMatchQuery(userProfile, filters);
-
-    // Execute query
-    const response = await this.searchService.search(
-      esQuery.index as string,
-      esQuery.body,
-    );
-
-    // Check if we got more results than requested (to determine hasMore)
-    const hits = response.hits.hits;
-    const hasMore = hits.length > filters.limit;
-    const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
+    const {
+      data: docs,
+      pagination: { nextCursor, hasNextPage: hasMore },
+    } = await this.jobSearchService.matchJobs(userProfile, filters);
 
     // Extract job IDs for batch query
     const jobIds: string[] = [];
     const orgIds: string[] = [];
 
-    for (const hit of actualHits) {
-      const source = hit._source;
-      jobIds.push(source.id);
-      const orgId = source.organizationId;
+    for (const doc of docs) {
+      if (!doc?.id) continue;
+      jobIds.push(doc.id);
+      const orgId = doc.organizationId;
       if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
     }
 
@@ -171,19 +162,11 @@ export class JobMatchingUseCases {
 
     // Transform ES results to JobMatchResult (extends JobResponse)
     const jobs = this.convertHitToDto(
-      actualHits,
+      docs,
       organizationMap,
       userJobStatusMap,
       jobMap,
     );
-
-    // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
-    if (hasMore) {
-      const lastHit = actualHits[actualHits.length - 1];
-      const searchAfter = lastHit.sort;
-      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
-    }
 
     this.logger.log(
       `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
@@ -216,9 +199,7 @@ export class JobMatchingUseCases {
     >,
     jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
-    return actualHits.map((hit: any) => {
-      const source = hit._source;
-
+    return actualHits.map((source: any) => {
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -292,7 +273,7 @@ export class JobMatchingUseCases {
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
         applyUrl: jobMap[job.id]?.applyUrl,
-        score: Number((hit._score * 100).toFixed(2)),
+        score: typeof source.score === "number" ? source.score : 0,
       } as JobMatchResultDto;
     });
   }

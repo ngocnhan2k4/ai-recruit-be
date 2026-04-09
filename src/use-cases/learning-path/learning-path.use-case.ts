@@ -10,7 +10,6 @@ import {
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
   IWeeklyProgressRepository,
-  IUserFeatureUsageRepository,
   ITaskRepository,
   INotificationRepository,
   IWebSocketGateway,
@@ -34,6 +33,7 @@ import {
   TaskStatusEnum,
 } from "@/core";
 import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -45,11 +45,11 @@ export class LearningPathUseCase {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly weeklyProgressRepository: IWeeklyProgressRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly featureService: FeatureService,
   ) {}
 
   async createRoadmap(
@@ -60,9 +60,9 @@ export class LearningPathUseCase {
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
 
-    const result = await this.userFeatureUsageRepository.executeWithTransaction(
+    const result = await this.taskRepository.executeWithTransaction(
       async (tx) => {
-        await this.userFeatureUsageRepository.consumeFeature(
+        await this.featureService.consumeFeature(
           userId,
           FeatureCodeEnum.LEARNING_PATH,
         );
