@@ -35,6 +35,13 @@ import {
   skillsSynonyms,
   tasks,
 } from "@/frameworks/data-services/postgres/models";
+import {
+  blogComments,
+  blogLikes,
+  blogPostTags,
+  blogPosts,
+  blogTags,
+} from "@/frameworks/data-services/postgres/models/blog.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./enum.entity";
@@ -214,3 +221,18 @@ export type SubscriptionFeature = InferSelectModel<typeof subscriptionFeatures>;
 
 export type NewUserFeatureUsage = InferInsertModel<typeof userFeatureUsages>;
 export type UserFeatureUsage = InferSelectModel<typeof userFeatureUsages>;
+
+export type NewBlogPost = InferInsertModel<typeof blogPosts>;
+export type BlogPost = InferSelectModel<typeof blogPosts>;
+
+export type NewBlogComment = InferInsertModel<typeof blogComments>;
+export type BlogComment = InferSelectModel<typeof blogComments>;
+
+export type NewBlogLike = InferInsertModel<typeof blogLikes>;
+export type BlogLike = InferSelectModel<typeof blogLikes>;
+
+export type NewBlogTag = InferInsertModel<typeof blogTags>;
+export type BlogTag = InferSelectModel<typeof blogTags>;
+
+export type NewBlogPostTag = InferInsertModel<typeof blogPostTags>;
+export type BlogPostTag = InferSelectModel<typeof blogPostTags>;

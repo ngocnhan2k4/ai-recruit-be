@@ -34,6 +34,7 @@ import {
   IUserFeatureUsageRepository,
   ITaskRepository,
 } from "@/core";
+import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 
 import { AuthRepository } from "./repositories/auth.repository";
 import { CategoryRepository } from "./repositories/category.repository";
@@ -81,6 +82,7 @@ import { SubscriptionFeatureRepository } from "./repositories/subscription-featu
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 import { TaskRepository } from "./repositories/task.repository";
+import { BlogRepository } from "@/frameworks/data-services/postgres/repositories/blog.repository";
 
 @Global()
 @Module({
@@ -280,6 +282,10 @@ import { TaskRepository } from "./repositories/task.repository";
       useClass: TaskRepository,
     },
     {
+      provide: IBlogRepository,
+      useClass: BlogRepository,
+    },
+    {
       provide: IUserSubscriptionRepository,
       useClass: UserSubscriptionRepository,
     },
@@ -332,6 +338,7 @@ import { TaskRepository } from "./repositories/task.repository";
     ISubscriptionFeatureRepository,
     IUserFeatureUsageRepository,
     ITaskRepository,
+    IBlogRepository,
   ],
 })
 export class PostgresDataServicesModule {}

@@ -24,6 +24,7 @@ import {
   AdminJobSyncController,
   JobMatchingController,
 } from "./interfaces/controllers";
+import { BlogController } from "./interfaces/controllers/blog/blog.controller";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
 import { AdminExamController } from "./interfaces/controllers/exam/admin-exam.controller";
@@ -84,6 +85,9 @@ import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscriptio
 import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.module";
 import { SkillSynonymUseCasesModule } from "@/use-cases/skill-synonym/skill-synonym.use-cases.module";
 import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/skill-synonym.controller";
+import { DeploymentUseCasesModule } from "@/use-cases/deployment/deployment-use-cases.module";
+import { AdminDeploymentController } from "@/interfaces/controllers/deployment/admin-deployment.controller";
+import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 
 @Module({
   imports: [
@@ -149,6 +153,8 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     SubscriptionUseCasesModule,
     FeatureUseCasesModule,
     SkillSynonymUseCasesModule,
+    DeploymentUseCasesModule,
+    BlogUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -183,6 +189,8 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     AdminSubscriptionController,
     AdminFeatureController,
     SkillSynonymController,
+    AdminDeploymentController,
+    BlogController,
   ],
   providers: [
     JwtStrategy,
