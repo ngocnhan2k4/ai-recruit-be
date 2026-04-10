@@ -1,4 +1,5 @@
 import { categories } from "@/frameworks/data-services/postgres/models/category.model";
+import { blogCategories } from "@/frameworks/data-services/postgres/models/blog.model";
 import { provinces } from "@/frameworks/data-services/postgres/models/province.model";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -60,6 +61,25 @@ const categoriesData = [
   "Solution Architect",
   "Cloud Architect",
   "Bridge System Engineer (BrSE)",
+];
+
+const blogCategoriesData = [
+  {
+    name: "CV",
+    description: "Tips and guidance for creating effective CVs",
+  },
+  {
+    name: "Interview",
+    description: "Interview preparation and best practices",
+  },
+  {
+    name: "Career Advice",
+    description: "Career growth strategies and professional advice",
+  },
+  {
+    name: "AI",
+    description: "AI trends, tools, and applications for careers",
+  },
 ];
 
 const provincesData = [
@@ -228,6 +248,11 @@ async function main() {
     .insert(categories)
     .values(categoriesData.map((name) => ({ name })))
     .onConflictDoNothing({ target: categories.name });
+
+  await db
+    .insert(blogCategories)
+    .values(blogCategoriesData)
+    .onConflictDoNothing({ target: blogCategories.name });
 
   const dataToInsert = universitiesData.map((uniName) => ({
     name: uniName,

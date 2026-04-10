@@ -14,6 +14,12 @@ export interface BlogPostListItem {
   category: string;
   createdAt: Date;
   likes: number;
+  status: string;
+  tags: Array<{
+    name: string;
+    skillId: string | null;
+    tagId: string | null;
+  }>;
 }
 
 export interface BlogPostAuthor {
@@ -43,10 +49,29 @@ export interface BlogPostDetail {
   author: BlogPostAuthor;
   comments: BlogCommentItem[];
   likes: number;
+  isSaved: boolean;
+  isLiked: boolean;
+  status: string;
+  tags: Array<{
+    name: string;
+    skillId: string | null;
+    tagId: string | null;
+  }>;
 }
 
 export interface BlogLikeResult {
   liked: boolean;
+}
+
+export interface BlogCategoryItem {
+  id: string;
+  name: string;
+}
+
+export interface BlogTagCursorItem {
+  name: string;
+  skillId: string | null;
+  tagId: string | null;
 }
 
 export interface BlogPostTagInput {

@@ -12,19 +12,26 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { GetUser } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
-import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  JwtAuthGuard,
+  OptionalJwtAuthGuard,
+} from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
+  QueryBlogTagsDto,
   CreateBlogCommentDto,
   CreateBlogPostDto,
   QueryBlogsDto,
   UpdateBlogPostDto,
-} from "@/interfaces/dtos/blog/req/blog-post.req.dto";
+  SaveDraftBlogPostDto,
+} from "@/interfaces/dtos/blog/req/blog-post.dto";
 import {
+  BlogCategoryDto,
   BlogCommentDto,
   BlogLikeResponseDto,
   BlogPostDetailDto,
   BlogPostListResponseDto,
+  BlogTagCursorResponseDto,
 } from "@/interfaces/dtos/blog/res/blog-response.dto";
 import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
 
@@ -50,13 +57,42 @@ export class BlogController {
     return this.blogUseCases.getTopBlogs();
   }
 
+  @ApiOperation({ summary: "Get blog categories" })
+  @ApiResponseDto(BlogCategoryDto, { isArray: true })
+  @Get("categories")
+  async getCategories(): Promise<ApiResponse<BlogCategoryDto[]>> {
+    return this.blogUseCases.getCategories();
+  }
+
+  @ApiOperation({ summary: "Get tags for blog (skills + tags)" })
+  @ApiResponseDto(BlogTagCursorResponseDto)
+  @Get("tags")
+  async getTags(
+    @Query() query: QueryBlogTagsDto,
+  ): Promise<ApiResponse<BlogTagCursorResponseDto>> {
+    return this.blogUseCases.getTags(query);
+  }
+
+  @ApiOperation({ summary: "Get my blog posts" })
+  @ApiResponseDto(BlogPostListResponseDto)
+  @UseGuards(JwtAuthGuard)
+  @Get("my")
+  async getMyBlogs(
+    @GetUser() user: TokenPayload,
+    @Query() query: QueryBlogsDto,
+  ): Promise<ApiResponse<BlogPostListResponseDto>> {
+    return this.blogUseCases.getMyBlogs(user, query);
+  }
+
   @ApiOperation({ summary: "Get blog post by slug" })
   @ApiResponseDto(BlogPostDetailDto)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(":slug")
   async getBlogBySlug(
     @Param("slug") slug: string,
+    @GetUser() user?: TokenPayload,
   ): Promise<ApiResponse<BlogPostDetailDto>> {
-    return this.blogUseCases.getBlogBySlug(slug);
+    return this.blogUseCases.getBlogBySlug(slug, user?.userId);
   }
 
   @ApiOperation({ summary: "Create blog post" })
@@ -80,6 +116,17 @@ export class BlogController {
     @Body() dto: UpdateBlogPostDto,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
     return this.blogUseCases.updatePost(user, id, dto);
+  }
+
+  @ApiOperation({ summary: "Save blog post as draft" })
+  @UseGuards(JwtAuthGuard)
+  @Post("draft")
+  async saveDraft(
+    @GetUser() user: TokenPayload,
+    @Body() dto: SaveDraftBlogPostDto,
+    @Query("postId") postId?: string,
+  ): Promise<ApiResponse<{ id: string; slug: string }>> {
+    return this.blogUseCases.saveDraft(user, dto, postId);
   }
 
   @ApiOperation({ summary: "Delete blog post" })

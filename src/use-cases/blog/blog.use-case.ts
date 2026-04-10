@@ -10,9 +10,10 @@ import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogCommentDto,
   CreateBlogPostDto,
+  QueryBlogTagsDto,
   QueryBlogsDto,
   UpdateBlogPostDto,
-} from "@/interfaces/dtos/blog/req/blog-post.req.dto";
+} from "@/interfaces/dtos/blog/req/blog-post.dto";
 
 @Injectable()
 export class BlogUseCases {
@@ -57,6 +58,36 @@ export class BlogUseCases {
     };
   }
 
+  async getMyBlogs(
+    user: TokenPayload,
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<any>> {
+    const limit = Math.min(query.limit ?? 10, 50);
+    const page = Math.max(query.page ?? 1, 1);
+    const result = await this.blogRepository.getMyBlogs(user.userId, {
+      ...query,
+      limit,
+      page,
+      keyword: query.keyword,
+      category: query.category,
+    });
+
+    const total = result.pagination.total ?? 0;
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        items: result.data,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      },
+    };
+  }
+
   async getTopBlogs(): Promise<ApiResponse<any>> {
     await Promise.resolve();
     const result = [];
@@ -68,8 +99,42 @@ export class BlogUseCases {
     };
   }
 
-  async getBlogBySlug(slug: string): Promise<ApiResponse<any>> {
-    const post = await this.blogRepository.getPostDetailBySlug(slug);
+  async getCategories(): Promise<ApiResponse<any>> {
+    const categories = await this.blogRepository.getCategories();
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: categories,
+    };
+  }
+
+  async getTags(query: QueryBlogTagsDto): Promise<ApiResponse<any>> {
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+    const result = await this.blogRepository.getMergedTags({
+      limit,
+      cursor: query.cursor,
+      keyword: query.keyword,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        items: result.data,
+        pagination: {
+          nextCursor: result.pagination.nextCursor ?? null,
+          hasNextPage: !!result.pagination.hasNextPage,
+        },
+      },
+    };
+  }
+
+  async getBlogBySlug(
+    slug: string,
+    userId?: string,
+  ): Promise<ApiResponse<any>> {
+    const post = await this.blogRepository.getPostDetailBySlug(slug, userId);
 
     if (!post) {
       throw new NotFoundException({
@@ -110,6 +175,7 @@ export class BlogUseCases {
       content: dto.content,
       categoryId: dto.category,
       authorId: user.userId,
+      status: "PENDING",
       tags: dto.tags,
     });
 
@@ -117,6 +183,31 @@ export class BlogUseCases {
       code: RESPONSE_CODE.CREATED,
       message: RESPONSE_MESSAGE.CREATED,
       data: { slug: result.slug },
+    };
+  }
+
+  async saveDraft(
+    user: TokenPayload,
+    dto: any,
+    postId?: string,
+  ): Promise<ApiResponse<{ id: string; slug: string }>> {
+    const result = await this.blogRepository.saveDraft(
+      {
+        title: dto.title,
+        summary: dto.summary,
+        content: dto.content,
+        category: dto.category,
+        thumbnail: dto.thumbnail ?? null,
+        tags: dto.tags,
+      },
+      user.userId,
+      postId,
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "Draft saved successfully",
+      data: { id: result.id, slug: result.slug },
     };
   }
 
@@ -173,9 +264,9 @@ export class BlogUseCases {
 
   async deletePost(
     user: TokenPayload,
-    slug: string,
+    postId: string,
   ): Promise<ApiResponse<void>> {
-    const existing = await this.blogRepository.getPostBySlug(slug);
+    const existing = await this.blogRepository.get(postId);
 
     if (!existing) {
       throw new NotFoundException({
@@ -191,7 +282,10 @@ export class BlogUseCases {
       });
     }
 
-    await this.blogRepository.deletePostBySlug(slug, user.userId);
+    await this.blogRepository.delete({
+      id: postId,
+      authorId: user.userId,
+    });
 
     return {
       code: RESPONSE_CODE.SUCCESS,

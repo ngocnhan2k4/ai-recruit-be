@@ -10,6 +10,7 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
+  MinLength,
 } from "class-validator";
 
 export class BlogPostTagInputDto {
@@ -71,6 +72,42 @@ export class CreateBlogPostDto {
   tags?: BlogPostTagInputDto[];
 }
 
+export class SaveDraftBlogPostDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(255)
+  title: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  summary?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  thumbnail?: string | null;
+
+  @ApiPropertyOptional({ type: [BlogPostTagInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BlogPostTagInputDto)
+  tags?: BlogPostTagInputDto[];
+}
+
 export class UpdateBlogPostDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -100,8 +137,9 @@ export class UpdateBlogPostDto {
 }
 
 export class CreateBlogCommentDto {
-  @ApiProperty()
-  @IsString()
+  @ApiPropertyOptional({ nullable: true, format: "uuid" })
+  @IsOptional()
+  @IsUUID("4")
   parentCommentId?: string;
 
   @ApiProperty()
@@ -109,3 +147,5 @@ export class CreateBlogCommentDto {
   @IsNotEmpty()
   content: string;
 }
+
+export class QueryBlogTagsDto extends GeneralQueryDto {}
