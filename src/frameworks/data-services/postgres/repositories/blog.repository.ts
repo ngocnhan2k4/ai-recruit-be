@@ -5,7 +5,6 @@ import {
   BlogPostDetail,
   BlogPostFilters,
   BlogPostListItem,
-  BlogPostTagInput,
 } from "@/core/entities/blog.entity";
 import {
   BlogComment,
@@ -208,14 +207,11 @@ export class BlogRepository
     return (post as BlogPost) ?? null;
   }
 
-  async createPost(
-    data: NewBlogPost,
-    tags?: BlogPostTagInput[],
-  ): Promise<BlogPost> {
+  async createPost(data: NewBlogPost): Promise<BlogPost> {
     return this.db.transaction(async (tx) => {
       const [created] = await tx.insert(blogPosts).values(data).returning();
 
-      const normalizedTags = (tags ?? []).filter(
+      const normalizedTags = (data.tags ?? []).filter(
         (item) => item.tagId || item.skillId,
       );
 

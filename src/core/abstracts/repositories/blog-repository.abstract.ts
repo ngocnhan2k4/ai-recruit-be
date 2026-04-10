@@ -5,7 +5,6 @@ import {
   BlogPostDetail,
   BlogPostFilters,
   BlogPostListItem,
-  BlogPostTagInput,
 } from "@/core/entities/blog.entity";
 import { BlogComment, BlogPost, NewBlogPost } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
@@ -19,10 +18,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
 
   abstract getPostBySlug(slug: string): Promise<BlogPost | null>;
 
-  abstract createPost(
-    data: NewBlogPost,
-    tags?: BlogPostTagInput[],
-  ): Promise<BlogPost>;
+  abstract createPost(data: NewBlogPost): Promise<BlogPost>;
 
   abstract updatePostBySlug(
     slug: string,
@@ -36,6 +32,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     postId: string;
     authorId: string;
     content: string;
+    parentCommentId?: string;
   }): Promise<BlogCommentItem>;
 
   abstract getCommentById(commentId: string): Promise<BlogComment | null>;

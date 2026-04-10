@@ -43,6 +43,13 @@ export class BlogController {
     return this.blogUseCases.getBlogs(query);
   }
 
+  @ApiOperation({ summary: "Get top blog" })
+  @ApiResponseDto(BlogPostListResponseDto)
+  @Get("top")
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListResponseDto>> {
+    return this.blogUseCases.getTopBlogs();
+  }
+
   @ApiOperation({ summary: "Get blog post by slug" })
   @ApiResponseDto(BlogPostDetailDto)
   @Get(":slug")
@@ -59,63 +66,63 @@ export class BlogController {
   async createPost(
     @GetUser() user: TokenPayload,
     @Body() dto: CreateBlogPostDto,
-  ): Promise<ApiResponse<BlogPostDetailDto>> {
+  ): Promise<ApiResponse<{ slug: string }>> {
     return this.blogUseCases.createPost(user, dto);
   }
 
   @ApiOperation({ summary: "Update blog post" })
   @ApiResponseDto(BlogPostDetailDto)
   @UseGuards(JwtAuthGuard)
-  @Put(":slug")
+  @Put(":id")
   async updatePost(
     @GetUser() user: TokenPayload,
-    @Param("slug") slug: string,
+    @Param("id") id: string,
     @Body() dto: UpdateBlogPostDto,
-  ): Promise<ApiResponse<BlogPostDetailDto>> {
-    return this.blogUseCases.updatePost(user, slug, dto);
+  ): Promise<ApiResponse<UpdateBlogPostDto>> {
+    return this.blogUseCases.updatePost(user, id, dto);
   }
 
   @ApiOperation({ summary: "Delete blog post" })
   @UseGuards(JwtAuthGuard)
-  @Delete(":slug")
+  @Delete(":id")
   async deletePost(
     @GetUser() user: TokenPayload,
-    @Param("slug") slug: string,
-  ): Promise<ApiResponse<null>> {
-    return this.blogUseCases.deletePost(user, slug);
+    @Param("id") id: string,
+  ): Promise<ApiResponse<void>> {
+    return this.blogUseCases.deletePost(user, id);
   }
 
   @ApiOperation({ summary: "Add comment to blog post" })
   @ApiResponseDto(BlogCommentDto)
   @UseGuards(JwtAuthGuard)
-  @Post(":slug/comments")
+  @Post(":id/comments")
   async createComment(
     @GetUser() user: TokenPayload,
-    @Param("slug") slug: string,
+    @Param("id") id: string,
     @Body() dto: CreateBlogCommentDto,
-  ): Promise<ApiResponse<BlogCommentDto>> {
-    return this.blogUseCases.createComment(user, slug, dto);
+  ): Promise<ApiResponse<CreateBlogCommentDto>> {
+    return this.blogUseCases.createComment(user, id, dto);
   }
 
   @ApiOperation({ summary: "Delete comment" })
   @UseGuards(JwtAuthGuard)
-  @Delete(":slug/comments/:commentId")
+  @Delete(":id/comments/:commentId")
   async deleteComment(
     @GetUser() user: TokenPayload,
-    @Param("slug") slug: string,
+    @Param("id") id: string,
     @Param("commentId") commentId: string,
-  ): Promise<ApiResponse<null>> {
-    return this.blogUseCases.deleteComment(user, slug, commentId);
+  ): Promise<ApiResponse<void>> {
+    return this.blogUseCases.deleteComment(user, id, commentId);
   }
 
   @ApiOperation({ summary: "Like/unlike blog post" })
   @ApiResponseDto(BlogLikeResponseDto)
   @UseGuards(JwtAuthGuard)
-  @Post(":slug/likes")
+  @Post(":id/likes")
   async toggleLike(
     @GetUser() user: TokenPayload,
-    @Param("slug") slug: string,
-  ): Promise<ApiResponse<BlogLikeResponseDto>> {
-    return this.blogUseCases.toggleLike(user, slug);
+    @Param("id") id: string,
+  ): Promise<ApiResponse<void>> {
+    return this.blogUseCases.toggleLike(user, id);
   }
 }

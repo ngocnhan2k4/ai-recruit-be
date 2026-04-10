@@ -44,6 +44,7 @@ import {
 } from "@/frameworks/data-services/postgres/models/blog.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
+import { BlogPostTagInput } from "./blog.entity";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
@@ -223,7 +224,9 @@ export type SubscriptionFeature = InferSelectModel<typeof subscriptionFeatures>;
 export type NewUserFeatureUsage = InferInsertModel<typeof userFeatureUsages>;
 export type UserFeatureUsage = InferSelectModel<typeof userFeatureUsages>;
 
-export type NewBlogPost = InferInsertModel<typeof blogPosts>;
+export type NewBlogPost = InferInsertModel<typeof blogPosts> & {
+  tags?: BlogPostTagInput[];
+};
 export type BlogPost = InferSelectModel<typeof blogPosts>;
 
 export type NewBlogComment = InferInsertModel<typeof blogComments>;

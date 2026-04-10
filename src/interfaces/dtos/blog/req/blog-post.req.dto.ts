@@ -102,6 +102,10 @@ export class UpdateBlogPostDto {
 export class CreateBlogCommentDto {
   @ApiProperty()
   @IsString()
+  parentCommentId?: string;
+
+  @ApiProperty()
+  @IsString()
   @IsNotEmpty()
   content: string;
 }

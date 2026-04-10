@@ -19,12 +19,15 @@ export class BlogUseCases {
   constructor(private readonly blogRepository: IBlogRepository) {}
 
   private generateSlug(value: string): string {
-    return value
+    const baseSlug = value
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-");
+
+    const uniqueTail = Math.random().toString(36).substring(2, 8);
+    return `${baseSlug}-${uniqueTail}`;
   }
 
   async getBlogs(query: QueryBlogsDto): Promise<ApiResponse<any>> {
@@ -38,7 +41,7 @@ export class BlogUseCases {
       category: query.category,
     });
 
-    const total = Number(result.pagination.total ?? 0);
+    const total = result.pagination.total ?? 0;
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -51,6 +54,17 @@ export class BlogUseCases {
           totalPages: Math.ceil(total / limit) || 1,
         },
       },
+    };
+  }
+
+  async getTopBlogs(): Promise<ApiResponse<any>> {
+    await Promise.resolve();
+    const result = [];
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
     };
   }
 
@@ -79,38 +93,39 @@ export class BlogUseCases {
   async createPost(
     user: TokenPayload,
     dto: CreateBlogPostDto,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<
+    ApiResponse<{
+      slug: string;
+    }>
+  > {
     const baseSlug = this.generateSlug(dto.title);
     const existed = await this.blogRepository.getPostBySlug(baseSlug);
     const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
 
-    await this.blogRepository.createPost(
-      {
-        title: dto.title,
-        slug,
-        summary: dto.summary,
-        thumbnail: dto.thumbnail ?? null,
-        content: dto.content,
-        categoryId: dto.category,
-        authorId: user.userId,
-      },
-      dto.tags,
-    );
+    const result = await this.blogRepository.createPost({
+      title: dto.title,
+      slug,
+      summary: dto.summary,
+      thumbnail: dto.thumbnail ?? null,
+      content: dto.content,
+      categoryId: dto.category,
+      authorId: user.userId,
+      tags: dto.tags,
+    });
 
-    const detail = await this.blogRepository.getPostDetailBySlug(slug);
     return {
       code: RESPONSE_CODE.CREATED,
       message: RESPONSE_MESSAGE.CREATED,
-      data: detail,
+      data: { slug: result.slug },
     };
   }
 
   async updatePost(
     user: TokenPayload,
-    slug: string,
+    postId: string,
     dto: UpdateBlogPostDto,
-  ): Promise<ApiResponse<any>> {
-    const existing = await this.blogRepository.getPostBySlug(slug);
+  ): Promise<ApiResponse<UpdateBlogPostDto>> {
+    const existing = await this.blogRepository.get(postId);
 
     if (!existing) {
       throw new NotFoundException({
@@ -127,9 +142,10 @@ export class BlogUseCases {
     }
 
     const nextSlug = dto.title ? this.generateSlug(dto.title) : undefined;
-    const updated = await this.blogRepository.updatePostBySlug(
-      slug,
-      user.userId,
+    const updated = await this.blogRepository.update(
+      {
+        id: postId,
+      },
       {
         title: dto.title,
         slug: nextSlug,
@@ -148,18 +164,17 @@ export class BlogUseCases {
       });
     }
 
-    const detail = await this.blogRepository.getPostDetailBySlug(updated.slug);
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: detail,
+      data: updated[0],
     };
   }
 
   async deletePost(
     user: TokenPayload,
     slug: string,
-  ): Promise<ApiResponse<null>> {
+  ): Promise<ApiResponse<void>> {
     const existing = await this.blogRepository.getPostBySlug(slug);
 
     if (!existing) {
@@ -181,28 +196,19 @@ export class BlogUseCases {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: null,
     };
   }
 
   async createComment(
     user: TokenPayload,
-    slug: string,
+    postId: string,
     dto: CreateBlogCommentDto,
-  ): Promise<ApiResponse<any>> {
-    const post = await this.blogRepository.getPostBySlug(slug);
-
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
+  ): Promise<ApiResponse<CreateBlogCommentDto>> {
     const comment = await this.blogRepository.createComment({
-      postId: post.id,
+      postId: postId,
       authorId: user.userId,
       content: dto.content,
+      parentCommentId: dto.parentCommentId,
     });
 
     return {
@@ -214,21 +220,12 @@ export class BlogUseCases {
 
   async deleteComment(
     user: TokenPayload,
-    slug: string,
+    postId: string,
     commentId: string,
-  ): Promise<ApiResponse<null>> {
-    const post = await this.blogRepository.getPostBySlug(slug);
-
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
+  ): Promise<ApiResponse<void>> {
     const comment = await this.blogRepository.getCommentById(commentId);
 
-    if (!comment || comment.postId !== post.id) {
+    if (!comment || comment.postId !== postId) {
       throw new NotFoundException({
         code: RESPONSE_CODE.JOB_NOT_FOUND,
         message: "Comment not found",
@@ -247,15 +244,14 @@ export class BlogUseCases {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: null,
     };
   }
 
   async toggleLike(
     user: TokenPayload,
-    slug: string,
-  ): Promise<ApiResponse<any>> {
-    const post = await this.blogRepository.getPostBySlug(slug);
+    postId: string,
+  ): Promise<ApiResponse<void>> {
+    const post = await this.blogRepository.get(postId);
 
     if (!post) {
       throw new NotFoundException({
@@ -264,11 +260,10 @@ export class BlogUseCases {
       });
     }
 
-    const result = await this.blogRepository.toggleLike(post.id, user.userId);
+    await this.blogRepository.toggleLike(post.id, user.userId);
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
     };
   }
 }
