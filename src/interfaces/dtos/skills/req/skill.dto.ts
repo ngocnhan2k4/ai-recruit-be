@@ -1,8 +1,10 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -81,4 +83,35 @@ export class BulkReviewSkillDto {
   @ApiProperty({ enum: SkillReviewStatus })
   @IsEnum(SkillReviewStatus)
   status: SkillReviewStatus;
+}
+
+export class DeleteSkillsDto {
+  @ApiProperty({
+    description:
+      "Skill ID or list of Skill IDs. A single string will be converted to an array.",
+    oneOf: [
+      { type: "string", format: "uuid" },
+      { type: "array", items: { type: "string", format: "uuid" } },
+    ],
+    example: ["9f1a9d45-3a5c-4f4a-bf57-182f98244fcd"],
+  })
+  @ArrayNotEmpty()
+  @Transform(({ value }) => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  })
+  @IsArray()
+  @IsUUID("4", { each: true })
+  skillIds: string[];
+}
+
+export class UpdateSkillNameDto {
+  @ApiProperty({
+    type: String,
+    description: "New skill name",
+    example: "Node.js",
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 }

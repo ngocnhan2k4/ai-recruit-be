@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { NormalizeString } from "@/common/utils";
 import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
 import {
   ApiResponse,
   BulkReviewSkillDto,
+  DeleteSkillsDto,
   CrawledSkillDto,
   GetCrawledSkillsQueryDto,
   GetSkillsQueryDto,
@@ -11,6 +13,7 @@ import {
   SkillDto,
   TopDemandedSkillItemDto,
   CreateSkillDto,
+  UpdateSkillNameDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
 
@@ -97,10 +100,56 @@ export class SkillUseCases {
     };
   }
 
-  async deleteSkill(id: string): Promise<ApiResponse<void>> {
-    await this.skillRepository.deleteSkillAndReferences(id);
+  async deleteSkill(dto: DeleteSkillsDto): Promise<ApiResponse<void>> {
+    const skillIds = Array.isArray(dto.skillIds)
+      ? dto.skillIds
+      : [dto.skillIds];
+
+    await this.skillRepository.deleteSkillAndReferences(skillIds);
+
     return {
-      message: "Skill deleted successfully",
+      message: "Skills deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateSkillName(
+    id: string,
+    dto: UpdateSkillNameDto,
+  ): Promise<ApiResponse<void>> {
+    const skill = await this.skillRepository.get(id);
+    if (!skill) {
+      throw new NotFoundException(`Skill with ID ${id} not found`);
+    }
+
+    const nextName = dto.name.trim();
+    const normalizedOldName = NormalizeString(skill.name);
+    const normalizedNextName = NormalizeString(nextName);
+
+    await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
+      await this.skillRepository.update(
+        { id },
+        {
+          name: nextName,
+        },
+        tx,
+      );
+
+      if (normalizedOldName !== normalizedNextName) {
+        await this.skillsSynonymsRepository.update(
+          {
+            masterName: normalizedOldName,
+          },
+          {
+            masterName: normalizedNextName,
+          },
+          tx,
+        );
+      }
+    });
+
+    return {
+      message: "Skill name updated successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

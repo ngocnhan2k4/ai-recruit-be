@@ -28,7 +28,12 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
     status: SkillReviewStatus,
   ): Promise<void>;
 
-  abstract deleteSkillAndReferences(skillId: string): Promise<void>;
+  abstract deleteSkillAndReferences(skillIds: string[]): Promise<void>;
+
+  abstract mergeSkillsAndReferences(
+    targetSkillId: string,
+    sourceSkillIds: string[],
+  ): Promise<void>;
 
   abstract getTopDemandedSkills(
     months: number,
