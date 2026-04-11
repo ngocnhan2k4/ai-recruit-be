@@ -191,7 +191,7 @@ export class JobRepository
       const keyword = `%${filters.keyword}%`;
 
       whereConditions.push(
-        or(ilike(jobs.id, keyword), ilike(jobs.title, keyword))!,
+        or(ilike(sql`${jobs.id}::text`, keyword), ilike(jobs.title, keyword))!,
       );
     }
     if (filters?.salaryMin !== undefined) {
@@ -487,7 +487,9 @@ export class JobRepository
           status: jobs.status,
           createdAt: jobs.createdAt,
           organizationId: jobs.organizationId,
-          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+          applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+            "applyUrl",
+          ),
         },
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: {
@@ -1601,6 +1603,7 @@ export class JobRepository
       organizationId: job.organizationId!,
       categoryId: job.categoryId!,
       description: job.description,
+      applyUrl: job.applyUrl,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
       experienceMin: job.experienceMin,
@@ -1972,7 +1975,9 @@ export class JobRepository
         )`.as("provinceNames"),
         applyJobId: applyJobs.id,
         applyStatus: applyJobs.status,
-        applyUrl: jobRaws.url,
+        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+          "applyUrl",
+        ),
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
@@ -2005,7 +2010,7 @@ export class JobRepository
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
         provinceNames: (item.provinceNames as string[]) || [],
-        applyUrl: item.applyUrl ?? null,
+        applyUrl: (item.applyUrl as string | null) ?? null,
         applyId: item.applyJobId ?? null,
         applyStatus: item.applyStatus ?? null,
       })),
@@ -2031,7 +2036,9 @@ export class JobRepository
           .select({
             job: {
               ...jobs,
-              applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+              applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+                "applyUrl",
+              ),
             },
             provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
             organization: organizations,
@@ -2508,26 +2515,25 @@ export class JobRepository
   }
 
   async getJobsV2(filters?: JobFilters): Promise<PaginatedResult<JobResponse>> {
-    const fields = filters?.fields || [];
     const ids = filters?.ids || [];
 
-    let db: any = this.db
+    const db: any = this.db
       .select({
         job: {
           id: jobs.id,
+          questions: jobs.questions,
         },
-        applyUrl: jobRaws.url,
+        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+          "applyUrl",
+        ),
       })
-      .from(jobs);
+      .from(jobs)
+      .leftJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
 
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
     if (ids.length > 0) {
       whereConditions.push(inArray(jobs.id, ids));
-    }
-
-    if (fields.includes("jobRaw")) {
-      db = db.innerJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
     }
 
     const result = await db.where(

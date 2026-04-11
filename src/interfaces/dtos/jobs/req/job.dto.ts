@@ -247,6 +247,17 @@ export class CreateJobDto {
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsUUID()
   categoryId: string | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+    required: false,
+    description: "Application URL for external applications",
+    example: "https://company.com/apply/job-123",
+  })
+  @IsOptional()
+  @IsString()
+  applyUrl?: string | null;
 }
 
 export class UpdateJobDto {
@@ -267,6 +278,17 @@ export class UpdateJobDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  @ApiProperty({
+    type: "string",
+    format: "uuid",
+    nullable: true,
+    required: false,
+    description: "Category ID to associate with the job",
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string | null;
 
   @ApiProperty({ type: "string", nullable: true, required: false })
   @IsOptional()

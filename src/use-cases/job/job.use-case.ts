@@ -180,6 +180,8 @@ export class JobUseCases {
     jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
+      const applyUrl = jobMap[source.id]?.applyUrl ?? null;
+      const questions = jobMap[source.id]?.job?.questions ?? source.questions;
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -208,7 +210,7 @@ export class JobUseCases {
       };
 
       // Transform job - datePosted/endDate are date strings, not Date objects
-      const job: Job = {
+      const job: Omit<Job, "applyUrl"> = {
         id: source.id,
         title: source.title,
         description: source.description,
@@ -231,7 +233,7 @@ export class JobUseCases {
           ? new Date(source.updatedAt as string)
           : new Date(),
         deletedAt: null,
-        questions: source.questions,
+        questions,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -251,7 +253,7 @@ export class JobUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
-        applyUrl: jobMap[job.id]?.applyUrl,
+        applyUrl,
       } as JobResponseDto;
     });
   }
@@ -358,6 +360,42 @@ export class JobUseCases {
     return [...ranked]
       .sort((a, b) => (Number(b[key]) || 0) - (Number(a[key]) || 0))
       .slice(0, limit);
+  }
+
+  private normalizeQuestionText(value: string): string {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[đĐ]/g, "d")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private extractPhoneFromApplyAnswers(
+    answers?: ApplyJobDto["answers"],
+  ): string | null {
+    if (!answers || answers.length === 0) return null;
+
+    for (const item of answers) {
+      const normalizedQuestion = this.normalizeQuestionText(
+        item.question || "",
+      );
+      const isPhoneQuestion =
+        normalizedQuestion.includes("so dien thoai") ||
+        normalizedQuestion === "sdt" ||
+        normalizedQuestion.includes("phone");
+
+      if (!isPhoneQuestion) continue;
+
+      const rawPhone = (item.answer || "").trim();
+      if (!rawPhone) return null;
+
+      const normalizedPhone = rawPhone.replace(/[^\d+]/g, "");
+      return normalizedPhone.length >= 9 ? normalizedPhone : null;
+    }
+
+    return null;
   }
 
   async getCompareStatistics(
@@ -554,6 +592,30 @@ export class JobUseCases {
       application = repoResult;
     }
 
+    const phoneFromAnswers = this.extractPhoneFromApplyAnswers(
+      applyJobDto.answers,
+    );
+    if (phoneFromAnswers) {
+      const user = await this.userRepository.get(userId);
+      const hasPhone = Boolean(user?.phone && user.phone.trim().length > 0);
+
+      if (!hasPhone) {
+        try {
+          await this.userRepository.update(
+            { id: userId },
+            { phone: phoneFromAnswers },
+          );
+          this.logger.log(
+            `Updated missing phone for user ${userId} from apply answers`,
+          );
+        } catch (error: any) {
+          this.logger.warn(
+            `Could not update phone for user ${userId}: ${error?.message || "unknown error"}`,
+          );
+        }
+      }
+    }
+
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
 
     return {
@@ -693,6 +755,7 @@ export class JobUseCases {
   ): Promise<ApiResponse<JobDto>> {
     const jobData: Partial<Job> = {
       ...createJobDto,
+      applyUrl: createJobDto.applyUrl,
       questions: createJobDto.questions || undefined,
       datePosted: convertDateToStr(new Date()),
       endDate: createJobDto.endDate
@@ -804,6 +867,7 @@ export class JobUseCases {
     return {
       updateData: {
         ...updateJobDto,
+        applyUrl: updateJobDto.applyUrl,
         status: updateJobDto.status || undefined,
         questions: updateJobDto.questions || undefined,
         workType: updateJobDto.workType,
@@ -855,17 +919,149 @@ export class JobUseCases {
     updateJobDto: UpdateJobDto,
     senderUserId: string,
   ): Promise<ApiResponse<JobDto>> {
-    const organizationUpdateDto: UpdateJobDto = {
-      ...updateJobDto,
-      status: JobStatusEnum.PENDING_APPROVAL,
-    };
-
     const { updateData, currentJob } = await this.prepareJobUpdateData(
       jobId,
-      organizationUpdateDto,
+      updateJobDto,
     );
+
+    const currentFullJob = await this.jobRepository.getFullJobById(jobId);
+    const currentComparableValues: Record<string, unknown> = {
+      ...(currentJob as Record<string, unknown>),
+      provinceIds:
+        currentFullJob?.provinces?.map((province) => province.id) ?? [],
+      skillIds: currentFullJob?.skills?.map((skill) => skill.id) ?? [],
+      skillNames:
+        currentFullJob?.skills
+          ?.map((skill) => skill.name)
+          .filter((name): name is string => Boolean(name)) ?? [],
+    };
+
+    type NonReapprovalField = keyof UpdateJobDto;
+    const nonReapprovalFieldList: NonReapprovalField[] = [
+      "status",
+      "salaryMin",
+      "salaryMax",
+      "experienceMin",
+      "experienceMax",
+      "workType",
+      "categoryId",
+      "provinceIds",
+    ];
+    const unorderedArrayFieldList: NonReapprovalField[] = [
+      "provinceIds",
+      "skillIds",
+      "skillNames",
+    ];
+
+    const nonReapprovalFields = new Set<string>(nonReapprovalFieldList);
+
+    const unorderedArrayFields = new Set<string>(unorderedArrayFieldList);
+
+    const normalizeComparableValue = (
+      field: string,
+      value: unknown,
+    ): unknown => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      let normalized = value.replace(/\r\n/g, "\n").trim();
+
+      if (field === "description") {
+        // Ignore formatting-only differences in markdown/html line breaks.
+        normalized = normalized
+          .replace(/\n{3,}/g, "\n\n")
+          .replace(/(## [^\n]+)\n+(<p>)/g, "$1\n$2");
+      }
+
+      return normalized;
+    };
+
+    const normalizeArrayForCompare = (
+      field: string,
+      value: unknown,
+    ): unknown[] => {
+      const normalizedArray = (Array.isArray(value) ? value : [value])
+        .map((item) => normalizeComparableValue(field, item))
+        .filter((item) => typeof item !== "undefined" && item !== null);
+
+      if (unorderedArrayFields.has(field)) {
+        const getSortableValue = (item: unknown): string => {
+          if (typeof item === "string") {
+            return item;
+          }
+
+          if (
+            typeof item === "number" ||
+            typeof item === "boolean" ||
+            typeof item === "bigint"
+          ) {
+            return `${item}`;
+          }
+
+          return JSON.stringify(item);
+        };
+
+        const uniqueValues = new Map<string, unknown>();
+
+        for (const item of normalizedArray) {
+          const sortable = getSortableValue(item);
+          if (!uniqueValues.has(sortable)) {
+            uniqueValues.set(sortable, item);
+          }
+        }
+
+        return [...uniqueValues.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([, item]) => item);
+      }
+
+      return normalizedArray;
+    };
+
+    const changedFields = Object.entries(updateJobDto)
+      .filter(([key, value]) => {
+        if (
+          typeof value === "undefined" ||
+          value === null ||
+          nonReapprovalFields.has(key)
+        ) {
+          return false;
+        }
+
+        const currentValue = currentComparableValues[key];
+
+        if (Array.isArray(value) || Array.isArray(currentValue)) {
+          return (
+            JSON.stringify(normalizeArrayForCompare(key, value)) !==
+            JSON.stringify(normalizeArrayForCompare(key, currentValue))
+          );
+        }
+
+        const normalizedNewValue = normalizeComparableValue(key, value);
+        const normalizedCurrentValue = normalizeComparableValue(
+          key,
+          currentValue,
+        );
+        return normalizedNewValue !== normalizedCurrentValue;
+      })
+      .map(([key]) => key);
+
+    const shouldSetPendingApproval = changedFields.length > 0;
+
+    if (shouldSetPendingApproval) {
+      this.logger.log(
+        `Fields triggering pending approval for job ${jobId}: ${changedFields.join(", ")}`,
+      );
+    }
+
+    if (shouldSetPendingApproval) {
+      updateData.status = JobStatusEnum.PENDING_APPROVAL;
+    }
+
     const shouldNotifyAdmins =
-      (currentJob.status as JobStatusEnum) !== JobStatusEnum.PENDING_APPROVAL;
+      (currentJob.status as JobStatusEnum) !== JobStatusEnum.PENDING_APPROVAL &&
+      shouldSetPendingApproval;
 
     const recipients = shouldNotifyAdmins
       ? (
