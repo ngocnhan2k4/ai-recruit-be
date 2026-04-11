@@ -3,12 +3,19 @@ import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
-  FeatureCodeEnum,
   IAIService,
+  IMessageQueueService,
+  INotificationRepository,
+  ITaskRepository,
   IUserFeatureUsageRepository,
   IUserRepository,
+  IWebSocketGateway,
   NewAiCv,
   OptimizeAtsResponse,
+  FeatureCodeEnum,
+  NotificationType,
+  TaskTypeEnum,
+  TaskStatusEnum,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -29,6 +36,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { JitterBackoff, retry } from "@/common/utils";
 
 @Injectable()
 export class AiCvUseCases {
@@ -37,7 +45,11 @@ export class AiCvUseCases {
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
-    private readonly userFeatureUsageRepo: IUserFeatureUsageRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
+    private readonly taskRepository: ITaskRepository,
+    private readonly notificationRepository: INotificationRepository,
+    private readonly webSocketGateway: IWebSocketGateway,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -200,7 +212,7 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
-    await this.userFeatureUsageRepo.consumeFeature(
+    await this.userFeatureUsageRepository.consumeFeature(
       userId,
       FeatureCodeEnum.SUGGEST_CV_FIELD,
     );
@@ -229,7 +241,7 @@ export class AiCvUseCases {
     useUserCV: boolean,
   ): Promise<ApiResponse<OptimizeAtsResponse>> {
     // Call AI service to optimize CV
-    await this.userFeatureUsageRepo.consumeFeature(
+    await this.userFeatureUsageRepository.consumeFeature(
       userId,
       FeatureCodeEnum.OPTIMIZE_CV,
     );
@@ -281,5 +293,77 @@ export class AiCvUseCases {
         code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
       });
     }
+  }
+
+  async optimizeCvForAtsV2(
+    request: OptimizeAtsUploadDto,
+    userId: string,
+    _: boolean,
+  ): Promise<ApiResponse<{ taskId: string }>> {
+    const result = await this.userFeatureUsageRepository.executeWithTransaction(
+      async (tx) => {
+        await this.userFeatureUsageRepository.consumeFeature(
+          userId,
+          FeatureCodeEnum.OPTIMIZE_CV,
+        );
+
+        const task = await this.taskRepository.create(
+          {
+            name: `Optimize AI CV for user: ${userId}`,
+            type: TaskTypeEnum.CV_GENERATION,
+            status: TaskStatusEnum.PENDING,
+            userId,
+            input: {
+              request,
+            },
+          },
+          tx,
+        );
+
+        const [notification] =
+          await this.notificationRepository.createNotificationWithRecipients(
+            {
+              senderId: null,
+              title: "CV của bạn đang được tối ưu",
+              message:
+                "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              type: NotificationType.SYSTEM,
+              payload: {
+                taskId: task.id,
+              },
+            },
+            [{ receiverId: userId }],
+            tx,
+          );
+        return {
+          task,
+          notification,
+        };
+      },
+    );
+
+    this.webSocketGateway.sendToUser({ userId }, result.notification);
+
+    await retry(
+      async () => {
+        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
+          taskId: result.task.id,
+          notificationId: result.notification.id,
+        });
+        this.logger.log(
+          `CV generation task added to message queue: ${result.task.id}`,
+        );
+      },
+      {
+        retries: 3,
+        backoff: new JitterBackoff(1000, 10000),
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "CV generation started",
+      data: { taskId: result.task.id },
+    };
   }
 }

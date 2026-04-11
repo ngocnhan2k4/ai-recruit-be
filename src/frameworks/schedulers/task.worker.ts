@@ -15,6 +15,7 @@ import {
 import {
   AILearningRoadmapResult,
   NotificationType,
+  OptimizeAtsRequest,
   RoadmapSkillData,
   SkillOption,
   Task,
@@ -24,7 +25,7 @@ import {
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
 
-type LearningPathTaskData = {
+type TaskData = {
   taskId: string;
   notificationId: string;
 };
@@ -50,8 +51,13 @@ export class TaskWorker extends WorkerHost {
 
   async process(job: Job) {
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
-      return this.processLearningPath(job.data as LearningPathTaskData);
+      return this.processLearningPath(job.data as TaskData);
     }
+
+    if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+      return this.processOptimizeCv(job.data as TaskData);
+    }
+
     this.logger.warn(`[process] Unknown task job name: ${job.name}`);
   }
 
@@ -287,13 +293,17 @@ export class TaskWorker extends WorkerHost {
     });
   }
 
-  private async processLearningPath(data: LearningPathTaskData) {
+  private async withTaskLifecycle<TResult>(
+    data: TaskData,
+    taskType: TaskTypeEnum,
+    messages: { inProgress: string; completed: string; failed: string },
+    coreLogic: (task: Task, request: any) => Promise<TResult>,
+  ) {
     const { taskId, notificationId } = data;
-    let resultData: AILearningRoadmapResult | null = null;
     let task: Task | null = null;
 
     this.logger.log(
-      `[processLearningPath] Starting task ${taskId} with notification ${notificationId}`,
+      `[${taskType}] Starting task ${taskId} with notification ${notificationId}`,
     );
 
     try {
@@ -303,7 +313,7 @@ export class TaskWorker extends WorkerHost {
       }
 
       const userId = task.userId;
-      const request: PreviewRoadmapDto = (task.input as any)?.request;
+      const request = (task.input as any)?.request;
       if (!userId || !request) {
         throw new Error(`Task input missing userId/request: ${taskId}`);
       }
@@ -313,71 +323,25 @@ export class TaskWorker extends WorkerHost {
         notificationId,
         userId,
         payload: { taskId },
-        message: "Đang tạo lộ trình học tập của bạn...",
+        message: messages.inProgress,
         taskData: {
-          type: TaskTypeEnum.LEARNING_PATH_GENERATION,
+          type: taskType,
           status: TaskStatusEnum.IN_PROGRESS,
         },
       });
 
-      const roadmapRequest = {
-        currentRole: request.currentRole,
-        targetRole: request.targetRole,
-        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-        currentSkills: request.currentSkills,
-      };
-
-      await new Promise<void>((resolve, reject) => {
-        const subscription = this.aiService
-          .generateRoadmap(roadmapRequest)
-          .subscribe({
-            next: (event: any) => {
-              const payload = event?.data;
-              if (!payload) return;
-
-              if (payload.type === "result" && payload.data) {
-                resultData = payload.data;
-              }
-
-              if (payload.type === "error") {
-                subscription.unsubscribe();
-                reject(new Error(payload.message || "AI generation failed"));
-                return;
-              }
-
-              if (resultData) {
-                subscription.unsubscribe();
-                resolve();
-              }
-            },
-            error: (err: any) =>
-              reject(err instanceof Error ? err : new Error(String(err))),
-            complete: () => resolve(),
-          });
-      });
-
-      if (!resultData) {
-        throw new Error("AI stream completed without result");
-      }
-
-      const roadmap = await this.persistRoadmapFromPreview({
-        userId,
-        request,
-        result: resultData,
-      });
+      const result = await coreLogic(task, request);
 
       await this.emitAndPersistTask({
         taskId,
         notificationId,
         userId,
-        payload: {
-          taskId,
-        },
-        message: "Lộ trình học tập của bạn đã sẵn sàng.",
+        payload: { taskId },
+        message: messages.completed,
         taskData: {
-          type: TaskTypeEnum.LEARNING_PATH_GENERATION,
+          type: taskType,
           status: TaskStatusEnum.COMPLETED,
-          result: { roadmapId: roadmap.id, data: resultData },
+          result: result || {},
         },
       });
     } catch (error: any) {
@@ -386,23 +350,100 @@ export class TaskWorker extends WorkerHost {
           taskId,
           notificationId,
           userId: task.userId,
-          payload: {
-            taskId,
-          },
-          message: error?.message || "Failed to generate learning roadmap",
+          payload: { taskId },
+          message: error?.message || messages.failed,
           taskData: {
-            type: TaskTypeEnum.LEARNING_PATH_GENERATION,
+            type: taskType,
             status: TaskStatusEnum.FAILED,
             error: error.message || "Unknown error",
-            result: { data: resultData },
+            result: null,
           },
         });
       }
       this.logger.error(
-        `[processLearningPath] Failed task ${taskId}: ${error}`,
+        `[${taskType}] Failed task ${taskId}: ${error}`,
         error?.stack,
       );
       throw error;
     }
+  }
+
+  private async processLearningPath(data: TaskData) {
+    return this.withTaskLifecycle(
+      data,
+      TaskTypeEnum.LEARNING_PATH_GENERATION,
+      {
+        inProgress: "Đang tạo lộ trình học tập của bạn...",
+        completed: "Lộ trình học tập của bạn đã sẵn sàng.",
+        failed: "Failed to generate learning roadmap",
+      },
+      async (task, request: PreviewRoadmapDto) => {
+        let resultData: AILearningRoadmapResult | null = null;
+
+        const roadmapRequest = {
+          currentRole: request.currentRole,
+          targetRole: request.targetRole,
+          timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+          currentSkills: request.currentSkills,
+        };
+
+        await new Promise<void>((resolve, reject) => {
+          const subscription = this.aiService
+            .generateRoadmap(roadmapRequest)
+            .subscribe({
+              next: (event: any) => {
+                const payload = event?.data;
+                if (!payload) return;
+
+                if (payload.type === "result" && payload.data) {
+                  resultData = payload.data;
+                }
+
+                if (payload.type === "error") {
+                  subscription.unsubscribe();
+                  reject(new Error(payload.message || "AI generation failed"));
+                  return;
+                }
+
+                if (resultData) {
+                  subscription.unsubscribe();
+                  resolve();
+                }
+              },
+              error: (err: any) =>
+                reject(err instanceof Error ? err : new Error(String(err))),
+              complete: () => resolve(),
+            });
+        });
+
+        if (!resultData) {
+          throw new Error("AI stream completed without result");
+        }
+
+        const roadmap = await this.persistRoadmapFromPreview({
+          userId: task.userId,
+          request,
+          result: resultData,
+        });
+
+        return { roadmapId: roadmap.id, data: resultData };
+      },
+    );
+  }
+
+  private async processOptimizeCv(data: TaskData) {
+    return this.withTaskLifecycle(
+      data,
+      TaskTypeEnum.CV_GENERATION,
+      {
+        inProgress: "Đang tối ưu CV của bạn...",
+        completed: "CV của bạn đã được tối ưu.",
+        failed: "Failed to optimize CV",
+      },
+      async (_, request: OptimizeAtsRequest) => {
+        const result = await this.aiService.optimizeCvAts(request);
+        return { data: result };
+      },
+    );
   }
 }
