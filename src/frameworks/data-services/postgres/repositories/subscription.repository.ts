@@ -6,14 +6,30 @@ import {
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { features, subscriptionFeatures, subscriptions } from "../models";
+import {
+  features,
+  subscriptionFeatures,
+  subscriptions,
+  userFeatureUsages,
+  userSubscriptions,
+} from "../models";
 import { PaginatedResult } from "@/common/types";
-import { and, count, desc, ilike, isNull, SQL, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  ilike,
+  inArray,
+  isNull,
+  SQL,
+  sql,
+} from "drizzle-orm";
 import {
   GetListSubscriptionResponse,
   SubscriptionFilter,
 } from "@/core/entities";
 import { eq } from "drizzle-orm";
+import { UserSubscriptionStatusEnum } from "@/core/entities";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { cacheWithDedup } from "@/common/utils";
@@ -182,6 +198,52 @@ export class SubscriptionRepository
     );
 
     return result.length;
+  }
+
+  async deleteSubscriptionFeature(
+    subscriptionId: string,
+    featureId: number,
+  ): Promise<number> {
+    return this.db.transaction(async (tx) => {
+      const activeUsers = await tx
+        .select({ userId: userSubscriptions.userId })
+        .from(userSubscriptions)
+        .where(
+          and(
+            eq(userSubscriptions.subscriptionId, subscriptionId),
+            eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+            isNull(userSubscriptions.deletedAt),
+          ),
+        );
+
+      if (activeUsers.length > 0) {
+        const userIds = activeUsers.map((u) => u.userId);
+        await tx
+          .delete(userFeatureUsages)
+          .where(
+            and(
+              inArray(userFeatureUsages.userId, userIds),
+              eq(userFeatureUsages.featureId, featureId),
+            ),
+          );
+      }
+
+      const deleted = await tx
+        .delete(subscriptionFeatures)
+        .where(
+          and(
+            eq(subscriptionFeatures.subscriptionId, subscriptionId),
+            eq(subscriptionFeatures.featureId, featureId),
+          ),
+        )
+        .returning();
+
+      await this.cacheManager.del(
+        CACHE_KEYS.subscription.getFeatures(subscriptionId),
+      );
+
+      return deleted.length;
+    });
   }
 
   async getSubscriptionFeatures(subscriptionId: string): Promise<
