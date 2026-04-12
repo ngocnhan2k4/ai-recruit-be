@@ -42,6 +42,7 @@ import {
   ORG_FOLDER,
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
+  RoleEnum,
 } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
@@ -1094,6 +1095,7 @@ export class OrganizationUseCase {
       organizationId: orgId,
       status: status,
       ...query,
+      ...(userId ? { user: { userId, roles: [] as RoleEnum[] } } : {}),
     });
 
     const transformedJobData = result.data.map((item) => ({
