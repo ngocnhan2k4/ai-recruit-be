@@ -151,6 +151,30 @@ export class SubscriptionUseCases {
     };
   }
 
+  async deleteSubscriptionFeature(
+    subscriptionId: string,
+    featureId: number,
+  ): Promise<ApiResponse<{ affected: number }>> {
+    const sub = await this.subscriptionRepo.get(subscriptionId);
+    if (!sub) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.SUBSCRIPTION_NOT_FOUND,
+        message: "Subscription not found",
+      });
+    }
+
+    const affected = await this.subscriptionRepo.deleteSubscriptionFeature(
+      subscriptionId,
+      featureId,
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: { affected },
+    };
+  }
+
   async updateUserSubscription(
     id: string,
     dto: UpdateUserSubscriptionRequestDto,

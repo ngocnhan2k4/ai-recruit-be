@@ -61,6 +61,15 @@ export class AdminSubscriptionController {
     return this.subscriptionUseCases.deleteSubscription(id);
   }
 
+  @ApiOperation({ summary: "Delete a feature from a subscription" })
+  @Delete(":id/features/:featureId")
+  deleteSubscriptionFeature(
+    @Param("id") id: string,
+    @Param("featureId") featureId: string,
+  ) {
+    return this.subscriptionUseCases.deleteSubscriptionFeature(id, +featureId);
+  }
+
   @ApiOperation({
     summary: "Upsert many features for a subscription (set limits)",
   })
