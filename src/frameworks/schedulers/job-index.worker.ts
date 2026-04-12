@@ -38,7 +38,7 @@ export class JobIndexWorker extends WorkerHost {
         job.name as JobEventType,
         job.data as JobIndexData,
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         `[process] Failed to process job ${job.id}: ${error}`,
         error.stack,

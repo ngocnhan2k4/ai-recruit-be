@@ -3,11 +3,18 @@ import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
-  FeatureCodeEnum,
   IAIService,
+  IMessageQueueService,
+  INotificationRepository,
+  ITaskRepository,
   IUserRepository,
+  IWebSocketGateway,
   NewAiCv,
-  OptimizeAtsResponse,
+  OptimizeAtsRequest,
+  FeatureCodeEnum,
+  NotificationType,
+  TaskTypeEnum,
+  TaskStatusEnum,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -28,7 +35,8 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { FeatureService } from "@/services/feature/feature.service";
+import { JitterBackoff, retry } from "@/common/utils";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class AiCvUseCases {
@@ -38,6 +46,10 @@ export class AiCvUseCases {
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
     private readonly featureService: FeatureService,
+    private readonly taskRepository: ITaskRepository,
+    private readonly notificationRepository: INotificationRepository,
+    private readonly webSocketGateway: IWebSocketGateway,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
@@ -227,59 +239,110 @@ export class AiCvUseCases {
     request: OptimizeAtsUploadDto,
     userId: string,
     useUserCV: boolean,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    // Call AI service to optimize CV
-    await this.featureService.consumeFeature(
-      userId,
-      FeatureCodeEnum.OPTIMIZE_CV,
-    );
-    try {
-      let cvText = "";
+  ): Promise<ApiResponse<{ taskId: string }>> {
+    // Extract CV text before pushing to queue
+    let cvText = "";
 
-      if (request?.file) {
-        cvText = await FileTextExtractor.extractText(request.file);
-
-        this.logger.log(`Extracted ${cvText.length} chars from CV`);
-      } else if (request?.cvText) {
-        cvText = request.cvText;
-      } else if (useUserCV) {
-        // Generate CV text from user profile data
-        const userCvData = await this.userRepository.getUserCvData(userId);
-        if (userCvData) {
-          cvText = userCvDataToText(userCvData);
-          this.logger.log(`Generated ${cvText.length} chars from user profile`);
-        }
+    if (request?.file) {
+      cvText = await FileTextExtractor.extractText(request.file);
+      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+    } else if (request?.cvText) {
+      cvText = request.cvText;
+    } else if (useUserCV) {
+      const userCvData = await this.userRepository.getUserCvData(userId);
+      if (userCvData) {
+        cvText = userCvDataToText(userCvData);
+        this.logger.log(`Generated ${cvText.length} chars from user profile`);
       }
-
-      const optimizeRequest = {
-        cvText,
-        language: request.body.language || CvLanguageEnum.VIETNAMESE,
-        ...(request.body.jobDescription && {
-          jobDescription: request.body.jobDescription,
-        }),
-      };
-
-      this.logger.log(
-        request.body.jobDescription
-          ? "Performing targeted ATS optimization with job description"
-          : "Performing general ATS optimization",
-      );
-
-      const result = await this.aiService.optimizeCvAts(optimizeRequest);
-
-      result.language = request.body.language!;
-
-      return {
-        data: result,
-        message: "CV optimized successfully",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    } catch (error) {
-      this.logger.error(error);
-      throw new BadRequestException({
-        message: error,
-        code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
-      });
     }
+
+    if (cvText.length < 100) {
+      if (useUserCV) {
+        throw new BadRequestException({
+          message:
+            "Profile content is too short. Please provide a valid profile.",
+          code: RESPONSE_CODE.PROFILE_TOO_SHORT,
+        });
+      } else {
+        throw new BadRequestException({
+          message: "CV content is too short. Please provide a valid CV.",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+    }
+
+    const optimizeRequest: OptimizeAtsRequest = {
+      cvText,
+      language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      ...(request.body.jobDescription && {
+        jobDescription: request.body.jobDescription,
+      }),
+    };
+
+    const result = await this.taskRepository.executeWithTransaction(
+      async (tx) => {
+        await this.featureService.consumeFeature(
+          userId,
+          FeatureCodeEnum.OPTIMIZE_CV,
+        );
+
+        const task = await this.taskRepository.create(
+          {
+            name: `Optimize AI CV for user: ${userId}`,
+            type: TaskTypeEnum.CV_GENERATION,
+            status: TaskStatusEnum.PENDING,
+            userId,
+            input: {
+              request: optimizeRequest,
+            },
+          },
+          tx,
+        );
+
+        const [notification] =
+          await this.notificationRepository.createNotificationWithRecipients(
+            {
+              senderId: null,
+              title: "CV của bạn đang được tối ưu",
+              message:
+                "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              type: NotificationType.SYSTEM,
+              payload: {
+                taskId: task.id,
+              },
+            },
+            [{ receiverId: userId }],
+            tx,
+          );
+        return {
+          task,
+          notification,
+        };
+      },
+    );
+
+    this.webSocketGateway.sendToUser({ userId }, result.notification);
+
+    await retry(
+      async () => {
+        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
+          taskId: result.task.id,
+          notificationId: result.notification.id,
+        });
+        this.logger.log(
+          `CV generation task added to message queue: ${result.task.id}`,
+        );
+      },
+      {
+        retries: 3,
+        backoff: new JitterBackoff(1000, 10000),
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "CV generation started",
+      data: { taskId: result.task.id },
+    };
   }
 }
