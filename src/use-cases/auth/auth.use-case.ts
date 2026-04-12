@@ -20,7 +20,6 @@ import { generateUsername } from "@/common/utils";
 import { normalizeProvider } from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
-import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 @Injectable()
@@ -33,7 +32,6 @@ export class AuthUseCases {
     private readonly subscriptionRepo: ISubscriptionRepository,
     private readonly userSubscriptionRepo: IUserSubscriptionRepository,
     private readonly userFeatureUsageRepo: IUserFeatureUsageRepository,
-    private readonly subFeatureRepo: ISubscriptionFeatureRepository,
     private readonly configService: ConfigService,
     private readonly casbinService: CasbinService,
   ) {}
@@ -281,15 +279,12 @@ export class AuthUseCases {
         user.id,
       );
 
-      const sf = await this.subFeatureRepo.getByField(
-        {
-          subscriptionId: freeSub.data[0].id,
-        },
-        ["limit", "subscriptionId"],
+      const sf = await this.subscriptionRepo.getSubscriptionFeatures(
+        freeSub.data[0].id,
       );
       const data = sf.map((r) => ({
         userId: user.id,
-        featureId: r.featureId,
+        featureId: r.id,
         usage: 0,
         lastRefillAt: new Date(),
       }));
