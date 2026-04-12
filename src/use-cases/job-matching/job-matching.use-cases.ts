@@ -252,6 +252,7 @@ export class JobMatchingUseCases {
           : new Date(),
         deletedAt: null,
         questions: source.questions,
+        applyUrl: source.applyUrl || null,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
