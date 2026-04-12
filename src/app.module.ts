@@ -84,6 +84,8 @@ import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscriptio
 import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.module";
 import { SkillSynonymUseCasesModule } from "@/use-cases/skill-synonym/skill-synonym.use-cases.module";
 import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/skill-synonym.controller";
+import { DeploymentUseCasesModule } from "@/use-cases/deployment/deployment-use-cases.module";
+import { AdminDeploymentController } from "@/interfaces/controllers/deployment/admin-deployment.controller";
 
 @Module({
   imports: [
@@ -149,6 +151,7 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     SubscriptionUseCasesModule,
     FeatureUseCasesModule,
     SkillSynonymUseCasesModule,
+    DeploymentUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -183,6 +186,7 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     AdminSubscriptionController,
     AdminFeatureController,
     SkillSynonymController,
+    AdminDeploymentController,
   ],
   providers: [
     JwtStrategy,

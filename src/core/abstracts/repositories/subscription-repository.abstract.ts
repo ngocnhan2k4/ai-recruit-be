@@ -31,4 +31,9 @@ export abstract class ISubscriptionRepository extends IGenericRepository<Subscri
       limit: number;
     }>
   >;
+
+  abstract deleteSubscriptionFeature(
+    subscriptionId: string,
+    featureId: number,
+  ): Promise<number>;
 }
