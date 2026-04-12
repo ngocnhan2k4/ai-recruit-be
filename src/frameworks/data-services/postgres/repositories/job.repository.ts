@@ -16,7 +16,12 @@ import {
   inArray,
   lt,
 } from "drizzle-orm";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import {
   jobs,
   skills,
@@ -82,6 +87,7 @@ import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @Injectable()
 export class JobRepository
@@ -191,7 +197,7 @@ export class JobRepository
       const keyword = `%${filters.keyword}%`;
 
       whereConditions.push(
-        or(ilike(jobs.id, keyword), ilike(jobs.title, keyword))!,
+        or(ilike(sql`${jobs.id}::text`, keyword), ilike(jobs.title, keyword))!,
       );
     }
     if (filters?.salaryMin !== undefined) {
@@ -487,7 +493,9 @@ export class JobRepository
           status: jobs.status,
           createdAt: jobs.createdAt,
           organizationId: jobs.organizationId,
-          applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+          applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+            "applyUrl",
+          ),
         },
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
         organization: {
@@ -1183,6 +1191,7 @@ export class JobRepository
     };
   }
 
+  // [TODO]: Refactor here - move logic to usecase layer, this method is doing too many things
   /**
    * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
    * this will create notifications for the job's organization members.
@@ -1223,7 +1232,10 @@ export class JobRepository
         .from(applyJobs);
 
       if (existingApplication.exists) {
-        throw new Error("User has already applied for this job");
+        throw new BadRequestException({
+          code: RESPONSE_CODE.ALREADY_APPLIED,
+          message: "User has already applied for this job",
+        });
       }
 
       // Insert application
@@ -1255,7 +1267,10 @@ export class JobRepository
         .limit(1);
 
       if (jobInfo.length === 0) {
-        throw new Error("Job not found");
+        throw new BadRequestException({
+          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          message: "Job not found",
+        });
       }
 
       const { title: jobTitle, organizationId } = jobInfo[0];
@@ -1601,6 +1616,7 @@ export class JobRepository
       organizationId: job.organizationId!,
       categoryId: job.categoryId!,
       description: job.description,
+      applyUrl: job.applyUrl,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
       experienceMin: job.experienceMin,
@@ -1696,63 +1712,41 @@ export class JobRepository
     options?: {
       sendNotifications?: boolean;
       senderUserId?: string;
+      recipients?: {
+        receiverId: string;
+      }[];
+      senderAvatarUrl?: string;
     },
-  ): Promise<Job | null> {
-    return this.db.transaction(async (tx) => {
-      const [currentJob] = await tx
-        .select({
-          status: jobs.status,
-          title: jobs.title,
-          organizationId: jobs.organizationId,
-        })
-        .from(jobs)
-        .where(eq(jobs.id, jobId))
-        .limit(1);
+  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
+    const recipients = options?.recipients ?? [];
 
+    return this.db.transaction(async (tx) => {
       const updatedJob = await this.preUpdateJob(tx, jobId, job);
       if (!updatedJob) {
-        return null;
+        return { job: null, newNotifications: [] };
       }
 
-      const shouldNotifyAdmins =
-        options?.sendNotifications &&
-        options.senderUserId &&
-        currentJob &&
-        currentJob.status !== "pending_approval";
-
-      if (!shouldNotifyAdmins) {
-        return updatedJob;
-      }
-
-      const adminUsers = await this.userRepository.getAllAdminUsers({
-        page: 1,
-        limit: 100,
-        isActive: true,
-        isDeleted: false,
-      });
-
-      const recipients = adminUsers.data.map((m) => ({
-        receiverId: m.id,
-      }));
-
-      if (recipients.length > 0) {
-        await this.notificationRepository.preCreateNotifications(
-          tx,
-          {
-            title: "Công việc được cập nhật",
-            message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
-            type: NotificationType.JOB_UPDATED,
-            senderId: options.senderUserId,
-            payload: {
-              jobId: updatedJob.id,
-              orgId: updatedJob.organizationId,
+      let newNotifications: Notification[] = [];
+      if (options?.sendNotifications && recipients.length > 0) {
+        newNotifications =
+          await this.notificationRepository.preCreateNotifications(
+            tx,
+            {
+              title: "Công việc được cập nhật",
+              message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+              type: NotificationType.JOB_UPDATED,
+              senderId: options.senderUserId!,
+              payload: {
+                jobId: updatedJob.id,
+                orgId: updatedJob.organizationId,
+                avatarUrl: options.senderAvatarUrl,
+              },
             },
-          },
-          recipients,
-        );
+            recipients,
+          );
       }
 
-      return updatedJob;
+      return { job: updatedJob, newNotifications };
     });
   }
 
@@ -1827,7 +1821,16 @@ export class JobRepository
       provinceIds?: string[];
     },
     userId: string,
+    options?: {
+      recipients?: {
+        receiverId: string;
+        organizationId?: string;
+      }[];
+      senderAvatarUrl?: string;
+    },
   ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
+    const recipients = options?.recipients ?? [];
+
     const result = await this.db.transaction(async (tx) => {
       const [updatedJob] = await tx
         .update(jobs)
@@ -1874,23 +1877,9 @@ export class JobRepository
         }
       }
 
-      // Get all organization members to notify
-      const orgUsers =
-        await this.organizationRepository.getMemberIdsOfOrganization(
-          updatedJob.organizationId,
-        );
-
-      if (orgUsers.length === 0) {
+      if (recipients.length === 0) {
         return { job: updatedJob as Job, newNotifications: [] };
       }
-      const recipients = orgUsers.map((ou) => {
-        return { receiverId: ou.id, organizationId: updatedJob.organizationId };
-      });
-      const [senderInfo] = await tx
-        .select({ avatarUrl: users.avatarUrl })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
 
       const notificationPayload: {
         jobId: string;
@@ -1901,8 +1890,8 @@ export class JobRepository
         orgId: updatedJob.organizationId,
       };
 
-      if (senderInfo?.avatarUrl) {
-        notificationPayload.avatarUrl = senderInfo.avatarUrl;
+      if (options?.senderAvatarUrl) {
+        notificationPayload.avatarUrl = options.senderAvatarUrl;
       }
 
       const notifications =
@@ -1999,7 +1988,9 @@ export class JobRepository
         )`.as("provinceNames"),
         applyJobId: applyJobs.id,
         applyStatus: applyJobs.status,
-        applyUrl: jobRaws.url,
+        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+          "applyUrl",
+        ),
       })
       .from(userInteractions)
       .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
@@ -2032,7 +2023,7 @@ export class JobRepository
         workType: item.workType as WorkTypeEnum,
         isApplied: item.applyJobId ? true : false,
         provinceNames: (item.provinceNames as string[]) || [],
-        applyUrl: item.applyUrl ?? null,
+        applyUrl: (item.applyUrl as string | null) ?? null,
         applyId: item.applyJobId ?? null,
         applyStatus: item.applyStatus ?? null,
       })),
@@ -2058,7 +2049,9 @@ export class JobRepository
           .select({
             job: {
               ...jobs,
-              applyUrl: sql`${jobRaws.url}`.as("applyUrl"),
+              applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+                "applyUrl",
+              ),
             },
             provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
             organization: organizations,
@@ -2535,26 +2528,25 @@ export class JobRepository
   }
 
   async getJobsV2(filters?: JobFilters): Promise<PaginatedResult<JobResponse>> {
-    const fields = filters?.fields || [];
     const ids = filters?.ids || [];
 
-    let db: any = this.db
+    const db: any = this.db
       .select({
         job: {
           id: jobs.id,
+          questions: jobs.questions,
         },
-        applyUrl: jobRaws.url,
+        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+          "applyUrl",
+        ),
       })
-      .from(jobs);
+      .from(jobs)
+      .leftJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
 
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
     if (ids.length > 0) {
       whereConditions.push(inArray(jobs.id, ids));
-    }
-
-    if (fields.includes("jobRaw")) {
-      db = db.innerJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
     }
 
     const result = await db.where(
