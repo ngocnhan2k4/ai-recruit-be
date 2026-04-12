@@ -11,6 +11,7 @@ import {
   IUserRepository,
   IWebSocketGateway,
   NewAiCv,
+  OptimizeAtsRequest,
   OptimizeAtsResponse,
   FeatureCodeEnum,
   NotificationType,
@@ -298,8 +299,32 @@ export class AiCvUseCases {
   async optimizeCvForAtsV2(
     request: OptimizeAtsUploadDto,
     userId: string,
-    _: boolean,
+    useUserCV: boolean,
   ): Promise<ApiResponse<{ taskId: string }>> {
+    // Extract CV text before pushing to queue
+    let cvText = "";
+
+    if (request?.file) {
+      cvText = await FileTextExtractor.extractText(request.file);
+      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+    } else if (request?.cvText) {
+      cvText = request.cvText;
+    } else if (useUserCV) {
+      const userCvData = await this.userRepository.getUserCvData(userId);
+      if (userCvData) {
+        cvText = userCvDataToText(userCvData);
+        this.logger.log(`Generated ${cvText.length} chars from user profile`);
+      }
+    }
+
+    const optimizeRequest: OptimizeAtsRequest = {
+      cvText,
+      language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      ...(request.body.jobDescription && {
+        jobDescription: request.body.jobDescription,
+      }),
+    };
+
     const result = await this.userFeatureUsageRepository.executeWithTransaction(
       async (tx) => {
         await this.userFeatureUsageRepository.consumeFeature(
@@ -314,7 +339,7 @@ export class AiCvUseCases {
             status: TaskStatusEnum.PENDING,
             userId,
             input: {
-              request,
+              request: optimizeRequest,
             },
           },
           tx,

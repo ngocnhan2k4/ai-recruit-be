@@ -12,10 +12,14 @@ import {
   IRoadmapSkillOptionRepository,
   INotificationRepository,
 } from "@/core/abstracts";
+import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   AILearningRoadmapResult,
+  CvLanguageEnum,
   NotificationType,
+  NewAiCv,
   OptimizeAtsRequest,
+  OptimizeAtsResponse,
   RoadmapSkillData,
   SkillOption,
   Task,
@@ -45,6 +49,7 @@ export class TaskWorker extends WorkerHost {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly notificationRepository: INotificationRepository,
+    private readonly aiCvRepository: IAiCvRepository,
   ) {
     super();
   }
@@ -440,9 +445,36 @@ export class TaskWorker extends WorkerHost {
         completed: "CV của bạn đã được tối ưu.",
         failed: "Failed to optimize CV",
       },
-      async (_, request: OptimizeAtsRequest) => {
-        const result = await this.aiService.optimizeCvAts(request);
-        return { data: result };
+      async (task, request: OptimizeAtsRequest) => {
+        const result: OptimizeAtsResponse =
+          await this.aiService.optimizeCvAts(request);
+
+        // Auto-save the optimized CV
+        const title =
+          result.cvData?.targetJobTitle ||
+          `CV tối ưu - ${new Date().toLocaleDateString("vi-VN")}`;
+
+        const aiCvData: NewAiCv = {
+          userId: task.userId,
+          title,
+          targetJobTitle: result.cvData?.targetJobTitle || null,
+          cvData: result.cvData,
+          atsScore: result.atsScore,
+          matchingSkills: result.matchingSkills || [],
+          missingSkills: result.missingSkills || [],
+          recommendation: result.recommendation || null,
+          jobDescription: request.jobDescription || null,
+          language: request.language || CvLanguageEnum.VIETNAMESE,
+          isFavorite: false,
+        };
+
+        const savedCv = await this.aiCvRepository.create(aiCvData);
+
+        this.logger.log(
+          `Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+        );
+
+        return { data: result, aiCvId: savedCv.id };
       },
     );
   }
