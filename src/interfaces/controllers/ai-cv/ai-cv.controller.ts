@@ -77,7 +77,7 @@ export class AiCvController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<{ taskId: string }>> {
     if (!request.file && !request.cvText) {
-      return await this.aiCvUseCases.optimizeCvForAtsV2(
+      return await this.aiCvUseCases.optimizeCvForAts(
         request,
         user.userId,
         true,
@@ -91,7 +91,7 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvUseCases.optimizeCvForAtsV2(
+    return await this.aiCvUseCases.optimizeCvForAts(
       request,
       user.userId,
       false,

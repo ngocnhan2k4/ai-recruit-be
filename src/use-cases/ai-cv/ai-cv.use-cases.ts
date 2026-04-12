@@ -12,7 +12,6 @@ import {
   IWebSocketGateway,
   NewAiCv,
   OptimizeAtsRequest,
-  OptimizeAtsResponse,
   FeatureCodeEnum,
   NotificationType,
   TaskTypeEnum,
@@ -240,66 +239,6 @@ export class AiCvUseCases {
     request: OptimizeAtsUploadDto,
     userId: string,
     useUserCV: boolean,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    // Call AI service to optimize CV
-    await this.userFeatureUsageRepository.consumeFeature(
-      userId,
-      FeatureCodeEnum.OPTIMIZE_CV,
-    );
-    try {
-      let cvText = "";
-
-      if (request?.file) {
-        cvText = await FileTextExtractor.extractText(request.file);
-
-        this.logger.log(`Extracted ${cvText.length} chars from CV`);
-      } else if (request?.cvText) {
-        cvText = request.cvText;
-      } else if (useUserCV) {
-        // Generate CV text from user profile data
-        const userCvData = await this.userRepository.getUserCvData(userId);
-        if (userCvData) {
-          cvText = userCvDataToText(userCvData);
-          this.logger.log(`Generated ${cvText.length} chars from user profile`);
-        }
-      }
-
-      const optimizeRequest = {
-        cvText,
-        language: request.body.language || CvLanguageEnum.VIETNAMESE,
-        ...(request.body.jobDescription && {
-          jobDescription: request.body.jobDescription,
-        }),
-      };
-
-      this.logger.log(
-        request.body.jobDescription
-          ? "Performing targeted ATS optimization with job description"
-          : "Performing general ATS optimization",
-      );
-
-      const result = await this.aiService.optimizeCvAts(optimizeRequest);
-
-      result.language = request.body.language!;
-
-      return {
-        data: result,
-        message: "CV optimized successfully",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    } catch (error) {
-      this.logger.error(error);
-      throw new BadRequestException({
-        message: error,
-        code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
-      });
-    }
-  }
-
-  async optimizeCvForAtsV2(
-    request: OptimizeAtsUploadDto,
-    userId: string,
-    useUserCV: boolean,
   ): Promise<ApiResponse<{ taskId: string }>> {
     // Extract CV text before pushing to queue
     let cvText = "";
@@ -314,6 +253,21 @@ export class AiCvUseCases {
       if (userCvData) {
         cvText = userCvDataToText(userCvData);
         this.logger.log(`Generated ${cvText.length} chars from user profile`);
+      }
+    }
+
+    if (cvText.length < 100) {
+      if (useUserCV) {
+        throw new BadRequestException({
+          message:
+            "Profile content is too short. Please provide a valid profile.",
+          code: RESPONSE_CODE.PROFILE_TOO_SHORT,
+        });
+      } else {
+        throw new BadRequestException({
+          message: "CV content is too short. Please provide a valid CV.",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
       }
     }
 
