@@ -8,6 +8,7 @@ import {
   IJobRepository,
   IOrganizationRepository,
   IJobSearchService,
+  ICvRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -77,6 +78,7 @@ export class JobUseCases {
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobSearchService: IJobSearchService,
+    private readonly cvRepository: ICvRepository,
   ) {}
 
   async getJobs(
@@ -516,6 +518,16 @@ export class JobUseCases {
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
+    }
+
+    if (applyJobDto.cvId) {
+      const cv = await this.cvRepository.get(applyJobDto.cvId);
+      if (cv && cv.mimeType !== "application/pdf") {
+        throw new BadRequestException({
+          message: "Only PDF files are accepted for job applications",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
     }
 
     const isSendNotifications = true;

@@ -554,13 +554,7 @@ export class JobRepository
         .offset(offsetValue)
         .limit(limit + 1);
     } else {
-      query
-        .orderBy(
-          filters?.organizationId
-            ? desc(jobs.datePosted)
-            : desc(jobs.createdAt),
-        )
-        .limit(limit + 1);
+      query.orderBy(desc(jobs.createdAt)).limit(limit + 1);
     }
 
     const result = (await query) as {
@@ -1437,6 +1431,7 @@ export class JobRepository
           id: cvs.id,
           name: cvs.name,
           fileUrl: cvs.fileUrl,
+          mimeType: cvs.mimeType,
         },
       })
       .from(applyJobs)
