@@ -25,7 +25,6 @@ import {
   and,
   SQL,
   sql,
-  isNotNull,
   asc,
   desc,
   eq,
@@ -166,10 +165,6 @@ export class SkillRepository
     const isApproved = query.isApproved ?? true;
 
     const whereConditions: SQL[] = [eq(skills.isApproved, isApproved)];
-
-    if (isApproved) {
-      whereConditions.push(isNotNull(skills.description));
-    }
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
