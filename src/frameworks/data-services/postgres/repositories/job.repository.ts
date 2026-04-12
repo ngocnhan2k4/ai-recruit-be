@@ -16,7 +16,12 @@ import {
   inArray,
   lt,
 } from "drizzle-orm";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import {
   jobs,
   skills,
@@ -81,6 +86,7 @@ import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
+import { RESPONSE_CODE } from "@/common/constants";
 
 @Injectable()
 export class JobRepository
@@ -1184,6 +1190,7 @@ export class JobRepository
     };
   }
 
+  // [TODO]: Refactor here - move logic to usecase layer, this method is doing too many things
   /**
    * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
    * this will create notifications for the job's organization members.
@@ -1224,7 +1231,10 @@ export class JobRepository
         .from(applyJobs);
 
       if (existingApplication.exists) {
-        throw new Error("User has already applied for this job");
+        throw new BadRequestException({
+          code: RESPONSE_CODE.ALREADY_APPLIED,
+          message: "User has already applied for this job",
+        });
       }
 
       // Insert application
@@ -1256,7 +1266,10 @@ export class JobRepository
         .limit(1);
 
       if (jobInfo.length === 0) {
-        throw new Error("Job not found");
+        throw new BadRequestException({
+          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          message: "Job not found",
+        });
       }
 
       const { title: jobTitle, organizationId } = jobInfo[0];
