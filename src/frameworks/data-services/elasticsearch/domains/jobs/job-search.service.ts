@@ -1,10 +1,294 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ISearchService, IJobSearchService } from "@/core/abstracts";
+import { JobFilters, JobSearchDocument, UserProfile } from "@/core/entities";
+import { PaginatedResult } from "@/common/types";
 import { ConfigService } from "@nestjs/config";
-import { UserProfile, JobFilters } from "@/core/entities";
 
 @Injectable()
-export class JobMatchingQuery {
-  private readonly logger = new Logger(JobMatchingQuery.name);
+export class JobSearchService implements IJobSearchService {
+  private readonly logger = new Logger(JobSearchService.name);
+
+  constructor(
+    private readonly searchService: ISearchService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async searchJobs(
+    filters: JobFilters,
+  ): Promise<PaginatedResult<JobSearchDocument>> {
+    const { index, body } = this.buildSearchQuery(filters) as {
+      index: string;
+      body: any;
+    };
+
+    const response = await this.searchService.search(index, body);
+    const hits = (response?.hits?.hits ?? []) as any[];
+
+    const limit = filters.limit ?? 20;
+    const hasMore = hits.length > limit;
+    const actualHits = hasMore ? hits.slice(0, limit) : hits;
+
+    let nextCursor: string | undefined;
+    if (hasMore && actualHits.length > 0) {
+      const searchAfter = actualHits[actualHits.length - 1]?.sort;
+      if (Array.isArray(searchAfter)) {
+        nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString(
+          "base64",
+        );
+      }
+    }
+
+    const docs: JobSearchDocument[] = actualHits
+      .map((h) => h?._source)
+      .filter((s): s is JobSearchDocument => Boolean(s?.id));
+
+    return { data: docs, pagination: { nextCursor, hasNextPage: hasMore } };
+  }
+
+  private buildSearchQuery(filters: JobFilters): any {
+    const {
+      cursor,
+      limit = 20,
+      status,
+      statuses,
+      workType,
+      provinceId,
+      categoryId,
+      keyword,
+      skillIds,
+      organizationId,
+      salaryMin,
+      salaryMax,
+      experienceMin,
+      experienceMax,
+      fromDate,
+      toDate,
+      sortBy,
+      sortDirection,
+    } = filters;
+
+    let searchAfter: any[] | undefined;
+    if (cursor) {
+      try {
+        searchAfter = JSON.parse(Buffer.from(cursor, "base64").toString());
+      } catch {
+        this.logger.warn("Invalid cursor");
+      }
+    }
+
+    const mustQueries: any[] = [
+      // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
+      {
+        bool: {
+          should: [
+            { range: { endDate: { gte: "now/d" } } },
+            { bool: { must_not: { exists: { field: "endDate" } } } },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    ];
+
+    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
+
+    if (statusFilters.length) {
+      mustQueries.push({
+        terms: { status: statusFilters },
+      });
+    }
+    if (workType) {
+      mustQueries.push({ term: { workType } });
+    }
+
+    if (provinceId) {
+      mustQueries.push({ term: { provinceIds: provinceId } });
+    }
+
+    if (categoryId) {
+      mustQueries.push({ term: { categoryId } });
+    }
+
+    if (skillIds && skillIds.length > 0) {
+      mustQueries.push({
+        terms: {
+          skillIds: skillIds,
+        },
+      });
+    }
+
+    if (organizationId) {
+      mustQueries.push({
+        term: {
+          organizationId,
+        },
+      });
+    }
+
+    if (salaryMin !== undefined || salaryMax !== undefined) {
+      if (salaryMin !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMax: { gte: salaryMin },
+          },
+        });
+      }
+
+      if (salaryMax !== undefined) {
+        mustQueries.push({
+          range: {
+            salaryMin: { lte: salaryMax },
+          },
+        });
+      }
+    }
+
+    if (experienceMin !== undefined || experienceMax !== undefined) {
+      if (experienceMin !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMax: { gte: experienceMin },
+          },
+        });
+      }
+
+      if (experienceMax !== undefined) {
+        mustQueries.push({
+          range: {
+            experienceMin: { lte: experienceMax },
+          },
+        });
+      }
+    }
+
+    if (fromDate || toDate) {
+      const datePostedRangeQuery: any = {};
+      const createdAtRangeQuery: any = {};
+
+      if (fromDate) {
+        const fromDateIso = new Date(fromDate).toISOString();
+        datePostedRangeQuery.gte = fromDateIso;
+        createdAtRangeQuery.gte = fromDateIso;
+      }
+
+      if (toDate) {
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        const toDateIso = toDateObj.toISOString();
+        datePostedRangeQuery.lte = toDateIso;
+        createdAtRangeQuery.lte = toDateIso;
+      }
+
+      mustQueries.push({
+        bool: {
+          should: [
+            {
+              range: {
+                datePosted: datePostedRangeQuery,
+              },
+            },
+            {
+              bool: {
+                must_not: {
+                  exists: { field: "datePosted" },
+                },
+                filter: {
+                  range: {
+                    createdAt: createdAtRangeQuery,
+                  },
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      });
+    }
+    const shouldQueries: any[] = [];
+
+    if (keyword) {
+      shouldQueries.push(
+        {
+          match: {
+            title: {
+              query: keyword,
+              boost: 3.0,
+            },
+          },
+        },
+        {
+          match: {
+            description: {
+              query: keyword,
+              boost: 1.0,
+            },
+          },
+        },
+        {
+          match: {
+            skillNames: {
+              query: keyword,
+              boost: 2.0,
+            },
+          },
+        },
+      );
+    }
+
+    return {
+      index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS"),
+      body: {
+        query: {
+          bool: {
+            must: mustQueries,
+            should: shouldQueries,
+            ...(keyword && { minimum_should_match: 1 }),
+          },
+        },
+        sort: this.buildSort(sortBy, sortDirection),
+        size: limit + 1,
+        ...(searchAfter && { search_after: searchAfter }),
+      },
+    };
+  }
+
+  async matchJobs(
+    userProfile: UserProfile,
+    filters: JobFilters,
+  ): Promise<PaginatedResult<JobSearchDocument>> {
+    const { index, body } = this.buildMatchQuery(userProfile, filters) as {
+      index: string;
+      body: any;
+    };
+
+    const response = await this.searchService.search(index, body);
+    const hits = (response?.hits?.hits ?? []) as any[];
+
+    const limit = filters.limit ?? 20;
+    const hasMore = hits.length > limit;
+    const actualHits = hasMore ? hits.slice(0, limit) : hits;
+
+    let nextCursor: string | undefined;
+    if (hasMore && actualHits.length > 0) {
+      const searchAfter = actualHits[actualHits.length - 1]?.sort;
+      if (Array.isArray(searchAfter)) {
+        nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString(
+          "base64",
+        );
+      }
+    }
+
+    const docs = actualHits.flatMap((h) => {
+      const source = h?._source;
+      if (!source?.id) return [];
+      const score =
+        typeof h?._score === "number"
+          ? Number((h._score * 100).toFixed(2))
+          : undefined;
+      return [{ ...source, ...(typeof score === "number" ? { score } : {}) }];
+    }) satisfies JobSearchDocument[];
+
+    return { data: docs, pagination: { nextCursor, hasNextPage: hasMore } };
+  }
 
   private readonly sortableFields: Record<string, string> = {
     score: "_score",
@@ -21,8 +305,6 @@ export class JobMatchingQuery {
     status: "status",
     workType: "workType",
   };
-
-  constructor(private readonly configService: ConfigService) {}
 
   private buildSort(sortBy?: string, sortDirection: "asc" | "desc" = "asc") {
     const direction: "asc" | "desc" = sortDirection === "desc" ? "desc" : "asc";
@@ -525,215 +807,6 @@ export class JobMatchingQuery {
             "categoryName",
           ],
         },
-      },
-    };
-  }
-
-  /**
-   * Build simple search query
-   */
-  buildSearchQuery(filters: JobFilters): any {
-    const {
-      cursor,
-      limit = 20,
-      status,
-      statuses,
-      workType,
-      provinceId,
-      categoryId,
-      keyword,
-      skillIds,
-      organizationId,
-      salaryMin,
-      salaryMax,
-      experienceMin,
-      experienceMax,
-      fromDate,
-      toDate,
-      sortBy,
-      sortDirection,
-    } = filters;
-
-    let searchAfter: any[] | undefined;
-    if (cursor) {
-      try {
-        searchAfter = JSON.parse(Buffer.from(cursor, "base64").toString());
-      } catch {
-        this.logger.warn("Invalid cursor");
-      }
-    }
-
-    const mustQueries: any[] = [
-      // endDate filter: match jobs whose endDate >= today OR endDate is missing/null
-      {
-        bool: {
-          should: [
-            { range: { endDate: { gte: "now/d" } } },
-            { bool: { must_not: { exists: { field: "endDate" } } } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ];
-
-    const statusFilters = statuses?.length ? statuses : status ? [status] : [];
-
-    if (statusFilters.length) {
-      mustQueries.push({
-        terms: { status: statusFilters },
-      });
-    }
-    if (workType) {
-      mustQueries.push({ term: { workType } });
-    }
-
-    if (provinceId) {
-      mustQueries.push({ term: { provinceIds: provinceId } });
-    }
-
-    if (categoryId) {
-      mustQueries.push({ term: { categoryId } });
-    }
-
-    if (skillIds && skillIds.length > 0) {
-      mustQueries.push({
-        terms: {
-          skillIds: skillIds,
-        },
-      });
-    }
-
-    if (organizationId) {
-      mustQueries.push({
-        term: {
-          organizationId,
-        },
-      });
-    }
-
-    if (salaryMin !== undefined || salaryMax !== undefined) {
-      if (salaryMin !== undefined) {
-        mustQueries.push({
-          range: {
-            salaryMax: { gte: salaryMin },
-          },
-        });
-      }
-
-      if (salaryMax !== undefined) {
-        mustQueries.push({
-          range: {
-            salaryMin: { lte: salaryMax },
-          },
-        });
-      }
-    }
-
-    if (experienceMin !== undefined || experienceMax !== undefined) {
-      if (experienceMin !== undefined) {
-        mustQueries.push({
-          range: {
-            experienceMax: { gte: experienceMin },
-          },
-        });
-      }
-
-      if (experienceMax !== undefined) {
-        mustQueries.push({
-          range: {
-            experienceMin: { lte: experienceMax },
-          },
-        });
-      }
-    }
-
-    if (fromDate || toDate) {
-      const datePostedRangeQuery: any = {};
-      const createdAtRangeQuery: any = {};
-
-      if (fromDate) {
-        const fromDateIso = new Date(fromDate).toISOString();
-        datePostedRangeQuery.gte = fromDateIso;
-        createdAtRangeQuery.gte = fromDateIso;
-      }
-
-      if (toDate) {
-        const toDateObj = new Date(toDate);
-        toDateObj.setHours(23, 59, 59, 999);
-        const toDateIso = toDateObj.toISOString();
-        datePostedRangeQuery.lte = toDateIso;
-        createdAtRangeQuery.lte = toDateIso;
-      }
-
-      mustQueries.push({
-        bool: {
-          should: [
-            {
-              range: {
-                datePosted: datePostedRangeQuery,
-              },
-            },
-            {
-              bool: {
-                must_not: {
-                  exists: { field: "datePosted" },
-                },
-                filter: {
-                  range: {
-                    createdAt: createdAtRangeQuery,
-                  },
-                },
-              },
-            },
-          ],
-          minimum_should_match: 1,
-        },
-      });
-    }
-    const shouldQueries: any[] = [];
-
-    if (keyword) {
-      shouldQueries.push(
-        {
-          match: {
-            title: {
-              query: keyword,
-              boost: 3.0,
-            },
-          },
-        },
-        {
-          match: {
-            description: {
-              query: keyword,
-              boost: 1.0,
-            },
-          },
-        },
-        {
-          match: {
-            skillNames: {
-              query: keyword,
-              boost: 2.0,
-            },
-          },
-        },
-      );
-    }
-
-    return {
-      index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS"),
-      body: {
-        query: {
-          bool: {
-            must: mustQueries,
-            should: shouldQueries,
-            ...(keyword && { minimum_should_match: 1 }),
-          },
-        },
-        sort: this.buildSort(sortBy, sortDirection),
-        size: limit + 1,
-        ...(searchAfter && { search_after: searchAfter }),
       },
     };
   }
