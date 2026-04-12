@@ -239,10 +239,6 @@ export class SkillSynonymUseCases {
       sourceSkillIds,
     );
 
-    this.logger.log(
-      `Merged skills [${sourceSkillIds.join(", ")}] into target skill ${targetSkillId}`,
-    );
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

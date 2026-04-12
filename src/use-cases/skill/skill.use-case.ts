@@ -67,18 +67,24 @@ export class SkillUseCases {
   async getCrawledSkills(
     query: GetCrawledSkillsQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<CrawledSkillDto>>> {
-    const data = await this.skillRepository.getCrawledSkills(query);
+    const fields = Array.from(new Set([...(query.fields ?? []), "createdAt"]));
+    const data = await this.skillRepository.getPaginatedSkills({
+      ...query,
+      fields,
+      isApproved: false,
+      sortBy: query.sortBy ?? "createdAt",
+      sortDirection: query.sortDirection ?? "desc",
+    });
 
     const skillNames = data.data.map((s) => s.name);
     const { matches } =
       await this.skillsSynonymsRepository.getSynonymsSkills(skillNames);
 
-    const enriched = data.data.map((s) => ({
+    const enriched: CrawledSkillDto[] = data.data.map((s) => ({
       ...s,
+      createdAt: s.createdAt as Date,
       synonym: matches[s.name]?.resolvedName ?? null,
     }));
-
-    this.logger.log(`Fetched crawled skills`);
 
     return {
       message: "Crawled skills fetched successfully",

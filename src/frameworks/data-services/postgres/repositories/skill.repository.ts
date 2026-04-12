@@ -1,5 +1,4 @@
 import {
-  CrawledSkillResponse,
   GetListSkillResponse,
   ISkillRepository,
   Skill,
@@ -19,7 +18,7 @@ import {
   userSkills,
 } from "../models";
 import { jobs } from "../models/job.model";
-import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { PaginatedResult } from "@/common/types";
 import {
   count,
   ilike,
@@ -80,10 +79,17 @@ export class SkillRepository
   ): Promise<PaginatedResult<GetListSkillResponse>> {
     const limit = query.limit ?? 10;
     const page = query.page ?? 1;
-    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
-    const sortDirection = query.sortDirection;
+    const sortBy =
+      query.sortBy === "questionCount"
+        ? "questionCount"
+        : query.sortBy === "createdAt"
+          ? "createdAt"
+          : "name";
+    const sortDirection = query.sortDirection ?? "asc";
     const offset = (page - 1) * limit;
     const includeQuestionCount = query.fields?.includes("questionCount");
+    const includeCreatedAt =
+      query.fields?.includes("createdAt") || sortBy === "createdAt";
 
     if (sortBy === "questionCount" && !includeQuestionCount) {
       throw Error("Sory by question count only support when fields include it");
@@ -99,6 +105,10 @@ export class SkillRepository
       slug: skills.slug,
       name: skills.name,
     };
+
+    if (includeCreatedAt) {
+      selectFields["createdAt"] = skills.createdAt;
+    }
 
     if (includeQuestionCount) {
       selectFields["questionCount"] = questionCountExpr;
@@ -118,9 +128,13 @@ export class SkillRepository
         ? sortDirection === "desc"
           ? desc(questionCountExpr)
           : asc(questionCountExpr)
-        : sortDirection === "desc"
-          ? desc(skills.name)
-          : asc(skills.name);
+        : sortBy === "createdAt"
+          ? sortDirection === "desc"
+            ? desc(skills.createdAt)
+            : asc(skills.createdAt)
+          : sortDirection === "desc"
+            ? desc(skills.name)
+            : asc(skills.name);
 
     const [rows, totalRow] = await Promise.all([
       baseQuery.orderBy(orderByClause).limit(limit).offset(offset),
@@ -151,11 +165,13 @@ export class SkillRepository
   private buildWhereCondition(query: SkillFilter) {
     const keyword = query.keyword ?? "";
     const skillIds = query.skillIds || [];
+    const isApproved = query.isApproved ?? true;
 
-    const whereConditions: SQL[] = [
-      isNotNull(skills.description),
-      eq(skills.isApproved, true),
-    ];
+    const whereConditions: SQL[] = [eq(skills.isApproved, isApproved)];
+
+    if (isApproved) {
+      whereConditions.push(isNotNull(skills.description));
+    }
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
@@ -200,52 +216,6 @@ export class SkillRepository
       .limit(1);
 
     return skill[0] ?? null;
-  }
-
-  async getCrawledSkills(
-    query: GeneralQuery,
-  ): Promise<PaginatedResult<CrawledSkillResponse>> {
-    const limit = query.limit ?? 10;
-    const page = query.page ?? 1;
-    const offset = (page - 1) * limit;
-
-    const whereConditions: SQL[] = [eq(skills.isApproved, false)];
-
-    const whereClause = and(...whereConditions);
-
-    const [rows, totalRow] = await Promise.all([
-      this.db
-        .select({
-          id: skills.id,
-          name: skills.name,
-          createdAt: skills.createdAt,
-        })
-        .from(skills)
-        .where(whereClause)
-        .orderBy(desc(skills.createdAt))
-        .limit(limit)
-        .offset(offset),
-
-      this.db
-        .select({ count: count(skills.id) })
-        .from(skills)
-        .where(whereClause),
-    ]);
-
-    const data: CrawledSkillResponse[] = rows.map((r) => ({
-      ...r,
-      synonym: null,
-    }));
-    const total = Number(totalRow[0].count ?? 0);
-    const hasNext = offset + data.length < total;
-
-    return {
-      data,
-      pagination: {
-        total,
-        hasNextPage: hasNext,
-      },
-    };
   }
 
   async bulkReviewSkills(

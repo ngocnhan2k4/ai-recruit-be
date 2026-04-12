@@ -44,11 +44,33 @@ export class GetSkillsQueryDto extends GeneralQueryDto {
   @ApiProperty({ type: "boolean" })
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value, obj }) => {
+    const raw = value ?? obj?.isApprove;
+    if (raw === undefined || raw === null || raw === "") return undefined;
+    if (raw === true || raw === "true") return true;
+    if (raw === false || raw === "false") return false;
+    return raw;
+  })
   @Type(() => Boolean)
+  isApproved?: boolean;
+
+  @ApiProperty({ type: "boolean", required: false })
+  @IsOptional()
+  @IsBoolean()
   questions?: boolean;
 }
 
-export class GetCrawledSkillsQueryDto extends GeneralQueryDto {}
+export class GetCrawledSkillsQueryDto extends GeneralQueryDto {
+  @ApiProperty({ type: "string", isArray: true, required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  })
+  fields?: "createdAt"[];
+}
 
 export class GetTopDemandedSkillsQueryDto {
   @ApiProperty({
