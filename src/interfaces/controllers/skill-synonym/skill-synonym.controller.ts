@@ -12,9 +12,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   ApiResponse,
   ApiResponseDto,
-  GetMergeCandidatesQueryDto,
   GetSkillsSynonymsQueryDto,
-  MergeCandidateSkillDto,
   MergeSkillsDto,
   PaginatedResultDto,
   SkillSynonymResponseDto,
@@ -56,20 +54,6 @@ export class SkillSynonymController {
     @Body() dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
     return this.skillSynonymUseCases.updateSkillSynonym(skillId, dto);
-  }
-
-  @ApiOperation({
-    summary: "Get merge candidates for a skill",
-    description:
-      "Suggest similar skills that can be merged into the provided target skill id.",
-  })
-  @ApiResponseDto(MergeCandidateSkillDto, { isArray: true })
-  @Get(":skillId/merge-candidates")
-  async getMergeCandidates(
-    @Param("skillId") skillId: string,
-    @Query() query: GetMergeCandidatesQueryDto,
-  ): Promise<ApiResponse<MergeCandidateSkillDto[]>> {
-    return this.skillSynonymUseCases.getMergeCandidates(skillId, query);
   }
 
   @ApiOperation({

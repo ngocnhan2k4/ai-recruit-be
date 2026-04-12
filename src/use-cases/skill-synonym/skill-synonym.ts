@@ -8,15 +8,11 @@ import {
 } from "@/core";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import {
-  GetMergeCandidatesQueryDto,
   GetSkillsSynonymsQueryDto,
   MergeSkillsDto,
   UpdateSkillSynonymDto,
 } from "@/interfaces/dtos/skill-synonym/req/skill-synonym.dto";
-import {
-  MergeCandidateSkillDto,
-  SkillSynonymResponseDto,
-} from "@/interfaces/dtos/skill-synonym/res/skill-synonym.dto";
+import { SkillSynonymResponseDto } from "@/interfaces/dtos/skill-synonym/res/skill-synonym.dto";
 import {
   BadRequestException,
   Inject,
@@ -24,7 +20,6 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import * as fuzz from "fuzzball";
 
 @Injectable()
 export class SkillSynonymUseCases {
@@ -44,49 +39,6 @@ export class SkillSynonymUseCases {
           .filter((name) => name.length > 0),
       ),
     );
-  }
-
-  private scoreMergeCandidate(
-    targetName: string,
-    candidateName: string,
-    targetAliases: Set<string>,
-    candidateAliases: Set<string>,
-  ): { score: number; reasons: string[] } {
-    const target = NormalizeString(targetName);
-    const candidate = NormalizeString(candidateName);
-    const reasons: string[] = [];
-    let score = 0;
-
-    if (target.includes(candidate) || candidate.includes(target)) {
-      score += 30;
-      reasons.push("keyword-match");
-    }
-
-    const fuzzyScore = fuzz.token_sort_ratio(target, candidate);
-    if (fuzzyScore >= 90) {
-      score += 50;
-      reasons.push("fuzzy-high");
-    } else if (fuzzyScore >= 80) {
-      score += 35;
-      reasons.push("fuzzy-medium");
-    } else if (fuzzyScore >= 70) {
-      score += 20;
-      reasons.push("fuzzy-low");
-    }
-
-    if (
-      targetAliases.has(candidate) ||
-      candidateAliases.has(target) ||
-      [...targetAliases].some((alias) => candidateAliases.has(alias))
-    ) {
-      score += 40;
-      reasons.push("synonym-link");
-    }
-
-    return {
-      score,
-      reasons: Array.from(new Set(reasons)),
-    };
   }
 
   private buildGroupedResponse(
@@ -241,75 +193,6 @@ export class SkillSynonymUseCases {
           .map((row) => row.aliasName)
           .sort((a, b) => a.localeCompare(b)),
       },
-    };
-  }
-
-  async getMergeCandidates(
-    skillId: string,
-    query?: GetMergeCandidatesQueryDto,
-  ): Promise<ApiResponse<MergeCandidateSkillDto[]>> {
-    const targetSkill = await this.skillRepository.get(skillId);
-    if (!targetSkill) {
-      throw new NotFoundException({
-        message: "Target skill not found",
-        code: RESPONSE_CODE.SKILL_NOT_FOUND,
-      });
-    }
-
-    const limit = query?.limit ?? 10;
-
-    const [allSkills, allSynonyms] = await Promise.all([
-      this.skillRepository.getAll(["id", "name"]),
-      this.skillsSynonymsRepository.getAll(["masterName", "aliasName"]),
-    ]);
-
-    const targetSkillName = targetSkill.name;
-    const normalizedTarget = NormalizeString(targetSkillName);
-
-    const targetAliases = new Set<string>();
-    const aliasesByMaster = new Map<string, Set<string>>();
-    for (const row of allSynonyms) {
-      const master = NormalizeString(row.masterName);
-      const alias = NormalizeString(row.aliasName);
-      if (!aliasesByMaster.has(master)) {
-        aliasesByMaster.set(master, new Set());
-      }
-      aliasesByMaster.get(master)!.add(alias);
-
-      if (master === normalizedTarget) {
-        targetAliases.add(alias);
-      }
-    }
-
-    const candidates = allSkills
-      .filter((skill) => skill.id !== skillId)
-      .map((skill) => {
-        const normalizedCandidate = NormalizeString(skill.name);
-        const candidateAliases =
-          aliasesByMaster.get(normalizedCandidate) ?? new Set<string>();
-
-        const { score, reasons } = this.scoreMergeCandidate(
-          targetSkillName,
-          skill.name,
-          targetAliases,
-          candidateAliases,
-        );
-
-        return {
-          id: skill.id,
-          name: skill.name,
-          score,
-          reasons,
-        };
-      })
-      .filter((item) => item.score >= 40)
-      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-      .slice(0, limit);
-
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: candidates,
     };
   }
 

@@ -49,22 +49,6 @@ export class UpdateSkillSynonymDto {
   source?: string;
 }
 
-export class GetMergeCandidatesQueryDto {
-  @ApiProperty({
-    required: false,
-    description: "Maximum number of merge candidates",
-    example: 10,
-    default: 10,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return 10;
-    return Math.max(1, Math.min(50, Math.floor(n)));
-  })
-  limit?: number = 10;
-}
-
 export class MergeSkillsDto {
   @ApiProperty({
     description:
