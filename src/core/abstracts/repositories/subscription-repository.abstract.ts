@@ -5,6 +5,7 @@ import {
   GetListSubscriptionResponse,
   SubscriptionFilter,
 } from "@/core/entities";
+import type { FeatureCodeEnum } from "@/core";
 
 export type UpsertSubscriptionFeatureInput = {
   featureId: number;
@@ -19,5 +20,20 @@ export abstract class ISubscriptionRepository extends IGenericRepository<Subscri
   abstract upsertSubscriptionFeatures(
     subscriptionId: string,
     items: UpsertSubscriptionFeatureInput[],
+  ): Promise<number>;
+
+  abstract getSubscriptionFeatures(subscriptionId: string): Promise<
+    Array<{
+      id: number;
+      code: FeatureCodeEnum;
+      name: string;
+      description: string | null;
+      limit: number;
+    }>
+  >;
+
+  abstract deleteSubscriptionFeature(
+    subscriptionId: string,
+    featureId: number,
   ): Promise<number>;
 }

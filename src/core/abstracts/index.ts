@@ -8,4 +8,5 @@ export * from "./otp-storage.abstract";
 export * from "./repositories";
 export * from "./websocket.abstract";
 export * from "./search-service.abstract";
+export * from "./job-search-service.abstract";
 export * from "./message-queue.abstract";

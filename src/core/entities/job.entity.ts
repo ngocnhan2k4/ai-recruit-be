@@ -71,7 +71,7 @@ export interface ApplyJobResponse {
   createdAt?: Date;
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
-  cv?: Pick<Cv, "id" | "name" | "fileUrl">;
+  cv?: Pick<Cv, "id" | "name" | "fileUrl" | "mimeType">;
 }
 
 export interface UserInteractionResponse {
@@ -118,4 +118,29 @@ export interface JobTrendsQuery {
   fromDate?: string;
   toDate?: string;
   type?: JobTrendTypeEnum;
+}
+
+export interface JobSearchDocument {
+  id: string;
+  title?: string;
+  description?: string;
+  organizationId?: string;
+  organizationName?: string;
+  skillIds?: string[];
+  skillNames?: string[];
+  provinceIds?: string[];
+  provinceNames?: string[];
+  salaryMin?: number;
+  salaryMax?: number;
+  experienceMin?: number;
+  experienceMax?: number;
+  workType?: WorkTypeEnum | string;
+  status?: JobStatusEnum | string;
+  endDate?: string;
+  datePosted?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  categoryId?: string;
+  categoryName?: string;
+  score?: number;
 }

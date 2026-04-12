@@ -7,7 +7,6 @@ import {
   IMessageQueueService,
   INotificationRepository,
   ITaskRepository,
-  IUserFeatureUsageRepository,
   IUserRepository,
   IWebSocketGateway,
   NewAiCv,
@@ -37,6 +36,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class AiCvUseCases {
@@ -45,7 +45,7 @@ export class AiCvUseCases {
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
+    private readonly featureService: FeatureService,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
@@ -212,7 +212,7 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
-    await this.userFeatureUsageRepository.consumeFeature(
+    await this.featureService.consumeFeature(
       userId,
       FeatureCodeEnum.SUGGEST_CV_FIELD,
     );
@@ -279,9 +279,9 @@ export class AiCvUseCases {
       }),
     };
 
-    const result = await this.userFeatureUsageRepository.executeWithTransaction(
+    const result = await this.taskRepository.executeWithTransaction(
       async (tx) => {
-        await this.userFeatureUsageRepository.consumeFeature(
+        await this.featureService.consumeFeature(
           userId,
           FeatureCodeEnum.OPTIMIZE_CV,
         );
