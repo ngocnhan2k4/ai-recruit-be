@@ -88,8 +88,7 @@ export class SkillRepository
     const sortDirection = query.sortDirection ?? "asc";
     const offset = (page - 1) * limit;
     const includeQuestionCount = query.fields?.includes("questionCount");
-    const includeCreatedAt =
-      query.fields?.includes("createdAt") || sortBy === "createdAt";
+    const includeCreatedAt = sortBy === "createdAt";
 
     if (sortBy === "questionCount" && !includeQuestionCount) {
       throw Error("Sory by question count only support when fields include it");
