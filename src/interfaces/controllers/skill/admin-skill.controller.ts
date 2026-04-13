@@ -14,8 +14,10 @@ import {
   ApiResponseDto,
   BulkReviewSkillDto,
   CrawledSkillDto,
+  DeleteSkillsDto,
   GetCrawledSkillsQueryDto,
   PaginatedResultDto,
+  UpdateSkillNameDto,
 } from "@/interfaces/dtos";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
 import {
@@ -51,11 +53,24 @@ export class AdminSkillController {
   }
 
   @ApiOperation({
-    summary: "Delete a skill",
-    description: "Delete a skill by ID, along with all its references.",
+    summary: "Update skill name",
+    description: "Update name of a skill by id.",
   })
-  @Delete(":id")
-  async deleteSkill(@Param("id") id: string): Promise<ApiResponse<void>> {
-    return this.skillUseCases.deleteSkill(id);
+  @Patch(":id/name")
+  updateSkillName(
+    @Param("id") id: string,
+    @Body() dto: UpdateSkillNameDto,
+  ): Promise<ApiResponse<void>> {
+    return this.skillUseCases.updateSkillName(id, dto);
+  }
+
+  @ApiOperation({
+    summary: "Delete skill(s)",
+    description:
+      "Delete one or many skills by ID, along with all related references.",
+  })
+  @Delete("bulk")
+  async deleteSkill(@Body() dto: DeleteSkillsDto): Promise<ApiResponse<void>> {
+    return this.skillUseCases.deleteSkill(dto);
   }
 }
