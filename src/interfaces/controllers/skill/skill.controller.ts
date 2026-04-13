@@ -23,10 +23,7 @@ import {
 } from "../../dtos";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { SkillUseCases } from "@/use-cases/skill/skill.use-case";
-import {
-  JwtAuthGuard,
-  OptionalJwtAuthGuard,
-} from "@/frameworks/auth-services/guards";
+import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 
 @ApiTags("Skills")
 @Controller("skills")
@@ -60,7 +57,6 @@ export class SkillController {
     summary: "Get top demanded skills",
   })
   @ApiResponseDto(TopDemandedSkillItemDto, { isArray: true })
-  @UseGuards(OptionalJwtAuthGuard)
   @UseInterceptors(HttpCacheInterceptor)
   @CacheTTL(LLONG_TTL)
   @Get("statistics/top-demanded")
