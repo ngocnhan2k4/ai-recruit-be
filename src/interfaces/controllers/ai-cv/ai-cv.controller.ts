@@ -1,7 +1,6 @@
 import { RESPONSE_CODE } from "@/common/constants";
 import { GetUser, UploadFileAndBody } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
-import { OptimizeAtsResponse } from "@/core";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
@@ -72,12 +71,11 @@ export class AiCvController {
       "Optimize CV for ATS compatibility. Accepts either a CV file (PDF/DOCX) OR raw CV text. Supports two optimization modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
   @ApiConsumes("multipart/form-data")
-  @ApiResponseDto(OptimizeAtsResponse)
   async optimizeAts(
     @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
+  ): Promise<ApiResponse<{ taskId: string }>> {
     if (!request.file && !request.cvText) {
       return await this.aiCvUseCases.optimizeCvForAts(
         request,

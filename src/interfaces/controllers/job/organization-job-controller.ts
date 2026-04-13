@@ -23,7 +23,7 @@ export class OrganizationJobController {
   @ApiOperation({
     summary: "Update organization job",
     description:
-      "Update an existing job posting scoped to a specific organization. Any organization edit resets the job status to pending approval for admin review.",
+      "Update an existing job posting scoped to a specific organization. Status is reset to pending approval only when key content fields are changed.",
   })
   @ApiResponseDto(JobDto)
   @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)

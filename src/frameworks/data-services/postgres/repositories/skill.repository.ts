@@ -1,17 +1,24 @@
 import {
-  CrawledSkillResponse,
   GetListSkillResponse,
   ISkillRepository,
   Skill,
   SkillFilter,
   SkillReviewStatus,
 } from "@/core";
+import { NormalizeString } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { skills, questions, jobSkills, userSkills } from "../models";
+import {
+  skills,
+  questions,
+  jobSkills,
+  skillsSynonyms,
+  userOnboardings,
+  userSkills,
+} from "../models";
 import { jobs } from "../models/job.model";
-import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { PaginatedResult } from "@/common/types";
 import {
   count,
   ilike,
@@ -40,6 +47,20 @@ export class SkillRepository
     super(db, skills);
   }
 
+  private toSqlUuidArray(values: string[]): SQL {
+    return sql`ARRAY[${sql.join(
+      values.map((value) => sql`${value}`),
+      sql`, `,
+    )}]::uuid[]`;
+  }
+
+  private toSqlTextArray(values: string[]): SQL {
+    return sql`ARRAY[${sql.join(
+      values.map((value) => sql`${value}`),
+      sql`, `,
+    )}]::text[]`;
+  }
+
   async createMany(skillValues: Omit<Skill, "id">[]): Promise<Skill[]> {
     const result = await this.db
       .insert(skills)
@@ -57,8 +78,13 @@ export class SkillRepository
   ): Promise<PaginatedResult<GetListSkillResponse>> {
     const limit = query.limit ?? 10;
     const page = query.page ?? 1;
-    const sortBy = query.sortBy === "questionCount" ? "questionCount" : "name";
-    const sortDirection = query.sortDirection;
+    const sortBy =
+      query.sortBy === "questionCount"
+        ? "questionCount"
+        : query.sortBy === "createdAt"
+          ? "createdAt"
+          : "name";
+    const sortDirection = query.sortDirection ?? "asc";
     const offset = (page - 1) * limit;
     const includeQuestionCount = query.fields?.includes("questionCount");
 
@@ -76,6 +102,10 @@ export class SkillRepository
       slug: skills.slug,
       name: skills.name,
     };
+
+    if (sortBy === "createdAt") {
+      selectFields["createdAt"] = skills.createdAt;
+    }
 
     if (includeQuestionCount) {
       selectFields["questionCount"] = questionCountExpr;
@@ -95,9 +125,13 @@ export class SkillRepository
         ? sortDirection === "desc"
           ? desc(questionCountExpr)
           : asc(questionCountExpr)
-        : sortDirection === "desc"
-          ? desc(skills.name)
-          : asc(skills.name);
+        : sortBy === "createdAt"
+          ? sortDirection === "desc"
+            ? desc(skills.createdAt)
+            : asc(skills.createdAt)
+          : sortDirection === "desc"
+            ? desc(skills.name)
+            : asc(skills.name);
 
     const [rows, totalRow] = await Promise.all([
       baseQuery.orderBy(orderByClause).limit(limit).offset(offset),
@@ -128,8 +162,9 @@ export class SkillRepository
   private buildWhereCondition(query: SkillFilter) {
     const keyword = query.keyword ?? "";
     const skillIds = query.skillIds || [];
+    const isApproved = query.isApproved ?? true;
 
-    const whereConditions: SQL[] = [eq(skills.isApproved, true)];
+    const whereConditions: SQL[] = [eq(skills.isApproved, isApproved)];
 
     if (keyword) {
       whereConditions.push(ilike(skills.name, `%${keyword}%`));
@@ -174,52 +209,6 @@ export class SkillRepository
       .limit(1);
 
     return skill[0] ?? null;
-  }
-
-  async getCrawledSkills(
-    query: GeneralQuery,
-  ): Promise<PaginatedResult<CrawledSkillResponse>> {
-    const limit = query.limit ?? 10;
-    const page = query.page ?? 1;
-    const offset = (page - 1) * limit;
-
-    const whereConditions: SQL[] = [eq(skills.isApproved, false)];
-
-    const whereClause = and(...whereConditions);
-
-    const [rows, totalRow] = await Promise.all([
-      this.db
-        .select({
-          id: skills.id,
-          name: skills.name,
-          createdAt: skills.createdAt,
-        })
-        .from(skills)
-        .where(whereClause)
-        .orderBy(desc(skills.createdAt))
-        .limit(limit)
-        .offset(offset),
-
-      this.db
-        .select({ count: count(skills.id) })
-        .from(skills)
-        .where(whereClause),
-    ]);
-
-    const data: CrawledSkillResponse[] = rows.map((r) => ({
-      ...r,
-      synonym: null,
-    }));
-    const total = Number(totalRow[0].count ?? 0);
-    const hasNext = offset + data.length < total;
-
-    return {
-      data,
-      pagination: {
-        total,
-        hasNextPage: hasNext,
-      },
-    };
   }
 
   async bulkReviewSkills(
@@ -274,14 +263,243 @@ export class SkillRepository
     }));
   }
 
-  async deleteSkillAndReferences(skillId: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx.delete(jobSkills).where(eq(jobSkills.skillId, skillId));
-      await tx.delete(userSkills).where(eq(userSkills.skillId, skillId));
-      await tx.delete(questions).where(eq(questions.skillId, skillId));
-      await tx.delete(skills).where(eq(skills.id, skillId));
+  async deleteSkillAndReferences(skillIds: string[]): Promise<void> {
+    const ids = Array.isArray(skillIds) ? skillIds : [skillIds as any];
+    if (ids.length === 0) return;
+
+    const uuidArray = this.toSqlUuidArray(ids);
+    const textArray = this.toSqlTextArray(ids);
+
+    await this.executeWithTransaction(async (tx) => {
+      const deletingSkills = await tx
+        .select({ id: skills.id, name: skills.name })
+        .from(skills)
+        .where(inArray(skills.id, ids));
+
+      const deletingNames = deletingSkills
+        .map((s) => NormalizeString(s.name))
+        .filter((name) => name.length > 0);
+
+      await tx.execute(sql`
+        DELETE FROM blog_post_tags
+        WHERE skill_id = ANY(${uuidArray})
+      `);
+
+      await tx.delete(jobSkills).where(inArray(jobSkills.skillId, ids));
+      await tx.delete(userSkills).where(inArray(userSkills.skillId, ids));
+      await tx.delete(questions).where(inArray(questions.skillId, ids));
+
+      await tx.execute(sql`
+        UPDATE user_onboardings
+        SET skills = (
+          SELECT COALESCE(
+            jsonb_agg(elem),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(user_onboardings.skills, '[]'::jsonb)) AS elem
+          WHERE (elem #>> '{}') <> ALL(${textArray})
+        )
+        WHERE ${userOnboardings.skills} IS NOT NULL
+      `);
+
+      await tx.execute(sql`
+        UPDATE learning_roadmaps
+        SET current_skills = (
+          SELECT COALESCE(
+            jsonb_agg(elem),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(learning_roadmaps.current_skills, '[]'::jsonb)) AS elem
+          WHERE (elem ->> 'skillId') <> ALL(${textArray})
+        )
+        WHERE current_skills IS NOT NULL
+      `);
+
+      await tx.execute(sql`
+        UPDATE user_tests
+        SET selected_skill_ids = (
+          SELECT COALESCE(
+            jsonb_agg(elem),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(user_tests.selected_skill_ids, '[]'::jsonb)) AS elem
+          WHERE (elem #>> '{}') <> ALL(${textArray})
+        )
+        WHERE selected_skill_ids IS NOT NULL
+      `);
+
+      if (deletingNames.length > 0) {
+        await tx
+          .delete(skillsSynonyms)
+          .where(inArray(skillsSynonyms.masterName, deletingNames));
+
+        await tx
+          .delete(skillsSynonyms)
+          .where(inArray(skillsSynonyms.aliasName, deletingNames));
+      }
+
+      await tx.delete(skills).where(inArray(skills.id, ids));
     });
 
     await this.cacheManager.del(CACHE_KEYS.skill.getAll());
+    await this.cacheManager.del(CACHE_KEYS.skillSynonym.getAll());
+  }
+
+  async mergeSkillsAndReferences(
+    targetSkillId: string,
+    sourceSkillIds: string[],
+  ): Promise<void> {
+    const sourceIds = Array.from(
+      new Set(sourceSkillIds.filter((id) => id !== targetSkillId)),
+    );
+    if (sourceIds.length === 0) return;
+
+    const sourceUuidArray = this.toSqlUuidArray(sourceIds);
+    const sourceTextArray = this.toSqlTextArray(sourceIds);
+
+    await this.executeWithTransaction(async (tx) => {
+      const targetSkillRows = await tx
+        .select({ id: skills.id, name: skills.name })
+        .from(skills)
+        .where(eq(skills.id, targetSkillId))
+        .limit(1);
+
+      const targetSkill = targetSkillRows[0];
+      if (!targetSkill) {
+        throw new Error(`Target skill not found: ${targetSkillId}`);
+      }
+
+      const sourceSkills = await tx
+        .select({ id: skills.id, name: skills.name })
+        .from(skills)
+        .where(inArray(skills.id, sourceIds));
+
+      const targetMasterName = NormalizeString(targetSkill.name);
+      const sourceMasterNames = sourceSkills.map((s) =>
+        NormalizeString(s.name),
+      );
+
+      await tx.execute(sql`
+        DELETE FROM blog_post_tags AS src
+        USING blog_post_tags AS tgt
+        WHERE src.skill_id = ANY(${sourceUuidArray})
+          AND tgt.skill_id = ${targetSkillId}::uuid
+          AND src.post_id = tgt.post_id
+          AND src.tag_id IS NOT DISTINCT FROM tgt.tag_id
+      `);
+
+      await tx.execute(sql`
+        UPDATE blog_post_tags
+        SET skill_id = ${targetSkillId}::uuid
+        WHERE skill_id = ANY(${sourceUuidArray})
+      `);
+
+      await tx.execute(sql`
+        DELETE FROM job_skills
+        WHERE skill_id = ANY(${sourceUuidArray})
+          AND job_id IN (
+            SELECT job_id
+            FROM job_skills
+            WHERE skill_id = ${targetSkillId}::uuid
+          )
+      `);
+
+      await tx.execute(sql`
+        DELETE FROM user_skills
+        WHERE skill_id = ANY(${sourceUuidArray})
+          AND user_id IN (
+            SELECT user_id
+            FROM user_skills
+            WHERE skill_id = ${targetSkillId}::uuid
+          )
+      `);
+
+      await tx.execute(sql`
+        UPDATE job_skills
+        SET skill_id = ${targetSkillId}::uuid
+        WHERE skill_id = ANY(${sourceUuidArray})
+      `);
+
+      await tx.execute(sql`
+        UPDATE user_skills
+        SET skill_id = ${targetSkillId}::uuid
+        WHERE skill_id = ANY(${sourceUuidArray})
+      `);
+
+      await tx.execute(sql`
+        UPDATE user_onboardings
+        SET skills = (
+          SELECT COALESCE(
+            jsonb_agg(DISTINCT CASE
+              WHEN elem #>> '{}' = ANY(${sourceTextArray}) THEN to_jsonb(${targetSkillId}::text)
+              ELSE elem
+            END),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(user_onboardings.skills, '[]'::jsonb)) AS elem
+        )
+        WHERE ${userOnboardings.skills} IS NOT NULL
+      `);
+
+      await tx.execute(sql`
+        UPDATE learning_roadmaps
+        SET current_skills = (
+          SELECT COALESCE(
+            jsonb_agg(DISTINCT CASE
+              WHEN elem ->> 'skillId' = ANY(${sourceTextArray})
+                THEN jsonb_set(elem, '{skillId}', to_jsonb(${targetSkillId}::text), false)
+              ELSE elem
+            END),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(learning_roadmaps.current_skills, '[]'::jsonb)) AS elem
+        )
+        WHERE current_skills IS NOT NULL
+      `);
+
+      await tx.execute(sql`
+        UPDATE user_tests
+        SET selected_skill_ids = (
+          SELECT COALESCE(
+            jsonb_agg(DISTINCT CASE
+              WHEN elem #>> '{}' = ANY(${sourceTextArray}) THEN to_jsonb(${targetSkillId}::text)
+              ELSE elem
+            END),
+            '[]'::jsonb
+          )
+          FROM jsonb_array_elements(COALESCE(user_tests.selected_skill_ids, '[]'::jsonb)) AS elem
+        )
+        WHERE selected_skill_ids IS NOT NULL
+      `);
+
+      if (sourceMasterNames.length > 0) {
+        await tx
+          .update(skillsSynonyms)
+          .set({ masterName: targetMasterName })
+          .where(inArray(skillsSynonyms.masterName, sourceMasterNames));
+      }
+
+      const aliasFromOldSkills = sourceSkills
+        .map((skill) => NormalizeString(skill.name))
+        .filter((name) => name.length > 0 && name !== targetMasterName);
+
+      if (aliasFromOldSkills.length > 0) {
+        await tx
+          .insert(skillsSynonyms)
+          .values(
+            aliasFromOldSkills.map((aliasName) => ({
+              masterName: targetMasterName,
+              aliasName,
+              source: "manual",
+            })),
+          )
+          .onConflictDoNothing();
+      }
+
+      await tx.delete(skills).where(inArray(skills.id, sourceIds));
+    });
+
+    await this.cacheManager.del(CACHE_KEYS.skill.getAll());
+    await this.cacheManager.del(CACHE_KEYS.skillSynonym.getAll());
   }
 }

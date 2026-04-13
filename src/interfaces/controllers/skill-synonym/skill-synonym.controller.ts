@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -12,6 +13,7 @@ import {
   ApiResponse,
   ApiResponseDto,
   GetSkillsSynonymsQueryDto,
+  MergeSkillsDto,
   PaginatedResultDto,
   SkillSynonymResponseDto,
   UpdateSkillSynonymDto,
@@ -52,5 +54,18 @@ export class SkillSynonymController {
     @Body() dto: UpdateSkillSynonymDto,
   ): Promise<ApiResponse<SkillSynonymResponseDto>> {
     return this.skillSynonymUseCases.updateSkillSynonym(skillId, dto);
+  }
+
+  @ApiOperation({
+    summary: "Merge skills into target skill",
+    description:
+      "After confirmation from FE, merge source skill IDs into target skill ID and move all references.",
+  })
+  @Post(":skillId/merge")
+  async mergeSkills(
+    @Param("skillId") skillId: string,
+    @Body() dto: MergeSkillsDto,
+  ): Promise<ApiResponse<void>> {
+    return this.skillSynonymUseCases.mergeSkills(skillId, dto);
   }
 }
