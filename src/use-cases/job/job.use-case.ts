@@ -23,7 +23,11 @@ import {
   JobTrendsQueryDto,
   JobMatchResultDto,
 } from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  DEFAULT_SAVE_JOB_LIMIT,
+} from "@/common/constants";
 import { Dictionary, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
@@ -727,6 +731,21 @@ export class JobUseCases {
     jobId: string,
     save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
+    if (save) {
+      const [currentCount, featureLimit] = await Promise.all([
+        this.jobRepository.getNumberOfSavedJobs(userId),
+        this.jobRepository.getSaveJobFeatureLimit(userId),
+      ]);
+
+      const limit = featureLimit ?? DEFAULT_SAVE_JOB_LIMIT;
+      if (currentCount >= limit) {
+        throw new ForbiddenException({
+          code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,
+          message: `Bạn chỉ có thể lưu tối đa ${limit} việc làm.`,
+        });
+      }
+    }
+
     const result = await this.jobRepository.saveJob(userId, jobId, save);
     this.logger.log(
       `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,

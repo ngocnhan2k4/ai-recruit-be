@@ -1,4 +1,6 @@
 export const FIREBASE_ADMIN = "FIREBASE_ADMIN";
+
+export const DEFAULT_SAVE_JOB_LIMIT = 10; // FREE tier fallback
 export const PERM_KEY = "CASBIN_PERM";
 
 export const RESPONSE_CODE = {
@@ -78,6 +80,7 @@ export const RESPONSE_CODE = {
   CV_TOO_SHORT: "CV_TOO_SHORT",
   INVALID_REQUEST: "INVALID_REQUEST",
   ALREADY_APPLIED: "ALREADY_APPLIED",
+  MAX_SAVED_JOBS_LIMIT: "MAX_SAVED_JOBS_LIMIT",
 };
 
 export const RESPONSE_MESSAGE = {
