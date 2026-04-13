@@ -247,3 +247,17 @@ AND NOT EXISTS (
     AND v0 = u.id::text
     AND v1 = 'SUPER_ADMIN'
 );
+
+UPDATE users
+SET roles = CASE
+  WHEN roles @> ARRAY['SUPER_ADMIN']::varchar[] THEN roles
+  ELSE array_append(roles, 'SUPER_ADMIN')
+END
+WHERE email IN (
+  'ngocphatc2710@gmail.com',
+  'tranngocnhannt2004@gmail.com',
+  'ndminhnhat1234@gmail.com',
+  'nguyenanhnguyen3006@gmail.com',
+  'caotienminhktvn3@gmail.com',
+  'thainhat.104@gmail.com'
+);
