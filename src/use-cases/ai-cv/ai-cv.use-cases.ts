@@ -28,6 +28,7 @@ import {
   OptimizedCvDataDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos";
+import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
   BadRequestException,
   Inject,
@@ -37,6 +38,8 @@ import {
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
 import { FeatureService } from "@/services";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
 @Injectable()
 export class AiCvUseCases {
@@ -51,6 +54,195 @@ export class AiCvUseCases {
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
   ) {}
+
+  async exportCvPdf(request: GenerateCvPdfRequestDto): Promise<Buffer> {
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+
+    try {
+      const html = request?.html?.trim();
+
+      if (!html) {
+        throw new BadRequestException({
+          message: "Missing html content",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+
+      const isModernGreenTemplate =
+        /data-cv-template=["']modern-green["']/.test(html);
+      const isModernBlueTemplate = /data-cv-template=["']modern-blue["']/.test(
+        html,
+      );
+      const isClassicTemplate = /data-cv-template=["']classic["']/.test(html);
+
+      const pdfRootWidthMatch = html.match(
+        /\.pdf-root\s*\{[\s\S]*?width:\s*(\d+(?:\.\d+)?)px;/,
+      );
+
+      const requestedWidth =
+        typeof request?.pdfWidth === "number" &&
+        Number.isFinite(request.pdfWidth)
+          ? request.pdfWidth
+          : null;
+
+      const htmlWidth = pdfRootWidthMatch ? Number(pdfRootWidthMatch[1]) : null;
+      const pdfRootWidthPx = Math.min(
+        1240,
+        Math.max(700, requestedWidth ?? htmlWidth ?? 900),
+      );
+      const modernGreenSidebarWidthPx = pdfRootWidthPx * 0.3495;
+
+      const isVercel = Boolean(process.env.VERCEL);
+      const localExecutable =
+        process.env.PUPPETEER_EXECUTABLE_PATH ||
+        process.env.CHROME_EXECUTABLE_PATH ||
+        process.env.CHROMIUM_PATH;
+
+      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
+        headless: true,
+        args: [
+          ...(isVercel ? chromium.args : []),
+          "--hide-scrollbars",
+          "--disable-web-security",
+          "--no-sandbox",
+        ],
+        defaultViewport: {
+          width: 1240,
+          height: 1754,
+        },
+      };
+
+      if (isVercel) {
+        launchOptions.executablePath = await chromium.executablePath();
+      } else if (localExecutable) {
+        launchOptions.executablePath = localExecutable;
+      } else {
+        launchOptions.channel = "chrome";
+      }
+
+      browser = await puppeteer.launch(launchOptions);
+
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1240, height: 1754 });
+      await page.emulateMediaType("screen");
+      await page.setContent(html, { waitUntil: "networkidle0" });
+
+      await page.addStyleTag({
+        content: `
+          @page {
+            margin: 0;
+          }
+
+          html,
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          ${
+            isModernGreenTemplate
+              ? `
+          body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-${pdfRootWidthPx / 2}px);
+            width: ${modernGreenSidebarWidthPx}px;
+            background: #065f46;
+            z-index: -1;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .pdf-root {
+            position: relative;
+            z-index: 1;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] {
+            overflow: visible !important;
+            display: flex !important;
+            align-items: stretch !important;
+            position: relative !important;
+            isolation: isolate;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] > :first-child {
+            align-self: stretch !important;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-bottom: 8mm;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+
+          ${
+            isModernBlueTemplate
+              ? `
+          .pdf-root [data-cv-template="modern-blue"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+
+          ${
+            isClassicTemplate
+              ? `
+          .pdf-root [data-cv-template="classic"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+        `,
+      });
+
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: {
+          top: "0mm",
+          right: "0mm",
+          bottom: "0mm",
+          left: "0mm",
+        },
+        preferCSSPageSize: true,
+      });
+
+      return Buffer.from(pdfBuffer);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error("[AI_CV_EXPORT_PDF] Failed to generate CV PDF", error);
+      throw new BadRequestException({
+        message: detail,
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
     this.logger.log(`[getAiCvs] [get] Getting AI CVs for user ${userId}`);

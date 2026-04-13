@@ -31,6 +31,7 @@ export const RESPONSE_CODE = {
   FILE_NOT_PROVIDE: "FILE_NOT_PROVIDE",
   FILE_TYPE_NOT_SUPPORTED: "FILE_TYPE_NOT_SUPPORTED",
   JOB_NOT_FOUND: "JOB_NOT_FOUND",
+  JOB_NOT_ACTIVE: "JOB_NOT_ACTIVE",
   ORGANIZATION_NOT_FOUND: "ORGANIZATION_NOT_FOUND",
   USER_EDUCATION_NOT_FOUND: "USER_EDUCATION_NOT_FOUND",
   JOB_NOT_UPDATED: "JOB_NOT_UPDATED",
@@ -102,6 +103,7 @@ export const RESPONSE_MESSAGE = {
   INVALID_NOTIFICATION_STATUS:
     "Notification status can only be 'read' or 'deleted'.",
   JOB_NOT_FOUND: "Job not found.",
+  JOB_NOT_ACTIVE: "Only active jobs can be applied.",
   INVITEE_ALREADY_MEMBER: "The user is already a member of the organization.",
   INVITATION_ALREADY_SENT: "An invitation has already been sent to this user.",
   SENT_INVITATION_FAILED: "Failed to send invitation.",
