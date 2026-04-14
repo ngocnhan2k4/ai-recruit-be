@@ -77,8 +77,6 @@ import { FeatureRepository } from "./repositories/feature.repository";
 import { UserFeatureUsageRepository } from "./repositories/user-feature-usage.repository";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
-import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
-import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 import { TaskRepository } from "./repositories/task.repository";
@@ -290,10 +288,6 @@ import { BlogRepository } from "@/frameworks/data-services/postgres/repositories
       useClass: UserSubscriptionRepository,
     },
     {
-      provide: ISubscriptionFeatureRepository,
-      useClass: SubscriptionFeatureRepository,
-    },
-    {
       provide: IUserFeatureUsageRepository,
       useClass: UserFeatureUsageRepository,
     },
@@ -335,7 +329,6 @@ import { BlogRepository } from "@/frameworks/data-services/postgres/repositories
     IFeatureRepository,
     IUserFeatureUsageRepository,
     IUserSubscriptionRepository,
-    ISubscriptionFeatureRepository,
     IUserFeatureUsageRepository,
     ITaskRepository,
     IBlogRepository,

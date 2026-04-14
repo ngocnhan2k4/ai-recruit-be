@@ -65,6 +65,7 @@ export class ApplyJobResponseDto {
     id: string;
     name: string;
     fileUrl: string | null;
+    mimeType: string | null;
   };
 }
 

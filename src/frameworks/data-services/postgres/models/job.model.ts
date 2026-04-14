@@ -64,6 +64,7 @@ export const jobs = pgTable(
     experienceMin: integer("experience_min"),
     experienceMax: integer("experience_max"),
     questions: jsonb("questions"),
+    applyUrl: varchar("apply_url", { length: 500 }),
     endDate: date("end_date"),
     status: JobStatusEnum("status").notNull().default("pending_approval"),
     workType: WorkTypeEnum("work_type"),

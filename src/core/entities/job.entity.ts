@@ -71,7 +71,7 @@ export interface ApplyJobResponse {
   createdAt?: Date;
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
-  cv?: Pick<Cv, "id" | "name" | "fileUrl">;
+  cv?: Pick<Cv, "id" | "name" | "fileUrl" | "mimeType">;
 }
 
 export interface UserInteractionResponse {

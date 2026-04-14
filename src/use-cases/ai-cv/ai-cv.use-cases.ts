@@ -3,11 +3,18 @@ import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
-  FeatureCodeEnum,
   IAIService,
+  IMessageQueueService,
+  INotificationRepository,
+  ITaskRepository,
   IUserRepository,
+  IWebSocketGateway,
   NewAiCv,
-  OptimizeAtsResponse,
+  OptimizeAtsRequest,
+  FeatureCodeEnum,
+  NotificationType,
+  TaskTypeEnum,
+  TaskStatusEnum,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -21,6 +28,7 @@ import {
   OptimizedCvDataDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos";
+import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
   BadRequestException,
   Inject,
@@ -28,7 +36,10 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { FeatureService } from "@/services/feature/feature.service";
+import { JitterBackoff, retry } from "@/common/utils";
+import { FeatureService } from "@/services";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
 @Injectable()
 export class AiCvUseCases {
@@ -38,7 +49,200 @@ export class AiCvUseCases {
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
     private readonly featureService: FeatureService,
+    private readonly taskRepository: ITaskRepository,
+    private readonly notificationRepository: INotificationRepository,
+    private readonly webSocketGateway: IWebSocketGateway,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
+
+  async exportCvPdf(request: GenerateCvPdfRequestDto): Promise<Buffer> {
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+
+    try {
+      const html = request?.html?.trim();
+
+      if (!html) {
+        throw new BadRequestException({
+          message: "Missing html content",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+
+      const isModernGreenTemplate =
+        /data-cv-template=["']modern-green["']/.test(html);
+      const isModernBlueTemplate = /data-cv-template=["']modern-blue["']/.test(
+        html,
+      );
+      const isClassicTemplate = /data-cv-template=["']classic["']/.test(html);
+
+      const pdfRootWidthMatch = html.match(
+        /\.pdf-root\s*\{[\s\S]*?width:\s*(\d+(?:\.\d+)?)px;/,
+      );
+
+      const requestedWidth =
+        typeof request?.pdfWidth === "number" &&
+        Number.isFinite(request.pdfWidth)
+          ? request.pdfWidth
+          : null;
+
+      const htmlWidth = pdfRootWidthMatch ? Number(pdfRootWidthMatch[1]) : null;
+      const pdfRootWidthPx = Math.min(
+        1240,
+        Math.max(700, requestedWidth ?? htmlWidth ?? 900),
+      );
+      const modernGreenSidebarWidthPx = pdfRootWidthPx * 0.3495;
+
+      const isVercel = Boolean(process.env.VERCEL);
+      const localExecutable =
+        process.env.PUPPETEER_EXECUTABLE_PATH ||
+        process.env.CHROME_EXECUTABLE_PATH ||
+        process.env.CHROMIUM_PATH;
+
+      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
+        headless: true,
+        args: [
+          ...(isVercel ? chromium.args : []),
+          "--hide-scrollbars",
+          "--disable-web-security",
+          "--no-sandbox",
+        ],
+        defaultViewport: {
+          width: 1240,
+          height: 1754,
+        },
+      };
+
+      if (isVercel) {
+        launchOptions.executablePath = await chromium.executablePath();
+      } else if (localExecutable) {
+        launchOptions.executablePath = localExecutable;
+      } else {
+        launchOptions.channel = "chrome";
+      }
+
+      browser = await puppeteer.launch(launchOptions);
+
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1240, height: 1754 });
+      await page.emulateMediaType("screen");
+      await page.setContent(html, { waitUntil: "networkidle0" });
+
+      await page.addStyleTag({
+        content: `
+          @page {
+            margin: 0;
+          }
+
+          html,
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          ${
+            isModernGreenTemplate
+              ? `
+          body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-${pdfRootWidthPx / 2}px);
+            width: ${modernGreenSidebarWidthPx}px;
+            background: #065f46;
+            z-index: -1;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .pdf-root {
+            position: relative;
+            z-index: 1;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] {
+            overflow: visible !important;
+            display: flex !important;
+            align-items: stretch !important;
+            position: relative !important;
+            isolation: isolate;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] > :first-child {
+            align-self: stretch !important;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-bottom: 8mm;
+          }
+
+          .pdf-root [data-cv-template="modern-green"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+
+          ${
+            isModernBlueTemplate
+              ? `
+          .pdf-root [data-cv-template="modern-blue"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+
+          ${
+            isClassicTemplate
+              ? `
+          .pdf-root [data-cv-template="classic"] > :last-child {
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            padding-top: 8mm;
+            padding-bottom: 8mm;
+            background: #ffffff !important;
+          }
+          `
+              : ""
+          }
+        `,
+      });
+
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: {
+          top: "0mm",
+          right: "0mm",
+          bottom: "0mm",
+          left: "0mm",
+        },
+        preferCSSPageSize: true,
+      });
+
+      return Buffer.from(pdfBuffer);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error("[AI_CV_EXPORT_PDF] Failed to generate CV PDF", error);
+      throw new BadRequestException({
+        message: detail,
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
 
   async getAiCvs(userId: string): Promise<ApiResponse<AiCvListResponseDto>> {
     this.logger.log(`[getAiCvs] [get] Getting AI CVs for user ${userId}`);
@@ -227,59 +431,110 @@ export class AiCvUseCases {
     request: OptimizeAtsUploadDto,
     userId: string,
     useUserCV: boolean,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
-    // Call AI service to optimize CV
-    await this.featureService.consumeFeature(
-      userId,
-      FeatureCodeEnum.OPTIMIZE_CV,
-    );
-    try {
-      let cvText = "";
+  ): Promise<ApiResponse<{ taskId: string }>> {
+    // Extract CV text before pushing to queue
+    let cvText = "";
 
-      if (request?.file) {
-        cvText = await FileTextExtractor.extractText(request.file);
-
-        this.logger.log(`Extracted ${cvText.length} chars from CV`);
-      } else if (request?.cvText) {
-        cvText = request.cvText;
-      } else if (useUserCV) {
-        // Generate CV text from user profile data
-        const userCvData = await this.userRepository.getUserCvData(userId);
-        if (userCvData) {
-          cvText = userCvDataToText(userCvData);
-          this.logger.log(`Generated ${cvText.length} chars from user profile`);
-        }
+    if (request?.file) {
+      cvText = await FileTextExtractor.extractText(request.file);
+      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+    } else if (request?.cvText) {
+      cvText = request.cvText;
+    } else if (useUserCV) {
+      const userCvData = await this.userRepository.getUserCvData(userId);
+      if (userCvData) {
+        cvText = userCvDataToText(userCvData);
+        this.logger.log(`Generated ${cvText.length} chars from user profile`);
       }
-
-      const optimizeRequest = {
-        cvText,
-        language: request.body.language || CvLanguageEnum.VIETNAMESE,
-        ...(request.body.jobDescription && {
-          jobDescription: request.body.jobDescription,
-        }),
-      };
-
-      this.logger.log(
-        request.body.jobDescription
-          ? "Performing targeted ATS optimization with job description"
-          : "Performing general ATS optimization",
-      );
-
-      const result = await this.aiService.optimizeCvAts(optimizeRequest);
-
-      result.language = request.body.language!;
-
-      return {
-        data: result,
-        message: "CV optimized successfully",
-        code: RESPONSE_CODE.SUCCESS,
-      };
-    } catch (error) {
-      this.logger.error(error);
-      throw new BadRequestException({
-        message: error,
-        code: RESPONSE_CODE.CV_OPTIMIZATION_FAILED,
-      });
     }
+
+    if (cvText.length < 100) {
+      if (useUserCV) {
+        throw new BadRequestException({
+          message:
+            "Profile content is too short. Please provide a valid profile.",
+          code: RESPONSE_CODE.PROFILE_TOO_SHORT,
+        });
+      } else {
+        throw new BadRequestException({
+          message: "CV content is too short. Please provide a valid CV.",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+    }
+
+    const optimizeRequest: OptimizeAtsRequest = {
+      cvText,
+      language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      ...(request.body.jobDescription && {
+        jobDescription: request.body.jobDescription,
+      }),
+    };
+
+    const result = await this.taskRepository.executeWithTransaction(
+      async (tx) => {
+        await this.featureService.consumeFeature(
+          userId,
+          FeatureCodeEnum.OPTIMIZE_CV,
+        );
+
+        const task = await this.taskRepository.create(
+          {
+            name: `Optimize AI CV for user: ${userId}`,
+            type: TaskTypeEnum.CV_GENERATION,
+            status: TaskStatusEnum.PENDING,
+            userId,
+            input: {
+              request: optimizeRequest,
+            },
+          },
+          tx,
+        );
+
+        const [notification] =
+          await this.notificationRepository.createNotificationWithRecipients(
+            {
+              senderId: null,
+              title: "CV của bạn đang được tối ưu",
+              message:
+                "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              type: NotificationType.SYSTEM,
+              payload: {
+                taskId: task.id,
+              },
+            },
+            [{ receiverId: userId }],
+            tx,
+          );
+        return {
+          task,
+          notification,
+        };
+      },
+    );
+
+    this.webSocketGateway.sendToUser({ userId }, result.notification);
+
+    await retry(
+      async () => {
+        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
+          taskId: result.task.id,
+          notificationId: result.notification.id,
+        });
+        this.logger.log(
+          `CV generation task added to message queue: ${result.task.id}`,
+        );
+      },
+      {
+        retries: 3,
+        backoff: new JitterBackoff(1000, 10000),
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "CV generation started",
+      data: { taskId: result.task.id },
+    };
   }
 }

@@ -184,8 +184,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     options?: {
       sendNotifications?: boolean;
       senderUserId?: string;
+      recipients?: {
+        receiverId: string;
+      }[];
+      senderAvatarUrl?: string;
     },
-  ): Promise<Job | null>;
+  ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
   abstract updateJobWithNotifications(
     jobId: string,
     job: Partial<Job> & {
@@ -194,6 +198,13 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       provinceIds?: string[];
     },
     userId: string,
+    options?: {
+      recipients?: {
+        receiverId: string;
+        organizationId?: string;
+      }[];
+      senderAvatarUrl?: string;
+    },
   ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
 
   abstract getFullJobById(
