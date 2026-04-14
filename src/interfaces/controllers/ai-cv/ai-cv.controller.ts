@@ -7,6 +7,7 @@ import {
   AiCvDto,
   AiCvListResponseDto,
   AiCvRequestDto,
+  GenerateCvPdfRequestDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos/ai-cv";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
@@ -25,6 +26,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -35,12 +37,33 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
+import type { FastifyReply } from "fastify";
 
 @ApiTags("AI CV")
 @Controller("ai-cv")
 @UseGuards(JwtAuthGuard)
 export class AiCvController {
   constructor(private readonly aiCvUseCases: AiCvUseCases) {}
+
+  @Post("export-pdf")
+  @ApiOperation({
+    summary: "Export CV as PDF",
+    description: "Convert rendered CV HTML into a downloadable PDF file",
+  })
+  @ApiBody({ type: GenerateCvPdfRequestDto })
+  async exportCvPdf(
+    @Body() request: GenerateCvPdfRequestDto,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const pdfBuffer = await this.aiCvUseCases.exportCvPdf(request);
+
+    reply
+      .code(200)
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", 'attachment; filename="cv.pdf"')
+      .header("Cache-Control", "no-store")
+      .send(pdfBuffer);
+  }
 
   @ApiOperation({
     summary: "Get AI CVs",
