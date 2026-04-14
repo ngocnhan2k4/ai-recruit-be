@@ -82,7 +82,11 @@ export class TaskWorker extends WorkerHost {
     const { notificationId, userId, payload, message, taskId } = params;
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
-      await this.taskRepository.update({ id: taskId }, params.taskData, tx);
+      await this.taskRepository.update(
+        { id: taskId, updatedAt: new Date() },
+        params.taskData,
+        tx,
+      );
 
       await this.notificationRepository.update(
         { id: notificationId },
@@ -92,6 +96,7 @@ export class TaskWorker extends WorkerHost {
             ...payload,
           },
           message,
+          updatedAt: new Date(),
         },
         tx,
       );
