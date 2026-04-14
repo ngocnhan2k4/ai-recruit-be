@@ -97,11 +97,26 @@ export class AiCvUseCases {
         process.env.PUPPETEER_EXECUTABLE_PATH ||
         process.env.CHROME_EXECUTABLE_PATH ||
         process.env.CHROMIUM_PATH;
+      let chromiumExecutablePath: string | undefined;
+
+      if (!localExecutable) {
+        try {
+          chromiumExecutablePath = await chromium.executablePath();
+        } catch (resolveChromiumError) {
+          this.logger.warn(
+            `[AI_CV_EXPORT_PDF] Could not resolve @sparticuz/chromium executable path: ${
+              resolveChromiumError instanceof Error
+                ? resolveChromiumError.message
+                : String(resolveChromiumError)
+            }`,
+          );
+        }
+      }
 
       const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
         headless: true,
         args: [
-          ...(isVercel ? chromium.args : []),
+          ...(isVercel || chromiumExecutablePath ? chromium.args : []),
           "--hide-scrollbars",
           "--disable-web-security",
           "--no-sandbox",
@@ -116,6 +131,8 @@ export class AiCvUseCases {
         launchOptions.executablePath = await chromium.executablePath();
       } else if (localExecutable) {
         launchOptions.executablePath = localExecutable;
+      } else if (chromiumExecutablePath) {
+        launchOptions.executablePath = chromiumExecutablePath;
       } else {
         launchOptions.channel = "chrome";
       }
