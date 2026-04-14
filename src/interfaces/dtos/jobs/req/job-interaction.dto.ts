@@ -165,7 +165,7 @@ export class UpdateApplyJobDto {
   })
   @IsOptional()
   @IsUUID()
-  userCvId?: string;
+  cvId?: string;
 
   @ApiProperty({
     type: [JobAnswerDto],

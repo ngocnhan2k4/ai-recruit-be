@@ -1,13 +1,13 @@
 import { RESPONSE_CODE } from "@/common/constants";
 import { GetUser, UploadFileAndBody } from "@/common/decorators";
 import type { TokenPayload } from "@/common/types";
-import { OptimizeAtsResponse } from "@/core";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
   AiCvDto,
   AiCvListResponseDto,
   AiCvRequestDto,
+  GenerateCvPdfRequestDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos/ai-cv";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
@@ -26,6 +26,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -36,12 +37,33 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
+import type { FastifyReply } from "fastify";
 
 @ApiTags("AI CV")
 @Controller("ai-cv")
 @UseGuards(JwtAuthGuard)
 export class AiCvController {
   constructor(private readonly aiCvUseCases: AiCvUseCases) {}
+
+  @Post("export-pdf")
+  @ApiOperation({
+    summary: "Export CV as PDF",
+    description: "Convert rendered CV HTML into a downloadable PDF file",
+  })
+  @ApiBody({ type: GenerateCvPdfRequestDto })
+  async exportCvPdf(
+    @Body() request: GenerateCvPdfRequestDto,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const pdfBuffer = await this.aiCvUseCases.exportCvPdf(request);
+
+    reply
+      .code(200)
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", 'attachment; filename="cv.pdf"')
+      .header("Cache-Control", "no-store")
+      .send(pdfBuffer);
+  }
 
   @ApiOperation({
     summary: "Get AI CVs",
@@ -72,12 +94,11 @@ export class AiCvController {
       "Optimize CV for ATS compatibility. Accepts either a CV file (PDF/DOCX) OR raw CV text. Supports two optimization modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
   @ApiConsumes("multipart/form-data")
-  @ApiResponseDto(OptimizeAtsResponse)
   async optimizeAts(
     @UploadFileAndBody({ required: false })
     request: OptimizeAtsUploadDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<OptimizeAtsResponse>> {
+  ): Promise<ApiResponse<{ taskId: string }>> {
     if (!request.file && !request.cvText) {
       return await this.aiCvUseCases.optimizeCvForAts(
         request,
