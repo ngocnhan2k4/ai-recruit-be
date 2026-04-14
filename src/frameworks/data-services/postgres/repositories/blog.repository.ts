@@ -17,7 +17,7 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, count, desc, eq, ilike, sql, SQL } from "drizzle-orm";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { GenericRepository } from "./generic-repository";
-import { type DBDrizzle } from "../types";
+import { type DBDrizzle, type DBDrizzleTransaction } from "../types";
 import { users } from "../models";
 import { skills } from "../models/skill.model";
 import {
@@ -477,7 +477,7 @@ export class BlogRepository
 
   async saveDraft(
     data: {
-      title: string;
+      title?: string;
       summary?: string;
       content?: string;
       category?: string;
@@ -489,19 +489,33 @@ export class BlogRepository
     postId?: string,
   ): Promise<BlogPost> {
     return this.db.transaction(async (tx) => {
-      // const slug = data.slug ?? this.generateSlug(data.title);
-
       if (postId) {
+        const updateData: Record<string, unknown> = {
+          status: "DRAFT",
+        };
+
+        if (data.title !== undefined) {
+          updateData.title = data.title;
+        }
+        if (data.summary !== undefined) {
+          updateData.summary = data.summary;
+        }
+        if (data.content !== undefined) {
+          updateData.content = data.content;
+        }
+        if (data.category !== undefined) {
+          updateData.categoryId = data.category;
+        }
+        if (data.thumbnail !== undefined) {
+          updateData.thumbnail = data.thumbnail;
+        }
+        if (data.slug !== undefined) {
+          updateData.slug = data.slug;
+        }
+
         await tx
           .update(blogPosts)
-          .set({
-            title: data.title,
-            summary: data.summary ?? "",
-            content: data.content ?? "",
-            categoryId: data.category,
-            thumbnail: data.thumbnail ?? null,
-            status: "DRAFT",
-          })
+          .set(updateData)
           .where(eq(blogPosts.id, postId));
 
         if (data.tags) {
@@ -528,21 +542,17 @@ export class BlogRepository
 
         return updated as BlogPost;
       } else {
-        // Create new draft - category is required for new posts
-        if (!data.category) {
-          throw new Error("Category is required for new blog posts");
-        }
-
+        const categoryId = await this.resolveDraftCategoryId(tx, data.category);
         const slug2 = data.slug ?? this.generateSlug(data.title);
 
         const [created] = await tx
           .insert(blogPosts)
           .values({
-            title: data.title,
+            title: data.title ?? "",
             slug: slug2,
             summary: data.summary ?? "",
             content: data.content ?? "",
-            categoryId: data.category,
+            categoryId,
             thumbnail: data.thumbnail ?? null,
             authorId,
             status: "DRAFT",
@@ -568,15 +578,38 @@ export class BlogRepository
     });
   }
 
-  private generateSlug(title: string): string {
-    const baseSlug = title
+  private async resolveDraftCategoryId(
+    tx: DBDrizzleTransaction,
+    categoryId?: string,
+  ): Promise<string> {
+    if (categoryId) {
+      return categoryId;
+    }
+
+    const [fallbackCategory] = await tx
+      .select({ id: blogCategories.id })
+      .from(blogCategories)
+      .orderBy(asc(blogCategories.createdAt))
+      .limit(1);
+
+    if (!fallbackCategory) {
+      throw new Error("No blog category configured for creating draft post");
+    }
+
+    return fallbackCategory.id;
+  }
+
+  private generateSlug(title?: string): string {
+    const normalizedTitle = (title ?? "")
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
 
-    const uniqueTail = Math.random().toString(36).substring(2, 8);
+    const baseSlug = normalizedTitle || "draft";
+    const uniqueTail = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
     return `${baseSlug}-${uniqueTail}`;
   }
 

@@ -40,7 +40,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
 
   abstract saveDraft(
     data: {
-      title: string;
+      title?: string;
       summary?: string;
       content?: string;
       category?: string;

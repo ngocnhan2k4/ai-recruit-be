@@ -10,7 +10,6 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
-  MinLength,
 } from "class-validator";
 
 export class BlogPostTagInputDto {
@@ -38,6 +37,11 @@ export class QueryBlogsDto extends GeneralQueryDto {
 }
 
 export class CreateBlogPostDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID("4")
+  postId?: string;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -73,12 +77,11 @@ export class CreateBlogPostDto {
 }
 
 export class SaveDraftBlogPostDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  @MinLength(1)
   @MaxLength(255)
-  title: string;
+  title?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

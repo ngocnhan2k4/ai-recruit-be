@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -15,6 +16,7 @@ import type { TokenPayload } from "@/common/types";
 import {
   JwtAuthGuard,
   OptionalJwtAuthGuard,
+  SystemAuthorizeGuard,
 } from "@/frameworks/auth-services/guards";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
@@ -171,5 +173,23 @@ export class BlogController {
     @Param("id") id: string,
   ): Promise<ApiResponse<void>> {
     return this.blogUseCases.toggleLike(user, id);
+  }
+
+  @ApiOperation({ summary: "Approve blog post" })
+  @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
+  @Patch(":id/approve")
+  async approvePost(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<{ id: string }>> {
+    return this.blogUseCases.approvePost(id);
+  }
+
+  @ApiOperation({ summary: "Reject blog post" })
+  @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
+  @Patch(":id/reject")
+  async rejectPost(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<{ id: string }>> {
+    return this.blogUseCases.rejectPost(id);
   }
 }

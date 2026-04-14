@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,6 +13,7 @@ import {
   CreateBlogPostDto,
   QueryBlogTagsDto,
   QueryBlogsDto,
+  SaveDraftBlogPostDto,
   UpdateBlogPostDto,
 } from "@/interfaces/dtos/blog/req/blog-post.dto";
 
@@ -163,6 +165,71 @@ export class BlogUseCases {
       slug: string;
     }>
   > {
+    if (dto.postId) {
+      const existing = await this.blogRepository.get(dto.postId);
+
+      if (!existing) {
+        throw new NotFoundException({
+          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          message: "Blog post not found",
+        });
+      }
+
+      if (existing.authorId !== user.userId) {
+        throw new ForbiddenException({
+          code: RESPONSE_CODE.FORBIDDEN,
+          message: RESPONSE_MESSAGE.FORBIDDEN,
+        });
+      }
+
+      if (existing.status !== "DRAFT") {
+        throw new BadRequestException({
+          code: RESPONSE_CODE.BAD_REQUEST,
+          message: "Only draft blog posts can be submitted via create API",
+        });
+      }
+
+      // Keep existing slug if present, otherwise generate new one
+      const slug = existing.slug || this.generateSlug(dto.title);
+
+      await this.blogRepository.saveDraft(
+        {
+          title: dto.title,
+          summary: dto.summary,
+          content: dto.content,
+          category: dto.category,
+          thumbnail: dto.thumbnail ?? null,
+          tags: dto.tags,
+          slug,
+        },
+        user.userId,
+        dto.postId,
+      );
+
+      const [published] = await this.blogRepository.update(
+        {
+          id: dto.postId,
+        },
+        {
+          status: "PENDING",
+          updatedAt: new Date(),
+        },
+      );
+
+      if (!published) {
+        throw new NotFoundException({
+          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          message: "Blog post not found",
+        });
+      }
+
+      return {
+        code: RESPONSE_CODE.CREATED,
+        message: RESPONSE_MESSAGE.CREATED,
+        data: { slug: published.slug },
+      };
+    }
+
     const baseSlug = this.generateSlug(dto.title);
     const existed = await this.blogRepository.getPostBySlug(baseSlug);
     const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
@@ -188,7 +255,7 @@ export class BlogUseCases {
 
   async saveDraft(
     user: TokenPayload,
-    dto: any,
+    dto: SaveDraftBlogPostDto,
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     const result = await this.blogRepository.saveDraft(
@@ -232,14 +299,12 @@ export class BlogUseCases {
       });
     }
 
-    const nextSlug = dto.title ? this.generateSlug(dto.title) : undefined;
     const updated = await this.blogRepository.update(
       {
         id: postId,
       },
       {
         title: dto.title,
-        slug: nextSlug,
         summary: dto.summary,
         thumbnail: dto.thumbnail,
         content: dto.content,
@@ -358,6 +423,42 @@ export class BlogUseCases {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
+    };
+  }
+
+  async approvePost(postId: string): Promise<ApiResponse<{ id: string }>> {
+    return this.reviewPost(postId, "PUBLISHED");
+  }
+
+  async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
+    return this.reviewPost(postId, "REJECTED");
+  }
+
+  private async reviewPost(
+    postId: string,
+    status: "PUBLISHED" | "REJECTED",
+  ): Promise<ApiResponse<{ id: string }>> {
+    const post = await this.blogRepository.get(postId);
+
+    if (!post) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+        message: "Blog post not found",
+      });
+    }
+
+    await this.blogRepository.update(
+      { id: postId },
+      {
+        status,
+        updatedAt: new Date(),
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: { id: postId },
     };
   }
 }
