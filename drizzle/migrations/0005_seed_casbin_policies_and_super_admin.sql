@@ -1,6 +1,8 @@
 -- Seed Casbin system and organization policies.
 -- Idempotent: each insert is skipped if the semantic rule already exists.
 
+DELETE FROM casbin_rule;
+
 INSERT INTO casbin_rule (id, ptype, v0, v1, v2, v3)
 SELECT 898, 'p', 'ADMIN', '/admin/casbin', '(GET)|(POST)|(PUT)|(PATCH)|(DELETE)', 'deny'
 WHERE NOT EXISTS (
