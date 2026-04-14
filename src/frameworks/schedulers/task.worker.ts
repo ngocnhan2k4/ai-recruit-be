@@ -34,6 +34,8 @@ type TaskData = {
   notificationId: string;
 };
 
+export const MAX_TASK_ATTEMPTS = 3;
+
 @Processor(TASK_QUEUE, {
   concurrency: 4,
 })
@@ -394,7 +396,10 @@ export class TaskWorker extends WorkerHost {
       {
         inProgress: "Đang tạo lộ trình học tập của bạn...",
         completed: "Lộ trình học tập của bạn đã sẵn sàng.",
-        failed: "Failed to generate learning roadmap",
+        failed:
+          options?.attempts === MAX_TASK_ATTEMPTS
+            ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
       },
       async (task, request: PreviewRoadmapDto) => {
         let resultData: AILearningRoadmapResult | null = null;
@@ -461,7 +466,10 @@ export class TaskWorker extends WorkerHost {
       {
         inProgress: "Đang tối ưu CV của bạn...",
         completed: "CV của bạn đã được tối ưu.",
-        failed: "Failed to optimize CV",
+        failed:
+          options?.attempts === MAX_TASK_ATTEMPTS
+            ? "Đã gặp sự cố khi tối ưu CV, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tối ưu CV, hệ thống sẽ thử lại...",
       },
       async (task, request: OptimizeAtsRequest) => {
         const result: OptimizeAtsResponse =
