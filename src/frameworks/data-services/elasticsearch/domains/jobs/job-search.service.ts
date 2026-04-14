@@ -231,6 +231,30 @@ export class JobSearchService implements IJobSearchService {
             },
           },
         },
+        {
+          match: {
+            organizationName: {
+              query: keyword,
+              boost: 2.5,
+            },
+          },
+        },
+        {
+          match: {
+            categoryName: {
+              query: keyword,
+              boost: 1.8,
+            },
+          },
+        },
+        {
+          match: {
+            provinceNames: {
+              query: keyword,
+              boost: 1.3,
+            },
+          },
+        },
       );
     }
 
@@ -558,6 +582,30 @@ export class JobSearchService implements IJobSearchService {
                 skillNames: {
                   query: keyword,
                   boost: 2.0,
+                },
+              },
+            },
+            {
+              match: {
+                organizationName: {
+                  query: keyword,
+                  boost: 2.5,
+                },
+              },
+            },
+            {
+              match: {
+                categoryName: {
+                  query: keyword,
+                  boost: 1.8,
+                },
+              },
+            },
+            {
+              match: {
+                provinceNames: {
+                  query: keyword,
+                  boost: 1.3,
                 },
               },
             },
