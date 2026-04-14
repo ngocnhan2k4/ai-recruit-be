@@ -34,10 +34,6 @@ import {
   jobRaws,
   users,
   jobProvinces,
-  features,
-  subscriptions,
-  subscriptionFeatures,
-  userSubscriptions,
 } from "../models";
 import {
   DBDrizzleTransaction,
@@ -52,8 +48,6 @@ import {
   JobStatusEnum,
   WorkTypeEnum,
   Notification,
-  FeatureCodeEnum,
-  UserSubscriptionStatusEnum,
   NotificationType,
   IUserRepository,
   Category,
@@ -2161,40 +2155,6 @@ export class JobRepository
       );
     return Number(result[0]?.count ?? 0);
   }
-  async getSaveJobFeatureLimit(userId: string): Promise<number | null> {
-    const [result] = await this.db
-      .select({ limit: subscriptionFeatures.limit })
-      .from(features)
-      .innerJoin(
-        subscriptionFeatures,
-        eq(subscriptionFeatures.featureId, features.id),
-      )
-      .innerJoin(
-        userSubscriptions,
-        eq(
-          userSubscriptions.subscriptionId,
-          subscriptionFeatures.subscriptionId,
-        ),
-      )
-      .innerJoin(
-        subscriptions,
-        eq(userSubscriptions.subscriptionId, subscriptions.id),
-      )
-      .where(
-        and(
-          eq(features.code, FeatureCodeEnum.SAVE_JOB),
-          eq(features.isActive, true),
-          eq(userSubscriptions.userId, userId),
-          eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
-          eq(subscriptions.isActive, true),
-        ),
-      )
-      .orderBy(desc(userSubscriptions.startedAt))
-      .limit(1);
-
-    return result?.limit ?? null;
-  }
-
   async getNumberOfAppliedJobs(userId: string): Promise<number> {
     const result = await this.db
       .select({

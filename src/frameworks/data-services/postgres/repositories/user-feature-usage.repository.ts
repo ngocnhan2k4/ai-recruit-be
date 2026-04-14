@@ -7,6 +7,8 @@ import {
   subscriptions,
   userFeatureUsages,
   userSubscriptions,
+  userInteractions,
+  jobs,
 } from "../models";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
@@ -109,18 +111,39 @@ export class UserFeatureUsageRepository
       });
     }
 
+    // For save job feature, count actual saved jobs from userInteractions
+    const saveJobFeature = featureSnapshots.find(
+      (f) => f.code === FeatureCodeEnum.SAVE_JOB,
+    );
+    let savedJobsCount = 0;
+    if (saveJobFeature) {
+      const [countResult] = await this.db
+        .select({ count: sql`COUNT(*)`.as("count") })
+        .from(userInteractions)
+        .innerJoin(jobs, eq(userInteractions.jobId, jobs.id))
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.type, "save"),
+            isNull(jobs.deletedAt),
+          ),
+        );
+      savedJobsCount = Number(countResult?.count ?? 0);
+    }
+
     return {
       subscription: currentSubscription,
       features: featureSnapshots.map((f) => {
         const usage = usageMap.get(f.id);
+        const isSaveJob = f.code === FeatureCodeEnum.SAVE_JOB;
         return {
           id: f.id,
           code: f.code,
           name: f.name,
           description: f.description,
           limit: f.limit,
-          usage: usage?.usage ?? 0,
-          lastRefillAt: usage?.lastRefillAt ?? null,
+          usage: isSaveJob ? savedJobsCount : (usage?.usage ?? 0),
+          lastRefillAt: isSaveJob ? null : (usage?.lastRefillAt ?? null),
         };
       }),
     };

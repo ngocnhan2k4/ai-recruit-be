@@ -11,6 +11,7 @@ import {
   ICvRepository,
   IUserRepository,
 } from "@/core/abstracts";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import {
   ApiResponse,
   JobCountsDto,
@@ -50,6 +51,7 @@ import {
   Notification,
   Category,
   JobResponse,
+  FeatureCodeEnum,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -85,6 +87,7 @@ export class JobUseCases {
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobSearchService: IJobSearchService,
     private readonly cvRepository: ICvRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
   ) {}
 
   async getJobs(
@@ -732,12 +735,15 @@ export class JobUseCases {
     save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
     if (save) {
-      const [currentCount, featureLimit] = await Promise.all([
+      const [currentCount, featureUsage] = await Promise.all([
         this.jobRepository.getNumberOfSavedJobs(userId),
-        this.jobRepository.getSaveJobFeatureLimit(userId),
+        this.userFeatureUsageRepository.getConsumeFeatureUsage(
+          userId,
+          FeatureCodeEnum.SAVE_JOB,
+        ),
       ]);
 
-      const limit = featureLimit ?? DEFAULT_SAVE_JOB_LIMIT;
+      const limit = featureUsage?.limit ?? DEFAULT_SAVE_JOB_LIMIT;
       if (currentCount >= limit) {
         throw new ForbiddenException({
           code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,

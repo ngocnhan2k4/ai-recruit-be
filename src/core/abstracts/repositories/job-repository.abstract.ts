@@ -237,7 +237,6 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     }>
   >;
   abstract getNumberOfSavedJobs(userId: string): Promise<number>;
-  abstract getSaveJobFeatureLimit(userId: string): Promise<number | null>;
   abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
   abstract getAllAppliedJobs(
     userId: string,
