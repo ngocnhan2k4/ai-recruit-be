@@ -56,11 +56,11 @@ export class TaskWorker extends WorkerHost {
 
   async process(job: Job) {
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
-      return this.processLearningPath(job.data as TaskData);
+      return this.processLearningPath(job.data as TaskData, job.opts);
     }
 
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-      return this.processOptimizeCv(job.data as TaskData);
+      return this.processOptimizeCv(job.data as TaskData, job.opts);
     }
 
     this.logger.warn(`[process] Unknown task job name: ${job.name}`);
@@ -308,6 +308,9 @@ export class TaskWorker extends WorkerHost {
     taskType: TaskTypeEnum,
     messages: { inProgress: string; completed: string; failed: string },
     coreLogic: (task: Task, request: any) => Promise<TResult>,
+    options?: {
+      attempts?: number;
+    },
   ) {
     const { taskId, notificationId } = data;
     let task: Task | null = null;
@@ -365,7 +368,10 @@ export class TaskWorker extends WorkerHost {
           taskData: {
             type: taskType,
             status: TaskStatusEnum.FAILED,
-            error: error.message || "Unknown error",
+            error: JSON.stringify({
+              message: error.message || "Unknown error",
+              attempts: options?.attempts,
+            }),
             result: null,
           },
         });
@@ -378,7 +384,10 @@ export class TaskWorker extends WorkerHost {
     }
   }
 
-  private async processLearningPath(data: TaskData) {
+  private async processLearningPath(
+    data: TaskData,
+    options?: { attempts?: number },
+  ) {
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.LEARNING_PATH_GENERATION,
@@ -438,10 +447,14 @@ export class TaskWorker extends WorkerHost {
 
         return { roadmapId: roadmap.id, data: resultData };
       },
+      options,
     );
   }
 
-  private async processOptimizeCv(data: TaskData) {
+  private async processOptimizeCv(
+    data: TaskData,
+    options?: { attempts?: number },
+  ) {
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.CV_GENERATION,
@@ -481,6 +494,7 @@ export class TaskWorker extends WorkerHost {
 
         return { data: result, aiCvId: savedCv.id };
       },
+      options,
     );
   }
 }
