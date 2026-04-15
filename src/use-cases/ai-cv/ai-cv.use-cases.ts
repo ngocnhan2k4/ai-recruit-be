@@ -504,7 +504,6 @@ export class AiCvUseCases {
               },
             },
             [{ receiverId: userId }],
-            tx,
           );
         return {
           task,

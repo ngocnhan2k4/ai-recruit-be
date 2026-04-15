@@ -20,7 +20,6 @@ export abstract class IUserRepository extends IGenericRepository<User> {
   ): Promise<PaginatedResult<GetAllUserResponse>>;
 
   abstract createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User>;
-  abstract adminUpdateUser(userId: string, user: Partial<User>): Promise<User>;
 
   abstract getAllAdminUsers(
     query: GetUserQuery,

@@ -144,3 +144,8 @@ export interface JobSearchDocument {
   categoryName?: string;
   score?: number;
 }
+
+export interface JobDetailFilter {
+  userId?: string;
+  statuses?: JobStatusEnum[];
+}

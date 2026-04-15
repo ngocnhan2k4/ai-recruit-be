@@ -34,6 +34,8 @@ type TaskData = {
   notificationId: string;
 };
 
+export const MAX_TASK_ATTEMPTS = 3;
+
 @Processor(TASK_QUEUE, {
   concurrency: 4,
 })
@@ -56,11 +58,11 @@ export class TaskWorker extends WorkerHost {
 
   async process(job: Job) {
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
-      return this.processLearningPath(job.data as TaskData);
+      return this.processLearningPath(job.data as TaskData, job.opts);
     }
 
     if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-      return this.processOptimizeCv(job.data as TaskData);
+      return this.processOptimizeCv(job.data as TaskData, job.opts);
     }
 
     this.logger.warn(`[process] Unknown task job name: ${job.name}`);
@@ -82,7 +84,11 @@ export class TaskWorker extends WorkerHost {
     const { notificationId, userId, payload, message, taskId } = params;
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
-      await this.taskRepository.update({ id: taskId }, params.taskData, tx);
+      await this.taskRepository.update(
+        { id: taskId, updatedAt: new Date() },
+        params.taskData,
+        tx,
+      );
 
       await this.notificationRepository.update(
         { id: notificationId },
@@ -92,6 +98,7 @@ export class TaskWorker extends WorkerHost {
             ...payload,
           },
           message,
+          updatedAt: new Date(),
         },
         tx,
       );
@@ -303,6 +310,9 @@ export class TaskWorker extends WorkerHost {
     taskType: TaskTypeEnum,
     messages: { inProgress: string; completed: string; failed: string },
     coreLogic: (task: Task, request: any) => Promise<TResult>,
+    options?: {
+      attempts?: number;
+    },
   ) {
     const { taskId, notificationId } = data;
     let task: Task | null = null;
@@ -360,7 +370,10 @@ export class TaskWorker extends WorkerHost {
           taskData: {
             type: taskType,
             status: TaskStatusEnum.FAILED,
-            error: error.message || "Unknown error",
+            error: JSON.stringify({
+              message: error.message || "Unknown error",
+              attempts: options?.attempts,
+            }),
             result: null,
           },
         });
@@ -373,14 +386,20 @@ export class TaskWorker extends WorkerHost {
     }
   }
 
-  private async processLearningPath(data: TaskData) {
+  private async processLearningPath(
+    data: TaskData,
+    options?: { attempts?: number },
+  ) {
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.LEARNING_PATH_GENERATION,
       {
         inProgress: "Đang tạo lộ trình học tập của bạn...",
         completed: "Lộ trình học tập của bạn đã sẵn sàng.",
-        failed: "Failed to generate learning roadmap",
+        failed:
+          options?.attempts === MAX_TASK_ATTEMPTS
+            ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
       },
       async (task, request: PreviewRoadmapDto) => {
         let resultData: AILearningRoadmapResult | null = null;
@@ -433,17 +452,24 @@ export class TaskWorker extends WorkerHost {
 
         return { roadmapId: roadmap.id, data: resultData };
       },
+      options,
     );
   }
 
-  private async processOptimizeCv(data: TaskData) {
+  private async processOptimizeCv(
+    data: TaskData,
+    options?: { attempts?: number },
+  ) {
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.CV_GENERATION,
       {
         inProgress: "Đang tối ưu CV của bạn...",
         completed: "CV của bạn đã được tối ưu.",
-        failed: "Failed to optimize CV",
+        failed:
+          options?.attempts === MAX_TASK_ATTEMPTS
+            ? "Đã gặp sự cố khi tối ưu CV, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tối ưu CV, hệ thống sẽ thử lại...",
       },
       async (task, request: OptimizeAtsRequest) => {
         const result: OptimizeAtsResponse =
@@ -476,6 +502,7 @@ export class TaskWorker extends WorkerHost {
 
         return { data: result, aiCvId: savedCv.id };
       },
+      options,
     );
   }
 }
