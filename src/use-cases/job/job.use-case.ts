@@ -12,6 +12,7 @@ import {
   IUserRepository,
   INotificationRepository,
 } from "@/core/abstracts";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import {
   ApiResponse,
   JobCountsDto,
@@ -48,6 +49,7 @@ import {
   Category,
   JobResponse,
   NotificationType,
+  FeatureCodeEnum,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -71,6 +73,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class JobUseCases {
@@ -84,6 +87,8 @@ export class JobUseCases {
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
+    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
+    private readonly featureService: FeatureService,
   ) {}
 
   async getJobs(
@@ -732,19 +737,35 @@ export class JobUseCases {
     };
   }
 
-  async saveJob(
+  async toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const result = await this.jobRepository.saveJob(userId, jobId, save);
-    this.logger.log(
-      `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,
-    );
+    const { status, interaction } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const result = await this.jobRepository.toggleSaveJob(userId, jobId);
+
+        if (result.status === "saved") {
+          await this.featureService.consumeFeature(
+            userId,
+            FeatureCodeEnum.SAVE_JOB,
+          );
+        } else if (result.status === "unsaved") {
+          await this.featureService.releaseFeature(
+            userId,
+            FeatureCodeEnum.SAVE_JOB,
+          );
+        }
+
+        return result;
+      });
+
+    this.logger.log(`User ${userId} ${status} job ${jobId}`);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: interaction,
     };
   }
 

@@ -50,4 +50,11 @@ export abstract class IUserFeatureUsageRepository extends IGenericRepository<Use
     featureIds: number[],
     now: Date,
   ): Promise<number>;
+
+  abstract releaseUsage(
+    userId: string,
+    featureId: number,
+    amount: number,
+    now: Date,
+  ): Promise<void>;
 }

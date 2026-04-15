@@ -218,8 +218,8 @@ export class JobController {
   }
 
   @ApiOperation({
-    summary: "Save a job",
-    description: "Save a job for later viewing",
+    summary: "Toggle save job",
+    description: "Toggle save/unsave a job for later viewing",
   })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(UserInteractionResponseDto)
@@ -228,11 +228,7 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() saveJobDto: SaveJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.saveJob(
-      user.userId,
-      saveJobDto.jobId,
-      saveJobDto.save!,
-    );
+    return this.jobUseCases.toggleSaveJob(user.userId, saveJobDto.jobId);
   }
   // [TODO] remove later
   // @ApiOperation({
