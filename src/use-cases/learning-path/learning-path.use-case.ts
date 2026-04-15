@@ -114,13 +114,6 @@ export class LearningPathUseCase {
             taskId: result.task.id,
             notificationId: result.notification.id,
           },
-          {
-            attempts: 3,
-            backoff: {
-              type: "exponential",
-              delay: 5000,
-            },
-          },
         );
         this.logger.log(
           `Learning path generation task added to message queue: ${result.task.id}`,

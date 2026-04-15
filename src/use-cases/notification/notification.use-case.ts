@@ -60,7 +60,12 @@ export class NotificationUseCase {
                 ...d.task,
                 type: d.task.type as TaskTypeEnum,
                 status: d.task.status as TaskStatusEnum,
-                result: d.task.result as Record<string, any>,
+                result: d.task.result
+                  ? // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    (({ data, ...rest }) => rest)(
+                      d.task.result as Record<string, any>,
+                    )
+                  : null,
               }
             : null,
         })),
