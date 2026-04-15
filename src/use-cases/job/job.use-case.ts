@@ -24,11 +24,7 @@ import {
   JobTrendsQueryDto,
   JobMatchResultDto,
 } from "@/interfaces/dtos";
-import {
-  RESPONSE_CODE,
-  RESPONSE_MESSAGE,
-  DEFAULT_SAVE_JOB_LIMIT,
-} from "@/common/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { Dictionary, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
@@ -734,28 +730,58 @@ export class JobUseCases {
     jobId: string,
     save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    if (save) {
-      const [currentCount, featureUsage] = await Promise.all([
-        this.jobRepository.getNumberOfSavedJobs(userId),
-        this.userFeatureUsageRepository.getConsumeFeatureUsage(
-          userId,
-          FeatureCodeEnum.SAVE_JOB,
-        ),
-      ]);
+    const featureUsage =
+      await this.userFeatureUsageRepository.getConsumeFeatureUsage(
+        userId,
+        FeatureCodeEnum.SAVE_JOB,
+      );
 
-      const limit = featureUsage?.limit ?? DEFAULT_SAVE_JOB_LIMIT;
-      if (currentCount >= limit) {
-        throw new ForbiddenException({
-          code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,
-          message: `Bạn chỉ có thể lưu tối đa ${limit} việc làm.`,
-        });
-      }
-    }
+    const now = new Date();
 
-    const result = await this.jobRepository.saveJob(userId, jobId, save);
+    const result = await this.userFeatureUsageRepository.executeWithTransaction(
+      async () => {
+        if (save && featureUsage?.featureId) {
+          const limit = featureUsage.limit;
+          await this.userFeatureUsageRepository.createIfNotExists(
+            userId,
+            featureUsage.featureId,
+            now,
+          );
+          const consumed =
+            await this.userFeatureUsageRepository.tryConsumeWithinLimit(
+              userId,
+              featureUsage.featureId,
+              1,
+              limit,
+              now,
+            );
+          if (!consumed) {
+            throw new ForbiddenException({
+              code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,
+              message: `Bạn chỉ có thể lưu tối đa ${limit} việc làm.`,
+            });
+          }
+        }
+
+        const jobResult = await this.jobRepository.saveJob(userId, jobId, save);
+
+        if (!save && featureUsage?.featureId) {
+          await this.userFeatureUsageRepository.releaseUsage(
+            userId,
+            featureUsage.featureId,
+            1,
+            now,
+          );
+        }
+
+        return jobResult;
+      },
+    );
+
     this.logger.log(
       `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,
     );
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
