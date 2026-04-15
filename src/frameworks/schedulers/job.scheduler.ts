@@ -12,7 +12,7 @@ export class JobMatchingScheduler {
     private readonly jobSyncUseCases: JobSyncUseCases,
   ) {}
 
-  @Cron("26 13 * * *")
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async scheduledJobRecommendations(): Promise<void> {
     this.logger.log("Running scheduled job recommendations cron job...");
     await this.jobMatchingUseCases.sendJobRecommendationsToUsers();

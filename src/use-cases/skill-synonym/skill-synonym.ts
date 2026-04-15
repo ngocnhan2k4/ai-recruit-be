@@ -9,6 +9,7 @@ import {
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import {
   GetSkillsSynonymsQueryDto,
+  MergeSkillsDto,
   UpdateSkillSynonymDto,
 } from "@/interfaces/dtos/skill-synonym/req/skill-synonym.dto";
 import { SkillSynonymResponseDto } from "@/interfaces/dtos/skill-synonym/res/skill-synonym.dto";
@@ -76,6 +77,7 @@ export class SkillSynonymUseCases {
     const page = Math.max(query?.page ?? 1, 1);
     const limit = Math.max(query?.limit ?? 10, 1);
     const keyword = query?.keyword?.trim().toLowerCase();
+    const hasSynonyms = query?.hasSynonyms;
 
     const [allSkills, allRows] = await Promise.all([
       this.skillRepository.getAll(["id", "name"]),
@@ -84,15 +86,20 @@ export class SkillSynonymUseCases {
 
     const grouped = this.buildGroupedResponse(allSkills, allRows);
 
-    const filtered = keyword
-      ? grouped.filter(
-          (item) =>
-            NormalizeString(item.masterName).includes(keyword) ||
-            item.aliasNames.some((alias) =>
-              NormalizeString(alias).includes(keyword),
-            ),
-        )
-      : grouped;
+    const filtered = grouped.filter((item) => {
+      const matchesKeyword = keyword
+        ? NormalizeString(item.masterName).includes(keyword) ||
+          item.aliasNames.some((alias) =>
+            NormalizeString(alias).includes(keyword),
+          )
+        : true;
+
+      const hasAlias = item.aliasNames.length > 0;
+      const matchesSynonymFilter =
+        hasSynonyms === undefined ? true : hasSynonyms === hasAlias;
+
+      return matchesKeyword && matchesSynonymFilter;
+    });
 
     const total = filtered.length;
     const offset = (page - 1) * limit;
@@ -186,6 +193,55 @@ export class SkillSynonymUseCases {
           .map((row) => row.aliasName)
           .sort((a, b) => a.localeCompare(b)),
       },
+    };
+  }
+
+  async mergeSkills(
+    targetSkillId: string,
+    dto: MergeSkillsDto,
+  ): Promise<ApiResponse<void>> {
+    const targetSkill = await this.skillRepository.get(targetSkillId);
+    if (!targetSkill) {
+      throw new NotFoundException({
+        message: "Target skill not found",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
+      });
+    }
+
+    const sourceSkillIds = Array.from(
+      new Set(dto.sourceSkillIds.filter((id) => id !== targetSkillId)),
+    );
+
+    if (sourceSkillIds.length === 0) {
+      throw new BadRequestException({
+        message:
+          "sourceSkillIds must include at least one id different from target skill id",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const sourceSkills = await this.skillRepository.getByIds(sourceSkillIds, [
+      "id",
+      "name",
+    ]);
+
+    if (sourceSkills.length !== sourceSkillIds.length) {
+      const found = new Set(sourceSkills.map((s) => s.id));
+      const missing = sourceSkillIds.filter((id) => !found.has(id));
+      throw new NotFoundException({
+        message: `Source skills not found: ${missing.join(", ")}`,
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
+      });
+    }
+
+    await this.skillRepository.mergeSkillsAndReferences(
+      targetSkillId,
+      sourceSkillIds,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
     };
   }
 }
