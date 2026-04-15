@@ -14,7 +14,12 @@ export class MessageQueueService implements IMessageQueueService {
   async addJob(name: string, data: any, opts?: any): Promise<void> {
     await this.queueJob.add(name, data, {
       removeOnComplete: true,
-      removeOnFail: true,
+      removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
       ...opts,
     } as JobsOptions);
   }
@@ -23,6 +28,11 @@ export class MessageQueueService implements IMessageQueueService {
     await this.queueTask.add(name, data, {
       removeOnComplete: true,
       removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
       ...opts,
     } as JobsOptions);
   }
