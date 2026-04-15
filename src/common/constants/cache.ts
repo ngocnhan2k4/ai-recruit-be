@@ -23,4 +23,7 @@ export const CACHE_KEYS = {
     getFeatures: (subscriptionId: string) =>
       `sub:${subscriptionId}:getFeatures`,
   },
+  user: {
+    get: (userId: string) => `user:${userId}:get`,
+  },
 };
