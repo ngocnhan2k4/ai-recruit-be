@@ -81,7 +81,6 @@ import {
   JobResponse,
   StatisticsJobFilter,
 } from "@/core";
-import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
@@ -1267,8 +1266,7 @@ export class JobRepository
       }));
 
       const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
+        await this.notificationRepository.createNotificationWithRecipients(
           {
             title: "Đơn ứng tuyển mới",
             message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
@@ -1357,8 +1355,7 @@ export class JobRepository
         const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${jobTitle}" đã được ${status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
 
         const notifications =
-          await this.notificationRepository.preCreateNotifications(
-            tx,
+          await this.notificationRepository.createNotificationWithRecipients(
             {
               title: notificationTitle,
               message: notificationMessage,
@@ -1663,8 +1660,7 @@ export class JobRepository
       }));
 
       const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
+        await this.notificationRepository.createNotificationWithRecipients(
           {
             title: "Công việc mới được tạo",
             message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
@@ -1691,122 +1687,8 @@ export class JobRepository
       skillNames?: string[];
       provinceIds?: string[];
     },
-    options?: {
-      sendNotifications?: boolean;
-      senderUserId?: string;
-      recipients?: {
-        receiverId: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
-    const recipients = options?.recipients ?? [];
-
-    return this.db.transaction(async (tx) => {
-      const updatedJob = await this.preUpdateJob(tx, jobId, job);
-      if (!updatedJob) {
-        return { job: null, newNotifications: [] };
-      }
-
-      let newNotifications: Notification[] = [];
-      if (options?.sendNotifications && recipients.length > 0) {
-        newNotifications =
-          await this.notificationRepository.preCreateNotifications(
-            tx,
-            {
-              title: "Công việc được cập nhật",
-              message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
-              type: NotificationType.JOB_UPDATED,
-              senderId: options.senderUserId!,
-              payload: {
-                jobId: updatedJob.id,
-                orgId: updatedJob.organizationId,
-                avatarUrl: options.senderAvatarUrl,
-              },
-            },
-            recipients,
-          );
-      }
-
-      return { job: updatedJob, newNotifications };
-    });
-  }
-
-  async preUpdateJob(
-    tx: DBDrizzleTransaction,
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
   ): Promise<Job | null> {
-    const [updatedJob] = await tx
-      .update(jobs)
-      .set({
-        ...job,
-      })
-      .where(eq(jobs.id, jobId))
-      .returning();
-
-    if (job.skillIds !== undefined || job.skillNames !== undefined) {
-      await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
-
-      const allSkillIds = [...(job.skillIds ?? [])];
-      if (job.skillNames && job.skillNames.length > 0) {
-        const newSkills = await tx
-          .insert(skills)
-          .values(job.skillNames.map((name) => ({ name })))
-          .returning();
-        allSkillIds.push(...newSkills.map((s) => s.id));
-      }
-      if (allSkillIds.length > 0) {
-        const skillAssociations = allSkillIds.map((skillId) => ({
-          jobId: jobId,
-          skillId,
-        }));
-
-        await tx.insert(jobSkills).values(skillAssociations);
-      }
-    }
-
-    if (job.provinceIds !== undefined) {
-      await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
-      const filteredProvinceIds: string[] = job.provinceIds.filter(
-        (id): id is string => Boolean(id),
-      );
-      if (filteredProvinceIds.length > 0) {
-        const provinceAssociations = filteredProvinceIds.map((provinceId) => ({
-          jobId,
-          provinceId,
-        }));
-        await tx.insert(jobProvinces).values(provinceAssociations);
-      }
-    }
-
-    await this.invalidateJobCache(jobId);
-    return updatedJob as Job | null;
-  }
-
-  async updateJobWithNotifications(
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
-    userId: string,
-    options?: {
-      recipients?: {
-        receiverId: string;
-        organizationId?: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
-    const recipients = options?.recipients ?? [];
-
-    const result = await this.db.transaction(async (tx) => {
+    return this.executeWithTransaction(async (tx) => {
       const [updatedJob] = await tx
         .update(jobs)
         .set({
@@ -1816,14 +1698,12 @@ export class JobRepository
         .returning();
 
       if (!updatedJob) {
-        return { job: null, newNotifications: [] };
+        return null;
       }
 
       if (job.skillIds !== undefined || job.skillNames !== undefined) {
-        // Remove existing skill associations
         await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-        // Resolve skillNames to IDs, then combine with existing skillIds
         const allSkillIds = [...(job.skillIds ?? [])];
         if (job.skillNames && job.skillNames.length > 0) {
           const newSkills = await tx
@@ -1835,61 +1715,32 @@ export class JobRepository
         if (allSkillIds.length > 0) {
           const skillAssociations = allSkillIds.map((skillId) => ({
             jobId: jobId,
-            skillId: skillId,
+            skillId,
           }));
+
           await tx.insert(jobSkills).values(skillAssociations);
         }
       }
-      if (job.provinceIds && job.provinceIds.length > 0) {
-        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
 
-        if (job.provinceIds.length > 0) {
-          const provinceAssociations = job.provinceIds.map((provinceId) => ({
-            jobId,
-            provinceId,
-          }));
+      if (job.provinceIds !== undefined) {
+        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+        const filteredProvinceIds: string[] = job.provinceIds.filter(
+          (id): id is string => Boolean(id),
+        );
+        if (filteredProvinceIds.length > 0) {
+          const provinceAssociations = filteredProvinceIds.map(
+            (provinceId) => ({
+              jobId,
+              provinceId,
+            }),
+          );
           await tx.insert(jobProvinces).values(provinceAssociations);
         }
       }
 
-      if (recipients.length === 0) {
-        return { job: updatedJob as Job, newNotifications: [] };
-      }
-
-      const notificationPayload: {
-        jobId: string;
-        orgId: string;
-        avatarUrl?: string;
-      } = {
-        jobId: updatedJob.id,
-        orgId: updatedJob.organizationId,
-      };
-
-      if (options?.senderAvatarUrl) {
-        notificationPayload.avatarUrl = options.senderAvatarUrl;
-      }
-
-      const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
-          {
-            title: "Cập nhật trạng thái công việc",
-            message: `Công việc "${updatedJob.title}" đã ${getJobStatus(updatedJob.status as JobStatusEnum)} bởi quản trị viên.`,
-            type:
-              (updatedJob.status as JobStatusEnum) === JobStatusEnum.ACTIVE
-                ? NotificationType.ADMIN_JOB_APPROVED
-                : NotificationType.ADMIN_JOB_REJECTED,
-            senderId: userId,
-            payload: notificationPayload,
-          },
-          recipients,
-        );
-
       await this.invalidateJobCache(jobId);
-
-      return { job: updatedJob as Job, newNotifications: notifications };
+      return updatedJob as Job | null;
     });
-    return result;
   }
 
   async getAllSavedJobs(

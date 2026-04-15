@@ -10,6 +10,7 @@ import {
   IJobSearchService,
   ICvRepository,
   IUserRepository,
+  INotificationRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -46,6 +47,7 @@ import {
   Notification,
   Category,
   JobResponse,
+  NotificationType,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -61,7 +63,7 @@ import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core";
-import { convertDateToStr } from "@/common/utils";
+import { convertDateToStr, getJobStatus } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -80,6 +82,7 @@ export class JobUseCases {
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobSearchService: IJobSearchService,
+    private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
   ) {}
 
@@ -837,11 +840,11 @@ export class JobUseCases {
     };
   }
 
-  private async prepareJobUpdateData(
+  private async validateJobUpdate(
     jobId: string,
     updateJobDto: UpdateJobDto,
     isAdminUpdate = false,
-  ): Promise<{ updateData: Partial<Job>; currentJob: Job }> {
+  ): Promise<{ currentJob: JobResponse }> {
     const organizationAllowedStatuses = [
       JobStatusEnum.ACTIVE,
       JobStatusEnum.CLOSED,
@@ -849,8 +852,8 @@ export class JobUseCases {
     ];
 
     const { status: targetStatus } = updateJobDto;
-    const job = await this.jobRepository.get(jobId);
-    if (!job || job.deletedAt) {
+    const jobDetail = await this.jobRepository.getFullJobById(jobId);
+    if (!jobDetail || jobDetail.job?.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
@@ -867,14 +870,16 @@ export class JobUseCases {
     ) {
       throw new BadRequestException({
         message: "experienceMin must be less than experienceMax",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        code: RESPONSE_CODE.INVALID_REQUEST,
       });
     }
 
     if (
       !isAdminUpdate &&
       organizationAllowedStatuses.includes(targetStatus) &&
-      !organizationAllowedStatuses.includes(job.status as JobStatusEnum)
+      !organizationAllowedStatuses.includes(
+        jobDetail.job.status as JobStatusEnum,
+      )
     ) {
       throw new ForbiddenException({
         message:
@@ -884,14 +889,7 @@ export class JobUseCases {
     }
 
     return {
-      updateData: {
-        ...updateJobDto,
-        applyUrl: updateJobDto.applyUrl,
-        status: updateJobDto.status || undefined,
-        questions: updateJobDto.questions || undefined,
-        workType: updateJobDto.workType,
-      },
-      currentJob: job,
+      currentJob: jobDetail,
     };
   }
 
@@ -933,24 +931,49 @@ export class JobUseCases {
     return { transformedJob, updatedJob };
   }
 
-  async updateJob(
-    jobId: string,
-    updateJobDto: UpdateJobDto,
-    senderUserId: string,
-  ): Promise<ApiResponse<JobDto>> {
-    const { updateData, currentJob } = await this.prepareJobUpdateData(
-      jobId,
-      updateJobDto,
-    );
+  private normalizeComparableValue(field: string, value: unknown): unknown {
+    if (typeof value !== "string") {
+      return value;
+    }
 
-    const currentFullJob = await this.jobRepository.getFullJobById(jobId);
+    let normalized = value.replace(/\r\n/g, "\n").trim();
+
+    if (field === "description") {
+      // Ignore formatting-only differences in markdown/html line breaks.
+      normalized = normalized
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/(## [^\n]+)\n+(<p>)/g, "$1\n$2");
+    }
+
+    return normalized;
+  }
+
+  private getSortableValue(item: unknown): string {
+    if (typeof item === "string") {
+      return item;
+    }
+
+    if (
+      typeof item === "number" ||
+      typeof item === "boolean" ||
+      typeof item === "bigint"
+    ) {
+      return `${item}`;
+    }
+
+    return JSON.stringify(item);
+  }
+
+  private getChangedFields(
+    currentJob: JobResponse,
+    updateJobDto: UpdateJobDto,
+  ): string[] {
     const currentComparableValues: Record<string, unknown> = {
-      ...(currentJob as Record<string, unknown>),
-      provinceIds:
-        currentFullJob?.provinces?.map((province) => province.id) ?? [],
-      skillIds: currentFullJob?.skills?.map((skill) => skill.id) ?? [],
+      ...(currentJob.job as Record<string, unknown>),
+      provinceIds: currentJob?.provinces?.map((province) => province.id) ?? [],
+      skillIds: currentJob?.skills?.map((skill) => skill.id) ?? [],
       skillNames:
-        currentFullJob?.skills
+        currentJob?.skills
           ?.map((skill) => skill.name)
           .filter((name): name is string => Boolean(name)) ?? [],
     };
@@ -976,55 +999,19 @@ export class JobUseCases {
 
     const unorderedArrayFields = new Set<string>(unorderedArrayFieldList);
 
-    const normalizeComparableValue = (
-      field: string,
-      value: unknown,
-    ): unknown => {
-      if (typeof value !== "string") {
-        return value;
-      }
-
-      let normalized = value.replace(/\r\n/g, "\n").trim();
-
-      if (field === "description") {
-        // Ignore formatting-only differences in markdown/html line breaks.
-        normalized = normalized
-          .replace(/\n{3,}/g, "\n\n")
-          .replace(/(## [^\n]+)\n+(<p>)/g, "$1\n$2");
-      }
-
-      return normalized;
-    };
-
     const normalizeArrayForCompare = (
       field: string,
       value: unknown,
     ): unknown[] => {
       const normalizedArray = (Array.isArray(value) ? value : [value])
-        .map((item) => normalizeComparableValue(field, item))
+        .map((item) => this.normalizeComparableValue(field, item))
         .filter((item) => typeof item !== "undefined" && item !== null);
 
       if (unorderedArrayFields.has(field)) {
-        const getSortableValue = (item: unknown): string => {
-          if (typeof item === "string") {
-            return item;
-          }
-
-          if (
-            typeof item === "number" ||
-            typeof item === "boolean" ||
-            typeof item === "bigint"
-          ) {
-            return `${item}`;
-          }
-
-          return JSON.stringify(item);
-        };
-
         const uniqueValues = new Map<string, unknown>();
 
         for (const item of normalizedArray) {
-          const sortable = getSortableValue(item);
+          const sortable = this.getSortableValue(item);
           if (!uniqueValues.has(sortable)) {
             uniqueValues.set(sortable, item);
           }
@@ -1057,14 +1044,27 @@ export class JobUseCases {
           );
         }
 
-        const normalizedNewValue = normalizeComparableValue(key, value);
-        const normalizedCurrentValue = normalizeComparableValue(
+        const normalizedNewValue = this.normalizeComparableValue(key, value);
+        const normalizedCurrentValue = this.normalizeComparableValue(
           key,
           currentValue,
         );
         return normalizedNewValue !== normalizedCurrentValue;
       })
       .map(([key]) => key);
+    return changedFields;
+  }
+
+  async updateJob(
+    jobId: string,
+    updateJobDto: UpdateJobDto,
+    senderUserId: string,
+  ): Promise<ApiResponse<JobDto>> {
+    // Step 1: validate update and get current job details
+    const { currentJob } = await this.validateJobUpdate(jobId, updateJobDto);
+
+    // Step 2: Determine if changes require pending approval
+    const changedFields = this.getChangedFields(currentJob, updateJobDto);
 
     const shouldSetPendingApproval = changedFields.length > 0;
 
@@ -1075,13 +1075,14 @@ export class JobUseCases {
     }
 
     if (shouldSetPendingApproval) {
-      updateData.status = JobStatusEnum.PENDING_APPROVAL;
+      updateJobDto.status = JobStatusEnum.PENDING_APPROVAL;
     }
 
     const shouldNotifyAdmins =
-      (currentJob.status as JobStatusEnum) !== JobStatusEnum.PENDING_APPROVAL &&
-      shouldSetPendingApproval;
+      (currentJob.job.status as JobStatusEnum) !==
+        JobStatusEnum.PENDING_APPROVAL && shouldSetPendingApproval;
 
+    // Step 3: get admin recipients if needed
     const recipients = shouldNotifyAdmins
       ? (
           await this.userRepository.getAllAdminUsers({
@@ -1099,12 +1100,40 @@ export class JobUseCases {
       ? await this.userRepository.get(senderUserId)
       : null;
 
+    // Step 4: update job in DB, create notifications if needed
     const { job: updatedJob, newNotifications } =
-      await this.jobRepository.updateJob(jobId, updateData, {
-        sendNotifications: shouldNotifyAdmins,
-        senderUserId,
-        recipients,
-        senderAvatarUrl: sender?.avatarUrl ?? undefined,
+      await this.jobRepository.executeWithTransaction(async () => {
+        const updatedJob = await this.jobRepository.updateJob(jobId, {
+          ...updateJobDto,
+          questions: updateJobDto.questions || undefined,
+          skillIds: updateJobDto.skillIds || undefined,
+          skillNames: updateJobDto.skillNames || undefined,
+          provinceIds: updateJobDto.provinceIds || undefined,
+        });
+        if (!updatedJob) {
+          return { job: null, newNotifications: [] };
+        }
+
+        let newNotifications: Notification[] = [];
+        if (shouldNotifyAdmins && recipients.length > 0) {
+          newNotifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Công việc được cập nhật",
+                message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+                type: NotificationType.JOB_UPDATED,
+                senderId: senderUserId,
+                payload: {
+                  jobId: updatedJob.id,
+                  orgId: updatedJob.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+        }
+
+        return { job: updatedJob, newNotifications };
       });
 
     if (newNotifications.length > 0) {
@@ -1117,6 +1146,7 @@ export class JobUseCases {
       );
     }
 
+    // Step 5: Publish job update event to message queue for search index update and other async processing
     const { transformedJob } = await this.finalizeJobUpdate(jobId, updatedJob);
 
     return {
@@ -1131,34 +1161,61 @@ export class JobUseCases {
     updateJobDto: UpdateJobDto,
     user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    const { updateData, currentJob } = await this.prepareJobUpdateData(
+    // Step 1: validate update and get current job details
+    const { currentJob } = await this.validateJobUpdate(
       jobId,
       updateJobDto,
       true,
     );
 
+    // Step 2: Get org members to notify
     const orgUsers =
       await this.organizationRepository.getMemberIdsOfOrganization(
-        currentJob.organizationId,
+        currentJob.job.organizationId,
       );
 
     const recipients = orgUsers.map((ou) => ({
       receiverId: ou.id,
-      organizationId: currentJob.organizationId,
+      organizationId: currentJob.job.organizationId,
     }));
 
     const sender = await this.userRepository.get(user.userId);
 
-    const { job: updatedJob, newNotifications: notifications } =
-      await this.jobRepository.updateJobWithNotifications(
-        jobId,
-        updateData,
-        user.userId,
-        {
-          recipients,
-          senderAvatarUrl: sender?.avatarUrl ?? undefined,
-        },
-      );
+    // Step 3: update job in DB, create notifications for org members about status change
+    const { job: updatedJob, notifications } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const updatedJob = await this.jobRepository.updateJob(jobId, {
+          ...updateJobDto,
+          questions: updateJobDto.questions || undefined,
+          skillIds: updateJobDto.skillIds || undefined,
+          skillNames: updateJobDto.skillNames || undefined,
+          provinceIds: updateJobDto.provinceIds || undefined,
+        });
+
+        if (recipients.length > 0) {
+          const notifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Cập nhật trạng thái công việc",
+                message: `Công việc "${updateJobDto.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
+                type:
+                  updateJobDto.status === JobStatusEnum.ACTIVE
+                    ? NotificationType.ADMIN_JOB_APPROVED
+                    : NotificationType.ADMIN_JOB_REJECTED,
+                senderId: user.userId,
+                payload: {
+                  jobId,
+                  orgId: currentJob.job.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+          return { job: updatedJob, notifications };
+        }
+        return { job: updatedJob, notifications: [] };
+      });
+
     const { transformedJob, updatedJob: finalizedJob } =
       await this.finalizeJobUpdate(jobId, updatedJob);
 

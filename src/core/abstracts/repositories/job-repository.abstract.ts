@@ -182,31 +182,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       skillNames?: string[];
       provinceIds?: string[];
     },
-    options?: {
-      sendNotifications?: boolean;
-      senderUserId?: string;
-      recipients?: {
-        receiverId: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
-  abstract updateJobWithNotifications(
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
-    userId: string,
-    options?: {
-      recipients?: {
-        receiverId: string;
-        organizationId?: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
+  ): Promise<Job | null>;
 
   abstract getFullJobById(
     jobId: string,

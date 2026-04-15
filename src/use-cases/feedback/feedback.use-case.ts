@@ -161,7 +161,6 @@ export class FeedbackUseCase {
           payload: { feedbackId: id },
         },
         { userId: data.assignedToUserId! },
-        tx,
       );
     });
 
