@@ -54,6 +54,7 @@ import {
   User,
   UserInteractionEnum,
   ApplyJob,
+  JobDetailFilter,
 } from "@/core";
 import {
   Job,
@@ -82,12 +83,11 @@ import {
 } from "@/core";
 import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
 import { RESPONSE_CODE } from "@/common/constants";
+import { ICacheService } from "@/core";
 
 @Injectable()
 export class JobRepository
@@ -98,7 +98,7 @@ export class JobRepository
 
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(ICacheService) private readonly cacheService: ICacheService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly userRepository: IUserRepository,
@@ -106,14 +106,27 @@ export class JobRepository
     super(db, jobs);
   }
 
+  private async invalidateJobCache(jobId: string) {
+    const pattern = CACHE_KEYS.job.patternDetail(jobId);
+
+    try {
+      const matchedKeys = await this.cacheService.getKeysByPattern(pattern);
+      await this.cacheService.deleteMultipleKeys(matchedKeys);
+    } catch (err) {
+      this.logger.warn(
+        `[cache] Failed to invalidate job cache for ${jobId} (pattern ${pattern})`,
+        err,
+      );
+    }
+  }
+
   get(id: string): Promise<Job | null> {
     const key = CACHE_KEYS.job.get(id);
     return cacheWithDedup<Job | null>(
       key,
-      () => this.cacheManager.get<Job | null>(key),
+      () => this.cacheService.getJson<Job | null>(key),
       () => super.get(id),
-      (data: Job | null) =>
-        this.cacheManager.set<Job | null>(key, data, SHORT_TTL),
+      (data: Job | null) => this.cacheService.setJson(key, data, SHORT_TTL),
       {
         logger: this.logger,
       },
@@ -127,40 +140,14 @@ export class JobRepository
   ): Promise<Job[]> {
     const data = await super.update(where, item, tx);
 
-    const keys: string[] = [];
-    for (const job of data) {
-      const keyGet = CACHE_KEYS.job.get(job.id);
-      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
-      keys.push(keyGet, keyGetWithDetail);
-    }
-    await this.cacheManager
-      .mdel(keys)
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
-          err,
-        ),
-      );
+    await Promise.all(data.map((job) => this.invalidateJobCache(job.id)));
     return data;
   }
 
   async delete(where: Partial<Job>, tx?: DBDrizzleTransaction): Promise<Job[]> {
     const data = await super.delete(where, tx);
 
-    const keys: string[] = [];
-    for (const job of data) {
-      const keyGet = CACHE_KEYS.job.get(job.id);
-      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
-      keys.push(keyGet, keyGetWithDetail);
-    }
-    await this.cacheManager
-      .mdel(keys)
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
-          err,
-        ),
-      );
+    await Promise.all(data.map((job) => this.invalidateJobCache(job.id)));
     return data;
   }
 
@@ -1797,14 +1784,7 @@ export class JobRepository
       }
     }
 
-    await this.cacheManager
-      .del(CACHE_KEYS.job.get(jobId))
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for job ${jobId}:`,
-          err,
-        ),
-      );
+    await this.invalidateJobCache(jobId);
     return updatedJob as Job | null;
   }
 
@@ -1905,39 +1885,11 @@ export class JobRepository
           recipients,
         );
 
-      await this.cacheManager
-        .del(CACHE_KEYS.job.get(jobId))
-        .catch((err) =>
-          this.logger.warn(
-            `[cache] Failed to invalidate cache for job ${jobId}:`,
-            err,
-          ),
-        );
+      await this.invalidateJobCache(jobId);
 
       return { job: updatedJob as Job, newNotifications: notifications };
     });
     return result;
-  }
-
-  async deleteJob(jobId: string): Promise<boolean> {
-    const result = await this.db
-      .update(jobs)
-      .set({
-        deletedAt: new Date(),
-      })
-      .where(eq(jobs.id, jobId))
-      .returning();
-
-    await this.cacheManager
-      .del(CACHE_KEYS.job.get(jobId))
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for job ${jobId}:`,
-          err,
-        ),
-      );
-
-    return result.length > 0;
   }
 
   async getAllSavedJobs(
@@ -2030,17 +1982,18 @@ export class JobRepository
   }
   async getFullJobById(
     jobId: string,
-    userId?: string,
+    filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
-    const baseKey = CACHE_KEYS.job.getWithDetail(jobId);
-    const key = userId ? `${baseKey}:u:${userId}` : baseKey;
+    const key = filter?.userId
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
+      : CACHE_KEYS.job.getWithDetail(jobId);
 
     return cacheWithDedup(
       key,
-      () => this.cacheManager.get<JobResponse | null>(key),
+      () => this.cacheService.getJson<JobResponse | null>(key),
       async () => {
-        const result = await this.db
+        let query: any = this.db
           .select({
             job: {
               ...jobs,
@@ -2052,37 +2005,37 @@ export class JobRepository
             organization: organizations,
             skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
             // If user is authenticated, check if job is saved or applied
-            isSaved: userId
+            isSaved: filter?.userId
               ? sql`EXISTS (
             SELECT 1 FROM ${userInteractions} ui 
             WHERE ui.job_id = ${jobs.id} 
-            AND ui.user_id = ${userId} 
+            AND ui.user_id = ${filter.userId} 
             AND ui.type = 'save'
           )`.as("isSaved")
               : sql`false`.as("isSaved"),
-            isApplied: userId
+            isApplied: filter?.userId
               ? sql`EXISTS (
             SELECT 1 FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
           )`.as("isApplied")
               : sql`false`.as("isApplied"),
-            applyStatus: userId
+            applyStatus: filter?.userId
               ? sql`(
             SELECT aj.status FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
             LIMIT 1
           )`.as("applyStatus")
               : sql`NULL`.as("applyStatus"),
-            applyId: userId
+            applyId: filter?.userId
               ? sql`(
             SELECT aj.id FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
             LIMIT 1
           )`.as("applyId")
               : sql`NULL`.as("applyId"),
@@ -2113,6 +2066,16 @@ export class JobRepository
           .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
           .limit(1);
 
+        const conditions = [eq(jobs.id, jobId), isNull(jobs.deletedAt)];
+
+        if (filter?.statuses && filter.statuses.length > 0) {
+          conditions.push(inArray(jobs.status, filter.statuses));
+        }
+
+        query = query.where(and(...conditions));
+
+        const result = await query;
+
         if (!result || result.length === 0) {
           return null;
         }
@@ -2129,11 +2092,12 @@ export class JobRepository
           isApplied: Boolean(data.isApplied),
           applyStatus: (data.applyStatus as string | null) ?? null,
           applyId: (data.applyId as string | null) ?? null,
-          applyUrl: (data.job as any).applyUrl as string | null | undefined,
+          applyUrl: data.job.applyUrl as string | null | undefined,
           category: data.category as Category,
         };
       },
-      (data: JobResponse | null) => this.cacheManager.set(key, data, SHORT_TTL),
+      (data: JobResponse | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
       {
         logger: this.logger,
       },

@@ -10,8 +10,11 @@ export const CACHE_KEYS = {
     getNamesByType: (type: string) => `org:${type}:getNamesByType`,
   },
   job: {
+    patternDetail: (jobId: string) => `job:${jobId}:*`,
     get: (jobId: string) => `job:${jobId}:get`,
     getWithDetail: (jobId: string) => `job:${jobId}:getWithDetail`,
+    getWithDetailByUser: (jobId: string, userId: string) =>
+      `job:${jobId}:getWithDetail:user:${userId}`,
   },
   skillSynonym: {
     getAll: () => `skillSynonym:getAll`,
