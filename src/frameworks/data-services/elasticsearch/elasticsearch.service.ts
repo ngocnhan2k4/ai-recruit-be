@@ -129,7 +129,7 @@ export class ElasticsearchService
       index: indexName,
       id,
       body: document,
-      refresh: true,
+      refresh: "wait_for",
     });
   }
 
