@@ -563,12 +563,19 @@ export class JobUseCases {
       });
     }
 
+    if ((job.status as JobStatusEnum) !== JobStatusEnum.ACTIVE) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_ACTIVE,
+        code: RESPONSE_CODE.JOB_NOT_ACTIVE,
+      });
+    }
+
     if (applyJobDto.cvId) {
       const cv = await this.cvRepository.get(applyJobDto.cvId);
       if (cv && cv.mimeType !== "application/pdf") {
         throw new BadRequestException({
-          message: "Only PDF files are accepted for job applications",
-          code: RESPONSE_CODE.BAD_REQUEST,
+          message: RESPONSE_MESSAGE.INVALID_FILE_TYPE,
+          code: RESPONSE_CODE.CV_FILE_INVALID,
         });
       }
     }
@@ -658,7 +665,7 @@ export class JobUseCases {
       updateApplyJobDto.status!,
       isSendNotifications,
       orgSenderId,
-      updateApplyJobDto.userCvId,
+      updateApplyJobDto.cvId,
       updateApplyJobDto.answers,
     );
 
