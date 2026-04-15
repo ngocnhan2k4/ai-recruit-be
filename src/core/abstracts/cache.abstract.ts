@@ -3,6 +3,9 @@ export abstract class ICacheService {
   abstract set(key: string, value: string, ttlSeconds?: number): Promise<void>;
   abstract del(key: string): Promise<void>;
   abstract exists(key: string): Promise<boolean>;
+
+  abstract getJson<T>(key: string): Promise<T | null>;
+  abstract setJson(key: string, value: any, ttlMs?: number): Promise<void>;
   abstract setWithExpiry(
     key: string,
     value: string,

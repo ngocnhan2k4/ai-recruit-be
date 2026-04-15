@@ -83,8 +83,14 @@ export class JobIndexWorker extends WorkerHost {
         }
         const document = transformJobToDocument(job);
 
-        await this.searchService.indexDocument(indexName, job.job.id, document);
-        this.logger.log(`[processEvent] Indexed job ${job.job.id}`);
+        const res = await this.searchService.indexDocument(
+          indexName,
+          job.job.id,
+          document,
+        );
+        this.logger.log(
+          `[processEvent] Indexed job ${job.job.id} with data ${JSON.stringify(document)} and response ${JSON.stringify(res)}`,
+        );
         return;
       }
       case JobEventType.UPDATE_ORG: {
