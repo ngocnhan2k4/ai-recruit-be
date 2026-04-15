@@ -32,7 +32,7 @@ export abstract class ISearchService {
     indexName: string,
     id: string,
     document: any,
-  ): Promise<void>;
+  ): Promise<any>;
 
   /**
    * Bulk index multiple documents

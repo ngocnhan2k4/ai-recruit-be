@@ -46,7 +46,7 @@ export const cacheWithDedup = async <T>(
   options: { logger?: Logger } = {},
 ): Promise<T> => {
   const cached = await cacher();
-  if (cached !== undefined) return cached;
+  if (cached != null) return cached;
 
   if (!pendingFetches.has(key)) {
     const fetchPromise = fetcher();

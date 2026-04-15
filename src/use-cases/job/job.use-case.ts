@@ -1308,7 +1308,14 @@ export class JobUseCases {
       applyId?: string | null;
       applyUrl?: string | null;
       category?: Category;
-    } | null = await this.jobRepository.getFullJobById(jobId, userId);
+    } | null = await this.jobRepository.getFullJobById(jobId, {
+      userId,
+      statuses: [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.PAUSED,
+        JobStatusEnum.CLOSED,
+      ],
+    });
     if (!job) {
       this.logger.error(
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
