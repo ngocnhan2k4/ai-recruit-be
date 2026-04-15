@@ -73,6 +73,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class JobUseCases {
@@ -87,6 +88,7 @@ export class JobUseCases {
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
+    private readonly featureService: FeatureService,
   ) {}
 
   async getJobs(
@@ -735,67 +737,35 @@ export class JobUseCases {
     };
   }
 
-  async saveJob(
+  async toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const featureUsage =
-      await this.userFeatureUsageRepository.getConsumeFeatureUsage(
-        userId,
-        FeatureCodeEnum.SAVE_JOB,
-      );
+    const { status, interaction } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const result = await this.jobRepository.toggleSaveJob(userId, jobId);
 
-    const now = new Date();
-
-    const result = await this.userFeatureUsageRepository.executeWithTransaction(
-      async () => {
-        if (save && featureUsage?.featureId) {
-          const limit = featureUsage.limit;
-          await this.userFeatureUsageRepository.createIfNotExists(
+        if (result.status === "saved") {
+          await this.featureService.consumeFeature(
             userId,
-            featureUsage.featureId,
-            now,
+            FeatureCodeEnum.SAVE_JOB,
           );
-          const consumed =
-            await this.userFeatureUsageRepository.tryConsumeWithinLimit(
-              userId,
-              featureUsage.featureId,
-              1,
-              limit,
-              now,
-            );
-          if (!consumed) {
-            throw new ForbiddenException({
-              code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,
-              message: `Bạn chỉ có thể lưu tối đa ${limit} việc làm.`,
-            });
-          }
-        }
-
-        const jobResult = await this.jobRepository.saveJob(userId, jobId, save);
-
-        if (!save && featureUsage?.featureId) {
-          await this.userFeatureUsageRepository.releaseUsage(
+        } else if (result.status === "unsaved") {
+          await this.featureService.releaseFeature(
             userId,
-            featureUsage.featureId,
-            1,
-            now,
+            FeatureCodeEnum.SAVE_JOB,
           );
         }
 
-        return jobResult;
-      },
-    );
+        return result;
+      });
 
-    this.logger.log(
-      `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,
-    );
+    this.logger.log(`User ${userId} ${status} job ${jobId}`);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: interaction,
     };
   }
 

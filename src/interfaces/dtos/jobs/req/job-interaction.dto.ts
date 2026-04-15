@@ -3,14 +3,13 @@ import {
   IsUUID,
   IsOptional,
   IsArray,
-  IsBoolean,
   IsEnum,
   IsString,
   IsInt,
   Min,
   ValidateNested,
 } from "class-validator";
-import { Type, Transform } from "class-transformer";
+import { Type } from "class-transformer";
 import { ApplyStatusEnum } from "@/core";
 
 export class JobAnswerDto {
@@ -79,19 +78,19 @@ export class SaveJobDto {
   @IsUUID()
   jobId: string;
 
-  @ApiProperty({
-    example: true,
-    required: false,
-    description:
-      "Whether to save (true) or unsave (false) the job. Defaults to true.",
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === undefined) return true;
-    return value as boolean;
-  })
-  save?: boolean;
+  // @ApiProperty({
+  //   example: true,
+  //   required: false,
+  //   description:
+  //     "Whether to save (true) or unsave (false) the job. Defaults to true.",
+  // })
+  // @IsOptional()
+  // @IsBoolean()
+  // @Transform(({ value }) => {
+  //   if (value === undefined) return true;
+  //   return value as boolean;
+  // })
+  // save?: boolean;
 }
 
 // export class HideJobDto {

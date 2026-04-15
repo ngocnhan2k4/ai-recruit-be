@@ -1467,58 +1467,130 @@ export class JobRepository
     };
   }
 
-  async saveJob(
+  // async saveJob(
+  //   userId: string,
+  //   jobId: string,
+  //   save: boolean,
+  // ): Promise<UserInteractionResponse | null> {
+  //   const dbClient = this.getExecutor();
+  //   // Check if user already has a save interaction for this job
+  //   const existingInteraction = await dbClient
+  //     .select()
+  //     .from(userInteractions)
+  //     .where(
+  //       and(
+  //         eq(userInteractions.userId, userId),
+  //         eq(userInteractions.jobId, jobId),
+  //         eq(userInteractions.type, "save"),
+  //       ),
+  //     )
+  //     .limit(1);
+
+  //   if (save) {
+  //     // User wants to save the job
+  //     if (existingInteraction.length > 0) {
+  //       // Job already saved, return existing interaction
+  //       return existingInteraction[0] as UserInteractionResponse;
+  //     }
+
+  //     // Create new save interaction
+  //     const [newInteraction] = await dbClient
+  //       .insert(userInteractions)
+  //       .values({
+  //         userId,
+  //         jobId,
+  //         type: "save",
+  //       })
+  //       .onConflictDoNothing()
+  //       .returning();
+
+  //     if (newInteraction) return newInteraction as UserInteractionResponse;
+
+  //     // In case of race (insert no-op), fetch existing
+  //     const [row] = await dbClient
+  //       .select()
+  //       .from(userInteractions)
+  //       .where(
+  //         and(
+  //           eq(userInteractions.userId, userId),
+  //           eq(userInteractions.jobId, jobId),
+  //           eq(userInteractions.type, "save"),
+  //         ),
+  //       )
+  //       .limit(1);
+  //     return (row as UserInteractionResponse) ?? null;
+  //   } else {
+  //     // User wants to unsave the job
+  //     if (existingInteraction.length > 0) {
+  //       // Delete the existing interaction
+  //       await dbClient
+  //         .delete(userInteractions)
+  //         .where(
+  //           and(
+  //             eq(userInteractions.userId, userId),
+  //             eq(userInteractions.jobId, jobId),
+  //             eq(userInteractions.type, "save"),
+  //           ),
+  //         );
+  //     }
+  //     return null; // No interaction exists after unsaving
+  //   }
+  // }
+
+  async toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
-  ): Promise<UserInteractionResponse | null> {
-    // Check if user already has a save interaction for this job
-    const existingInteraction = await this.db
-      .select()
-      .from(userInteractions)
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.jobId, jobId),
-          eq(userInteractions.type, "save"),
-        ),
-      )
-      .limit(1);
-
-    if (save) {
-      // User wants to save the job
-      if (existingInteraction.length > 0) {
-        // Job already saved, return existing interaction
-        return existingInteraction[0] as UserInteractionResponse;
-      }
-
-      // Create new save interaction
-      const [newInteraction] = await this.db
+  ): Promise<{
+    status: "saved" | "unsaved" | "unchanged";
+    interaction: UserInteractionResponse | null;
+  }> {
+    return this.executeWithTransaction(async (tx) => {
+      const [created] = await tx
         .insert(userInteractions)
         .values({
           userId,
           jobId,
-          type: "save",
+          type: UserInteractionEnum.SAVE,
         })
+        .onConflictDoNothing()
         .returning();
 
-      return newInteraction as UserInteractionResponse;
-    } else {
-      // User wants to unsave the job
-      if (existingInteraction.length > 0) {
-        // Delete the existing interaction
-        await this.db
-          .delete(userInteractions)
-          .where(
-            and(
-              eq(userInteractions.userId, userId),
-              eq(userInteractions.jobId, jobId),
-              eq(userInteractions.type, "save"),
-            ),
-          );
+      if (created) {
+        return {
+          status: "saved",
+          interaction: created as UserInteractionResponse,
+        };
       }
-      return null; // No interaction exists after unsaving
-    }
+
+      const [deleted] = await tx
+        .delete(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.jobId, jobId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+          ),
+        )
+        .returning();
+
+      if (deleted) {
+        return { status: "unsaved", interaction: null };
+      }
+
+      const [row] = await tx
+        .select()
+        .from(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.jobId, jobId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+          ),
+        )
+        .limit(1);
+
+      return { status: "unchanged", interaction: (row as any) ?? null };
+    });
   }
   // [TODO] remove later
   // async hideJob(

@@ -146,11 +146,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getApplyJobById(applyId: string): Promise<ApplyJobResponse | null>;
 
-  abstract saveJob(
+  // abstract saveJob(
+  //   userId: string,
+  //   jobId: string,
+  //   save: boolean,
+  // ): Promise<UserInteractionResponse | null>;
+
+  abstract toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
-  ): Promise<UserInteractionResponse | null>;
+  ): Promise<{
+    status: "saved" | "unsaved" | "unchanged";
+    interaction: UserInteractionResponse | null;
+  }>;
 
   // [TODO] remove later
   // abstract hideJob(

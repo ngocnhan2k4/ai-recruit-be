@@ -3,9 +3,15 @@ import { JobUseCases } from "./job.use-case";
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
+import { FeatureModule } from "@/services";
 
 @Module({
-  imports: [WebSocketModule, MessageQueueModule, PostgresDataServicesModule],
+  imports: [
+    WebSocketModule,
+    MessageQueueModule,
+    PostgresDataServicesModule,
+    FeatureModule,
+  ],
   providers: [JobUseCases],
   exports: [JobUseCases],
 })

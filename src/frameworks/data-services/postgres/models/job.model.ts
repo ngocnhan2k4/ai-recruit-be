@@ -148,7 +148,7 @@ export const userInteractions = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_user_interactions_user_job_type").on(
+    uniqueIndex("uniq_user_interactions_user_job_type").on(
       table.userId,
       table.jobId,
       table.type,
