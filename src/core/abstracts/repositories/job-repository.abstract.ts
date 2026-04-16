@@ -221,8 +221,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       isApplied: boolean;
     }>
   >;
-  abstract getNumberOfSavedJobs(userId: string): Promise<number>;
-  abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
+  // abstract getNumberOfSavedJobs(userId: string): Promise<number>;
+  // abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
   abstract getAllAppliedJobs(
     userId: string,
     params: GeneralQuery,

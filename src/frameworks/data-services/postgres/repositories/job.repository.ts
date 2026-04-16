@@ -1201,7 +1201,9 @@ export class JobRepository
         .select({
           exists: exists(
             tx
-              .select()
+              .select({
+                id: applyJobs.id,
+              })
               .from(applyJobs)
               .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
               .where(
@@ -1392,7 +1394,15 @@ export class JobRepository
 
   async getApplyJobById(applyId: string): Promise<ApplyJobResponse | null> {
     const result = await this.db
-      .select()
+      .select({
+        id: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+        status: applyJobs.status,
+        answers: applyJobs.answers,
+        createdAt: applyJobs.createdAt,
+        updatedAt: applyJobs.updatedAt,
+      })
       .from(applyJobs)
       .where(eq(applyJobs.id, applyId))
       .limit(1);
@@ -2026,7 +2036,7 @@ export class JobRepository
       },
     );
   }
-  async getNumberOfSavedJobs(userId: string): Promise<number> {
+  private async getNumberOfSavedJobs(userId: string): Promise<number> {
     const result = await this.db
       .select({
         count: sql`COUNT(*)`.as("count"),
@@ -2042,7 +2052,7 @@ export class JobRepository
       );
     return Number(result[0]?.count ?? 0);
   }
-  async getNumberOfAppliedJobs(userId: string): Promise<number> {
+  private async getNumberOfAppliedJobs(userId: string): Promise<number> {
     const result = await this.db
       .select({
         count: sql`COUNT(*)`.as("count"),

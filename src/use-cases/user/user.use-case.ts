@@ -321,6 +321,7 @@ export class UserUseCases implements OnModuleInit {
         response.expectedSalary = onboarding.expectedSalary
           ? Number(onboarding.expectedSalary)
           : null;
+        response.isSeekingJob = onboarding.isSeekingJob ?? false;
         response.experienceYears = onboarding.experienceYears ?? null;
         response.currentGoal = onboarding.currentGoal ?? null;
         response.skills = skills.filter(
@@ -332,6 +333,7 @@ export class UserUseCases implements OnModuleInit {
         response.provinceIds = [];
         response.categoryIds = [];
         response.expectedSalary = null;
+        response.isSeekingJob = false;
         response.experienceYears = null;
         response.currentGoal = null;
         response.skills = [];
@@ -364,6 +366,7 @@ export class UserUseCases implements OnModuleInit {
       provinceIds,
       categoryIds,
       expectedSalary,
+      isSeekingJob,
       experienceYears,
       currentGoal,
       skills,
@@ -396,6 +399,7 @@ export class UserUseCases implements OnModuleInit {
         provinceIds !== undefined ||
         categoryIds !== undefined ||
         expectedSalary !== undefined ||
+        isSeekingJob !== undefined ||
         experienceYears !== undefined ||
         currentGoal !== undefined ||
         skills !== undefined
@@ -409,6 +413,9 @@ export class UserUseCases implements OnModuleInit {
         }
         if (expectedSalary !== undefined) {
           preferencesUpdate.expectedSalary = expectedSalary?.toString() || null;
+        }
+        if (isSeekingJob !== undefined) {
+          preferencesUpdate.isSeekingJob = isSeekingJob;
         }
         if (experienceYears !== undefined) {
           preferencesUpdate.experienceYears = experienceYears;

@@ -228,7 +228,7 @@ export class JobMatchingUseCases {
       };
 
       // Transform job - datePosted/endDate are date strings, not Date objects
-      const job: Job = {
+      const job: Omit<Job, "recruitCount"> = {
         id: source.id,
         title: source.title,
         description: source.description,

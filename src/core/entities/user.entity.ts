@@ -39,6 +39,7 @@ export interface UserProfile {
   provinceIds: Province["id"][];
   categoryIds: Category["id"][];
   expectedSalary?: number;
+  isSeekingJob?: boolean;
 }
 
 export interface UserCvExperience {

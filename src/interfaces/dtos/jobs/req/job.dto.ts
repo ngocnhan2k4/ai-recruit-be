@@ -163,6 +163,17 @@ export class CreateJobDto {
   @IsString()
   salaryMax?: string | null;
 
+  @ApiProperty({
+    type: "number",
+    required: false,
+    nullable: true,
+    description: "Number of candidates requested for recommendation",
+    example: 10,
+  })
+  @IsOptional()
+  @IsNumber()
+  recruitCount?: number | null;
+
   @ApiProperty({ type: "number", nullable: true })
   @IsOptional()
   @IsNumber()
@@ -299,6 +310,17 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   salaryMax?: string | null;
+
+  @ApiProperty({
+    type: "number",
+    required: false,
+    nullable: true,
+    description: "Number of candidates requested for recommendation",
+    example: 10,
+  })
+  @IsOptional()
+  @IsNumber()
+  recruitCount?: number | null;
 
   @ApiProperty({ type: "number", nullable: true, required: false })
   @IsOptional()

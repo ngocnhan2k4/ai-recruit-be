@@ -73,6 +73,7 @@ export const jobs = pgTable(
     ),
     rejectReason: text("reject_reason"),
     categoryId: uuid("category_id").references(() => categories.id),
+    recruitCount: integer("recruit_count"),
     ...timestamps,
   },
   (table) => [
@@ -176,6 +177,10 @@ export const applyJobs = pgTable(
     status: ApplyStatusEnum("status").default("pending"),
     cvId: uuid("cv_id").references(() => cvs.id),
     answers: jsonb("answers"),
+    matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
+    matchingRank: integer("matching_rank"),
+    matchingCriteria: jsonb("matching_criteria"),
+    scoredAt: timestamp("scored_at"),
 
     ...timestamps,
   },
@@ -201,5 +206,6 @@ export const cvs = pgTable("cvs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
+  extractedData: jsonb("extracted_data"),
   ...timestamps,
 });
