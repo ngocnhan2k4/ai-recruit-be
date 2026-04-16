@@ -95,73 +95,60 @@ export class NotificationRepository
       .where(eq(notifications.id, notificationId));
   }
 
-  async preCreateNotifications(
-    tx: DBDrizzleTransaction,
-    notification: NewNotification,
-    recipients: {
-      receiverId: string;
-      organizationId?: string;
-    }[],
-  ): Promise<Notification[]> {
-    const [createdNotification] = await tx
-      .insert(notifications)
-      .values(notification)
-      .returning();
-
-    const userNotificationData: NewUserNotification[] = recipients.map((d) => ({
-      notificationId: createdNotification.id,
-      receiverId: d.receiverId,
-      organizationId: d.organizationId,
-    }));
-
-    const createdUserNotifications = await tx
-      .insert(userNotifications)
-      .values(userNotificationData)
-      .returning();
-
-    let senderInfo;
-    if (createdNotification.senderId) {
-      senderInfo = await tx
-        .select({
-          name: users.name,
-          avatarUrl: users.avatarUrl,
-        })
-        .from(users)
-        .where(eq(users.id, createdNotification.senderId));
-    }
-
-    let organizationInfo;
-    if (createdNotification.payload?.orgId) {
-      organizationInfo = await tx
-        .select({
-          name: organizations.name,
-          logoUrl: organizations.logoUrl,
-        })
-        .from(organizations)
-        .where(eq(organizations.id, createdNotification.payload.orgId));
-    }
-
-    return createdUserNotifications.map((d) => ({
-      ...d,
-      ...createdNotification,
-      senderInfo,
-      organizationInfo,
-    }));
-  }
-
   async createNotificationWithRecipients(
     notification: NewNotification,
     recipients: {
       receiverId: string;
       organizationId?: string;
     }[],
-    tx?: DBDrizzleTransaction,
   ): Promise<Notification[]> {
-    if (tx) {
-      return this.preCreateNotifications(tx, notification, recipients);
-    }
-    return this.db.transaction(async (tx) => {
-      return this.preCreateNotifications(tx, notification, recipients);
+    return this.executeWithTransaction(async (tx) => {
+      const [createdNotification] = await tx
+        .insert(notifications)
+        .values(notification)
+        .returning();
+
+      const userNotificationData: NewUserNotification[] = recipients.map(
+        (d) => ({
+          notificationId: createdNotification.id,
+          receiverId: d.receiverId,
+          organizationId: d.organizationId,
+        }),
+      );
+
+      const createdUserNotifications = await tx
+        .insert(userNotifications)
+        .values(userNotificationData)
+        .returning();
+
+      let senderInfo;
+      if (createdNotification.senderId) {
+        senderInfo = await tx
+          .select({
+            name: users.name,
+            avatarUrl: users.avatarUrl,
+          })
+          .from(users)
+          .where(eq(users.id, createdNotification.senderId));
+      }
+
+      let organizationInfo;
+      if (createdNotification.payload?.orgId) {
+        organizationInfo = await tx
+          .select({
+            name: organizations.name,
+            logoUrl: organizations.logoUrl,
+          })
+          .from(organizations)
+          .where(eq(organizations.id, createdNotification.payload.orgId));
+      }
+
+      return createdUserNotifications.map((d) => ({
+        ...d,
+        ...createdNotification,
+        senderInfo,
+        organizationInfo,
+      }));
     });
   }
 

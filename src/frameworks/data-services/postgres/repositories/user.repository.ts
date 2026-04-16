@@ -1,6 +1,6 @@
 import { GenericRepository } from "./generic-repository";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   users,
   userSkills,
@@ -43,19 +43,86 @@ import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
-import { RoleEnum } from "@/common/constants";
+import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
 import { differenceInYears, endOfDay, startOfDay } from "date-fns";
-import { convertDateToStr } from "@/common/utils";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
 import { ProviderEnum } from "@/core";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
 
 @Injectable()
 export class UserRepository
   extends GenericRepository<User, typeof users>
   implements IUserRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  private readonly logger = new Logger(UserRepository.name);
+
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, users);
   }
+
+  get(id: string): Promise<User | null> {
+    const key = CACHE_KEYS.user.get(id);
+    return cacheWithDedup<User | null>(
+      key,
+      () => this.cacheManager.get<User | null>(key),
+      () => super.get(id),
+      (data: User | null) =>
+        this.cacheManager.set<User | null>(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
+  }
+
+  async update(
+    where: Partial<User>,
+    item: Partial<User>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<User[]> {
+    const data = await super.update(where, item, tx);
+
+    const keys: string[] = [];
+    for (const user of data) {
+      const keyGet = CACHE_KEYS.user.get(user.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for user ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
+  async delete(
+    where: Partial<User>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<User[]> {
+    const data = await super.delete(where, tx);
+
+    const keys: string[] = [];
+    for (const user of data) {
+      const keyGet = CACHE_KEYS.user.get(user.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for user ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
   async addUserIdentity(
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
@@ -290,23 +357,6 @@ export class UserRepository
       .values(user)
       .returning();
     return userData[0];
-  }
-
-  async adminUpdateUser(userId: string, user: Partial<User>): Promise<User> {
-    const updatedUser = (
-      await this.db
-        .update(users)
-        .set({
-          ...user,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, userId))
-        .returning()
-    )[0];
-    if (!updatedUser) {
-      throw new NotFoundException("User not found");
-    }
-    return updatedUser;
   }
 
   async getAllAdminUsers(

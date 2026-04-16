@@ -190,7 +190,6 @@ export class OrganizationInvitationUseCase {
           {
             userId: data.inviteeId,
           },
-          tx,
         );
       },
     );

@@ -504,7 +504,6 @@ export class AiCvUseCases {
               },
             },
             [{ receiverId: userId }],
-            tx,
           );
         return {
           task,
@@ -517,20 +516,10 @@ export class AiCvUseCases {
 
     await retry(
       async () => {
-        await this.messageQueueService.addTask(
-          TaskTypeEnum.CV_GENERATION,
-          {
-            taskId: result.task.id,
-            notificationId: result.notification.id,
-          },
-          {
-            attempts: 3,
-            backoff: {
-              type: "exponential",
-              delay: 5000,
-            },
-          },
-        );
+        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
+          taskId: result.task.id,
+          notificationId: result.notification.id,
+        });
         this.logger.log(
           `CV generation task added to message queue: ${result.task.id}`,
         );

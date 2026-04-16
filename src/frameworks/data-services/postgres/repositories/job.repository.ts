@@ -54,6 +54,7 @@ import {
   User,
   UserInteractionEnum,
   ApplyJob,
+  JobDetailFilter,
 } from "@/core";
 import {
   Job,
@@ -80,14 +81,12 @@ import {
   JobResponse,
   StatisticsJobFilter,
 } from "@/core";
-import { getJobStatus } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import type { Cache } from "cache-manager";
 import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
 import { RESPONSE_CODE } from "@/common/constants";
+import { ICacheService } from "@/core";
 
 @Injectable()
 export class JobRepository
@@ -98,7 +97,7 @@ export class JobRepository
 
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(ICacheService) private readonly cacheService: ICacheService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly userRepository: IUserRepository,
@@ -106,14 +105,27 @@ export class JobRepository
     super(db, jobs);
   }
 
+  private async invalidateJobCache(jobId: string) {
+    const pattern = CACHE_KEYS.job.patternDetail(jobId);
+
+    try {
+      const matchedKeys = await this.cacheService.getKeysByPattern(pattern);
+      await this.cacheService.deleteMultipleKeys(matchedKeys);
+    } catch (err) {
+      this.logger.warn(
+        `[cache] Failed to invalidate job cache for ${jobId} (pattern ${pattern})`,
+        err,
+      );
+    }
+  }
+
   get(id: string): Promise<Job | null> {
     const key = CACHE_KEYS.job.get(id);
     return cacheWithDedup<Job | null>(
       key,
-      () => this.cacheManager.get<Job | null>(key),
+      () => this.cacheService.getJson<Job | null>(key),
       () => super.get(id),
-      (data: Job | null) =>
-        this.cacheManager.set<Job | null>(key, data, SHORT_TTL),
+      (data: Job | null) => this.cacheService.setJson(key, data, SHORT_TTL),
       {
         logger: this.logger,
       },
@@ -127,40 +139,14 @@ export class JobRepository
   ): Promise<Job[]> {
     const data = await super.update(where, item, tx);
 
-    const keys: string[] = [];
-    for (const job of data) {
-      const keyGet = CACHE_KEYS.job.get(job.id);
-      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
-      keys.push(keyGet, keyGetWithDetail);
-    }
-    await this.cacheManager
-      .mdel(keys)
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
-          err,
-        ),
-      );
+    await Promise.all(data.map((job) => this.invalidateJobCache(job.id)));
     return data;
   }
 
   async delete(where: Partial<Job>, tx?: DBDrizzleTransaction): Promise<Job[]> {
     const data = await super.delete(where, tx);
 
-    const keys: string[] = [];
-    for (const job of data) {
-      const keyGet = CACHE_KEYS.job.get(job.id);
-      const keyGetWithDetail = CACHE_KEYS.job.getWithDetail(job.id);
-      keys.push(keyGet, keyGetWithDetail);
-    }
-    await this.cacheManager
-      .mdel(keys)
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for Job ${keys.join(",")}:`,
-          err,
-        ),
-      );
+    await Promise.all(data.map((job) => this.invalidateJobCache(job.id)));
     return data;
   }
 
@@ -1280,8 +1266,7 @@ export class JobRepository
       }));
 
       const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
+        await this.notificationRepository.createNotificationWithRecipients(
           {
             title: "Đơn ứng tuyển mới",
             message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
@@ -1370,8 +1355,7 @@ export class JobRepository
         const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${jobTitle}" đã được ${status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
 
         const notifications =
-          await this.notificationRepository.preCreateNotifications(
-            tx,
+          await this.notificationRepository.createNotificationWithRecipients(
             {
               title: notificationTitle,
               message: notificationMessage,
@@ -1483,58 +1467,130 @@ export class JobRepository
     };
   }
 
-  async saveJob(
+  // async saveJob(
+  //   userId: string,
+  //   jobId: string,
+  //   save: boolean,
+  // ): Promise<UserInteractionResponse | null> {
+  //   const dbClient = this.getExecutor();
+  //   // Check if user already has a save interaction for this job
+  //   const existingInteraction = await dbClient
+  //     .select()
+  //     .from(userInteractions)
+  //     .where(
+  //       and(
+  //         eq(userInteractions.userId, userId),
+  //         eq(userInteractions.jobId, jobId),
+  //         eq(userInteractions.type, "save"),
+  //       ),
+  //     )
+  //     .limit(1);
+
+  //   if (save) {
+  //     // User wants to save the job
+  //     if (existingInteraction.length > 0) {
+  //       // Job already saved, return existing interaction
+  //       return existingInteraction[0] as UserInteractionResponse;
+  //     }
+
+  //     // Create new save interaction
+  //     const [newInteraction] = await dbClient
+  //       .insert(userInteractions)
+  //       .values({
+  //         userId,
+  //         jobId,
+  //         type: "save",
+  //       })
+  //       .onConflictDoNothing()
+  //       .returning();
+
+  //     if (newInteraction) return newInteraction as UserInteractionResponse;
+
+  //     // In case of race (insert no-op), fetch existing
+  //     const [row] = await dbClient
+  //       .select()
+  //       .from(userInteractions)
+  //       .where(
+  //         and(
+  //           eq(userInteractions.userId, userId),
+  //           eq(userInteractions.jobId, jobId),
+  //           eq(userInteractions.type, "save"),
+  //         ),
+  //       )
+  //       .limit(1);
+  //     return (row as UserInteractionResponse) ?? null;
+  //   } else {
+  //     // User wants to unsave the job
+  //     if (existingInteraction.length > 0) {
+  //       // Delete the existing interaction
+  //       await dbClient
+  //         .delete(userInteractions)
+  //         .where(
+  //           and(
+  //             eq(userInteractions.userId, userId),
+  //             eq(userInteractions.jobId, jobId),
+  //             eq(userInteractions.type, "save"),
+  //           ),
+  //         );
+  //     }
+  //     return null; // No interaction exists after unsaving
+  //   }
+  // }
+
+  async toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
-  ): Promise<UserInteractionResponse | null> {
-    // Check if user already has a save interaction for this job
-    const existingInteraction = await this.db
-      .select()
-      .from(userInteractions)
-      .where(
-        and(
-          eq(userInteractions.userId, userId),
-          eq(userInteractions.jobId, jobId),
-          eq(userInteractions.type, "save"),
-        ),
-      )
-      .limit(1);
-
-    if (save) {
-      // User wants to save the job
-      if (existingInteraction.length > 0) {
-        // Job already saved, return existing interaction
-        return existingInteraction[0] as UserInteractionResponse;
-      }
-
-      // Create new save interaction
-      const [newInteraction] = await this.db
+  ): Promise<{
+    status: "saved" | "unsaved" | "unchanged";
+    interaction: UserInteractionResponse | null;
+  }> {
+    return this.executeWithTransaction(async (tx) => {
+      const [created] = await tx
         .insert(userInteractions)
         .values({
           userId,
           jobId,
-          type: "save",
+          type: UserInteractionEnum.SAVE,
         })
+        .onConflictDoNothing()
         .returning();
 
-      return newInteraction as UserInteractionResponse;
-    } else {
-      // User wants to unsave the job
-      if (existingInteraction.length > 0) {
-        // Delete the existing interaction
-        await this.db
-          .delete(userInteractions)
-          .where(
-            and(
-              eq(userInteractions.userId, userId),
-              eq(userInteractions.jobId, jobId),
-              eq(userInteractions.type, "save"),
-            ),
-          );
+      if (created) {
+        return {
+          status: "saved",
+          interaction: created as UserInteractionResponse,
+        };
       }
-      return null; // No interaction exists after unsaving
-    }
+
+      const [deleted] = await tx
+        .delete(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.jobId, jobId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+          ),
+        )
+        .returning();
+
+      if (deleted) {
+        return { status: "unsaved", interaction: null };
+      }
+
+      const [row] = await tx
+        .select()
+        .from(userInteractions)
+        .where(
+          and(
+            eq(userInteractions.userId, userId),
+            eq(userInteractions.jobId, jobId),
+            eq(userInteractions.type, UserInteractionEnum.SAVE),
+          ),
+        )
+        .limit(1);
+
+      return { status: "unchanged", interaction: (row as any) ?? null };
+    });
   }
   // [TODO] remove later
   // async hideJob(
@@ -1676,8 +1732,7 @@ export class JobRepository
       }));
 
       const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
+        await this.notificationRepository.createNotificationWithRecipients(
           {
             title: "Công việc mới được tạo",
             message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
@@ -1704,129 +1759,8 @@ export class JobRepository
       skillNames?: string[];
       provinceIds?: string[];
     },
-    options?: {
-      sendNotifications?: boolean;
-      senderUserId?: string;
-      recipients?: {
-        receiverId: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
-    const recipients = options?.recipients ?? [];
-
-    return this.db.transaction(async (tx) => {
-      const updatedJob = await this.preUpdateJob(tx, jobId, job);
-      if (!updatedJob) {
-        return { job: null, newNotifications: [] };
-      }
-
-      let newNotifications: Notification[] = [];
-      if (options?.sendNotifications && recipients.length > 0) {
-        newNotifications =
-          await this.notificationRepository.preCreateNotifications(
-            tx,
-            {
-              title: "Công việc được cập nhật",
-              message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
-              type: NotificationType.JOB_UPDATED,
-              senderId: options.senderUserId!,
-              payload: {
-                jobId: updatedJob.id,
-                orgId: updatedJob.organizationId,
-                avatarUrl: options.senderAvatarUrl,
-              },
-            },
-            recipients,
-          );
-      }
-
-      return { job: updatedJob, newNotifications };
-    });
-  }
-
-  async preUpdateJob(
-    tx: DBDrizzleTransaction,
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
   ): Promise<Job | null> {
-    const [updatedJob] = await tx
-      .update(jobs)
-      .set({
-        ...job,
-      })
-      .where(eq(jobs.id, jobId))
-      .returning();
-
-    if (job.skillIds !== undefined || job.skillNames !== undefined) {
-      await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
-
-      const allSkillIds = [...(job.skillIds ?? [])];
-      if (job.skillNames && job.skillNames.length > 0) {
-        const newSkills = await tx
-          .insert(skills)
-          .values(job.skillNames.map((name) => ({ name })))
-          .returning();
-        allSkillIds.push(...newSkills.map((s) => s.id));
-      }
-      if (allSkillIds.length > 0) {
-        const skillAssociations = allSkillIds.map((skillId) => ({
-          jobId: jobId,
-          skillId,
-        }));
-
-        await tx.insert(jobSkills).values(skillAssociations);
-      }
-    }
-
-    if (job.provinceIds !== undefined) {
-      await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
-      const filteredProvinceIds: string[] = job.provinceIds.filter(
-        (id): id is string => Boolean(id),
-      );
-      if (filteredProvinceIds.length > 0) {
-        const provinceAssociations = filteredProvinceIds.map((provinceId) => ({
-          jobId,
-          provinceId,
-        }));
-        await tx.insert(jobProvinces).values(provinceAssociations);
-      }
-    }
-
-    await this.cacheManager
-      .del(CACHE_KEYS.job.get(jobId))
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for job ${jobId}:`,
-          err,
-        ),
-      );
-    return updatedJob as Job | null;
-  }
-
-  async updateJobWithNotifications(
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
-    userId: string,
-    options?: {
-      recipients?: {
-        receiverId: string;
-        organizationId?: string;
-      }[];
-      senderAvatarUrl?: string;
-    },
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }> {
-    const recipients = options?.recipients ?? [];
-
-    const result = await this.db.transaction(async (tx) => {
+    return this.executeWithTransaction(async (tx) => {
       const [updatedJob] = await tx
         .update(jobs)
         .set({
@@ -1836,14 +1770,12 @@ export class JobRepository
         .returning();
 
       if (!updatedJob) {
-        return { job: null, newNotifications: [] };
+        return null;
       }
 
       if (job.skillIds !== undefined || job.skillNames !== undefined) {
-        // Remove existing skill associations
         await tx.delete(jobSkills).where(eq(jobSkills.jobId, jobId));
 
-        // Resolve skillNames to IDs, then combine with existing skillIds
         const allSkillIds = [...(job.skillIds ?? [])];
         if (job.skillNames && job.skillNames.length > 0) {
           const newSkills = await tx
@@ -1855,89 +1787,32 @@ export class JobRepository
         if (allSkillIds.length > 0) {
           const skillAssociations = allSkillIds.map((skillId) => ({
             jobId: jobId,
-            skillId: skillId,
+            skillId,
           }));
+
           await tx.insert(jobSkills).values(skillAssociations);
         }
       }
-      if (job.provinceIds && job.provinceIds.length > 0) {
-        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
 
-        if (job.provinceIds.length > 0) {
-          const provinceAssociations = job.provinceIds.map((provinceId) => ({
-            jobId,
-            provinceId,
-          }));
+      if (job.provinceIds !== undefined) {
+        await tx.delete(jobProvinces).where(eq(jobProvinces.jobId, jobId));
+        const filteredProvinceIds: string[] = job.provinceIds.filter(
+          (id): id is string => Boolean(id),
+        );
+        if (filteredProvinceIds.length > 0) {
+          const provinceAssociations = filteredProvinceIds.map(
+            (provinceId) => ({
+              jobId,
+              provinceId,
+            }),
+          );
           await tx.insert(jobProvinces).values(provinceAssociations);
         }
       }
 
-      if (recipients.length === 0) {
-        return { job: updatedJob as Job, newNotifications: [] };
-      }
-
-      const notificationPayload: {
-        jobId: string;
-        orgId: string;
-        avatarUrl?: string;
-      } = {
-        jobId: updatedJob.id,
-        orgId: updatedJob.organizationId,
-      };
-
-      if (options?.senderAvatarUrl) {
-        notificationPayload.avatarUrl = options.senderAvatarUrl;
-      }
-
-      const notifications =
-        await this.notificationRepository.preCreateNotifications(
-          tx,
-          {
-            title: "Cập nhật trạng thái công việc",
-            message: `Công việc "${updatedJob.title}" đã ${getJobStatus(updatedJob.status as JobStatusEnum)} bởi quản trị viên.`,
-            type:
-              (updatedJob.status as JobStatusEnum) === JobStatusEnum.ACTIVE
-                ? NotificationType.ADMIN_JOB_APPROVED
-                : NotificationType.ADMIN_JOB_REJECTED,
-            senderId: userId,
-            payload: notificationPayload,
-          },
-          recipients,
-        );
-
-      await this.cacheManager
-        .del(CACHE_KEYS.job.get(jobId))
-        .catch((err) =>
-          this.logger.warn(
-            `[cache] Failed to invalidate cache for job ${jobId}:`,
-            err,
-          ),
-        );
-
-      return { job: updatedJob as Job, newNotifications: notifications };
+      await this.invalidateJobCache(jobId);
+      return updatedJob as Job | null;
     });
-    return result;
-  }
-
-  async deleteJob(jobId: string): Promise<boolean> {
-    const result = await this.db
-      .update(jobs)
-      .set({
-        deletedAt: new Date(),
-      })
-      .where(eq(jobs.id, jobId))
-      .returning();
-
-    await this.cacheManager
-      .del(CACHE_KEYS.job.get(jobId))
-      .catch((err) =>
-        this.logger.warn(
-          `[cache] Failed to invalidate cache for job ${jobId}:`,
-          err,
-        ),
-      );
-
-    return result.length > 0;
   }
 
   async getAllSavedJobs(
@@ -2030,17 +1905,18 @@ export class JobRepository
   }
   async getFullJobById(
     jobId: string,
-    userId?: string,
+    filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
-    const baseKey = CACHE_KEYS.job.getWithDetail(jobId);
-    const key = userId ? `${baseKey}:u:${userId}` : baseKey;
+    const key = filter?.userId
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
+      : CACHE_KEYS.job.getWithDetail(jobId);
 
     return cacheWithDedup(
       key,
-      () => this.cacheManager.get<JobResponse | null>(key),
+      () => this.cacheService.getJson<JobResponse | null>(key),
       async () => {
-        const result = await this.db
+        let query: any = this.db
           .select({
             job: {
               ...jobs,
@@ -2052,37 +1928,37 @@ export class JobRepository
             organization: organizations,
             skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
             // If user is authenticated, check if job is saved or applied
-            isSaved: userId
+            isSaved: filter?.userId
               ? sql`EXISTS (
             SELECT 1 FROM ${userInteractions} ui 
             WHERE ui.job_id = ${jobs.id} 
-            AND ui.user_id = ${userId} 
+            AND ui.user_id = ${filter.userId} 
             AND ui.type = 'save'
           )`.as("isSaved")
               : sql`false`.as("isSaved"),
-            isApplied: userId
+            isApplied: filter?.userId
               ? sql`EXISTS (
             SELECT 1 FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
           )`.as("isApplied")
               : sql`false`.as("isApplied"),
-            applyStatus: userId
+            applyStatus: filter?.userId
               ? sql`(
             SELECT aj.status FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
             LIMIT 1
           )`.as("applyStatus")
               : sql`NULL`.as("applyStatus"),
-            applyId: userId
+            applyId: filter?.userId
               ? sql`(
             SELECT aj.id FROM ${applyJobs} aj 
             INNER JOIN ${cvs} c ON aj.cv_id = c.id
             WHERE aj.job_id = ${jobs.id} 
-            AND c.user_id = ${userId}
+            AND c.user_id = ${filter.userId}
             LIMIT 1
           )`.as("applyId")
               : sql`NULL`.as("applyId"),
@@ -2113,6 +1989,16 @@ export class JobRepository
           .where(and(eq(jobs.id, jobId), isNull(jobs.deletedAt)))
           .limit(1);
 
+        const conditions = [eq(jobs.id, jobId), isNull(jobs.deletedAt)];
+
+        if (filter?.statuses && filter.statuses.length > 0) {
+          conditions.push(inArray(jobs.status, filter.statuses));
+        }
+
+        query = query.where(and(...conditions));
+
+        const result = await query;
+
         if (!result || result.length === 0) {
           return null;
         }
@@ -2129,11 +2015,12 @@ export class JobRepository
           isApplied: Boolean(data.isApplied),
           applyStatus: (data.applyStatus as string | null) ?? null,
           applyId: (data.applyId as string | null) ?? null,
-          applyUrl: (data.job as any).applyUrl as string | null | undefined,
+          applyUrl: data.job.applyUrl as string | null | undefined,
           category: data.category as Category,
         };
       },
-      (data: JobResponse | null) => this.cacheManager.set(key, data, SHORT_TTL),
+      (data: JobResponse | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
       {
         logger: this.logger,
       },
