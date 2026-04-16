@@ -130,7 +130,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum,
+    status: ApplyStatusEnum | undefined,
     sendNotifications: boolean,
     senderUserId?: string,
     userCvId?: string,
@@ -174,15 +174,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       skillNames?: string[];
       provinceIds?: string[];
     },
-    sendNotifications?: boolean,
-    senderUserId?: string,
-  ): Promise<
-    | Job
-    | {
-        job: Job;
-        newNotifications: Notification[];
-      }
-  >;
+  ): Promise<Job>;
   abstract updateJob(
     jobId: string,
     job: Partial<Job> & {
