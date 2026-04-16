@@ -92,7 +92,6 @@ export class AiCvUseCases {
       );
       const modernGreenSidebarWidthPx = pdfRootWidthPx * 0.3495;
 
-      const isVercel = Boolean(process.env.VERCEL);
       const localExecutable =
         process.env.PUPPETEER_EXECUTABLE_PATH ||
         process.env.CHROME_EXECUTABLE_PATH ||
@@ -101,7 +100,7 @@ export class AiCvUseCases {
       const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
         headless: true,
         args: [
-          ...(isVercel ? chromium.args : []),
+          ...chromium.args,
           "--hide-scrollbars",
           "--disable-web-security",
           "--no-sandbox",
@@ -112,12 +111,10 @@ export class AiCvUseCases {
         },
       };
 
-      if (isVercel) {
-        launchOptions.executablePath = await chromium.executablePath();
-      } else if (localExecutable) {
+      if (localExecutable) {
         launchOptions.executablePath = localExecutable;
       } else {
-        launchOptions.channel = "chrome";
+        launchOptions.executablePath = await chromium.executablePath();
       }
 
       browser = await puppeteer.launch(launchOptions);
