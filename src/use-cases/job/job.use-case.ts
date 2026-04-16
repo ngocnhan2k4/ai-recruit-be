@@ -667,7 +667,7 @@ export class JobUseCases {
           jobTitle: string;
         } = await this.jobRepository.updateApplyJob(
       applyId,
-      updateApplyJobDto.status!,
+      updateApplyJobDto.status,
       isSendNotifications,
       orgSenderId,
       updateApplyJobDto.cvId,
@@ -819,27 +819,50 @@ export class JobUseCases {
       });
     }
 
-    const repoResult = await this.jobRepository.createJob(
-      jobData,
-      true,
-      userId,
-    );
+    const recipients = (
+      await this.userRepository.getAllAdminUsers({
+        page: 1,
+        limit: 100,
+        isActive: true,
+        isDeleted: false,
+      })
+    ).data.map((m) => ({
+      receiverId: m.id,
+    }));
 
-    let newJob: Job;
-    if ("job" in repoResult) {
-      newJob = repoResult.job;
-      const notifications = repoResult.newNotifications;
+    const sender = await this.userRepository.get(userId);
 
-      // Broadcast notification to admin room instead of looping through each user
-      if (notifications && notifications.length > 0) {
-        const notification = notifications[0]; // Use first notification for broadcast
-        this.webSocketGateway.sendToRoom("admin", notification);
-        this.logger.log(
-          `Broadcast job-created notification to admin room for job "${newJob.title}" (${notifications.length} notifications created in DB)`,
-        );
-      }
-    } else {
-      newJob = repoResult;
+    const { job: newJob, newNotifications } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const newJob = await this.jobRepository.createJob(jobData);
+
+        let newNotifications: Notification[] = [];
+        if (recipients.length > 0) {
+          newNotifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Công việc mới được tạo",
+                message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
+                type: NotificationType.JOB_POSTED,
+                senderId: userId,
+                payload: {
+                  jobId: newJob.id,
+                  orgId: newJob.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+        }
+
+        return { job: newJob, newNotifications };
+      });
+
+    if (newNotifications.length > 0) {
+      this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+      this.logger.log(
+        `Broadcast job-created notification to admin room for job "${newJob.title}" (${newNotifications.length} notifications created in DB)`,
+      );
     }
 
     // Transform questions field

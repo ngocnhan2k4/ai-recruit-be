@@ -1295,7 +1295,7 @@ export class JobRepository
 
   async updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum,
+    status: ApplyStatusEnum | undefined,
     sendNotifications = false,
     senderUserId?: string,
     userCvId?: string,
@@ -1663,15 +1663,7 @@ export class JobRepository
       skillNames?: string[];
       provinceIds?: string[];
     },
-    sendNotifications = false,
-    senderUserId?: string,
-  ): Promise<
-    | Job
-    | {
-        job: Job;
-        newNotifications: Notification[];
-      }
-  > {
+  ): Promise<Job> {
     const jobData = {
       title: job.title!,
       organizationId: job.organizationId!,
@@ -1724,39 +1716,7 @@ export class JobRepository
         await tx.insert(jobProvinces).values(provinceAssociations);
       }
 
-      // If notifications not requested or no senderUserId, just return job
-      if (!sendNotifications || !senderUserId) {
-        return newJob as Job;
-      }
-
-      // Get all admin members to notify
-      const adminUsers = await this.userRepository.getAllAdminUsers({
-        page: 1,
-        limit: 100, // Send notifications limit only 100 admin users
-        isActive: true,
-        isDeleted: false,
-      });
-
-      const recipients = adminUsers.data.map((m) => ({
-        receiverId: m.id,
-      }));
-
-      const notifications =
-        await this.notificationRepository.createNotificationWithRecipients(
-          {
-            title: "Công việc mới được tạo",
-            message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
-            type: NotificationType.JOB_POSTED,
-            senderId: senderUserId,
-            payload: {
-              jobId: newJob.id,
-              orgId: newJob.organizationId,
-            },
-          },
-          recipients,
-        );
-
-      return { job: newJob as Job, newNotifications: notifications };
+      return newJob as Job;
     });
 
     return result;
