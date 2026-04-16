@@ -288,14 +288,14 @@ export class JobController {
     return await this.jobUseCases.getAllSavedJobs(user.userId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("saved/count")
-  async getNumberOfSavedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(Number)
+  // @Get("saved/count")
+  // async getNumberOfSavedJobs(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<number>> {
+  //   return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  // }
 
   @ApiOperation({
     summary: "Get applied jobs for the authenticated user",
@@ -312,14 +312,14 @@ export class JobController {
     return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("applied/count")
-  async getNumberOfAppliedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(Number)
+  // @Get("applied/count")
+  // async getNumberOfAppliedJobs(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<number>> {
+  //   return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
