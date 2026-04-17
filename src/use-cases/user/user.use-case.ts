@@ -373,10 +373,14 @@ export class UserUseCases implements OnModuleInit {
       ...userUpdateData
     } = updateUserDto;
 
-    const updatedUser = {
-      ...user,
+    const normalizedUserUpdateData = {
       ...userUpdateData,
+      ...(userUpdateData.dob !== undefined
+        ? { dob: userUpdateData.dob || null }
+        : {}),
     };
+
+    const updatedUser = normalizedUserUpdateData;
 
     try {
       // Update user profile
