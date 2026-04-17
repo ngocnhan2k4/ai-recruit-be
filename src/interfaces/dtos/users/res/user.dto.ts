@@ -41,6 +41,9 @@ export class UserPublicResponseDto {
   @ApiProperty({ required: false, type: Number, nullable: true })
   expectedSalary?: number | null;
 
+  @ApiProperty({ required: false, type: Boolean, nullable: true })
+  isSeekingJob?: boolean;
+
   @ApiProperty({ required: false, type: Number, nullable: true })
   experienceYears?: number | null;
 

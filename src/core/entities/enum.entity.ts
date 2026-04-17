@@ -181,6 +181,7 @@ export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",
   SUGGEST_CV_FIELD = "suggest_cv_field",
   OPTIMIZE_CV = "optimize_cv",
+  SAVE_JOB = "save_job",
 }
 export enum BillingCycleSubscriptionEnum {
   MONTHLY = "monthly",

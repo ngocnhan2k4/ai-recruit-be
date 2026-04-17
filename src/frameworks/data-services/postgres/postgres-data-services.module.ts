@@ -80,10 +80,12 @@ import { UserSubscriptionRepository } from "./repositories/user-subscription.rep
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 import { TaskRepository } from "./repositories/task.repository";
+import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogRepository } from "@/frameworks/data-services/postgres/repositories/blog.repository";
 
 @Global()
 @Module({
+  imports: [RedisModule],
   providers: [
     {
       provide: "DRIZZLE",

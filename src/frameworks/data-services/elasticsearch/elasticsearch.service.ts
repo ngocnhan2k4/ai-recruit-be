@@ -124,12 +124,12 @@ export class ElasticsearchService
     indexName: string,
     id: string,
     document: any,
-  ): Promise<void> {
-    await this.client.index({
+  ): Promise<any> {
+    return this.client.index({
       index: indexName,
       id,
       body: document,
-      refresh: true,
+      refresh: "wait_for",
     });
   }
 

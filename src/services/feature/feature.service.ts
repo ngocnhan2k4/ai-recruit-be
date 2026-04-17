@@ -17,6 +17,8 @@ export class FeatureService {
   ): Promise<void> {
     const consumeAmount = amount ?? 1;
 
+    const isSkipRefill = [FeatureCodeEnum.SAVE_JOB].includes(featureCode);
+
     const result = await this.userFeatureUsageRepository.getConsumeFeatureUsage(
       userId,
       featureCode,
@@ -69,14 +71,16 @@ export class FeatureService {
         );
       }
 
-      const refilled =
-        await this.userFeatureUsageRepository.tryRefillAndConsume(
-          userId,
-          featureId,
-          consumeAmount,
-          now,
-        );
-      if (refilled) return;
+      if (!isSkipRefill) {
+        const refilled =
+          await this.userFeatureUsageRepository.tryRefillAndConsume(
+            userId,
+            featureId,
+            consumeAmount,
+            now,
+          );
+        if (refilled) return;
+      }
 
       const consumed =
         await this.userFeatureUsageRepository.tryConsumeWithinLimit(
@@ -87,6 +91,10 @@ export class FeatureService {
           now,
         );
       if (consumed) return;
+
+      if (isSkipRefill) {
+        throw new ForbiddenException(`Exceeded limit for ${featureCode}`);
+      }
 
       const lastRefillAt =
         await this.userFeatureUsageRepository.getLastRefillAt(
@@ -104,5 +112,37 @@ export class FeatureService {
 
       throw new ForbiddenException(`Quota exceeded. Try again in ${seconds}s`);
     });
+  }
+
+  async releaseFeature(
+    userId: string,
+    featureCode: FeatureCodeEnum,
+    amount?: number,
+  ): Promise<void> {
+    const releaseAmount = amount ?? 1;
+
+    const result = await this.userFeatureUsageRepository.getConsumeFeatureUsage(
+      userId,
+      featureCode,
+    );
+
+    if (!result) {
+      this.logger.warn(
+        `No feature usage found for user ${userId} and feature ${featureCode}`,
+      );
+      return;
+    }
+
+    const { featureId, usage } = result;
+
+    if (!featureId || (usage || 0) < releaseAmount) return;
+
+    const now = new Date();
+    await this.userFeatureUsageRepository.releaseUsage(
+      userId,
+      featureId,
+      releaseAmount,
+      now,
+    );
   }
 }

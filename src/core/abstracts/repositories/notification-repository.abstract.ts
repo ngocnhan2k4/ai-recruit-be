@@ -5,22 +5,12 @@ import { NotificationFilter } from "@/core/entities/notification.entity";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class INotificationRepository extends IGenericRepository<Notification> {
-  abstract preCreateNotifications(
-    tx: DBDrizzleTransaction,
-    notification: NewNotification,
-    recipients: {
-      receiverId: string;
-      organizationId?: string;
-    }[],
-  ): Promise<Notification[]>;
-
   abstract createNotificationWithRecipients(
     notification: NewNotification,
     recipients: {
       receiverId: string;
       organizationId?: string;
     }[],
-    tx?: DBDrizzleTransaction,
   ): Promise<Notification[]>;
 
   abstract getNotificationsByUser(

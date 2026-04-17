@@ -218,8 +218,8 @@ export class JobController {
   }
 
   @ApiOperation({
-    summary: "Save a job",
-    description: "Save a job for later viewing",
+    summary: "Toggle save job",
+    description: "Toggle save/unsave a job for later viewing",
   })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(UserInteractionResponseDto)
@@ -228,11 +228,7 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() saveJobDto: SaveJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.saveJob(
-      user.userId,
-      saveJobDto.jobId,
-      saveJobDto.save!,
-    );
+    return this.jobUseCases.toggleSaveJob(user.userId, saveJobDto.jobId);
   }
   // [TODO] remove later
   // @ApiOperation({
@@ -292,14 +288,14 @@ export class JobController {
     return await this.jobUseCases.getAllSavedJobs(user.userId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("saved/count")
-  async getNumberOfSavedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(Number)
+  // @Get("saved/count")
+  // async getNumberOfSavedJobs(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<number>> {
+  //   return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  // }
 
   @ApiOperation({
     summary: "Get applied jobs for the authenticated user",
@@ -316,14 +312,14 @@ export class JobController {
     return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("applied/count")
-  async getNumberOfAppliedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(Number)
+  // @Get("applied/count")
+  // async getNumberOfAppliedJobs(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<number>> {
+  //   return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({

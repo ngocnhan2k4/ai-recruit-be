@@ -6,6 +6,11 @@ import { Redis } from "ioredis";
 export class RedisService implements ICacheService, OnModuleDestroy {
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
+  private ttlSeconds(ttlMs?: number) {
+    if (!ttlMs) return undefined;
+    return Math.max(1, Math.ceil(ttlMs / 1000));
+  }
+
   async onModuleDestroy() {
     await this.redis.quit();
   }
@@ -29,6 +34,21 @@ export class RedisService implements ICacheService, OnModuleDestroy {
   async exists(key: string): Promise<boolean> {
     const result = await this.redis.exists(key);
     return result === 1;
+  }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    const raw = await this.get(key);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async setJson(key: string, value: any, ttlMs?: number): Promise<void> {
+    const ttl = this.ttlSeconds(ttlMs);
+    await this.set(key, JSON.stringify(value), ttl);
   }
 
   async setWithExpiry(

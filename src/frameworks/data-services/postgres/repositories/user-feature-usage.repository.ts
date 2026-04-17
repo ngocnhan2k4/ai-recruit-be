@@ -297,4 +297,25 @@ export class UserFeatureUsageRepository
 
     return updated.length;
   }
+
+  async releaseUsage(
+    userId: string,
+    featureId: number,
+    amount: number,
+    now: Date,
+  ): Promise<void> {
+    const dbClient = this.getExecutor();
+    await dbClient
+      .update(userFeatureUsages)
+      .set({
+        usage: sql`${userFeatureUsages.usage} - ${amount}`,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(userFeatureUsages.userId, userId),
+          eq(userFeatureUsages.featureId, featureId),
+        ),
+      );
+  }
 }

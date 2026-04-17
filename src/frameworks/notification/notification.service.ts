@@ -3,7 +3,6 @@ import { Notification, NewNotification } from "@/core";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
-import { DBDrizzleTransaction } from "../data-services/postgres/types";
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -20,7 +19,6 @@ export class NotificationService implements INotificationService {
       userId: string;
       organizationId?: string;
     },
-    tx?: DBDrizzleTransaction,
   ): Promise<{ success: boolean; notification?: Notification }> {
     try {
       const [notification] =
@@ -32,7 +30,6 @@ export class NotificationService implements INotificationService {
               organizationId: recipient.organizationId,
             },
           ],
-          tx,
         );
 
       this.sendNotification(notification);

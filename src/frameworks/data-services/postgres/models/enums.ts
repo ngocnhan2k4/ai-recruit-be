@@ -149,6 +149,7 @@ export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [
   "cv",
   "suggest_cv_field",
   "optimize_cv",
+  "save_job",
 ]);
 
 export const SubscriptionEnum = pgEnum("SubscriptionEnum", [

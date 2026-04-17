@@ -30,6 +30,15 @@ export class JobDto {
   @ApiProperty({ type: "string", nullable: true })
   salaryMax: string | null;
 
+  @ApiProperty({
+    type: "number",
+    nullable: true,
+    required: false,
+    description: "Number of candidates requested for recommendation",
+    example: 10,
+  })
+  recruitCount?: number | null;
+
   @ApiProperty({ type: "number", nullable: true })
   experienceMin: number | null;
 

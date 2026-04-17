@@ -93,7 +93,6 @@ export class LearningPathUseCase {
               },
             },
             [{ receiverId: userId }],
-            tx,
           );
         return {
           task,

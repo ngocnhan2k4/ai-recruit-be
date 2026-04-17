@@ -68,6 +68,10 @@ export interface ApplyJobResponse {
   jobId: string;
   status: string;
   answers?: JobAnswer[];
+  matchingScore?: string | number | null;
+  matchingRank?: number | null;
+  matchingCriteria?: Record<string, any> | null;
+  scoredAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
@@ -143,4 +147,9 @@ export interface JobSearchDocument {
   categoryId?: string;
   categoryName?: string;
   score?: number;
+}
+
+export interface JobDetailFilter {
+  userId?: string;
+  statuses?: JobStatusEnum[];
 }
