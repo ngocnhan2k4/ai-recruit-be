@@ -7,7 +7,6 @@ import {
   Post,
   Body,
   Put,
-  Delete,
   Param,
   UseInterceptors,
 } from "@nestjs/common";
@@ -20,9 +19,8 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import { QueryJobDto, CreateJobDto } from "@/interfaces/dtos";
+import { QueryJobDto } from "@/interfaces/dtos";
 import {
-  JobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
@@ -228,7 +226,7 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() saveJobDto: SaveJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return this.jobUseCases.toggleSaveJob(user.userId, saveJobDto.jobId);
+    return await this.jobUseCases.toggleSaveJob(user.userId, saveJobDto.jobId);
   }
   // [TODO] remove later
   // @ApiOperation({
@@ -248,16 +246,6 @@ export class JobController {
   //     hideJobDto.hide!,
   //   );
   // }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(JobDto)
-  @Post()
-  async createJob(
-    @GetUser() user: TokenPayload,
-    @Body() createJobDto: CreateJobDto,
-  ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(user.userId, createJobDto);
-  }
 
   @ApiOperation({
     summary: "Get job by ID",
@@ -310,28 +298,5 @@ export class JobController {
     @Query() query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
     return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
-  }
-
-  // @UseGuards(JwtAuthGuard)
-  // @ApiResponseDto(Number)
-  // @Get("applied/count")
-  // async getNumberOfAppliedJobs(
-  //   @GetUser() user: TokenPayload,
-  // ): Promise<ApiResponse<number>> {
-  //   return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
-  // }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: "Delete a job",
-    description: "Delete a job posting (for organization)",
-  })
-  @Delete(":id")
-  async deleteJob(
-    @GetUser() user: TokenPayload,
-    @Param("id") jobId: string,
-    @Query("organizationId") organizationId: string,
-  ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(user, jobId, organizationId);
   }
 }
