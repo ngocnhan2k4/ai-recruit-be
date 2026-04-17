@@ -171,16 +171,13 @@ export const TaskTypeEnum = pgEnum("task_type", [
   "cv_generation",
 ]);
 
-export const blogPostStatusEnum = pgEnum("blog_post_status", [
+export const BlogPostStatusEnum = pgEnum("blog_post_status", [
   "DRAFT",
   "PENDING",
   "PUBLISHED",
   "REJECTED",
 ]);
 
-export const blogPostActionEnum = pgEnum("blog_post_action", ["LIKE", "SAVE"]);
+export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
 
-export const commentTypeEnum = pgEnum("comment_type", [
-  "BLOG_POST",
-  "ORGANIZATION",
-]);
+export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);

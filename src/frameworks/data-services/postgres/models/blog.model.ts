@@ -7,10 +7,11 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { skills } from "./skill.model";
 import { users } from "./user.model";
 import { timestamps } from "./helpers";
-import { blogPostActionEnum, blogPostStatusEnum } from "./enums";
+import { BlogPostStatusEnum } from "./enums";
 
 export const blogPosts = pgTable(
   "blog_posts",
@@ -21,7 +22,7 @@ export const blogPosts = pgTable(
     summary: text("summary").notNull(),
     thumbnail: varchar("thumbnail", { length: 255 }),
     content: text("content").notNull(),
-    status: blogPostStatusEnum("status").notNull().default("DRAFT"),
+    status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
     categoryId: uuid("category_id")
       .notNull()
       .references(() => blogCategories.id),
@@ -32,7 +33,6 @@ export const blogPosts = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_blog_posts_slug").on(table.slug),
     index("idx_blog_posts_status").on(table.status),
     index("idx_blog_posts_category").on(table.categoryId),
     index("idx_blog_posts_author").on(table.authorId),
@@ -40,19 +40,15 @@ export const blogPosts = pgTable(
   ],
 );
 
-export const blogCategories = pgTable(
-  "blog_categories",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 50 }).notNull().unique(),
-    description: text("description"),
-    ...timestamps,
-  },
-  (table) => [index("idx_blog_categories_name").on(table.name)],
-);
+export const blogCategories = pgTable("blog_categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  description: text("description"),
+  ...timestamps,
+});
 
-export const blogTags = pgTable(
-  "blog_tags",
+export const tags = pgTable(
+  "tags",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     name: varchar("name", { length: 100 }).notNull(),
@@ -60,21 +56,18 @@ export const blogTags = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("idx_blog_tags_name_unique").on(table.name),
-    uniqueIndex("idx_blog_tags_slug_unique").on(table.slug),
-    index("idx_blog_tags_name").on(table.name),
-    index("idx_blog_tags_slug").on(table.slug),
+    uniqueIndex("idx_tags_name_unique").on(table.name),
+    uniqueIndex("idx_tags_slug_unique").on(table.slug),
   ],
 );
 
 export const blogPostTags = pgTable(
   "blog_post_tags",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
     postId: uuid("post_id")
       .notNull()
       .references(() => blogPosts.id, { onDelete: "cascade" }),
-    tagId: uuid("tag_id").references(() => blogTags.id, {
+    tagId: uuid("tag_id").references(() => tags.id, {
       onDelete: "cascade",
     }),
     skillId: uuid("skill_id").references(() => skills.id, {
@@ -83,38 +76,14 @@ export const blogPostTags = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("idx_blog_post_tags_unique").on(
-      table.postId,
-      table.tagId,
-      table.skillId,
-    ),
+    uniqueIndex("idx_blog_post_tags_post_tag_unique")
+      .on(table.postId, table.tagId)
+      .where(sql`${table.tagId} IS NOT NULL`),
+    uniqueIndex("idx_blog_post_tags_post_skill_unique")
+      .on(table.postId, table.skillId)
+      .where(sql`${table.skillId} IS NOT NULL`),
     index("idx_blog_post_tags_post_id").on(table.postId),
     index("idx_blog_post_tags_tag_id").on(table.tagId),
     index("idx_blog_post_tags_skill_id").on(table.skillId),
-  ],
-);
-
-export const blogPostActions = pgTable(
-  "blog_post_actions",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    postId: uuid("post_id")
-      .notNull()
-      .references(() => blogPosts.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    action: blogPostActionEnum("action").notNull(),
-    ...timestamps,
-  },
-  (table) => [
-    uniqueIndex("idx_blog_post_actions_unique").on(
-      table.postId,
-      table.userId,
-      table.action,
-    ),
-    index("idx_blog_post_actions_post_id").on(table.postId),
-    index("idx_blog_post_actions_user_id").on(table.userId),
-    index("idx_blog_post_actions_action").on(table.action),
   ],
 );

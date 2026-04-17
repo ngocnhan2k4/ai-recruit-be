@@ -1,11 +1,9 @@
-import { commentTypeEnum } from "./enums";
-import { blogPosts } from "./blog.model";
-import { index, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { index, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
-import { organizations } from "./organization.model";
 import { timestamps } from "./helpers";
+import { ActionTypeEnum, ObjectTypeEnum } from "./enums";
 
-export const comment = pgTable(
+export const comments = pgTable(
   "comments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -13,16 +11,39 @@ export const comment = pgTable(
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id),
-    organizationId: uuid("organization_id").references(() => organizations.id),
-    blogPostId: uuid("blog_post_id").references(() => blogPosts.id),
-    type: commentTypeEnum("type").notNull(),
+    objectId: uuid("object_id").notNull(),
+    objectType: ObjectTypeEnum("object_type").notNull(),
     ...timestamps,
   },
   (table) => [
-    index("idx_comments_type").on(table.type),
-    index("idx_comments_author").on(table.authorId),
-    index("idx_comments_created_at").on(table.createdAt),
-    index("idx_comments_blog_post").on(table.blogPostId),
-    index("idx_comments_organization").on(table.organizationId),
+    index("idx_comments_object_user").on(
+      table.objectType,
+      table.objectId,
+      table.authorId,
+    ),
+    index("idx_created_at").on(table.createdAt),
+  ],
+);
+
+export const userActions = pgTable(
+  "user_actions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    objectId: uuid("object_id").notNull(),
+    objectType: ObjectTypeEnum("object_type").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: ActionTypeEnum("type").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("idx_user_actions_unique").on(
+      table.objectType,
+      table.objectId,
+      table.userId,
+      table.type,
+    ),
+    index("idx_user_actions_object").on(table.objectType, table.objectId),
   ],
 );
