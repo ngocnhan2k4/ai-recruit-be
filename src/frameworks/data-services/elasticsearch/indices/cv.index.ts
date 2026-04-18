@@ -72,14 +72,6 @@ export function getCvIndexMapping({ env }: CvIndexConfig) {
         expectedSalary: { type: "scaled_float", scaling_factor: 100 },
         experienceYears: { type: "integer" },
 
-        // Extracted content
-        extractedText: {
-          type: "text",
-          fields: {
-            vietnamese: { type: "text", analyzer: "vietnamese_analyzer" },
-          },
-        },
-
         extractedAt: { type: "date" },
         indexedAt: { type: "date" },
         updatedAt: { type: "date" },
