@@ -8,7 +8,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { CV_FOLDER, RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { MultipartFile } from "@fastify/multipart";
-import { ICvRepository } from "@/core";
+import { CvEventType, ICvRepository } from "@/core";
 import { Cv } from "@/core";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -113,7 +113,7 @@ export class CvUseCases {
 
     // Fire-and-forget: extract + index CV asynchronously
     await this.messageQueueService.addCv(
-      "cv.extract_and_index",
+      CvEventType.UPSERT_CV,
       {
         cvId: newCv.id,
       },
@@ -219,6 +219,16 @@ export class CvUseCases {
       `[updateCv] [update] Updated CV ${cvId} for user ${userId}`,
     );
 
+    await this.messageQueueService.addCv(
+      CvEventType.UPSERT_CV,
+      {
+        cvId: cvId,
+      },
+      {
+        jobId: `cv.extract_and_index:${cvId}`,
+      },
+    );
+
     const cvDto: CvDto = {
       id: updatedCv.id,
       userId: updatedCv.userId,
@@ -262,6 +272,16 @@ export class CvUseCases {
         code: RESPONSE_CODE.CV_NOT_DELETED,
       });
     }
+
+    await this.messageQueueService.addCv(
+      CvEventType.DELETE_CV,
+      {
+        cvId: cvId,
+      },
+      {
+        jobId: `cv.extract_and_index:${cvId}`,
+      },
+    );
 
     this.logger.log(
       `[deleteCv] [delete] Deleted CV ${cvId} for user ${userId}`,
