@@ -2,7 +2,12 @@ import { Module } from "@nestjs/common";
 import { MessageQueueService } from "./message-queue.service";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { BullModule } from "@nestjs/bullmq";
-import { EMAIL_QUEUE, JOB_INDEX_QUEUE, TASK_QUEUE } from "@/common/constants";
+import {
+  CV_INDEX_QUEUE,
+  EMAIL_QUEUE,
+  JOB_INDEX_QUEUE,
+  TASK_QUEUE,
+} from "@/common/constants";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
 @Module({
@@ -27,6 +32,9 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     }),
     BullModule.registerQueue({
       name: EMAIL_QUEUE,
+    }),
+    BullModule.registerQueue({
+      name: CV_INDEX_QUEUE,
     }),
   ],
   providers: [

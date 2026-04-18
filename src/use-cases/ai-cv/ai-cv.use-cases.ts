@@ -15,6 +15,7 @@ import {
   NotificationType,
   TaskTypeEnum,
   TaskStatusEnum,
+  IFeatureService,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -37,7 +38,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
-import { FeatureService } from "@/services";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
@@ -48,7 +48,7 @@ export class AiCvUseCases {
     @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
     @Inject(IAIService) private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
-    private readonly featureService: FeatureService,
+    private readonly featureService: IFeatureService,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,

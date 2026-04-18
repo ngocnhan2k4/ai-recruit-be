@@ -10,15 +10,16 @@ import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { MultipartFile } from "@fastify/multipart";
 import { ICvRepository } from "@/core";
 import { Cv } from "@/core";
-import { Inject } from "@nestjs/common";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()
 export class CvUseCases {
   private readonly logger = new Logger(CvUseCases.name);
   constructor(
     private readonly cloudinaryService: CloudinaryService,
-    @Inject(ICvRepository) private readonly cvRepository: ICvRepository,
+    private readonly cvRepository: ICvRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getUserCvs(userId: string): Promise<ApiResponse<CvListResponseDto>> {
@@ -108,6 +109,17 @@ export class CvUseCases {
 
     this.logger.log(
       `[createCv] [create]Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.secure_url}`,
+    );
+
+    // Fire-and-forget: extract + index CV asynchronously
+    await this.messageQueueService.addCv(
+      "cv.extract_and_index",
+      {
+        cvId: newCv.id,
+      },
+      {
+        jobId: `cv.extract_and_index:${newCv.id}`,
+      },
     );
 
     const cvDto: CvDto = {

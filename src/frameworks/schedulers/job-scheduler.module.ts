@@ -5,6 +5,7 @@ import { JobMatchingScheduler } from "./job.scheduler";
 import { JobIndexWorker } from "./job-index.worker";
 import { TaskWorker } from "./task.worker";
 import { EmailWorker } from "./email.worker";
+import { CvIndexWorker } from "./cv-index.worker";
 import { LoggerServiceModule } from "../logger-services/logger.module";
 import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching.use-cases.module";
 import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.module";
@@ -12,6 +13,7 @@ import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { EmailModule } from "@/frameworks/email-services/email.module";
+import { CvModule } from "@/services/cv/cv.module";
 
 @Module({
   imports: [
@@ -24,7 +26,14 @@ import { EmailModule } from "@/frameworks/email-services/email.module";
     PostgresDataServicesModule,
     WebSocketModule,
     EmailModule,
+    CvModule,
   ],
-  providers: [JobMatchingScheduler, JobIndexWorker, TaskWorker, EmailWorker],
+  providers: [
+    JobMatchingScheduler,
+    JobIndexWorker,
+    CvIndexWorker,
+    TaskWorker,
+    EmailWorker,
+  ],
 })
 export class JobMatchingSchedulerModule {}

@@ -38,33 +38,18 @@ export class JobSyncUseCases {
     }
   }
 
-  private async getSyncableJobsBatch(page: number, limit: number) {
-    const result = await this.jobRepository.getJobsByAdmin({
-      limit,
-      page,
-      status: JobStatusEnum.ACTIVE,
-    });
-    return result.data.filter((item) => item.category != null);
-  }
-
   /**
    * Initialize Elasticsearch index
    */
   async initializeIndex(): Promise<ApiResponse<{ message: string }>> {
-    try {
-      await this.ensureIndex();
-      this.logger.log("Elasticsearch index initialized successfully");
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          message: "Elasticsearch index initialized successfully",
-        },
-      };
-    } catch (error) {
-      this.logger.error("Failed to initialize index", error);
-      throw error;
-    }
+    await this.ensureIndex();
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        message: "Elasticsearch index initialized successfully",
+      },
+    };
   }
 
   /**
@@ -81,7 +66,12 @@ export class JobSyncUseCases {
     let totalSynced = 0;
 
     while (hasMore) {
-      const data = await this.getSyncableJobsBatch(page, batchSize);
+      const result = await this.jobRepository.getJobsByAdmin({
+        limit: batchSize,
+        page,
+        status: JobStatusEnum.ACTIVE,
+      });
+      const data = result.data.filter((item) => item.category != null);
 
       if (data.length === 0) {
         hasMore = false;

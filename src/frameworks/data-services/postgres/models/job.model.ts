@@ -206,6 +206,5 @@ export const cvs = pgTable("cvs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
-  extractedData: jsonb("extracted_data"),
   ...timestamps,
 });

@@ -12,7 +12,6 @@ import {
   IUserRepository,
   INotificationRepository,
 } from "@/core/abstracts";
-import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import {
   ApiResponse,
   JobCountsDto,
@@ -73,7 +72,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { FeatureService } from "@/services";
+import { IFeatureService } from "@/core";
 
 @Injectable()
 export class JobUseCases {
@@ -87,8 +86,7 @@ export class JobUseCases {
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
-    private readonly featureService: FeatureService,
+    private readonly featureService: IFeatureService,
   ) {}
 
   async getJobs(
