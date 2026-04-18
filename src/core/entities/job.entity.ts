@@ -147,6 +147,7 @@ export interface JobSearchDocument {
   categoryId?: string;
   categoryName?: string;
   score?: number;
+  recruitCount?: number | null;
 }
 
 export interface JobDetailFilter {

@@ -220,7 +220,7 @@ export class JobUseCases {
       };
 
       // Transform job - datePosted/endDate are date strings, not Date objects
-      const job: Omit<Job, "applyUrl" | "recruitCount"> = {
+      const job: Omit<Job, "applyUrl"> = {
         id: source.id,
         title: source.title,
         description: source.description,
@@ -229,6 +229,12 @@ export class JobUseCases {
         salaryMax: source.salaryMax?.toString() || null,
         experienceMin: source.experienceMin,
         experienceMax: source.experienceMax,
+        recruitCount:
+          typeof source.recruitCount === "number"
+            ? source.recruitCount
+            : source.recruitCount != null
+              ? Number(source.recruitCount)
+              : null,
         workType: source.workType,
         status: source.status || "active",
         datePosted: source.datePosted || null,
@@ -1009,6 +1015,7 @@ export class JobUseCases {
       "workType",
       "categoryId",
       "provinceIds",
+      "recruitCount",
     ];
     const unorderedArrayFieldList: NonReapprovalField[] = [
       "provinceIds",
