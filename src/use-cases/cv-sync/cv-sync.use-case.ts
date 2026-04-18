@@ -67,7 +67,7 @@ export class CvSyncUseCases {
     let totalSynced = 0;
 
     while (hasMore) {
-      const rows = await this.cvRepository.listForEsBulkSync(page, batchSize);
+      const rows = await this.cvRepository.getCvs({ page, limit: batchSize });
       if (rows.length === 0) {
         hasMore = false;
         break;

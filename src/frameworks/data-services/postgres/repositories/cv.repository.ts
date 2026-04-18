@@ -4,6 +4,7 @@ import { type DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import { GenericRepository } from "./generic-repository";
 import { ICvRepository, Cv } from "@/core";
 import { and, count, desc, isNull } from "drizzle-orm";
+import { GeneralQuery } from "@/common/types";
 
 @Injectable()
 export class CvRepository
@@ -14,14 +15,14 @@ export class CvRepository
     super(db, cvs);
   }
 
-  async listForEsBulkSync(
-    page: number,
-    limit: number,
+  async getCvs(
+    query: GeneralQuery,
   ): Promise<
     Array<
       Pick<Cv, "id" | "userId" | "name" | "fileUrl" | "mimeType" | "updatedAt">
     >
   > {
+    const { page = 1, limit } = query;
     const offset = (page - 1) * limit;
     const rows = await this.db
       .select({
