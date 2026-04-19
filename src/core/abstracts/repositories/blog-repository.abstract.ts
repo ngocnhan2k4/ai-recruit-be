@@ -1,13 +1,12 @@
 import { PaginatedResult } from "@/common/types";
 import {
   BlogCategoryItem,
-  BlogLikeResult,
   BlogPostDetail,
   BlogPostFilters,
   BlogPostListItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost } from "@/core/entities";
+import { BlogPost, NewBlogPost, NewComment } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
@@ -56,4 +55,6 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract toggleSave(postId: string, userId: string): Promise<void>;
 
   abstract incrementViewCount(postId: string): Promise<void>;
+
+  abstract comment(data: NewComment): Promise<void>;
 }

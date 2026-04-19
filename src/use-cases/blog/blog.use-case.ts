@@ -8,7 +8,6 @@ import { TokenPayload } from "@/common/types";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
-import { UserImportBuilder } from "node_modules/firebase-admin/lib/auth/user-import-builder";
 import {
   CreateBlogPostDto,
   QueryBlogsDto,
@@ -16,10 +15,15 @@ import {
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
 } from "@/interfaces/dtos/blog/req";
+import { CommentDto } from "@/interfaces/dtos/comment/res/comment.dto";
+import { BlogService } from "@/services/blog/blog.service";
 
 @Injectable()
 export class BlogUseCases {
-  constructor(private readonly blogRepository: IBlogRepository) {}
+  constructor(
+    private readonly blogRepository: IBlogRepository,
+    private readonly blogService: BlogService,
+  ) {}
 
   private generateSlug(value: string): string {
     const baseSlug = value
@@ -243,7 +247,7 @@ export class BlogUseCases {
       categoryId: dto.category,
       authorId: user.userId,
       status: "PENDING",
-      tags: dto.tags,
+      tags: dto.tags ?? [],
     });
 
     return {
@@ -283,21 +287,7 @@ export class BlogUseCases {
     postId: string,
     dto: UpdateBlogPostDto,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
-    const existing = await this.blogRepository.get(postId);
-
-    if (!existing) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
-    if (existing.authorId !== user.userId) {
-      throw new ForbiddenException({
-        code: RESPONSE_CODE.FORBIDDEN,
-        message: RESPONSE_MESSAGE.FORBIDDEN,
-      });
-    }
+    await this.blogService.checkIsAuthor(postId, user.userId);
 
     const updated = await this.blogRepository.update(
       {
@@ -331,21 +321,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    const existing = await this.blogRepository.get(postId);
-
-    if (!existing) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
-    if (existing.authorId !== user.userId) {
-      throw new ForbiddenException({
-        code: RESPONSE_CODE.FORBIDDEN,
-        message: RESPONSE_MESSAGE.FORBIDDEN,
-      });
-    }
+    await this.blogService.checkIsAuthor(postId, user.userId);
 
     await this.blogRepository.delete({
       id: postId,
@@ -362,16 +338,9 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    const post = await this.blogRepository.get(postId);
+    await this.blogService.checkValidPost(postId);
 
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
-    await this.blogRepository.toggleLike(post.id, user.userId);
+    await this.blogRepository.toggleLike(postId, user.userId);
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -382,16 +351,9 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    const post = await this.blogRepository.get(postId);
+    await this.blogService.checkValidPost(postId);
 
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
-
-    await this.blogRepository.toggleSave(post.id, user.userId);
+    await this.blogRepository.toggleSave(postId, user.userId);
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -404,6 +366,26 @@ export class BlogUseCases {
 
   async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
     return this.reviewPost(postId, "REJECTED");
+  }
+
+  async comment(
+    userId: string,
+    postId: string,
+    dto: CommentDto,
+  ): Promise<ApiResponse<void>> {
+    await this.blogService.checkValidPost(postId);
+
+    await this.blogRepository.comment({
+      ...dto,
+      authorId: userId,
+      objectId: postId,
+      objectType: "BLOG",
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+    };
   }
 
   private async reviewPost(

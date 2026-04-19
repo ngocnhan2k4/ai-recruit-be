@@ -1,24 +1,22 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { GenericRepository } from "./generic-repository";
-import { BlogPost, NewBlogPost, NewBlogPostTag } from "@/core";
 import {
   blogCategories,
-  blogPostActions,
   blogPosts,
   blogPostTags,
-  blogTags,
+  tags,
 } from "../models/blog.model";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { type DBDrizzle, type DBDrizzleTransaction } from "../types";
 import { and, asc, count, desc, eq, ilike, sql, SQL } from "drizzle-orm";
-import { skills, users } from "../models";
+import { comments, skills, userActions, users } from "../models";
 import { PaginatedResult } from "@/common/types";
 import {
-  BlogLikeResult,
   BlogPostDetail,
   BlogPostFilters,
   BlogPostListItem,
 } from "@/core/entities/blog.entity";
+import { BlogPost, NewBlogPost, NewBlogPostTag, NewComment } from "@/core";
 
 @Injectable()
 export class BlogRepository
@@ -83,7 +81,7 @@ export class BlogRepository
           NULL::uuid AS skill_id,
           t.id::uuid AS tag_id,
           t.created_at AS created_at
-        FROM ${blogTags} t
+        FROM ${tags} t
       ) merged
       ${whereClause}
       ORDER BY created_at DESC, name ASC
@@ -136,19 +134,19 @@ export class BlogRepository
       tagId: string | null;
     }>
   > {
-    const tags = await this.db
+    const _tags = await this.db
       .select({
         skillName: skills.name,
-        tagName: blogTags.name,
+        tagName: tags.name,
         skillId: blogPostTags.skillId,
         tagId: blogPostTags.tagId,
       })
       .from(blogPostTags)
       .leftJoin(skills, eq(skills.id, blogPostTags.skillId))
-      .leftJoin(blogTags, eq(blogTags.id, blogPostTags.tagId))
+      .leftJoin(tags, eq(tags.id, blogPostTags.tagId))
       .where(eq(blogPostTags.postId, postId));
 
-    return tags.map((tag) => ({
+    return _tags.map((tag) => ({
       name: tag.skillName || tag.tagName || "",
       skillId: tag.skillId,
       tagId: tag.tagId,
@@ -174,10 +172,16 @@ export class BlogRepository
           category: blogPosts.categoryId,
           createdAt: blogPosts.createdAt,
           status: blogPosts.status,
-          likes: sql<number>`COUNT(*) FILTER (WHERE ${blogPostActions.action} = 'LIKE')`,
+          likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
         })
         .from(blogPosts)
-        .leftJoin(blogPostActions, eq(blogPostActions.postId, blogPosts.id))
+        .leftJoin(
+          userActions,
+          and(
+            eq(userActions.objectId, blogPosts.id),
+            eq(userActions.objectType, "BLOG"),
+          ),
+        )
         .where(whereClause)
         .groupBy(
           blogPosts.id,
@@ -257,10 +261,16 @@ export class BlogRepository
           category: blogPosts.categoryId,
           createdAt: blogPosts.createdAt,
           status: blogPosts.status,
-          likes: sql<number>`COUNT(*) FILTER (WHERE ${blogPostActions.action} = 'LIKE')`,
+          likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
         })
         .from(blogPosts)
-        .leftJoin(blogPostActions, eq(blogPostActions.postId, blogPosts.id))
+        .leftJoin(
+          userActions,
+          and(
+            eq(userActions.objectId, blogPosts.id),
+            eq(userActions.objectType, "BLOG"),
+          ),
+        )
         .where(whereClause)
         .groupBy(
           blogPosts.id,
@@ -327,11 +337,17 @@ export class BlogRepository
         authorUsername: users.username,
         authorName: users.name,
         authorAvatarUrl: users.avatarUrl,
-        likes: sql<number>`COUNT(*) FILTER (WHERE ${blogPostActions.action} = 'LIKE')`,
+        likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
       })
       .from(blogPosts)
       .innerJoin(users, eq(users.id, blogPosts.authorId))
-      .leftJoin(blogPostActions, eq(blogPostActions.postId, blogPosts.id))
+      .leftJoin(
+        userActions,
+        and(
+          eq(userActions.objectId, blogPosts.id),
+          eq(userActions.objectType, "BLOG"),
+        ),
+      )
       .where(eq(blogPosts.slug, slug))
       .groupBy(
         blogPosts.id,
@@ -360,17 +376,18 @@ export class BlogRepository
       const [result] = await this.db
         .select({
           isLiked: sql<boolean>`
-      BOOL_OR(${blogPostActions.action} = 'LIKE')
+      BOOL_OR(${userActions.type} = 'LIKE')
     `,
           isSaved: sql<boolean>`
-      BOOL_OR(${blogPostActions.action} = 'SAVE')
+      BOOL_OR(${userActions.type} = 'SAVE')
     `,
         })
-        .from(blogPostActions)
+        .from(userActions)
         .where(
           and(
-            eq(blogPostActions.postId, post.id),
-            eq(blogPostActions.userId, userId),
+            eq(userActions.objectId, post.id),
+            eq(userActions.objectType, "BLOG"),
+            eq(userActions.userId, userId),
           ),
         );
 
@@ -577,24 +594,25 @@ export class BlogRepository
   async toggleLike(postId: string, userId: string): Promise<void> {
     const [likeAction] = await this.db
       .select()
-      .from(blogPostActions)
+      .from(userActions)
       .where(
         and(
-          eq(blogPostActions.postId, postId),
-          eq(blogPostActions.userId, userId),
-          eq(blogPostActions.action, "LIKE"),
+          eq(userActions.objectId, postId),
+          eq(userActions.userId, userId),
+          eq(userActions.type, "LIKE"),
         ),
       );
 
     if (likeAction) {
       await this.db
-        .delete(blogPostActions)
-        .where(eq(blogPostActions.id, likeAction.id));
+        .delete(userActions)
+        .where(eq(userActions.id, likeAction.id));
     } else {
-      await this.db.insert(blogPostActions).values({
-        postId,
+      await this.db.insert(userActions).values({
+        objectId: postId,
+        objectType: "BLOG",
         userId,
-        action: "LIKE",
+        type: "LIKE",
       });
     }
   }
@@ -602,24 +620,25 @@ export class BlogRepository
   async toggleSave(postId: string, userId: string): Promise<void> {
     const [saveAction] = await this.db
       .select()
-      .from(blogPostActions)
+      .from(userActions)
       .where(
         and(
-          eq(blogPostActions.postId, postId),
-          eq(blogPostActions.userId, userId),
-          eq(blogPostActions.action, "SAVE"),
+          eq(userActions.objectId, postId),
+          eq(userActions.userId, userId),
+          eq(userActions.type, "SAVE"),
         ),
       );
 
     if (saveAction) {
       await this.db
-        .delete(blogPostActions)
-        .where(eq(blogPostActions.id, saveAction.id));
+        .delete(userActions)
+        .where(eq(userActions.id, saveAction.id));
     } else {
-      await this.db.insert(blogPostActions).values({
-        postId,
+      await this.db.insert(userActions).values({
+        objectId: postId,
         userId,
-        action: "SAVE",
+        type: "SAVE",
+        objectType: "BLOG",
       });
     }
   }
@@ -629,5 +648,12 @@ export class BlogRepository
       .update(blogPosts)
       .set({ viewCount: sql`${blogPosts.viewCount} + 1` })
       .where(eq(blogPosts.id, postId));
+  }
+
+  async comment(data: NewComment): Promise<void> {
+    await this.db.insert(comments).values({
+      ...data,
+      objectType: "BLOG",
+    });
   }
 }

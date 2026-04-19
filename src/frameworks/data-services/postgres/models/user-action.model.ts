@@ -11,6 +11,9 @@ export const comments = pgTable(
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id),
+    parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
+      onDelete: "cascade",
+    }),
     objectId: uuid("object_id").notNull(),
     objectType: ObjectTypeEnum("object_type").notNull(),
     ...timestamps,
