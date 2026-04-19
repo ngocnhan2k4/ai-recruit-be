@@ -1,5 +1,11 @@
 import { SentryModule } from "@sentry/nestjs/setup";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { PrometheusModule } from "@willsoto/nestjs-prometheus";
+import {
+  HTTP_REQUESTS_TOTAL,
+  HTTP_REQUEST_DURATION_SECONDS,
+} from "@/common/config/prometheus.config";
+import { PrometheusMetricsInterceptor } from "@/common/interceptors";
 import {
   UserController,
   AuthController,
@@ -91,6 +97,10 @@ import { AdminDeploymentController } from "@/interfaces/controllers/deployment/a
   imports: [
     // SentryModule must be the first import so Sentry can instrument all other modules
     SentryModule.forRoot(),
+    PrometheusModule.register({
+      defaultMetrics: { enabled: true },
+      path: "/metrics",
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
@@ -211,6 +221,12 @@ import { AdminDeploymentController } from "@/interfaces/controllers/deployment/a
       inject: [ConfigService, ILoggerServices],
     },
     RateLimitMiddleware,
+    HTTP_REQUESTS_TOTAL,
+    HTTP_REQUEST_DURATION_SECONDS,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PrometheusMetricsInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
