@@ -85,8 +85,8 @@ export class TaskWorker extends WorkerHost {
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
       await this.taskRepository.update(
-        { id: taskId, updatedAt: new Date() },
-        params.taskData,
+        { id: taskId },
+        { ...params.taskData, updatedAt: new Date() },
         tx,
       );
 
