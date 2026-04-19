@@ -79,8 +79,9 @@ export class CvIndexWorker extends WorkerHost {
   }
 
   private async processUpsert(data: CvIndexData) {
-    const indexName =
-      this.configService.get<string>("ELASTICSEARCH_INDEX_CVS") || "cvs";
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_CVS",
+    )!;
 
     const cv = await this.cvRepository.get(data.cvId);
     if (!cv) {
