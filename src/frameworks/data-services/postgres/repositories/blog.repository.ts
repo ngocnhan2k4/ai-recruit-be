@@ -236,9 +236,6 @@ export class BlogRepository
     const page = Math.max(filters.page ?? 1, 1);
     const offset = (page - 1) * limit;
 
-    console.log("getMyBlogs called with filters:", filters);
-    console.log("AuthorID: ", authorId);
-
     const whereConditions: SQL[] = [eq(blogPosts.authorId, authorId)];
 
     if (filters.keyword) {
