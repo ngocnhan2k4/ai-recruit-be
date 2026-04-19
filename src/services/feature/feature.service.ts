@@ -1,10 +1,14 @@
 import { ONE_DAY_MS, RESPONSE_CODE } from "@/common/constants";
-import { FeatureCodeEnum, IUserFeatureUsageRepository } from "@/core";
+import {
+  FeatureCodeEnum,
+  IFeatureService,
+  IUserFeatureUsageRepository,
+} from "@/core";
 import { Injectable, Logger } from "@nestjs/common";
 import { ForbiddenException } from "@nestjs/common";
 
 @Injectable()
-export class FeatureService {
+export class FeatureService implements IFeatureService {
   private readonly logger = new Logger(FeatureService.name);
   constructor(
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,

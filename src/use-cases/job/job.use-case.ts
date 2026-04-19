@@ -12,7 +12,6 @@ import {
   IUserRepository,
   INotificationRepository,
 } from "@/core/abstracts";
-import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import {
   ApiResponse,
   JobCountsDto,
@@ -73,7 +72,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { FeatureService } from "@/services";
+import { IFeatureService } from "@/core";
 
 @Injectable()
 export class JobUseCases {
@@ -87,8 +86,7 @@ export class JobUseCases {
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
-    private readonly featureService: FeatureService,
+    private readonly featureService: IFeatureService,
   ) {}
 
   async getJobs(
@@ -880,9 +878,15 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
-      jobId: newJob.id,
-    });
+    await this.messageQueueService.addJob(
+      JobEventType.UPSERT_JOB,
+      {
+        jobId: newJob.id,
+      },
+      {
+        jobId: `job.sync:${newJob.id}`,
+      },
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -973,9 +977,15 @@ export class JobUseCases {
         updatedJob.status as JobStatusEnum,
       )
     ) {
-      await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
-        jobId: jobId,
-      });
+      await this.messageQueueService.addJob(
+        JobEventType.UPSERT_JOB,
+        {
+          jobId: jobId,
+        },
+        {
+          jobId: `job.sync:${jobId}`,
+        },
+      );
     }
 
     return { transformedJob, updatedJob };
@@ -1334,9 +1344,15 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.addJob(JobEventType.DELETE_JOB, {
-      jobId: jobId,
-    });
+    await this.messageQueueService.addJob(
+      JobEventType.DELETE_JOB,
+      {
+        jobId: jobId,
+      },
+      {
+        jobId: `job.sync:${jobId}`,
+      },
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

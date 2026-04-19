@@ -8,17 +8,18 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { CV_FOLDER, RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { MultipartFile } from "@fastify/multipart";
-import { ICvRepository } from "@/core";
+import { CvEventType, ICvRepository } from "@/core";
 import { Cv } from "@/core";
-import { Inject } from "@nestjs/common";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()
 export class CvUseCases {
   private readonly logger = new Logger(CvUseCases.name);
   constructor(
     private readonly cloudinaryService: CloudinaryService,
-    @Inject(ICvRepository) private readonly cvRepository: ICvRepository,
+    private readonly cvRepository: ICvRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async getUserCvs(userId: string): Promise<ApiResponse<CvListResponseDto>> {
@@ -108,6 +109,17 @@ export class CvUseCases {
 
     this.logger.log(
       `[createCv] [create]Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.secure_url}`,
+    );
+
+    // Fire-and-forget: extract + index CV asynchronously
+    await this.messageQueueService.addCv(
+      CvEventType.UPSERT_CV,
+      {
+        cvId: newCv.id,
+      },
+      {
+        jobId: `cv.extract_and_index:${newCv.id}`,
+      },
     );
 
     const cvDto: CvDto = {
@@ -207,6 +219,16 @@ export class CvUseCases {
       `[updateCv] [update] Updated CV ${cvId} for user ${userId}`,
     );
 
+    await this.messageQueueService.addCv(
+      CvEventType.UPSERT_CV,
+      {
+        cvId: cvId,
+      },
+      {
+        jobId: `cv.extract_and_index:${cvId}`,
+      },
+    );
+
     const cvDto: CvDto = {
       id: updatedCv.id,
       userId: updatedCv.userId,
@@ -250,6 +272,16 @@ export class CvUseCases {
         code: RESPONSE_CODE.CV_NOT_DELETED,
       });
     }
+
+    await this.messageQueueService.addCv(
+      CvEventType.DELETE_CV,
+      {
+        cvId: cvId,
+      },
+      {
+        jobId: `cv.sync:${cvId}`,
+      },
+    );
 
     this.logger.log(
       `[deleteCv] [delete] Deleted CV ${cvId} for user ${userId}`,
