@@ -84,16 +84,43 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
         working-directory: ./crawl_jobs
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install queue bridge dependencies
+        working-directory: ./crawl_jobs
+        run: |
+          npm install --no-save bullmq
+
       - name: Run crawler
         id: run_crawler
         working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
+          QUEUE_ARGS=()
+          QUEUE_MODE="disabled"
+
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            QUEUE_MODE="enabled"
+            QUEUE_ARGS+=(
+              --queue-index-enabled
+              --queue-redis-url "$QUEUE_REDIS_URL"
+            )
+          else
+            echo "Queue indexing disabled: REDIS_URL secret is empty."
+          fi
+
+          echo "queue_mode=$QUEUE_MODE" >> "$GITHUB_OUTPUT"
+
           python main.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --gha-output "$GITHUB_OUTPUT" \
@@ -103,7 +130,8 @@ jobs:
             --topcv-pages ${{ inputs.topcv_pages || '1' }} \
             --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
             --vietnamworks-pages ${{ inputs.vietnamworks_pages || '1' }} \
-            --linkedin-keywords "${{ steps.keyword.outputs.keyword }}"
+            --linkedin-keywords "${{ steps.keyword.outputs.keyword }}" \
+            "${QUEUE_ARGS[@]}"
 
       - name: Notify Slack
         if: always()
@@ -119,6 +147,9 @@ jobs:
             📈 Tổng hợp:
             ✓ Inserted: ${{ steps.run_crawler.outputs.total_inserted }} jobs
             ↻ Updated: ${{ steps.run_crawler.outputs.total_updated }} jobs
+            📨 Queue Indexed: ${{ steps.run_crawler.outputs.total_queue_enqueued || '0' }} jobs
+            ⚠ Queue Failed: ${{ steps.run_crawler.outputs.total_queue_failed || '0' }} jobs
+            ⚙ Queue Mode: ${{ steps.run_crawler.outputs.queue_mode }}
 
             🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs (${{ inputs.itviec_pages || '1' }} pages)
             🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs (${{ inputs.topcv_pages || '1' }} pages)
