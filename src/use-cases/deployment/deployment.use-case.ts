@@ -42,7 +42,7 @@ export class DeploymentUseCases {
     const command = [
       `cd ${workdir}`,
       `docker compose -f ${composeFile} pull ${serviceName}`,
-      `docker compose -f ${composeFile} up -d ${serviceName}`,
+      `docker compose -f ${composeFile} up -d --force-recreate ${serviceName}`,
     ].join(" && ");
 
     this.logger.log(`Redeploying ${serviceName} on ${host}`);
