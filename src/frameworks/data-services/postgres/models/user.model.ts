@@ -156,6 +156,7 @@ export const userOnboardings = pgTable(
     provinceIds: uuid("province_ids").array(),
     categoryIds: uuid("category_ids").array(),
     expectedSalary: numeric("expected_salary", { precision: 12, scale: 2 }),
+    isSeekingJob: boolean("is_seeking_job").notNull().default(false),
   },
   (table) => [
     index("idx_user_onboardings_skills_gin").using("gin", table.skills),

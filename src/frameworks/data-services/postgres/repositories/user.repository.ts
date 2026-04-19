@@ -485,6 +485,7 @@ export class UserRepository
             categoryIds: userOnboardings.categoryIds,
             expectedSalary: userOnboardings.expectedSalary,
             experienceYears: userOnboardings.experienceYears,
+            isSeekingJob: userOnboardings.isSeekingJob,
           })
           .from(userOnboardings)
           .where(eq(userOnboardings.userId, userId)),
@@ -518,6 +519,7 @@ export class UserRepository
       expectedSalary: onboarding?.expectedSalary
         ? Number(onboarding.expectedSalary)
         : undefined,
+      isSeekingJob: onboarding?.isSeekingJob ?? false,
     };
   }
 

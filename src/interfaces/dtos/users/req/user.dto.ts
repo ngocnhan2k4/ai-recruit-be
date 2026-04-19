@@ -97,6 +97,15 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
 
   @ApiProperty({
     required: false,
+    description: "Whether the user is actively seeking a job",
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isSeekingJob?: boolean;
+
+  @ApiProperty({
+    required: false,
     description: "Current career goal",
   })
   @IsOptional()
