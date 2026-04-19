@@ -47,6 +47,15 @@ export class ApplyJobDto {
   cvId?: string;
 
   @ApiProperty({
+    example: "My CV",
+    required: false,
+    description: "Name for the new CV when uploading a file",
+  })
+  @IsOptional()
+  @IsString()
+  cvName?: string;
+
+  @ApiProperty({
     type: [JobAnswerDto],
     required: false,
     description: "Answers to job questions",
