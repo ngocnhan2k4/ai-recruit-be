@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { TokenPayload } from "@/common/types";
+import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -17,6 +17,7 @@ import {
 } from "@/interfaces/dtos/blog/req";
 import { CommentDto } from "@/interfaces/dtos/comment/res/comment.dto";
 import { BlogService } from "@/services/blog/blog.service";
+import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
 
 @Injectable()
 export class BlogUseCases {
@@ -37,7 +38,9 @@ export class BlogUseCases {
     return `${baseSlug}-${uniqueTail}`;
   }
 
-  async getBlogs(query: QueryBlogsDto): Promise<ApiResponse<any>> {
+  async getBlogs(
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
     const result = await this.blogRepository.getPosts({
@@ -48,26 +51,17 @@ export class BlogUseCases {
       category: query.category,
     });
 
-    const total = result.pagination.total ?? 0;
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        items: result.data,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit) || 1,
-        },
-      },
+      data: result,
     };
   }
 
   async getMyBlogs(
     userId: string,
     query: QueryBlogsDto,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
     const result = await this.blogRepository.getMyBlogs(userId, {
@@ -78,25 +72,18 @@ export class BlogUseCases {
       category: query.category,
     });
 
-    const total = result.pagination.total ?? 0;
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        items: result.data,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit) || 1,
-        },
-      },
+      data: result,
     };
   }
 
-  async getTopBlogs(): Promise<ApiResponse<any>> {
+  async getTopBlogs(): Promise<
+    ApiResponse<PaginatedResult<BlogPostListItemDto>>
+  > {
     await Promise.resolve();
-    const result = [];
+    const result = [] as any;
 
     return {
       code: RESPONSE_CODE.SUCCESS,

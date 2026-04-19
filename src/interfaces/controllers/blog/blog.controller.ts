@@ -9,8 +9,6 @@ import {
   Param,
   Query,
   UseGuards,
-  HttpCode,
-  HttpStatus,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from "@nestjs/swagger";
 import {
@@ -18,7 +16,7 @@ import {
   OptionalJwtAuthGuard,
 } from "@/frameworks/auth-services/guards";
 import { GetUser } from "@/common/decorators";
-import type { TokenPayload } from "@/common/types";
+import type { PaginatedResult, TokenPayload } from "@/common/types";
 import {
   QueryBlogsDto,
   CreateBlogPostDto,
@@ -26,10 +24,10 @@ import {
   UpdateBlogPostDto,
   QueryBlogTagsDto,
   CreateBlogCommentDto,
-  BlogPostListResponseDto,
   BlogPostDetailDto,
   BlogCategoryDto,
   BlogTagCursorResponseDto,
+  BlogPostListItemDto,
 } from "@/interfaces/dtos/blog";
 import { ApiResponse } from "@/interfaces/dtos";
 
@@ -46,7 +44,7 @@ export class BlogController {
   })
   async getBlogs(
     @Query() query: QueryBlogsDto,
-  ): Promise<ApiResponse<BlogPostListResponseDto>> {
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     return this.blogUseCase.getBlogs(query);
   }
 
@@ -60,7 +58,7 @@ export class BlogController {
   async getMyBlogs(
     @GetUser() user: TokenPayload,
     @Query() query: QueryBlogsDto,
-  ): Promise<ApiResponse<BlogPostListResponseDto>> {
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     return this.blogUseCase.getMyBlogs(user.userId, query);
   }
 
@@ -70,7 +68,9 @@ export class BlogController {
     description:
       "Retrieve trending/top blogs, typically sorted by likes or view count",
   })
-  async getTopBlogs(): Promise<ApiResponse<any>> {
+  async getTopBlogs(): Promise<
+    ApiResponse<PaginatedResult<BlogPostListItemDto>>
+  > {
     return this.blogUseCase.getTopBlogs();
   }
 
@@ -112,7 +112,6 @@ export class BlogController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: "Create Blog",
     description: "Create a new published blog post",
@@ -126,7 +125,6 @@ export class BlogController {
 
   @UseGuards(JwtAuthGuard)
   @Post("draft")
-  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: "Save Draft",
     description:
@@ -162,7 +160,6 @@ export class BlogController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(":id")
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Delete Blog",
     description: "Delete a blog post (must be the post author)",
@@ -177,7 +174,6 @@ export class BlogController {
 
   @UseGuards(JwtAuthGuard)
   @Post(":blogId/comments")
-  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: "Create Comment",
     description:
@@ -194,7 +190,6 @@ export class BlogController {
 
   @UseGuards(JwtAuthGuard)
   @Post(":blogId/likes")
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Toggle Like",
     description:
