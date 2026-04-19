@@ -88,6 +88,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: crawl_jobs/job_index_queue/package-lock.json
 
       - name: Install dependencies
         working-directory: ./crawl_jobs
@@ -97,8 +99,14 @@ jobs:
 
       - name: Install queue bridge dependencies
         working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
-          npm install --no-save bullmq
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            npm ci --omit=dev --prefix ./job_index_queue
+          else
+            echo "Skip queue bridge install: REDIS_URL secret is empty."
+          fi
 
       - name: Run crawler
         id: run_crawler
