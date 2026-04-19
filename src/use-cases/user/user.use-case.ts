@@ -67,6 +67,30 @@ import { addDays } from "date-fns";
 export class UserUseCases implements OnModuleInit {
   private readonly logger = new Logger(UserUseCases.name);
 
+  private buildDeletedEmail(user: User, timestampMs: number): string | null {
+    if (!user.email) return null;
+    const localPart = user.email.split("@")[0] || "user";
+    const safeLocalPart = localPart
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .slice(0, 40);
+    return `deleted+${safeLocalPart}.${user.id}.${timestampMs}@anon.local`;
+  }
+
+  private buildDeletedPhone(user: User, timestampMs: number): string | null {
+    if (!user.phone) return null;
+    const digits = user.phone.replace(/\D/g, "");
+    const suffix = digits.slice(-4) || "0000";
+    return `del${String(timestampMs).slice(-10)}${suffix}`.slice(0, 20);
+  }
+
+  private buildDeletedFirebaseUid(
+    user: User,
+    timestampMs: number,
+  ): string | null {
+    if (!user.firebaseUid) return null;
+    return `deleted_${user.id}_${timestampMs}`;
+  }
+
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly userExperienceRepository: IUserExperienceRepository,
@@ -92,13 +116,24 @@ export class UserUseCases implements OnModuleInit {
   }
 
   private async finalizeUserDeletion(userId: string): Promise<void> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      return;
+    }
+
     const finalizedAt = new Date();
+    const timestampMs = finalizedAt.getTime();
+    const deletedUsername = `deleted_${user.id}_${timestampMs}`;
 
     await this.authRepository.revokeAllForUser(userId);
     await this.userRepository.update(
       { id: userId },
       {
         status: UserStatusEnum.DELETED,
+        username: deletedUsername,
+        email: this.buildDeletedEmail(user, timestampMs),
+        phone: this.buildDeletedPhone(user, timestampMs),
+        firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
         deletedAt: finalizedAt,
         purgeAfterAt: null,
         updatedAt: finalizedAt,

@@ -83,20 +83,10 @@ export const users = pgTable(
       .default(false),
   },
   (table) => [
-    uniqueIndex("idx_users_email")
-      .on(table.email)
-      .where(sql`${table.email} IS NOT NULL AND ${table.status} <> 'deleted'`),
-    uniqueIndex("idx_users_firebase_uid")
-      .on(table.firebaseUid)
-      .where(
-        sql`${table.firebaseUid} IS NOT NULL AND ${table.status} <> 'deleted'`,
-      ),
-    uniqueIndex("idx_users_phone")
-      .on(table.phone)
-      .where(sql`${table.phone} IS NOT NULL AND ${table.status} <> 'deleted'`),
-    uniqueIndex("idx_users_username")
-      .on(table.username)
-      .where(sql`${table.status} <> 'deleted'`),
+    uniqueIndex("idx_users_email").on(table.email),
+    uniqueIndex("idx_users_firebase_uid").on(table.firebaseUid),
+    uniqueIndex("idx_users_phone").on(table.phone),
+    uniqueIndex("idx_users_username").on(table.username),
     index("idx_users_status_deleted_created").on(
       table.status,
       table.deletedAt,
