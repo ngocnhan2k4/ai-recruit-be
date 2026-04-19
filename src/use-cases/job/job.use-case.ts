@@ -878,9 +878,15 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
-      jobId: newJob.id,
-    });
+    await this.messageQueueService.addJob(
+      JobEventType.UPSERT_JOB,
+      {
+        jobId: newJob.id,
+      },
+      {
+        jobId: `job.sync:${newJob.id}`,
+      },
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -971,9 +977,15 @@ export class JobUseCases {
         updatedJob.status as JobStatusEnum,
       )
     ) {
-      await this.messageQueueService.addJob(JobEventType.UPSERT_JOB, {
-        jobId: jobId,
-      });
+      await this.messageQueueService.addJob(
+        JobEventType.UPSERT_JOB,
+        {
+          jobId: jobId,
+        },
+        {
+          jobId: `job.sync:${jobId}`,
+        },
+      );
     }
 
     return { transformedJob, updatedJob };
@@ -1332,9 +1344,15 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.addJob(JobEventType.DELETE_JOB, {
-      jobId: jobId,
-    });
+    await this.messageQueueService.addJob(
+      JobEventType.DELETE_JOB,
+      {
+        jobId: jobId,
+      },
+      {
+        jobId: `job.sync:${jobId}`,
+      },
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

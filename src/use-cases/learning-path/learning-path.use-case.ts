@@ -113,6 +113,9 @@ export class LearningPathUseCase {
             taskId: result.task.id,
             notificationId: result.notification.id,
           },
+          {
+            jobId: `task.async:${result.task.id}`,
+          },
         );
         this.logger.log(
           `Learning path generation task added to message queue: ${result.task.id}`,

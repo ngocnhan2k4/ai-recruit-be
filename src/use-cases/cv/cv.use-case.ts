@@ -279,7 +279,7 @@ export class CvUseCases {
         cvId: cvId,
       },
       {
-        jobId: `cv.extract_and_index:${cvId}`,
+        jobId: `cv.sync:${cvId}`,
       },
     );
 

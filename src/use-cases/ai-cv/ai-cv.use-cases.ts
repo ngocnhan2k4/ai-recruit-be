@@ -513,10 +513,16 @@ export class AiCvUseCases {
 
     await retry(
       async () => {
-        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
-          taskId: result.task.id,
-          notificationId: result.notification.id,
-        });
+        await this.messageQueueService.addTask(
+          TaskTypeEnum.CV_GENERATION,
+          {
+            taskId: result.task.id,
+            notificationId: result.notification.id,
+          },
+          {
+            jobId: `task.async:${result.task.id}`,
+          },
+        );
         this.logger.log(
           `CV generation task added to message queue: ${result.task.id}`,
         );
