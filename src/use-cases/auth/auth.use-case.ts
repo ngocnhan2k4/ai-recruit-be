@@ -25,6 +25,12 @@ import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types"
 @Injectable()
 export class AuthUseCases {
   private readonly logger = new Logger(AuthUseCases.name);
+  private readonly blockedLoginStatuses = new Set(["banned", "deleted"]);
+  private readonly blockedRefreshStatuses = new Set([
+    "banned",
+    "pending_deletion",
+    "deleted",
+  ]);
   constructor(
     private readonly authService: IAuthService,
     private readonly authRepository: IAuthRepository,
@@ -35,6 +41,24 @@ export class AuthUseCases {
     private readonly configService: ConfigService,
     private readonly casbinService: CasbinService,
   ) {}
+
+  private assertUserCanLogIn(user: User): void {
+    if (this.blockedLoginStatuses.has(String(user.status))) {
+      throw new UnauthorizedException({
+        message: "User account is not available for authentication",
+        code: RESPONSE_CODE.UNAUTHORIZED,
+      });
+    }
+  }
+
+  private assertUserCanRefresh(user: User): void {
+    if (this.blockedRefreshStatuses.has(String(user.status))) {
+      throw new UnauthorizedException({
+        message: "User account is not available for authentication",
+        code: RESPONSE_CODE.UNAUTHORIZED,
+      });
+    }
+  }
 
   async logIn(idToken: string): Promise<
     ApiResponse<{
@@ -145,6 +169,7 @@ export class AuthUseCases {
       }
       await this.casbinService.savePolicy();
     } else {
+      this.assertUserCanLogIn(user);
       await this.userRepository.addUserIdentity({
         userId: user.id,
         provider: currentProvider,
@@ -183,8 +208,14 @@ export class AuthUseCases {
     // );
 
     return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
+      message:
+        String(user.status) === "pending_deletion"
+          ? RESPONSE_MESSAGE.ACCOUNT_PENDING_DELETION
+          : RESPONSE_MESSAGE.SUCCESS,
+      code:
+        String(user.status) === "pending_deletion"
+          ? RESPONSE_CODE.ACCOUNT_PENDING_DELETION
+          : RESPONSE_CODE.SUCCESS,
       data: {
         tokens: { accessToken, refreshToken },
         user: userDto,
@@ -228,7 +259,14 @@ export class AuthUseCases {
       });
     }
     const user = await this.userRepository.get(storedToken.userId);
-    const { accessToken, refreshToken } = await this.issueNewTokens(user!);
+    if (!user) {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    }
+    this.assertUserCanRefresh(user);
+    const { accessToken, refreshToken } = await this.issueNewTokens(user);
     await this.authRepository.revoke(oldRefreshToken);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

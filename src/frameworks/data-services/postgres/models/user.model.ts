@@ -3,6 +3,7 @@ import {
   bigserial,
   varchar,
   date,
+  timestamp,
   uuid,
   text,
   boolean,
@@ -55,7 +56,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    username: varchar("username", { length: 255 }).notNull().unique(),
+    username: varchar("username", { length: 255 }).notNull(),
     email: varchar("email", { length: 255 }),
     emailVerified: boolean("email_verified").notNull().default(false),
     phone: varchar("phone", { length: 20 }),
@@ -74,21 +75,34 @@ export const users = pgTable(
     gender: GenderEnum("gender"),
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
+    deletionRequestedAt: timestamp("deletion_requested_at"),
+    purgeAfterAt: timestamp("purge_after_at"),
     ...timestamps,
     onboardingCompleted: boolean("onboarding_completed")
       .notNull()
       .default(false),
   },
   (table) => [
-    uniqueIndex("idx_users_email").on(table.email),
-    uniqueIndex("idx_users_firebase_uid").on(table.firebaseUid),
-    uniqueIndex("idx_users_phone").on(table.phone),
-    uniqueIndex("idx_users_username").on(table.username),
+    uniqueIndex("idx_users_email")
+      .on(table.email)
+      .where(sql`${table.email} IS NOT NULL AND ${table.status} <> 'deleted'`),
+    uniqueIndex("idx_users_firebase_uid")
+      .on(table.firebaseUid)
+      .where(
+        sql`${table.firebaseUid} IS NOT NULL AND ${table.status} <> 'deleted'`,
+      ),
+    uniqueIndex("idx_users_phone")
+      .on(table.phone)
+      .where(sql`${table.phone} IS NOT NULL AND ${table.status} <> 'deleted'`),
+    uniqueIndex("idx_users_username")
+      .on(table.username)
+      .where(sql`${table.status} <> 'deleted'`),
     index("idx_users_status_deleted_created").on(
       table.status,
       table.deletedAt,
       sql`${table.createdAt} DESC`,
     ),
+    index("idx_users_status_purge_after").on(table.status, table.purgeAfterAt),
     index("idx_users_roles_gin").using("gin", table.roles),
   ],
 );

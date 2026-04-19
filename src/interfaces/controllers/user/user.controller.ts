@@ -36,7 +36,7 @@ import {
   UserSeoPublicResponseDto,
   RespondToInvitationDto,
 } from "../../dtos";
-import { GetUser } from "@/common/decorators";
+import { AllowedUserStatuses, GetUser } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
 import {
   CreateUserExperienceRequestDto,
@@ -58,6 +58,7 @@ import {
 } from "@/interfaces/dtos";
 import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
 import { ProviderEnum } from "@/core";
+import { UserStatusEnum } from "@/core";
 
 @ApiTags("Users")
 @Controller("users")
@@ -431,5 +432,16 @@ export class UserController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<boolean>> {
     return this.userUseCases.deleteUserAccount(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @AllowedUserStatuses(UserStatusEnum.PENDING_DELETION)
+  @ApiOperation({ summary: "Restore user account pending deletion" })
+  @Patch("/me/restore")
+  @ApiResponseDto(Boolean)
+  async restoreUserAccount(
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<boolean>> {
+    return this.userUseCases.restoreUserAccount(user.userId);
   }
 }
