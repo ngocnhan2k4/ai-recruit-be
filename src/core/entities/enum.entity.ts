@@ -212,3 +212,20 @@ export enum TaskTypeEnum {
   LEARNING_PATH_GENERATION = "learning_path_generation",
   CV_GENERATION = "cv_generation",
 }
+
+export enum ObjectType {
+  BLOG = "BLOG",
+  ORG = "ORG",
+}
+
+export enum UserActionType {
+  LIKE = "LIKE",
+  SAVE = "SAVE",
+}
+
+export enum BlogPostStatus {
+  DRAFT = "DRAFT",
+  PENDING = "PENDING",
+  PUBLISHED = "PUBLISHED",
+  REJECTED = "REJECTED",
+}

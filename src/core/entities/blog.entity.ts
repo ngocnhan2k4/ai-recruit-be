@@ -1,4 +1,5 @@
 import { GeneralQuery } from "@/common/types";
+import { BlogPostStatus } from "./enum.entity";
 
 export interface BlogPostFilters extends GeneralQuery {
   category?: string;
@@ -13,7 +14,7 @@ export interface BlogPostListItem {
   thumbnail: string | null;
   category: string;
   likes: number;
-  status: string;
+  status: BlogPostStatus;
   tags: Array<{
     name: string;
     skillId: string | null;
@@ -29,6 +30,31 @@ export interface BlogPostAuthor {
   avatarUrl: string | null;
 }
 
+export interface BlogPostTagItem {
+  name: string;
+  skillId: string | null;
+  tagId: string | null;
+}
+
+export interface BlogPostUserActions {
+  isSaved: boolean;
+  isLiked: boolean;
+}
+
+export interface BlogPostDetailBase {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  thumbnail: string | null;
+  content: string;
+  category: string;
+  viewCount: number;
+  author: BlogPostAuthor;
+  status: BlogPostStatus;
+  createdAt: Date;
+}
+
 export interface BlogPostDetail {
   id: string;
   title: string;
@@ -42,12 +68,8 @@ export interface BlogPostDetail {
   likes: number;
   isSaved: boolean;
   isLiked: boolean;
-  status: string;
-  tags: Array<{
-    name: string;
-    skillId: string | null;
-    tagId: string | null;
-  }>;
+  status: BlogPostStatus;
+  tags: BlogPostTagItem[];
   createdAt: Date;
 }
 

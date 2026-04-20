@@ -33,3 +33,5 @@ export * from "./user-subscription-repository.abstract";
 export * from "./skills-synonyms-repository.abstract";
 export * from "./task-repository.abstract";
 export * from "./blog-repository.abstract";
+export * from "./user-action-repository.abstract";
+export * from "./comment-repository.abstract";

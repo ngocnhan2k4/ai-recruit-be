@@ -1,13 +1,15 @@
 import { PaginatedResult } from "@/common/types";
 import {
   BlogCategoryItem,
-  BlogPostDetail,
+  BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
+  BlogPostTagItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost, NewComment } from "@/core/entities";
+import { BlogPost, NewBlogPost } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
+import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract getCategories(): Promise<BlogCategoryItem[]>;
@@ -27,14 +29,16 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
-  abstract getPostDetailBySlug(
-    slug: string,
-    userId?: string,
-  ): Promise<BlogPostDetail | null>;
+  abstract getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null>;
+
+  abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;
 
   abstract getPostBySlug(slug: string): Promise<BlogPost | null>;
 
-  abstract createPost(data: NewBlogPost): Promise<BlogPost>;
+  abstract createPost(
+    data: NewBlogPost,
+    tx?: DBDrizzleTransaction,
+  ): Promise<BlogPost>;
 
   abstract saveDraft(
     data: {
@@ -48,13 +52,8 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     },
     authorId: string,
     postId?: string,
+    tx?: DBDrizzleTransaction,
   ): Promise<BlogPost>;
 
-  abstract toggleLike(postId: string, userId: string): Promise<void>;
-
-  abstract toggleSave(postId: string, userId: string): Promise<void>;
-
   abstract incrementViewCount(postId: string): Promise<void>;
-
-  abstract comment(data: NewComment): Promise<void>;
 }

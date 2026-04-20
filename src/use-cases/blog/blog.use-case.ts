@@ -7,6 +7,8 @@ import {
 import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
+import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
+import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogPostDto,
@@ -18,25 +20,18 @@ import {
 import { CommentDto } from "@/interfaces/dtos/comment/res/comment.dto";
 import { BlogService } from "@/services/blog/blog.service";
 import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
+import { BlogPostUserActions } from "@/core/entities/blog.entity";
+import { BlogPostStatus, ObjectType, UserActionType } from "@/core/entities";
+import { generateUniqueSlug } from "@/common/utils/string";
 
 @Injectable()
 export class BlogUseCases {
   constructor(
     private readonly blogRepository: IBlogRepository,
+    private readonly userActionRepository: IUserActionRepository,
+    private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
   ) {}
-
-  private generateSlug(value: string): string {
-    const baseSlug = value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-
-    const uniqueTail = Math.random().toString(36).substring(2, 8);
-    return `${baseSlug}-${uniqueTail}`;
-  }
 
   async getBlogs(
     query: QueryBlogsDto,
@@ -127,7 +122,7 @@ export class BlogUseCases {
     slug: string,
     userId?: string,
   ): Promise<ApiResponse<any>> {
-    const post = await this.blogRepository.getPostDetailBySlug(slug, userId);
+    const post = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!post) {
       throw new NotFoundException({
@@ -136,6 +131,24 @@ export class BlogUseCases {
       });
     }
 
+    const actionsPromise: Promise<BlogPostUserActions> = userId
+      ? this.userActionRepository.getUserActionState(
+          post.id,
+          ObjectType.BLOG,
+          userId,
+        )
+      : Promise.resolve({ isLiked: false, isSaved: false });
+
+    const [actions, tags, likes] = await Promise.all([
+      actionsPromise,
+      this.blogRepository.getPostTagsByPostId(post.id),
+      this.userActionRepository.getActionCount(
+        post.id,
+        ObjectType.BLOG,
+        UserActionType.LIKE,
+      ),
+    ]);
+
     await this.blogRepository.incrementViewCount(post.id);
 
     return {
@@ -143,6 +156,10 @@ export class BlogUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         ...post,
+        likes,
+        isSaved: actions.isSaved,
+        isLiked: actions.isLiked,
+        tags,
         viewCount: post.viewCount + 1,
       },
     };
@@ -166,53 +183,60 @@ export class BlogUseCases {
         });
       }
 
-      if (existing.authorId !== user.userId) {
-        throw new ForbiddenException({
-          code: RESPONSE_CODE.FORBIDDEN,
-          message: RESPONSE_MESSAGE.FORBIDDEN,
-        });
-      }
+      const published = await this.blogRepository.executeWithTransaction(
+        async (tx) => {
+          if (existing.authorId !== user.userId) {
+            throw new ForbiddenException({
+              code: RESPONSE_CODE.FORBIDDEN,
+              message: RESPONSE_MESSAGE.FORBIDDEN,
+            });
+          }
 
-      if (existing.status !== "DRAFT") {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.BAD_REQUEST,
-          message: "Only draft blog posts can be submitted via create API",
-        });
-      }
+          if (existing.status !== (BlogPostStatus.DRAFT as string)) {
+            throw new BadRequestException({
+              code: RESPONSE_CODE.BAD_REQUEST,
+              message: "Only draft blog posts can be submitted via create API",
+            });
+          }
 
-      // Keep existing slug if present, otherwise generate new one
-      const slug = existing.slug || this.generateSlug(dto.title);
+          const slug = existing.slug || generateUniqueSlug(dto.title);
 
-      await this.blogRepository.saveDraft(
-        {
-          title: dto.title,
-          summary: dto.summary,
-          content: dto.content,
-          category: dto.category,
-          thumbnail: dto.thumbnail ?? null,
-          tags: dto.tags,
-          slug,
+          await this.blogRepository.saveDraft(
+            {
+              title: dto.title,
+              summary: dto.summary,
+              content: dto.content,
+              category: dto.category,
+              thumbnail: dto.thumbnail ?? null,
+              tags: dto.tags,
+              slug,
+            },
+            user.userId,
+            dto.postId,
+            tx,
+          );
+
+          const [updated] = await this.blogRepository.update(
+            {
+              id: dto.postId,
+            },
+            {
+              status: BlogPostStatus.PENDING,
+              updatedAt: new Date(),
+            },
+            tx,
+          );
+
+          if (!updated) {
+            throw new NotFoundException({
+              code: RESPONSE_CODE.JOB_NOT_FOUND,
+              message: "Blog post not found",
+            });
+          }
+
+          return updated;
         },
-        user.userId,
-        dto.postId,
       );
-
-      const [published] = await this.blogRepository.update(
-        {
-          id: dto.postId,
-        },
-        {
-          status: "PENDING",
-          updatedAt: new Date(),
-        },
-      );
-
-      if (!published) {
-        throw new NotFoundException({
-          code: RESPONSE_CODE.JOB_NOT_FOUND,
-          message: "Blog post not found",
-        });
-      }
 
       return {
         code: RESPONSE_CODE.CREATED,
@@ -221,21 +245,28 @@ export class BlogUseCases {
       };
     }
 
-    const baseSlug = this.generateSlug(dto.title);
-    const existed = await this.blogRepository.getPostBySlug(baseSlug);
-    const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
+    const result = await this.blogRepository.executeWithTransaction(
+      async (tx) => {
+        const baseSlug = generateUniqueSlug(dto.title);
+        const existed = await this.blogRepository.getPostBySlug(baseSlug);
+        const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
 
-    const result = await this.blogRepository.createPost({
-      title: dto.title,
-      slug,
-      summary: dto.summary,
-      thumbnail: dto.thumbnail ?? null,
-      content: dto.content,
-      categoryId: dto.category,
-      authorId: user.userId,
-      status: "PENDING",
-      tags: dto.tags ?? [],
-    });
+        return this.blogRepository.createPost(
+          {
+            title: dto.title,
+            slug,
+            summary: dto.summary,
+            thumbnail: dto.thumbnail ?? null,
+            content: dto.content,
+            categoryId: dto.category,
+            authorId: user.userId,
+            status: BlogPostStatus.PENDING,
+            tags: dto.tags ?? [],
+          },
+          tx,
+        );
+      },
+    );
 
     return {
       code: RESPONSE_CODE.CREATED,
@@ -249,17 +280,22 @@ export class BlogUseCases {
     dto: SaveDraftBlogPostDto,
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
-    const result = await this.blogRepository.saveDraft(
-      {
-        title: dto.title,
-        summary: dto.summary,
-        content: dto.content,
-        category: dto.category,
-        thumbnail: dto.thumbnail ?? null,
-        tags: dto.tags,
+    const result = await this.blogRepository.executeWithTransaction(
+      async (tx) => {
+        return this.blogRepository.saveDraft(
+          {
+            title: dto.title,
+            summary: dto.summary,
+            content: dto.content,
+            category: dto.category,
+            thumbnail: dto.thumbnail ?? null,
+            tags: dto.tags,
+          },
+          user.userId,
+          postId,
+          tx,
+        );
       },
-      user.userId,
-      postId,
     );
 
     return {
@@ -274,33 +310,40 @@ export class BlogUseCases {
     postId: string,
     dto: UpdateBlogPostDto,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
-    await this.blogService.checkIsAuthor(postId, user.userId);
+    const updated = await this.blogRepository.executeWithTransaction(
+      async (tx) => {
+        await this.blogService.checkIsAuthor(postId, user.userId);
 
-    const updated = await this.blogRepository.update(
-      {
-        id: postId,
-      },
-      {
-        title: dto.title,
-        summary: dto.summary,
-        thumbnail: dto.thumbnail,
-        content: dto.content,
-        categoryId: dto.category,
-        updatedAt: new Date(),
+        const rows = await this.blogRepository.update(
+          {
+            id: postId,
+          },
+          {
+            title: dto.title,
+            summary: dto.summary,
+            thumbnail: dto.thumbnail,
+            content: dto.content,
+            categoryId: dto.category,
+            updatedAt: new Date(),
+          },
+          tx,
+        );
+
+        if (!rows || rows.length === 0) {
+          throw new NotFoundException({
+            code: RESPONSE_CODE.JOB_NOT_FOUND,
+            message: "Blog post not found",
+          });
+        }
+
+        return rows[0];
       },
     );
-
-    if (!updated) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
 
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: updated[0],
+      data: updated as UpdateBlogPostDto,
     };
   }
 
@@ -327,7 +370,12 @@ export class BlogUseCases {
   ): Promise<ApiResponse<void>> {
     await this.blogService.checkValidPost(postId);
 
-    await this.blogRepository.toggleLike(postId, user.userId);
+    await this.userActionRepository.toggleAction(
+      postId,
+      ObjectType.BLOG,
+      user.userId,
+      UserActionType.LIKE,
+    );
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -340,7 +388,12 @@ export class BlogUseCases {
   ): Promise<ApiResponse<void>> {
     await this.blogService.checkValidPost(postId);
 
-    await this.blogRepository.toggleSave(postId, user.userId);
+    await this.userActionRepository.toggleAction(
+      postId,
+      ObjectType.BLOG,
+      user.userId,
+      UserActionType.SAVE,
+    );
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -348,11 +401,11 @@ export class BlogUseCases {
   }
 
   async approvePost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, "PUBLISHED");
+    return this.reviewPost(postId, BlogPostStatus.PUBLISHED);
   }
 
   async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, "REJECTED");
+    return this.reviewPost(postId, BlogPostStatus.REJECTED);
   }
 
   async comment(
@@ -362,11 +415,11 @@ export class BlogUseCases {
   ): Promise<ApiResponse<void>> {
     await this.blogService.checkValidPost(postId);
 
-    await this.blogRepository.comment({
+    await this.commentRepository.createComment({
       ...dto,
       authorId: userId,
       objectId: postId,
-      objectType: "BLOG",
+      objectType: ObjectType.BLOG,
     });
 
     return {
@@ -377,7 +430,7 @@ export class BlogUseCases {
 
   private async reviewPost(
     postId: string,
-    status: "PUBLISHED" | "REJECTED",
+    status: BlogPostStatus.PUBLISHED | BlogPostStatus.REJECTED,
   ): Promise<ApiResponse<{ id: string }>> {
     const post = await this.blogRepository.get(postId);
 
