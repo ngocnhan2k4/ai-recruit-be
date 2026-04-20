@@ -40,7 +40,6 @@ import {
   UserInteractionResponseDto,
   SaveJobDto,
   //HideJobDto,
-  UpdateApplyJobDto,
   ApplyJobQueryDto,
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -186,12 +185,14 @@ export class JobController {
   async updateApplyJob(
     @GetUser() user: TokenPayload,
     @Param("applyId") applyId: string,
-    @Body() updateApplyJobDto: UpdateApplyJobDto,
+    @UploadFileAndBody({ required: false })
+    uploadData: { file?: MultipartFile; body: Record<string, any> },
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     return await this.jobUseCases.updateApplyJob(
       user.userId,
       applyId,
-      updateApplyJobDto,
+      uploadData.body,
+      uploadData.file,
     );
   }
 

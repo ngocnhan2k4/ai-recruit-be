@@ -679,9 +679,25 @@ export class JobUseCases {
   async updateApplyJob(
     orgSenderId: string,
     applyId: string,
-    updateApplyJobDto: UpdateApplyJobDto,
+    rawBody: Record<string, any>,
+    cvFile?: MultipartFile,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    const isSendNotifications = true;
+    const updateApplyJobDto: UpdateApplyJobDto = {
+      status: rawBody.status,
+      cvId: rawBody.cvId || undefined,
+      answers: rawBody.answers
+        ? JSON.parse(rawBody.answers as string)
+        : undefined,
+    };
+
+    if (cvFile && !updateApplyJobDto.cvId) {
+      const cvResponse = await this.cvUseCases.createCv(orgSenderId, cvFile, {
+        name: rawBody.cvName || cvFile.filename,
+        fileName: cvFile.filename,
+        mimeType: cvFile.mimetype,
+      });
+      updateApplyJobDto.cvId = cvResponse.data!.id;
+    }
 
     const repoResult:
       | ApplyJobResponse
@@ -692,7 +708,7 @@ export class JobUseCases {
         } = await this.jobRepository.updateApplyJob(
       applyId,
       updateApplyJobDto.status,
-      isSendNotifications,
+      true,
       orgSenderId,
       updateApplyJobDto.cvId,
       updateApplyJobDto.answers,
