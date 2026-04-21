@@ -3,6 +3,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
+  IsDate,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -76,17 +77,6 @@ export class GetTopDemandedSkillsQueryDto {
   @ApiProperty({
     type: Number,
     required: false,
-    default: 3,
-    description: "Number of months to look back from now",
-    example: 3,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  months?: number = 3;
-
-  @ApiProperty({
-    type: Number,
-    required: false,
     default: 10,
     description: "Number of top skills to return",
     example: 10,
@@ -94,6 +84,29 @@ export class GetTopDemandedSkillsQueryDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 10;
+
+  @ApiProperty({ type: Date, required: false, example: "2024-01-01" })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  fromDate?: Date;
+
+  @ApiProperty({ type: Date, required: false, example: "2024-12-31" })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  toDate?: Date;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: "Filter by province UUID",
+    example: "9f1a9d45-3a5c-4f4a-bf57-182f98244fcd",
+  })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value || undefined)
+  provinceId?: string;
 }
 
 export class BulkReviewSkillDto {
