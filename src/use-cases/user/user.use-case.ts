@@ -61,7 +61,7 @@ import {
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { ONE_DAY_MS } from "@/common/constants";
-import { addDays } from "date-fns";
+import { addSeconds } from "date-fns";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -108,10 +108,12 @@ export class UserUseCases implements OnModuleInit {
   ) {}
 
   private isUserAccountAvailable(user: User): boolean {
+    const status = String(user.status);
+
     return (
-      user.status !== "banned" &&
-      user.status !== "pending_deletion" &&
-      user.status !== "deleted"
+      status !== String(UserStatusEnum.BANNED) &&
+      status !== String(UserStatusEnum.PENDING_DELETION) &&
+      status !== String(UserStatusEnum.DELETED)
     );
   }
 
@@ -125,20 +127,23 @@ export class UserUseCases implements OnModuleInit {
     const timestampMs = finalizedAt.getTime();
     const deletedUsername = `deleted_${user.id}_${timestampMs}`;
 
-    await this.authRepository.revokeAllForUser(userId);
-    await this.userRepository.update(
-      { id: userId },
-      {
-        status: UserStatusEnum.DELETED,
-        username: deletedUsername,
-        email: this.buildDeletedEmail(user, timestampMs),
-        phone: this.buildDeletedPhone(user, timestampMs),
-        firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
-        deletedAt: finalizedAt,
-        purgeAfterAt: null,
-        updatedAt: finalizedAt,
-      },
-    );
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(userId);
+      await this.userRepository.update(
+        { id: userId },
+        {
+          status: UserStatusEnum.DELETED,
+          username: deletedUsername,
+          email: this.buildDeletedEmail(user, timestampMs),
+          phone: this.buildDeletedPhone(user, timestampMs),
+          firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
+          deletedAt: finalizedAt,
+          purgeAfterAt: null,
+          updatedAt: finalizedAt,
+        },
+        tx,
+      );
+    });
   }
 
   async onModuleInit() {
@@ -166,13 +171,21 @@ export class UserUseCases implements OnModuleInit {
       new Date(),
     );
 
-    for (const user of users) {
-      await this.finalizeUserDeletion(user.id);
-    }
+    const results = await Promise.allSettled(
+      users.map((user) => this.finalizeUserDeletion(user.id)),
+    );
+
+    const failed = results.filter((result) => result.status === "rejected");
+    failed.forEach((result) => {
+      this.logger.error(
+        "[UserUseCases] [finalizePendingDeletionUsers] Failed to finalize pending deletion user",
+        result.reason,
+      );
+    });
 
     if (users.length > 0) {
       this.logger.log(
-        `[UserUseCases] [finalizePendingDeletionUsers] Finalized ${users.length} pending deletion account(s)`,
+        `[UserUseCases] [finalizePendingDeletionUsers] Finalized ${users.length - failed.length}/${users.length} pending deletion account(s)`,
       );
     }
   }
@@ -1122,14 +1135,14 @@ export class UserUseCases implements OnModuleInit {
 
   async deleteUserAccount(userId: string): Promise<ApiResponse<boolean>> {
     const user = await this.userRepository.get(userId);
-    if (!user || user.status === "deleted") {
+    if (!user || String(user.status) === String(UserStatusEnum.DELETED)) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
 
-    if (user.status === "pending_deletion") {
+    if (String(user.status) === String(UserStatusEnum.PENDING_DELETION)) {
       return {
         message: "User account deletion already scheduled",
         code: RESPONSE_CODE.SUCCESS,
@@ -1138,18 +1151,21 @@ export class UserUseCases implements OnModuleInit {
     }
 
     const deletionRequestedAt = new Date();
-    const purgeAfterAt = addDays(deletionRequestedAt, 30);
+    const purgeAfterAt = addSeconds(deletionRequestedAt, 15);
 
-    await this.authRepository.revokeAllForUser(userId);
-    await this.userRepository.update(
-      { id: userId },
-      {
-        status: UserStatusEnum.PENDING_DELETION,
-        deletionRequestedAt,
-        purgeAfterAt,
-        updatedAt: deletionRequestedAt,
-      },
-    );
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(userId);
+      await this.userRepository.update(
+        { id: userId },
+        {
+          status: UserStatusEnum.PENDING_DELETION,
+          deletionRequestedAt,
+          purgeAfterAt,
+          updatedAt: deletionRequestedAt,
+        },
+        tx,
+      );
+    });
 
     return {
       message: "User account scheduled for deletion successfully",
@@ -1167,7 +1183,7 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
-    if (user.status !== "pending_deletion") {
+    if (String(user.status) !== String(UserStatusEnum.PENDING_DELETION)) {
       throw new ConflictException({
         message: "User account is not pending deletion",
         code: RESPONSE_CODE.BAD_REQUEST,

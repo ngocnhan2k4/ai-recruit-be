@@ -14,7 +14,7 @@ export class AuthRepository
     super(db, refreshTokens);
   }
   async revoke(token: string): Promise<void> {
-    await this.db
+    await this.getExecutor()
       .update(this._table as any)
       .set({ revoked: true })
       .where(eq((this._table as any).token, token))
@@ -22,7 +22,7 @@ export class AuthRepository
   }
 
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.db
+    await this.getExecutor()
       .update(this._table as any)
       .set({ revoked: true })
       .where(eq((this._table as any).userId, userId))

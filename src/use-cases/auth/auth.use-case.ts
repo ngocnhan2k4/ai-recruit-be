@@ -26,11 +26,14 @@ import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types"
 @Injectable()
 export class AuthUseCases {
   private readonly logger = new Logger(AuthUseCases.name);
-  private readonly blockedLoginStatuses = new Set(["banned", "deleted"]);
-  private readonly blockedRefreshStatuses = new Set([
-    "banned",
-    "pending_deletion",
-    "deleted",
+  private readonly blockedLoginStatuses = new Set<UserStatusEnum>([
+    UserStatusEnum.BANNED,
+    UserStatusEnum.DELETED,
+  ]);
+  private readonly blockedRefreshStatuses = new Set<UserStatusEnum>([
+    UserStatusEnum.BANNED,
+    UserStatusEnum.PENDING_DELETION,
+    UserStatusEnum.DELETED,
   ]);
   constructor(
     private readonly authService: IAuthService,
@@ -68,7 +71,7 @@ export class AuthUseCases {
   }
 
   private assertUserCanLogIn(user: User): void {
-    if (this.blockedLoginStatuses.has(String(user.status))) {
+    if (this.blockedLoginStatuses.has(String(user.status) as UserStatusEnum)) {
       throw new UnauthorizedException({
         message: "User account is not available for authentication",
         code: RESPONSE_CODE.UNAUTHORIZED,
@@ -77,7 +80,9 @@ export class AuthUseCases {
   }
 
   private assertUserCanRefresh(user: User): void {
-    if (this.blockedRefreshStatuses.has(String(user.status))) {
+    if (
+      this.blockedRefreshStatuses.has(String(user.status) as UserStatusEnum)
+    ) {
       throw new UnauthorizedException({
         message: "User account is not available for authentication",
         code: RESPONSE_CODE.UNAUTHORIZED,
@@ -88,7 +93,7 @@ export class AuthUseCases {
   private async finalizeExpiredPendingDeletionIfNeeded(
     user: User,
   ): Promise<User | null> {
-    if (String(user.status) !== "pending_deletion") {
+    if (String(user.status) !== String(UserStatusEnum.PENDING_DELETION)) {
       return user;
     }
 
@@ -103,20 +108,23 @@ export class AuthUseCases {
     const finalizedAt = new Date();
     const timestampMs = finalizedAt.getTime();
     const deletedUsername = `deleted_${user.id}_${timestampMs}`;
-    await this.authRepository.revokeAllForUser(user.id);
-    await this.userRepository.update(
-      { id: user.id },
-      {
-        status: UserStatusEnum.DELETED,
-        username: deletedUsername,
-        email: this.buildDeletedEmail(user, timestampMs),
-        phone: this.buildDeletedPhone(user, timestampMs),
-        firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
-        deletedAt: finalizedAt,
-        purgeAfterAt: null,
-        updatedAt: finalizedAt,
-      },
-    );
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(user.id);
+      await this.userRepository.update(
+        { id: user.id },
+        {
+          status: UserStatusEnum.DELETED,
+          username: deletedUsername,
+          email: this.buildDeletedEmail(user, timestampMs),
+          phone: this.buildDeletedPhone(user, timestampMs),
+          firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
+          deletedAt: finalizedAt,
+          purgeAfterAt: null,
+          updatedAt: finalizedAt,
+        },
+        tx,
+      );
+    });
 
     return null;
   }
@@ -338,11 +346,11 @@ export class AuthUseCases {
 
     return {
       message:
-        String(user.status) === "pending_deletion"
+        String(user.status) === String(UserStatusEnum.PENDING_DELETION)
           ? RESPONSE_MESSAGE.ACCOUNT_PENDING_DELETION
           : RESPONSE_MESSAGE.SUCCESS,
       code:
-        String(user.status) === "pending_deletion"
+        String(user.status) === String(UserStatusEnum.PENDING_DELETION)
           ? RESPONSE_CODE.ACCOUNT_PENDING_DELETION
           : RESPONSE_CODE.SUCCESS,
       data: {
