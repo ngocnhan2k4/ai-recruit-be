@@ -31,7 +31,9 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
   ): Promise<void>;
 
   abstract getTopDemandedSkills(
-    months: number,
     limit: number,
+    fromDate?: Date,
+    toDate?: Date,
+    provinceId?: string,
   ): Promise<{ name: string; jobCount: number }[]>;
 }
