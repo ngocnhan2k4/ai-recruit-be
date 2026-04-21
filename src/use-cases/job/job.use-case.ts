@@ -74,6 +74,8 @@ import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
 import { FeatureService } from "@/services";
+import { MultipartFile } from "@fastify/multipart";
+import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 
 @Injectable()
 export class JobUseCases {
@@ -89,6 +91,7 @@ export class JobUseCases {
     private readonly cvRepository: ICvRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly featureService: FeatureService,
+    private readonly cvUseCases: CvUseCases,
   ) {}
 
   async getJobs(
@@ -557,10 +560,27 @@ export class JobUseCases {
 
   async applyJob(
     userId: string,
-    applyJobDto: ApplyJobDto,
+    rawBody: Record<string, any>,
+    cvFile?: MultipartFile,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    // Ensure job exists
-    const job = await this.jobRepository.get(applyJobDto.jobId);
+    const applyJobDto: ApplyJobDto = {
+      jobId: rawBody.jobId,
+      cvId: rawBody.cvId || undefined,
+      cvName: rawBody.cvName || undefined,
+      answers: rawBody.answers
+        ? JSON.parse(rawBody.answers as string)
+        : undefined,
+    };
+
+    const [job, existingCvMimeType] = await Promise.all([
+      this.jobRepository.get(applyJobDto.jobId),
+      applyJobDto.cvId && !cvFile
+        ? this.cvRepository
+            .get(applyJobDto.cvId)
+            .then((cv) => cv?.mimeType ?? null)
+        : Promise.resolve(null),
+    ]);
+
     if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
@@ -575,17 +595,21 @@ export class JobUseCases {
       });
     }
 
-    if (applyJobDto.cvId) {
-      const cv = await this.cvRepository.get(applyJobDto.cvId);
-      if (cv && cv.mimeType !== "application/pdf") {
-        throw new BadRequestException({
-          message: RESPONSE_MESSAGE.INVALID_FILE_TYPE,
-          code: RESPONSE_CODE.CV_FILE_INVALID,
-        });
-      }
+    if (existingCvMimeType && existingCvMimeType !== "application/pdf") {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVALID_FILE_TYPE,
+        code: RESPONSE_CODE.CV_FILE_INVALID,
+      });
     }
 
-    const isSendNotifications = true;
+    if (cvFile && !applyJobDto.cvId) {
+      const cvResponse = await this.cvUseCases.createCv(userId, cvFile, {
+        name: applyJobDto.cvName || cvFile.filename,
+        fileName: cvFile.filename,
+        mimeType: cvFile.mimetype,
+      });
+      applyJobDto.cvId = cvResponse.data!.id;
+    }
 
     const repoResult:
       | ApplyJobResponse
@@ -596,7 +620,7 @@ export class JobUseCases {
         } = await this.jobRepository.applyJob({
       jobId: applyJobDto.jobId,
       userCvId: applyJobDto.cvId!,
-      sendNotifications: isSendNotifications,
+      sendNotifications: true,
       senderUserId: userId,
       answers: applyJobDto.answers,
     });
@@ -607,7 +631,6 @@ export class JobUseCases {
       const notifications = repoResult.notifications;
       const jobTitle = repoResult.jobTitle;
 
-      // Send notifications to room org
       this.webSocketGateway.sendToRoom(
         ROOM_NOTIFICATIONS.org({ orgId: job.organizationId }),
         notifications[0],
@@ -623,24 +646,25 @@ export class JobUseCases {
       applyJobDto.answers,
     );
     if (phoneFromAnswers) {
-      const user = await this.userRepository.get(userId);
-      const hasPhone = Boolean(user?.phone && user.phone.trim().length > 0);
-
-      if (!hasPhone) {
-        try {
-          await this.userRepository.update(
+      this.userRepository
+        .get(userId)
+        .then((user) => {
+          if (user?.phone && user.phone.trim().length > 0) return;
+          return this.userRepository.update(
             { id: userId },
             { phone: phoneFromAnswers },
           );
+        })
+        .then(() => {
           this.logger.log(
             `Updated missing phone for user ${userId} from apply answers`,
           );
-        } catch (error: any) {
+        })
+        .catch((error: any) => {
           this.logger.warn(
             `Could not update phone for user ${userId}: ${error?.message || "unknown error"}`,
           );
-        }
-      }
+        });
     }
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
@@ -655,9 +679,25 @@ export class JobUseCases {
   async updateApplyJob(
     orgSenderId: string,
     applyId: string,
-    updateApplyJobDto: UpdateApplyJobDto,
+    rawBody: Record<string, any>,
+    cvFile?: MultipartFile,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    const isSendNotifications = true;
+    const updateApplyJobDto: UpdateApplyJobDto = {
+      status: rawBody.status,
+      cvId: rawBody.cvId || undefined,
+      answers: rawBody.answers
+        ? JSON.parse(rawBody.answers as string)
+        : undefined,
+    };
+
+    if (cvFile && !updateApplyJobDto.cvId) {
+      const cvResponse = await this.cvUseCases.createCv(orgSenderId, cvFile, {
+        name: rawBody.cvName || cvFile.filename,
+        fileName: cvFile.filename,
+        mimeType: cvFile.mimetype,
+      });
+      updateApplyJobDto.cvId = cvResponse.data!.id;
+    }
 
     const repoResult:
       | ApplyJobResponse
@@ -668,7 +708,7 @@ export class JobUseCases {
         } = await this.jobRepository.updateApplyJob(
       applyId,
       updateApplyJobDto.status,
-      isSendNotifications,
+      true,
       orgSenderId,
       updateApplyJobDto.cvId,
       updateApplyJobDto.answers,

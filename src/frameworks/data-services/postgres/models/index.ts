@@ -20,3 +20,5 @@ export * from "./user-answer.model";
 export * from "./subscription.model";
 export * from "./task.model";
 export * from "./skills-synonyms.model";
+export * from "./user-action.model";
+export * from "./blog.model";
