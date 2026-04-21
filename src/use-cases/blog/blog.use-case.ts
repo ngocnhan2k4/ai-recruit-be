@@ -12,16 +12,21 @@ import { ICommentRepository } from "@/core/abstracts/repositories/comment-reposi
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogPostDto,
+  CreateBlogCommentDto,
   QueryBlogsDto,
   QueryBlogTagsDto,
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
 } from "@/interfaces/dtos/blog/req";
-import { CommentDto } from "@/interfaces/dtos/comment/res/comment.dto";
 import { BlogService } from "@/services/blog/blog.service";
 import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
 import { BlogPostUserActions } from "@/core/entities/blog.entity";
-import { BlogPostStatus, ObjectType, UserActionType } from "@/core/entities";
+import {
+  BlogPostStatus,
+  Comment,
+  ObjectType,
+  UserActionType,
+} from "@/core/entities";
 import { generateUniqueSlug } from "@/common/utils/string";
 
 @Injectable()
@@ -32,6 +37,35 @@ export class BlogUseCases {
     private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
   ) {}
+
+  async createComment(
+    user: TokenPayload,
+    postId: string,
+    dto: CreateBlogCommentDto,
+  ): Promise<ApiResponse<Comment>> {
+    const post = await this.blogRepository.get(postId);
+
+    if (!post) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+        message: "Blog post not found",
+      });
+    }
+
+    const _cmt = await this.commentRepository.create({
+      content: dto.content,
+      parentCommentId: dto.parentCommentId,
+      objectId: post.id,
+      objectType: ObjectType.BLOG,
+      authorId: user.userId,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: _cmt,
+    };
+  }
 
   async getBlogs(
     query: QueryBlogsDto,
@@ -44,6 +78,7 @@ export class BlogUseCases {
       page,
       keyword: query.keyword,
       category: query.category,
+      status: BlogPostStatus.PUBLISHED,
     });
 
     return {
@@ -406,26 +441,6 @@ export class BlogUseCases {
 
   async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
     return this.reviewPost(postId, BlogPostStatus.REJECTED);
-  }
-
-  async comment(
-    userId: string,
-    postId: string,
-    dto: CommentDto,
-  ): Promise<ApiResponse<void>> {
-    await this.blogService.checkValidPost(postId);
-
-    await this.commentRepository.createComment({
-      ...dto,
-      authorId: userId,
-      objectId: postId,
-      objectType: ObjectType.BLOG,
-    });
-
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-    };
   }
 
   private async reviewPost(

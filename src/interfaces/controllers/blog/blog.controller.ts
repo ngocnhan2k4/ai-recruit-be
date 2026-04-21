@@ -95,6 +95,20 @@ export class BlogController {
     return this.blogUseCase.getTags(query);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post(":postId/comments")
+  @ApiOperation({
+    summary: "Create Blog Comment",
+    description: "Create a new comment or reply for a specific blog post",
+  })
+  async createComment(
+    @GetUser() user: TokenPayload,
+    @Param("postId") postId: string,
+    @Body() dto: CreateBlogCommentDto,
+  ): Promise<ApiResponse<any>> {
+    return this.blogUseCase.createComment(user, postId, dto);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(":slug")
   @ApiOperation({
@@ -173,21 +187,6 @@ export class BlogController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post(":blogId/comments")
-  @ApiOperation({
-    summary: "Create Comment",
-    description:
-      "Add a comment to a blog post (supports nested comments/replies)",
-  })
-  @ApiParam({ name: "blogId", description: "Blog post ID" })
-  async createComment(
-    @GetUser() user: TokenPayload,
-    @Param("blogId") blogId: string,
-    @Body() dto: CreateBlogCommentDto,
-  ): Promise<ApiResponse<void>> {
-    return this.blogUseCase.comment(user.userId, blogId, dto);
-  }
-
   @UseGuards(JwtAuthGuard)
   @Post(":blogId/likes")
   @ApiOperation({

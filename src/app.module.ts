@@ -30,6 +30,7 @@ import {
   AdminJobSyncController,
   JobMatchingController,
   BlogController,
+  CommentController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -93,7 +94,8 @@ import { SkillSynonymUseCasesModule } from "@/use-cases/skill-synonym/skill-syno
 import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/skill-synonym.controller";
 import { DeploymentUseCasesModule } from "@/use-cases/deployment/deployment-use-cases.module";
 import { AdminDeploymentController } from "@/interfaces/controllers/deployment/admin-deployment.controller";
-import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
+import { BlogUseCasesModule } from "./use-cases/blog/blog-use-cases.module";
+import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 
 @Module({
   imports: [
@@ -165,6 +167,7 @@ import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
     SkillSynonymUseCasesModule,
     DeploymentUseCasesModule,
     BlogUseCasesModule,
+    CommentUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -201,6 +204,7 @@ import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
     SkillSynonymController,
     AdminDeploymentController,
     BlogController,
+    CommentController,
   ],
   providers: [
     JwtStrategy,

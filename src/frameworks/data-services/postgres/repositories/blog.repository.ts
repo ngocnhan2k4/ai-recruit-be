@@ -147,6 +147,10 @@ export class BlogRepository
       conditions.push(eq(blogPosts.categoryId, filters.category));
     }
 
+    if (filters.status) {
+      conditions.push(eq(blogPosts.status, filters.status));
+    }
+
     return conditions.length ? and(...conditions) : undefined;
   }
 

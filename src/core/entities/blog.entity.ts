@@ -4,6 +4,7 @@ import { BlogPostStatus } from "./enum.entity";
 export interface BlogPostFilters extends GeneralQuery {
   category?: string;
   keyword?: string;
+  status?: BlogPostStatus;
 }
 
 export interface BlogPostListItem {
