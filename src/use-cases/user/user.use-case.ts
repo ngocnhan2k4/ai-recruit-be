@@ -210,25 +210,25 @@ export class UserUseCases implements OnModuleInit {
     }
   }
 
-  async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
-    const user: User | null = await this.userRepository.get(id);
-    if (!user || !this.isUserAccountAvailable(user)) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
-    }
-    const userDto = GetUserResponseDto.from({
-      ...user,
-      provider: user.provider as ProviderEnum,
-      roles: user.roles as RoleEnum[],
-    });
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: userDto,
-    };
-  }
+  // async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
+  //   const user: User | null = await this.userRepository.get(id);
+  //   if (!user || !this.isUserAccountAvailable(user)) {
+  //     throw new NotFoundException({
+  //       message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+  //       code: RESPONSE_CODE.USER_NOT_FOUND,
+  //     });
+  //   }
+  //   const userDto = GetUserResponseDto.from({
+  //     ...user,
+  //     provider: user.provider as ProviderEnum,
+  //     roles: user.roles as RoleEnum[],
+  //   });
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: userDto,
+  //   };
+  // }
 
   async getUserByAccessToken(
     payload: TokenPayload,

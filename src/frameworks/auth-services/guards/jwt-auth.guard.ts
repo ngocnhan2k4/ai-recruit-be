@@ -48,7 +48,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     const allowedStatuses = this.reflector.getAllAndOverride<UserStatusEnum[]>(
       ALLOWED_USER_STATUSES_KEY,
       [context.getHandler(), context.getClass()],
-    ) ?? [UserStatusEnum.ACTIVE, UserStatusEnum.INACTIVE];
+    ) ?? [UserStatusEnum.ACTIVE];
 
     if (!allowedStatuses.includes(user.status as UserStatusEnum)) {
       throw new UnauthorizedException({

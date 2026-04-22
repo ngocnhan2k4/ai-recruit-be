@@ -35,13 +35,13 @@ import { AdminUpdateUserRequestDto } from "@/interfaces/dtos";
 export class AdminUserController {
   constructor(private readonly userUseCases: UserUseCases) {}
 
-  @ApiOperation({ summary: "Get user by ID" })
-  @Get(":userId")
-  @ApiParam({ name: "userId", description: "User ID", example: "123" })
-  @ApiResponseDto(GetUserResponseDto)
-  async getUser(@Param("userId") userId: string) {
-    return await this.userUseCases.getUserById(userId);
-  }
+  // @ApiOperation({ summary: "Get user by ID" })
+  // @Get(":userId")
+  // @ApiParam({ name: "userId", description: "User ID", example: "123" })
+  // @ApiResponseDto(GetUserResponseDto)
+  // async getUser(@Param("userId") userId: string) {
+  //   return await this.userUseCases.getUserById(userId);
+  // }
 
   @ApiOperation({ summary: "Get all users" })
   @Get()

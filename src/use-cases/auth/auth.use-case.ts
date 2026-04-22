@@ -18,7 +18,10 @@ import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { TokenPayload } from "@/common/types";
 import { generateUsername } from "@/common/utils";
-import { normalizeProvider } from "@/common/utils/firebase";
+import {
+  getFirebaseProviderKey,
+  normalizeProvider,
+} from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
@@ -234,15 +237,7 @@ export class AuthUseCases {
     const firebaseIdentities = decode.identities as
       | Record<string, string[] | undefined>
       | undefined;
-    const firebaseProviderKey =
-      decode.provider_id ||
-      (currentProvider === ProviderEnum.GOOGLE
-        ? "google.com"
-        : currentProvider === ProviderEnum.FACEBOOK
-          ? "facebook.com"
-          : currentProvider === ProviderEnum.GITHUB
-            ? "github.com"
-            : "password");
+    const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
     const providerUserId = firebaseIdentities?.[firebaseProviderKey]?.[0];
 
     let providerEmail: string | null | undefined;
@@ -317,24 +312,11 @@ export class AuthUseCases {
       });
     }
 
-    const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
-    const otherProviders = loginMethods
-      .filter((m) => m.provider !== user.provider)
-      .map((m) => ({
-        provider: m.provider as any,
-        createdAt: m.createdAt,
-        providerUserId: m.providerUserId ?? null,
-        providerEmail: m.providerEmail ?? null,
-        providerName: m.providerName ?? null,
-        providerPicture: m.providerPicture ?? null,
-      }));
-
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
       roles: user.roles as RoleEnum[],
-      otherProviders,
     });
 
     // const customToken = await this.authService.customTokenWithClaims(
