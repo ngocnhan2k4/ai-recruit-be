@@ -32,4 +32,7 @@ export const CACHE_KEYS = {
   cv: {
     get: (cvId: string) => `cv:${cvId}:get`,
   },
+  aiCv: {
+    get: (aiCvId: string) => `aiCv:${aiCvId}:get`,
+  },
 };

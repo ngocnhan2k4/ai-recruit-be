@@ -32,7 +32,6 @@ import {
 import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -45,8 +44,8 @@ import puppeteer from "puppeteer-core";
 export class AiCvUseCases {
   private readonly logger = new Logger(AiCvUseCases.name);
   constructor(
-    @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
-    @Inject(IAIService) private readonly aiService: IAIService,
+    private readonly aiCvRepository: IAiCvRepository,
+    private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
     private readonly featureService: IFeatureService,
     private readonly taskRepository: ITaskRepository,

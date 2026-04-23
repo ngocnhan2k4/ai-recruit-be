@@ -89,7 +89,7 @@ export class CvIndexWorker extends WorkerHost {
       return;
     }
 
-    const extractedData = await this.cvService.extractCv(data.cvId);
+    const extractedData = await this.cvService.extractCv(cv);
 
     const document = transformCvToDocument({
       id: data.cvId,
@@ -101,8 +101,11 @@ export class CvIndexWorker extends WorkerHost {
       skillIds: extractedData.skillIds || [],
       provinceIds: extractedData.provinceIds || [],
       categoryIds: extractedData.categoryIds || [],
-      expectedSalary: extractedData.expectedSalary || undefined,
-      experienceYears: extractedData.experienceYears || undefined,
+      expectedSalary: extractedData.expectedSalary ?? undefined,
+      experienceYears: extractedData.experienceYears ?? undefined,
+      skillNames: extractedData.skillNames || [],
+      provinceNames: extractedData.provinceNames || [],
+      categoryNames: extractedData.categoryNames || [],
     });
 
     await this.searchService.indexDocument(indexName, cv.id, document);

@@ -32,3 +32,4 @@ export * from "./user-feature-usage-repository.abstract";
 export * from "./user-subscription-repository.abstract";
 export * from "./skills-synonyms-repository.abstract";
 export * from "./task-repository.abstract";
+export * from "./ai-cv-repository.abstract";

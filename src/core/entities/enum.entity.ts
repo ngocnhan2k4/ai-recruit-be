@@ -212,3 +212,12 @@ export enum TaskTypeEnum {
   LEARNING_PATH_GENERATION = "learning_path_generation",
   CV_GENERATION = "cv_generation",
 }
+
+export enum ExperienceLevelEnum {
+  INTERN = "intern",
+  FRESHER = "fresher",
+  JUNIOR = "junior",
+  MIDDLE = "middle",
+  SENIOR = "senior",
+  LEAD = "lead",
+}
