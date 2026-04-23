@@ -62,34 +62,13 @@ import { IUserEducationRepository } from "@/core/abstracts/repositories/user-edu
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { ONE_DAY_MS } from "@/common/constants";
 import { addSeconds } from "date-fns";
+import { buildDeletedEmail } from "@/common/utils";
+import { buildDeletedPhone } from "@/common/utils";
+import { buildDeletedFirebaseUid } from "@/common/utils";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
   private readonly logger = new Logger(UserUseCases.name);
-
-  private buildDeletedEmail(user: User, timestampMs: number): string | null {
-    if (!user.email) return null;
-    const localPart = user.email.split("@")[0] || "user";
-    const safeLocalPart = localPart
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .slice(0, 40);
-    return `deleted+${safeLocalPart}.${user.id}.${timestampMs}@anon.local`;
-  }
-
-  private buildDeletedPhone(user: User, timestampMs: number): string | null {
-    if (!user.phone) return null;
-    const digits = user.phone.replace(/\D/g, "");
-    const suffix = digits.slice(-4) || "0000";
-    return `del${String(timestampMs).slice(-10)}${suffix}`.slice(0, 20);
-  }
-
-  private buildDeletedFirebaseUid(
-    user: User,
-    timestampMs: number,
-  ): string | null {
-    if (!user.firebaseUid) return null;
-    return `deleted_${user.id}_${timestampMs}`;
-  }
 
   constructor(
     private readonly userRepository: IUserRepository,
@@ -134,9 +113,9 @@ export class UserUseCases implements OnModuleInit {
         {
           status: UserStatusEnum.DELETED,
           username: deletedUsername,
-          email: this.buildDeletedEmail(user, timestampMs),
-          phone: this.buildDeletedPhone(user, timestampMs),
-          firebaseUid: this.buildDeletedFirebaseUid(user, timestampMs),
+          email: buildDeletedEmail(user, timestampMs),
+          phone: buildDeletedPhone(user, timestampMs),
+          firebaseUid: buildDeletedFirebaseUid(user, timestampMs),
           deletedAt: finalizedAt,
           purgeAfterAt: null,
           updatedAt: finalizedAt,
@@ -165,7 +144,7 @@ export class UserUseCases implements OnModuleInit {
     await this.initializeBloomFilter();
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async finalizePendingDeletionUsers() {
     const users = await this.userRepository.getUsersPendingDeletionToFinalize(
       new Date(),
