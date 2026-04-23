@@ -68,7 +68,7 @@ export class CvSyncUseCases {
 
     while (hasMore) {
       const rows = await this.cvRepository.getCvs({ page, limit: batchSize });
-      if (rows.length === 0) {
+      if (rows.data.length === 0) {
         hasMore = false;
         break;
       }
@@ -79,25 +79,23 @@ export class CvSyncUseCases {
       }> = [];
 
       // [TODO]: Fix here, if exist aiCvId, should data in aiCv instead of extracted data
-      for (const row of rows) {
-        const cvId = row.id;
+      for (const cv of rows.data) {
+        const cvId = cv.id;
 
-        const extractedData = await this.cvService.extractCvFromUrl(
-          row.fileUrl,
-        );
+        const extractedData = await this.cvService.extractCv(cv);
 
         const document = transformCvToDocument({
-          id: cvId,
-          userId: row.userId,
-          name: extractedData.name || row.name,
-          fileUrl: row.fileUrl,
-          mimeType: row.mimeType,
-          updatedAt: row.updatedAt ?? null,
+          id: cv.id,
+          userId: cv.userId,
+          name: extractedData.name || cv.name,
+          fileUrl: cv.fileUrl,
+          mimeType: cv.mimeType,
+          updatedAt: cv.updatedAt ?? null,
           skillIds: extractedData.skillIds || [],
           provinceIds: extractedData.provinceIds || [],
           categoryIds: extractedData.categoryIds || [],
-          expectedSalary: extractedData.expectedSalary,
-          experienceYears: extractedData.experienceYears,
+          expectedSalary: extractedData.expectedSalary ?? undefined,
+          experienceYears: extractedData.experienceYears ?? undefined,
           skillNames: extractedData.skillNames || [],
           provinceNames: extractedData.provinceNames || [],
           categoryNames: extractedData.categoryNames || [],

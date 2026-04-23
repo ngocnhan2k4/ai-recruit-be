@@ -1,57 +1,26 @@
-import { CvExtractedData, ICvService } from "@/core";
+import { Cv, CvExtractedData, IAIService, ICvService } from "@/core";
 import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class CvService implements ICvService {
   private readonly logger = new Logger(CvService.name);
-  constructor() {}
+  constructor(private readonly aiService: IAIService) {}
 
-  // [TODO]: Implement this function
-  async extractCv(_cvId: string): Promise<CvExtractedData> {
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate async work
-    return {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      state: "",
-      zip: "",
-      skillIds: [],
-      skillNames: [],
-      provinceIds: [],
-      provinceNames: [],
-      categoryIds: [],
-      categoryNames: [],
-      expectedSalary: undefined,
-      experienceYears: undefined,
-      personalInfo: "",
-      summary: "",
-      // Add more fields as needed
-    };
-  }
+  async extractCv(cv: Cv): Promise<CvExtractedData> {
+    // [TODO]: Should get aiCv data here
+    // if (cv.aiCvId) {
+    // }
 
-  async extractCvFromUrl(_url: string): Promise<CvExtractedData> {
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate async work
+    const cvData = await this.aiService.extractCv({ url: cv.fileUrl });
+
     return {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      state: "",
-      zip: "",
-      skillIds: [],
-      skillNames: [],
-      provinceIds: [],
-      provinceNames: [],
-      categoryIds: [],
-      categoryNames: [],
-      expectedSalary: undefined,
-      experienceYears: undefined,
-      personalInfo: "",
-      summary: "",
-      // Add more fields as needed
+      ...cvData,
+      skillIds: cvData.skills.map((skill) => skill.id as string),
+      provinceIds: cvData.provinces.map((province) => province.id as string),
+      categoryIds: cvData.categories.map((category) => category.id as string),
+      skillNames: cvData.skills.map((skill) => skill.name),
+      provinceNames: cvData.provinces.map((province) => province.name),
+      categoryNames: cvData.categories.map((category) => category.name),
     };
   }
 }

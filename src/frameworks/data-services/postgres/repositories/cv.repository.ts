@@ -5,9 +5,9 @@ import {
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
 import { GenericRepository } from "./generic-repository";
-import { ICvRepository, Cv, ICacheService } from "@/core";
+import { ICvRepository, Cv, ICacheService, GetListCvFilter } from "@/core";
 import { and, count, desc, isNull } from "drizzle-orm";
-import { GeneralQuery } from "@/common/types";
+import { PaginatedResult } from "@/common/types";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
 import { cacheWithDedup } from "@/common/utils";
 
@@ -82,30 +82,40 @@ export class CvRepository
     return data;
   }
 
-  async getCvs(
-    query: GeneralQuery,
-  ): Promise<
-    Array<
-      Pick<Cv, "id" | "userId" | "name" | "fileUrl" | "mimeType" | "updatedAt">
-    >
-  > {
-    const { page = 1, limit } = query;
+  async getCvs(filter: GetListCvFilter): Promise<PaginatedResult<Cv>> {
+    const { page = 1, limit } = filter;
     const offset = (page - 1) * limit;
-    const rows = await this.db
-      .select({
-        id: cvs.id,
-        userId: cvs.userId,
-        name: cvs.name,
-        fileUrl: cvs.fileUrl,
-        mimeType: cvs.mimeType,
-        updatedAt: cvs.updatedAt,
-      })
-      .from(cvs)
-      .where(and(isNull(cvs.deletedAt)))
-      .orderBy(desc(cvs.updatedAt))
-      .offset(offset)
-      .limit(limit);
-    return rows as any;
+    const [rows, totalRow] = await Promise.all([
+      this.db
+        .select({
+          id: cvs.id,
+          userId: cvs.userId,
+          name: cvs.name,
+          fileUrl: cvs.fileUrl,
+          mimeType: cvs.mimeType,
+          updatedAt: cvs.updatedAt,
+        })
+        .from(cvs)
+        .where(and(isNull(cvs.deletedAt)))
+        .orderBy(desc(cvs.updatedAt))
+        .offset(offset)
+        .limit(limit),
+      !filter?.skipCount
+        ? this.db
+            .select({ count: count() })
+            .from(cvs)
+            .where(and(isNull(cvs.deletedAt)))
+        : Promise.resolve([]),
+    ]);
+    const total = Number(totalRow?.[0]?.count ?? 0);
+    const hasNext = offset + rows.length < total;
+    return {
+      data: rows as Cv[],
+      pagination: {
+        hasNextPage: hasNext,
+        total: total,
+      },
+    };
   }
 
   async count(): Promise<number> {
