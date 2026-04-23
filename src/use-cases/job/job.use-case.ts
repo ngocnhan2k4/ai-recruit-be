@@ -12,7 +12,6 @@ import {
   IUserRepository,
   INotificationRepository,
 } from "@/core/abstracts";
-import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import {
   ApiResponse,
   JobCountsDto,
@@ -89,7 +88,6 @@ export class JobUseCases {
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly featureService: FeatureService,
     private readonly cvUseCases: CvUseCases,
   ) {}
