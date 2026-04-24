@@ -29,6 +29,10 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
+  abstract getPostsTags(
+    postIds: string[],
+  ): Promise<Record<string, BlogPostTagItem[]>>;
+
   abstract getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null>;
 
   abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;

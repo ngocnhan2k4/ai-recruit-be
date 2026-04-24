@@ -27,14 +27,7 @@ import {
   BlogPostListItem,
   BlogPostTagItem,
 } from "@/core/entities/blog.entity";
-import {
-  BlogPost,
-  BlogPostStatus,
-  NewBlogPost,
-  NewBlogPostTag,
-  ObjectType,
-  UserActionType,
-} from "@/core";
+import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
 import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
 import { generateUniqueSlug } from "@/common/utils/string";
 
@@ -207,25 +200,9 @@ export class BlogRepository
     const [rows, totalRows] = await Promise.all([rowsQuery, totalQuery]);
 
     const total = Number(totalRows[0]?.total ?? 0);
-    const postIds = rows.map((row) => row.id);
-
-    const [tagsMap, likesMap] = await Promise.all([
-      this.getPostsTags(postIds),
-      this.userActionRepository.getActionCountsByObjectIds(
-        postIds,
-        ObjectType.BLOG,
-        UserActionType.LIKE,
-      ),
-    ]);
-
-    const dataWithTags = rows.map((row) => ({
-      ...row,
-      likes: likesMap[row.id] ?? 0,
-      tags: tagsMap[row.id] || [],
-    }));
 
     return {
-      data: dataWithTags,
+      data: rows,
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -279,25 +256,9 @@ export class BlogRepository
     ]);
 
     const total = Number(totalRows[0]?.total ?? 0);
-    const postIds = rows.map((row) => row.id);
-
-    const [tagsMap, likesMap] = await Promise.all([
-      this.getPostsTags(postIds),
-      this.userActionRepository.getActionCountsByObjectIds(
-        postIds,
-        ObjectType.BLOG,
-        UserActionType.LIKE,
-      ),
-    ]);
-
-    const dataWithTags = rows.map((row) => ({
-      ...row,
-      likes: likesMap[row.id] ?? 0,
-      tags: tagsMap[row.id] || [],
-    }));
 
     return {
-      data: dataWithTags,
+      data: rows,
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -305,14 +266,9 @@ export class BlogRepository
     };
   }
 
-  private async getPostsTags(
+  async getPostsTags(
     postIds: string[],
-  ): Promise<
-    Record<
-      string,
-      Array<{ name: string; skillId: string | null; tagId: string | null }>
-    >
-  > {
+  ): Promise<Record<string, BlogPostTagItem[]>> {
     if (!postIds || postIds.length === 0) return {};
 
     const _tags = await this.db

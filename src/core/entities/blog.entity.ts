@@ -14,13 +14,7 @@ export interface BlogPostListItem {
   summary: string;
   thumbnail: string | null;
   category: string;
-  likes: number;
   status: BlogPostStatus;
-  tags: Array<{
-    name: string;
-    skillId: string | null;
-    tagId: string | null;
-  }>;
   createdAt: Date;
 }
 
