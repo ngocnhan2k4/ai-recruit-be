@@ -45,7 +45,7 @@ export class FeedbackUseCase {
 
     const newFeedback: NewFeedback = {
       name: data.name || user?.name || "Anonymous",
-      email: data.email || null,
+      email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
       images: data.images,
@@ -99,6 +99,12 @@ export class FeedbackUseCase {
       return {
         code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
         message: "Feedback not found",
+      };
+    }
+    if ((existing.status as string) === "resolved") {
+      return {
+        code: RESPONSE_CODE.FEEDBACK_ALREADY_RESOLVED,
+        message: "Feedback đã được xử lý, không thể cập nhật.",
       };
     }
     const previousAssigneeId = existing.assignedToUserId ?? null;
