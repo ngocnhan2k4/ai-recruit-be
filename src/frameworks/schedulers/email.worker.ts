@@ -5,6 +5,7 @@ import { EMAIL_QUEUE } from "@/common/constants";
 import {
   EmailJobType,
   FeedbackAssignedEmailData,
+  FeedbackResolvedEmailData,
   OrganizationChangeEmailData,
 } from "@/core";
 import { EmailService } from "@/frameworks/email-services/email.service";
@@ -20,6 +21,7 @@ type EmailJobDataMap = {
   [EmailJobType.ORGANIZATION_VERIFICATION]: OrganizationVerificationEmailData;
   [EmailJobType.ORGANIZATION_CHANGE_EMAIL]: OrganizationChangeEmailData;
   [EmailJobType.FEEDBACK_ASSIGNED]: FeedbackAssignedEmailData;
+  [EmailJobType.FEEDBACK_RESOLVED]: FeedbackResolvedEmailData;
 };
 
 type EmailJobData = EmailJobDataMap[keyof EmailJobDataMap];
@@ -100,6 +102,19 @@ export class EmailWorker extends WorkerHost {
           );
           this.logger.log(
             `[email.worker] [processEmailTask] Sent feedback assigned email to ${feedbackAssigned.to} for feedback ${feedbackAssigned.feedbackSubject}`,
+          );
+          return;
+        }
+        case EmailJobType.FEEDBACK_RESOLVED: {
+          const feedbackResolved = data as FeedbackResolvedEmailData;
+          await this.emailService.sendFeedbackResolvedEmail(
+            feedbackResolved.to,
+            feedbackResolved.recipientName ?? "bạn",
+            feedbackResolved.feedbackSubject,
+          );
+
+          this.logger.log(
+            `[email.worker] [processEmailTask] Sent feedback resolved email to ${feedbackResolved.to} for feedback ${feedbackResolved.feedbackSubject}`,
           );
           return;
         }

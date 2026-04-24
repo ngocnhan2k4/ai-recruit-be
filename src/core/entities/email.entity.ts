@@ -49,3 +49,9 @@ export class FeedbackAssignedEmailData {
   recipientName: string;
   feedbackSubject: string;
 }
+
+export class FeedbackResolvedEmailData {
+  to: string;
+  recipientName: string;
+  feedbackSubject: string;
+}
