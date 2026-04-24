@@ -73,6 +73,7 @@ export class FeedbackRepository
         .select({
           id: feedbacks.id,
           name: feedbacks.name,
+          email: feedbacks.email,
           message: feedbacks.message,
           subject: feedbacks.subject,
           images: feedbacks.images,
