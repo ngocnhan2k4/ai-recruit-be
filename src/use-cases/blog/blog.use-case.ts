@@ -30,7 +30,7 @@ import {
   ObjectType,
   UserActionType,
 } from "@/core/entities";
-import { generateUniqueSlug } from "@/common/utils/string";
+import { generateSlug } from "@/common/utils/string";
 
 @Injectable()
 export class BlogUseCases {
@@ -267,7 +267,7 @@ export class BlogUseCases {
             });
           }
 
-          const slug = existing.slug || generateUniqueSlug(dto.title);
+          const slug = existing.slug || generateSlug(dto.title);
 
           await this.blogRepository.saveDraft(
             {
@@ -314,25 +314,22 @@ export class BlogUseCases {
     }
 
     const result = await this.blogRepository.executeWithTransaction(
-      async (tx) => {
-        const baseSlug = generateUniqueSlug(dto.title);
+      async () => {
+        const baseSlug = generateSlug(dto.title);
         const existed = await this.blogRepository.getPostBySlug(baseSlug);
         const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
 
-        return this.blogRepository.createPost(
-          {
-            title: dto.title,
-            slug,
-            summary: dto.summary,
-            thumbnail: dto.thumbnail ?? null,
-            content: dto.content,
-            categoryId: dto.category,
-            authorId: user.userId,
-            status: BlogPostStatus.PENDING,
-            tags: dto.tags ?? [],
-          },
-          tx,
-        );
+        return this.blogRepository.createPost({
+          title: dto.title,
+          slug,
+          summary: dto.summary,
+          thumbnail: dto.thumbnail ?? null,
+          content: dto.content,
+          categoryId: dto.category,
+          authorId: user.userId,
+          status: BlogPostStatus.PENDING,
+          tags: dto.tags ?? [],
+        });
       },
     );
 

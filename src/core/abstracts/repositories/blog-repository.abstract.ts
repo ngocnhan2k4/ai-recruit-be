@@ -39,10 +39,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
 
   abstract getPostBySlug(slug: string): Promise<BlogPost | null>;
 
-  abstract createPost(
-    data: NewBlogPost,
-    tx?: DBDrizzleTransaction,
-  ): Promise<BlogPost>;
+  abstract createPost(data: NewBlogPost): Promise<BlogPost>;
 
   abstract saveDraft(
     data: {

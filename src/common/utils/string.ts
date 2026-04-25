@@ -34,6 +34,13 @@ export const slugify = (text: string): string => {
     .replace(/[\s-]+/g, "-");
 };
 
+export const generateSlug = (text: string, time: Date = new Date()): string => {
+  const baseSlug = slugify(text);
+  const shortTime = time.getTime().toString(36).slice(-5);
+
+  return `${baseSlug}-${shortTime}`;
+};
+
 export const generateUniqueSlug = (text: string): string => {
   if (!text) {
     return "";

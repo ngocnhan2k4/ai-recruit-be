@@ -19,17 +19,17 @@ export class CommentRepository
   async getComments(params: {
     objectId: string;
     objectType: ObjectType;
-    parentId?: string | null;
+    parentCommentId?: string | null;
     limit: number;
     cursor?: string;
   }): Promise<PaginatedResult<CommentWithAuthor>> {
-    const { objectId, objectType, parentId, limit, cursor } = params;
+    const { objectId, objectType, parentCommentId, limit, cursor } = params;
 
     const conditions = [
       eq(comments.objectId, objectId),
       eq(comments.objectType, objectType),
-      parentId
-        ? eq(comments.parentCommentId, parentId)
+      parentCommentId
+        ? eq(comments.parentCommentId, parentCommentId)
         : sql`${comments.parentCommentId} IS NULL`,
     ];
 
@@ -84,8 +84,8 @@ export class CommentRepository
         and(
           eq(comments.objectId, objectId),
           eq(comments.objectType, objectType),
-          parentId
-            ? eq(comments.parentCommentId, parentId)
+          parentCommentId
+            ? eq(comments.parentCommentId, parentCommentId)
             : sql`${comments.parentCommentId} IS NULL`,
         ),
       );

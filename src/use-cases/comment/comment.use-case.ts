@@ -17,29 +17,7 @@ export class CommentUseCases {
     const result = await this.commentRepository.getComments({
       objectId: query.objectId,
       objectType: query.objectType,
-      limit,
-      cursor: query.cursor,
-    });
-
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
-    };
-  }
-
-  async getChildrenComments(
-    query: QueryCommentsDto,
-  ): Promise<ApiResponse<PaginatedResult<CommentWithAuthor>>> {
-    if (!query.parentId) {
-      throw new Error("parentId is required for children comments");
-    }
-
-    const limit = Math.min(query.limit ?? 10, 50);
-    const result = await this.commentRepository.getComments({
-      objectId: query.objectId,
-      objectType: query.objectType,
-      parentId: query.parentId,
+      parentCommentId: query.parentCommentId,
       limit,
       cursor: query.cursor,
     });

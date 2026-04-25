@@ -28,18 +28,14 @@ import {
   BlogPostTagItem,
 } from "@/core/entities/blog.entity";
 import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
-import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
-import { generateUniqueSlug } from "@/common/utils/string";
+import { generateSlug } from "@/common/utils/string";
 
 @Injectable()
 export class BlogRepository
   extends GenericRepository<BlogPost, typeof blogPosts>
   implements IBlogRepository
 {
-  constructor(
-    @Inject("DRIZZLE") protected db: DBDrizzle,
-    private readonly userActionRepository: IUserActionRepository,
-  ) {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, blogPosts);
   }
 
@@ -376,12 +372,10 @@ export class BlogRepository
     return (post as BlogPost) ?? null;
   }
 
-  async createPost(
-    data: NewBlogPost,
-    tx?: DBDrizzleTransaction,
-  ): Promise<BlogPost> {
-    return (tx ?? this.db).transaction(async (tx) => {
-      const [created] = await tx.insert(blogPosts).values(data).returning();
+  async createPost(data: NewBlogPost): Promise<BlogPost> {
+    return this.executeWithTransaction(async () => {
+      const db = this.getExecutor();
+      const [created] = await db.insert(blogPosts).values(data).returning();
 
       const normalizedTags = (data.tags ?? []).filter(
         (item) => item.tagId || item.skillId,
@@ -394,7 +388,7 @@ export class BlogRepository
           skillId: item.skillId ?? null,
         }));
 
-        await tx.insert(blogPostTags).values(tagRows);
+        await db.insert(blogPostTags).values(tagRows);
       }
 
       return created as BlogPost;
@@ -470,7 +464,7 @@ export class BlogRepository
         return updated as BlogPost;
       } else {
         const categoryId = await this.resolveDraftCategoryId(tx, data.category);
-        const slug2 = data.slug ?? generateUniqueSlug(data.title || "draft");
+        const slug2 = data.slug ?? generateSlug(data.title || "draft");
 
         const [created] = await tx
           .insert(blogPosts)

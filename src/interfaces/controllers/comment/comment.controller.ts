@@ -9,14 +9,8 @@ export class CommentController {
   constructor(private readonly commentUseCases: CommentUseCases) {}
 
   @Get()
-  @ApiOperation({ summary: "Get top-level comments for an object" })
+  @ApiOperation({ summary: "Get comments for an object" })
   async getComments(@Query() query: QueryCommentsDto) {
     return this.commentUseCases.getComments(query);
-  }
-
-  @Get("children")
-  @ApiOperation({ summary: "Get children comments for a parent comment" })
-  async getChildrenComments(@Query() query: QueryCommentsDto) {
-    return this.commentUseCases.getChildrenComments(query);
   }
 }

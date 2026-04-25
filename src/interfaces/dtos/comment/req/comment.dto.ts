@@ -19,7 +19,7 @@ export class QueryCommentsDto extends GeneralQueryDto {
   })
   @IsOptional()
   @IsString()
-  parentId?: string;
+  parentCommentId?: string;
 }
 
 export class CreateCommentDto {
