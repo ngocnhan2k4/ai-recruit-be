@@ -1,0 +1,10 @@
+{
+  "name": "ai-recruit-crawler-queue-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dedicated BullMQ bridge dependencies for crawler job index queue",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "bullmq": "^5.70.4"
+  }
+}
