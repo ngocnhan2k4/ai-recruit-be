@@ -20,7 +20,10 @@ import {
 } from "@/interfaces/dtos/blog/req";
 import { BlogService } from "@/services/blog/blog.service";
 import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
-import { BlogPostUserActions } from "@/core/entities/blog.entity";
+import {
+  BlogPostListItem,
+  BlogPostUserActions,
+} from "@/core/entities/blog.entity";
 import {
   BlogPostStatus,
   Comment,
@@ -72,7 +75,7 @@ export class BlogUseCases {
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
-    const result = await this.blogRepository.getPosts({
+    const { data, pagination } = await this.blogRepository.getPosts({
       ...query,
       limit,
       page,
@@ -81,10 +84,15 @@ export class BlogUseCases {
       status: BlogPostStatus.PUBLISHED,
     });
 
+    const dataWithTags = await this.getBlogsWithTags(data);
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
     };
   }
 
@@ -94,7 +102,7 @@ export class BlogUseCases {
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
-    const result = await this.blogRepository.getMyBlogs(userId, {
+    const { data, pagination } = await this.blogRepository.getMyBlogs(userId, {
       ...query,
       limit,
       page,
@@ -102,11 +110,36 @@ export class BlogUseCases {
       category: query.category,
     });
 
+    const dataWithTags = await this.getBlogsWithTags(data);
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
     };
+  }
+
+  private async getBlogsWithTags(
+    data: BlogPostListItem[],
+  ): Promise<BlogPostListItemDto[]> {
+    const postIds = data.map((blog) => blog.id);
+    const [tagsMap, likesMap] = await Promise.all([
+      this.blogRepository.getPostsTags(postIds),
+      this.userActionRepository.getActionCountsByObjectIds(
+        postIds,
+        ObjectType.BLOG,
+        UserActionType.LIKE,
+      ),
+    ]);
+
+    return data.map((blog) => ({
+      ...blog,
+      likes: likesMap[blog.id] ?? 0,
+      tags: tagsMap[blog.id] || [],
+    }));
   }
 
   async getTopBlogs(): Promise<
