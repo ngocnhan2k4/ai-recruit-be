@@ -22,6 +22,7 @@ export const RESPONSE_CODE = {
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   TOKEN_EXPIRED: "TOKEN_EXPIRED",
   TOKEN_NOT_FOUND: "TOKEN_NOT_FOUND",
+  ACCOUNT_PENDING_DELETION: "ACCOUNT_PENDING_DELETION",
 
   // --- User / profile ---
   USER_NOT_FOUND: "USER_NOT_FOUND",
@@ -130,6 +131,8 @@ export const RESPONSE_MESSAGE = {
 
   // --- Auth ---
   INVALID_CREDENTIALS: "Invalid credentials.",
+  ACCOUNT_PENDING_DELETION:
+    "Account pending deletion. You can restore or continue waiting.",
 
   // --- User / profile ---
   USER_NOT_FOUND: "User not found.",

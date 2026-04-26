@@ -7,3 +7,10 @@ export const normalizeProvider = (providerId: string): ProviderEnum => {
   if (providerId.includes("github")) return ProviderEnum.GITHUB;
   return ProviderEnum.EMAIL;
 };
+
+export const getFirebaseProviderKey = (providerId: ProviderEnum): string => {
+  if (providerId === ProviderEnum.GOOGLE) return "google.com";
+  if (providerId === ProviderEnum.FACEBOOK) return "facebook.com";
+  if (providerId === ProviderEnum.GITHUB) return "github.com";
+  return "password";
+};

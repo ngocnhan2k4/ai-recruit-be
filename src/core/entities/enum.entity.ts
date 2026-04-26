@@ -41,8 +41,10 @@ export enum ProviderEnum {
 }
 export enum UserStatusEnum {
   ACTIVE = "active",
-  INACTIVE = "inactive",
+  // INACTIVE = "inactive",
   BANNED = "banned",
+  PENDING_DELETION = "pending_deletion",
+  DELETED = "deleted",
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
