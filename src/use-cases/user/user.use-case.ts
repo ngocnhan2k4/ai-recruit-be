@@ -86,15 +86,15 @@ export class UserUseCases implements OnModuleInit {
     private readonly skillRepository: ISkillRepository,
   ) {}
 
-  private isUserAccountAvailable(user: User): boolean {
-    const status = String(user.status);
+  // private isUserAccountAvailable(user: User): boolean {
+  //   const status = String(user.status);
 
-    return (
-      status !== String(UserStatusEnum.BANNED) &&
-      status !== String(UserStatusEnum.PENDING_DELETION) &&
-      status !== String(UserStatusEnum.DELETED)
-    );
-  }
+  //   return (
+  //     status !== String(UserStatusEnum.BANNED) &&
+  //     status !== String(UserStatusEnum.PENDING_DELETION) &&
+  //     status !== String(UserStatusEnum.DELETED)
+  //   );
+  // }
 
   private async finalizeUserDeletion(userId: string): Promise<void> {
     const user = await this.userRepository.get(userId);
@@ -144,8 +144,7 @@ export class UserUseCases implements OnModuleInit {
     await this.initializeBloomFilter();
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async finalizePendingDeletionUsers() {
+  async cleanUpPendingDeletionAccounts() {
     const users = await this.userRepository.getUsersPendingDeletionToFinalize(
       new Date(),
     );
@@ -214,7 +213,7 @@ export class UserUseCases implements OnModuleInit {
   ): Promise<ApiResponse<GetUserResponseDto>> {
     const id: string = payload.userId;
     const user: User | null = await this.userRepository.get(id);
-    if (!user || !this.isUserAccountAvailable(user)) {
+    if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_CODE.USER_NOT_FOUND,
@@ -347,7 +346,7 @@ export class UserUseCases implements OnModuleInit {
     currentUserId?: string,
   ): Promise<ApiResponse<UserPublicResponseDto>> {
     const user = (await this.userRepository.getByField({ username }))[0];
-    if (!user || !this.isUserAccountAvailable(user)) {
+    if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_MESSAGE.USER_NOT_FOUND,
