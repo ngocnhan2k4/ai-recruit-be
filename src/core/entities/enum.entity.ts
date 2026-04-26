@@ -161,6 +161,7 @@ export enum EmailJobType {
   ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
+  FEEDBACK_RESOLVED = "feedback_resolved",
 }
 
 export enum OtpPurpose {

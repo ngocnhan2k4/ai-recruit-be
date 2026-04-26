@@ -19,6 +19,7 @@ export const feedbacks = pgTable(
     }),
 
     name: varchar("name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }),
     subject: varchar("subject", { length: 500 }).notNull(),
     message: text("message").notNull(),
 

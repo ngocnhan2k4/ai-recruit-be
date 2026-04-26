@@ -88,6 +88,7 @@ export const RESPONSE_CODE = {
 
   // --- Feedback ---
   FEEDBACK_NOT_FOUND: "FEEDBACK_NOT_FOUND",
+  FEEDBACK_ALREADY_RESOLVED: "FEEDBACK_ALREADY_RESOLVED",
 
   // --- OTP / email verification ---
   OTP_NOT_VALID: "OTP_NOT_VALID",

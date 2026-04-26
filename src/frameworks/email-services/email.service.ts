@@ -148,6 +148,26 @@ export class EmailService {
     });
   }
 
+  async sendFeedbackResolvedEmail(
+    to: string,
+    recipientName: string,
+    feedbackSubject: string,
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL") ?? "";
+    const html = compileTemplate("feedback-resolved.hbs", {
+      recipientName,
+      feedbackSubject,
+      frontendUrl: frontendUrl.replace(/\/$/, ""),
+    });
+
+    await this.sendEmail({
+      to,
+      subject: "Feedback của bạn đã được xử lý",
+      html,
+      text: `Phản hồi "${feedbackSubject}" của bạn đã được xử lý. Truy cập: ${frontendUrl}`,
+    });
+  }
+
   async sendFeedbackAssignedEmail(
     to: string,
     recipientName: string,
