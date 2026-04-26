@@ -17,8 +17,10 @@ export const ProviderEnum = pgEnum("provider", [
 ]);
 export const UserStatusEnum = pgEnum("user_status", [
   "active",
-  "inactive",
+  // "inactive",
   "banned",
+  "pending_deletion",
+  "deleted",
 ]);
 
 export const organizationTypeEnum = pgEnum("organization_type", [
@@ -170,3 +172,14 @@ export const TaskTypeEnum = pgEnum("task_type", [
   "learning_path_generation",
   "cv_generation",
 ]);
+
+export const BlogPostStatusEnum = pgEnum("blog_post_status", [
+  "DRAFT",
+  "PENDING",
+  "PUBLISHED",
+  "REJECTED",
+]);
+
+export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
+
+export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);

@@ -41,8 +41,10 @@ export enum ProviderEnum {
 }
 export enum UserStatusEnum {
   ACTIVE = "active",
-  INACTIVE = "inactive",
+  // INACTIVE = "inactive",
   BANNED = "banned",
+  PENDING_DELETION = "pending_deletion",
+  DELETED = "deleted",
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
@@ -159,6 +161,7 @@ export enum EmailJobType {
   ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
+  FEEDBACK_RESOLVED = "feedback_resolved",
 }
 
 export enum OtpPurpose {

@@ -22,6 +22,7 @@ export const RESPONSE_CODE = {
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   TOKEN_EXPIRED: "TOKEN_EXPIRED",
   TOKEN_NOT_FOUND: "TOKEN_NOT_FOUND",
+  ACCOUNT_PENDING_DELETION: "ACCOUNT_PENDING_DELETION",
 
   // --- User / profile ---
   USER_NOT_FOUND: "USER_NOT_FOUND",
@@ -87,6 +88,7 @@ export const RESPONSE_CODE = {
 
   // --- Feedback ---
   FEEDBACK_NOT_FOUND: "FEEDBACK_NOT_FOUND",
+  FEEDBACK_ALREADY_RESOLVED: "FEEDBACK_ALREADY_RESOLVED",
 
   // --- OTP / email verification ---
   OTP_NOT_VALID: "OTP_NOT_VALID",
@@ -112,6 +114,9 @@ export const RESPONSE_CODE = {
   SUBSCRIPTION_EXPIRED: "SUBSCRIPTION_EXPIRED",
   FEATURE_NOT_INCLUDED_IN_SUBSCRIPTION: "FEATURE_NOT_INCLUDED_IN_SUBSCRIPTION",
   MAX_SAVED_JOBS_LIMIT: "MAX_SAVED_JOBS_LIMIT",
+
+  // --- Blog ---
+  BLOG_POST_NOT_FOUND: "BLOG_POST_NOT_FOUND",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -126,6 +131,8 @@ export const RESPONSE_MESSAGE = {
 
   // --- Auth ---
   INVALID_CREDENTIALS: "Invalid credentials.",
+  ACCOUNT_PENDING_DELETION:
+    "Account pending deletion. You can restore or continue waiting.",
 
   // --- User / profile ---
   USER_NOT_FOUND: "User not found.",

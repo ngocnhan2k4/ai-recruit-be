@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { organizations } from "@/frameworks/data-services/postgres/models";
 import { OrganizationTypeEnum } from "@/core/entities/enum.entity";
 import { slugify } from "@/common/utils/string";
+import { blogCategories } from "@/frameworks/data-services/postgres/models/blog.model";
 
 const categoriesData = [
   // 🔹 Software Development
@@ -60,6 +61,25 @@ const categoriesData = [
   "Solution Architect",
   "Cloud Architect",
   "Bridge System Engineer (BrSE)",
+];
+
+const blogCategoriesData = [
+  {
+    name: "CV",
+    description: "Tips and guidance for creating effective CVs",
+  },
+  {
+    name: "Interview",
+    description: "Interview preparation and best practices",
+  },
+  {
+    name: "Career Advice",
+    description: "Career growth strategies and professional advice",
+  },
+  {
+    name: "AI",
+    description: "AI trends, tools, and applications for careers",
+  },
 ];
 
 const provincesData = [
@@ -228,6 +248,11 @@ async function main() {
     .insert(categories)
     .values(categoriesData.map((name) => ({ name })))
     .onConflictDoNothing({ target: categories.name });
+
+  await db
+    .insert(blogCategories)
+    .values(blogCategoriesData)
+    .onConflictDoNothing({ target: blogCategories.name });
 
   const dataToInsert = universitiesData.map((uniName) => ({
     name: uniName,
