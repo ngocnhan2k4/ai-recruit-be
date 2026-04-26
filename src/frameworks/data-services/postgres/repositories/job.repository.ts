@@ -1195,14 +1195,12 @@ export class JobRepository
         jobTitle?: string;
       }
   > {
-    const result = await this.db.transaction(async (tx) => {
+    const newApplication = await this.db.transaction(async (tx) => {
       const [existingApplication] = await tx
         .select({
           exists: exists(
             tx
-              .select({
-                id: applyJobs.id,
-              })
+              .select({ id: applyJobs.id })
               .from(applyJobs)
               .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
               .where(
@@ -1219,8 +1217,7 @@ export class JobRepository
         });
       }
 
-      // Insert application
-      const [newApplication] = await tx
+      const [inserted] = await tx
         .insert(applyJobs)
         .values({
           jobId,
@@ -1230,66 +1227,66 @@ export class JobRepository
         })
         .returning();
 
-      // Update CV.lastUsed
-      await tx
-        .update(cvs)
-        .set({ lastUsed: new Date() })
-        .where(eq(cvs.id, userCvId));
-
-      // If notifications not requested or no senderUserId, just return application
-      if (!sendNotifications || !senderUserId) {
-        return newApplication as ApplyJobResponse;
-      }
-
-      const jobInfo = await tx
-        .select({ title: jobs.title, organizationId: jobs.organizationId })
-        .from(jobs)
-        .where(eq(jobs.id, jobId))
-        .limit(1);
-
-      if (jobInfo.length === 0) {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.JOB_NOT_FOUND,
-          message: "Job not found",
-        });
-      }
-
-      const { title: jobTitle, organizationId } = jobInfo[0];
-
-      const adminUsers =
-        await this.organizationRepository.getMemberIdsOfOrganization(
-          organizationId,
-        );
-
-      const recipients = adminUsers.map((m) => ({
-        receiverId: m.id,
-        organizationId,
-      }));
-
-      const notifications =
-        await this.notificationRepository.createNotificationWithRecipients(
-          {
-            title: "Đơn ứng tuyển mới",
-            message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
-            type: NotificationType.JOB_APPLIED,
-            senderId: senderUserId,
-            payload: {
-              jobId,
-              applyId: newApplication.id,
-              orgId: organizationId,
-            },
-          },
-          recipients,
-        );
-
-      return {
-        application: newApplication as ApplyJobResponse,
-        notifications,
-        jobTitle,
-      };
+      return inserted as ApplyJobResponse;
     });
 
-    return result;
+    this.db
+      .update(cvs)
+      .set({ lastUsed: new Date() })
+      .where(eq(cvs.id, userCvId))
+      .catch(() => {});
+
+    // Notifications outside transaction to avoid holding locks on applyJobs and related tables
+    if (!sendNotifications || !senderUserId) {
+      return newApplication;
+    }
+
+    const jobInfo = await this.db
+      .select({ title: jobs.title, organizationId: jobs.organizationId })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .limit(1);
+
+    if (jobInfo.length === 0) {
+      throw new BadRequestException({
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+        message: "Job not found",
+      });
+    }
+
+    const { title: jobTitle, organizationId } = jobInfo[0];
+
+    const adminUsers =
+      await this.organizationRepository.getMemberIdsOfOrganization(
+        organizationId,
+      );
+
+    const recipients = adminUsers.map((m) => ({
+      receiverId: m.id,
+      organizationId,
+    }));
+
+    const notifications =
+      await this.notificationRepository.createNotificationWithRecipients(
+        {
+          title: "Đơn ứng tuyển mới",
+          message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
+          type: NotificationType.JOB_APPLIED,
+          senderId: senderUserId,
+          payload: {
+            jobId,
+            applyId: newApplication.id,
+            orgId: organizationId,
+          },
+        },
+        recipients,
+      );
+
+    return {
+      application: newApplication,
+      notifications,
+      jobTitle,
+    };
   }
 
   async updateApplyJob(

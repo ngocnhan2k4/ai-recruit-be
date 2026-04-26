@@ -10,6 +10,8 @@ import {
   Param,
   UseInterceptors,
 } from "@nestjs/common";
+import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { MultipartFile } from "@fastify/multipart";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { LONG_TTL } from "@/common/constants";
@@ -38,8 +40,6 @@ import {
   UserInteractionResponseDto,
   SaveJobDto,
   //HideJobDto,
-  ApplyJobDto,
-  UpdateApplyJobDto,
   ApplyJobQueryDto,
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -164,9 +164,14 @@ export class JobController {
   @Post("apply")
   async applyJob(
     @GetUser() user: TokenPayload,
-    @Body() applyJobDto: ApplyJobDto,
+    @UploadFileAndBody({ required: false })
+    uploadData: { file?: MultipartFile; body: Record<string, any> },
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    return await this.jobUseCases.applyJob(user.userId, applyJobDto);
+    return await this.jobUseCases.applyJob(
+      user.userId,
+      uploadData.body,
+      uploadData.file,
+    );
   }
 
   @ApiOperation({
@@ -180,12 +185,14 @@ export class JobController {
   async updateApplyJob(
     @GetUser() user: TokenPayload,
     @Param("applyId") applyId: string,
-    @Body() updateApplyJobDto: UpdateApplyJobDto,
+    @UploadFileAndBody({ required: false })
+    uploadData: { file?: MultipartFile; body: Record<string, any> },
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     return await this.jobUseCases.updateApplyJob(
       user.userId,
       applyId,
-      updateApplyJobDto,
+      uploadData.body,
+      uploadData.file,
     );
   }
 
