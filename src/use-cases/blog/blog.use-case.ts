@@ -262,8 +262,8 @@ export class BlogUseCases {
 
           if (existing.status !== (BlogPostStatus.DRAFT as string)) {
             throw new BadRequestException({
-              code: RESPONSE_CODE.BAD_REQUEST,
-              message: "Only draft blog posts can be submitted via create API",
+              code: RESPONSE_CODE.BLOG_IS_NOT_DRAFT,
+              message: RESPONSE_MESSAGE.BLOG_IS_NOT_DRAFT,
             });
           }
 
@@ -297,8 +297,8 @@ export class BlogUseCases {
 
           if (!updated) {
             throw new NotFoundException({
-              code: RESPONSE_CODE.JOB_NOT_FOUND,
-              message: "Blog post not found",
+              code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+              message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
             });
           }
 
@@ -365,7 +365,7 @@ export class BlogUseCases {
 
     return {
       code: RESPONSE_CODE.SUCCESS,
-      message: "Draft saved successfully",
+      message: RESPONSE_MESSAGE.SUCCESS,
       data: { id: result.id, slug: result.slug },
     };
   }
@@ -396,8 +396,8 @@ export class BlogUseCases {
 
         if (!rows || rows.length === 0) {
           throw new NotFoundException({
-            code: RESPONSE_CODE.JOB_NOT_FOUND,
-            message: "Blog post not found",
+            code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+            message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
           });
         }
 
@@ -481,8 +481,8 @@ export class BlogUseCases {
 
     if (!post) {
       throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
       });
     }
 

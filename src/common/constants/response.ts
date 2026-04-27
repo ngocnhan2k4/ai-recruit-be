@@ -116,6 +116,7 @@ export const RESPONSE_CODE = {
 
   // --- Blog ---
   BLOG_POST_NOT_FOUND: "BLOG_POST_NOT_FOUND",
+  BLOG_IS_NOT_DRAFT: "BLOG_IS_NOT_DRAFT",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -188,4 +189,8 @@ export const RESPONSE_MESSAGE = {
   AI_CV_NOT_FOUND: "CV generated from the CV is not found.",
   AI_CV_NOT_UPDATED: "Failed to update AI CV",
   AI_CV_NOT_DELETED: "Failed to delete AI CV from database",
+
+  // --- BLOG ---
+  BLOG_POST_NOT_FOUND: "Blog post not found.",
+  BLOG_IS_NOT_DRAFT: "Only draft blog posts can be submitted via create API.",
 } as const;
