@@ -1396,6 +1396,10 @@ export class JobRepository
         cvId: applyJobs.cvId,
         status: applyJobs.status,
         answers: applyJobs.answers,
+        matchingScore: applyJobs.matchingScore,
+        matchingRank: applyJobs.matchingRank,
+        matchingCriteria: applyJobs.matchingCriteria,
+        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
       })
@@ -1424,6 +1428,10 @@ export class JobRepository
         jobId: applyJobs.jobId,
         status: applyJobs.status,
         answers: applyJobs.answers,
+        matchingScore: applyJobs.matchingScore,
+        matchingRank: applyJobs.matchingRank,
+        matchingCriteria: applyJobs.matchingCriteria,
+        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
         user: {
@@ -1454,6 +1462,8 @@ export class JobRepository
       jobId: item.jobId,
       status: item.status,
       answers: item.answers,
+      matchingScore: item.matchingScore,
+      matchingRank: item.matchingRank,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       user: item.user,
@@ -2406,5 +2416,40 @@ export class JobRepository
       data: result,
       pagination: {},
     };
+  }
+
+  async updateMatchingScore(
+    applyId: string,
+    score: number,
+    criteria: Record<string, any>,
+  ): Promise<void> {
+    await this.db
+      .update(applyJobs)
+      .set({
+        matchingScore: score.toFixed(2),
+        matchingCriteria: criteria,
+        scoredAt: new Date(),
+      })
+      .where(eq(applyJobs.id, applyId));
+  }
+
+  async recalculateRanks(jobId: string): Promise<void> {
+    await this.db.execute(
+      sql`
+        UPDATE apply_jobs
+        SET matching_rank = ranked.rank
+        FROM (
+          SELECT id,
+                 RANK() OVER (
+                   PARTITION BY job_id
+                   ORDER BY matching_score DESC NULLS LAST
+                 ) AS rank
+          FROM apply_jobs
+          WHERE job_id = ${jobId}
+            AND deleted_at IS NULL
+        ) ranked
+        WHERE apply_jobs.id = ranked.id
+      `,
+    );
   }
 }

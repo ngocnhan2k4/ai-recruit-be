@@ -71,7 +71,7 @@ import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ROOM_NOTIFICATIONS } from "@/common/constants";
+import { ROOM_NOTIFICATIONS, TASK_EVENT } from "@/common/constants";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
@@ -672,6 +672,13 @@ export class JobUseCases {
     }
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
+    if (applyJobDto.cvId) {
+      await this.messageQueueService.addTask(TASK_EVENT.SCORE_CV_APPLY, {
+        applyId: application.id,
+        jobId: applyJobDto.jobId,
+        cvId: applyJobDto.cvId,
+      });
+    }
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -753,6 +760,13 @@ export class JobUseCases {
       }
     } else {
       application = repoResult;
+    }
+    if (updateApplyJobDto.cvId && application.jobId) {
+      await this.messageQueueService.addTask(TASK_EVENT.SCORE_CV_APPLY, {
+        applyId,
+        jobId: application.jobId,
+        cvId: updateApplyJobDto.cvId,
+      });
     }
 
     return {
@@ -924,7 +938,7 @@ export class JobUseCases {
         jobId: newJob.id,
       },
       {
-        jobId: `job.sync:${newJob.id}`,
+        jobId: `job-sync-${newJob.id}`,
       },
     );
     return {
@@ -1023,7 +1037,7 @@ export class JobUseCases {
           jobId: jobId,
         },
         {
-          jobId: `job.sync:${jobId}`,
+          jobId: `job-sync-${jobId}`,
         },
       );
     }
@@ -1390,7 +1404,7 @@ export class JobUseCases {
         jobId: jobId,
       },
       {
-        jobId: `job.sync:${jobId}`,
+        jobId: `job-sync-${jobId}`,
       },
     );
     return {

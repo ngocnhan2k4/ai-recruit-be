@@ -118,7 +118,7 @@ export class CvUseCases {
         cvId: newCv.id,
       },
       {
-        jobId: `cv.extract_and_index:${newCv.id}`,
+        jobId: `cv-extract-and-index-${newCv.id}`,
       },
     );
 
@@ -225,7 +225,7 @@ export class CvUseCases {
         cvId: cvId,
       },
       {
-        jobId: `cv.extract_and_index:${cvId}`,
+        jobId: `cv-extract-and-index-${cvId}`,
       },
     );
 
@@ -279,7 +279,7 @@ export class CvUseCases {
         cvId: cvId,
       },
       {
-        jobId: `cv.sync:${cvId}`,
+        jobId: `cv-sync-${cvId}`,
       },
     );
 

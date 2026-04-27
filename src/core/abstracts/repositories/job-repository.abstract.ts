@@ -277,4 +277,12 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getJobsV2(
     filters?: JobFilters,
   ): Promise<PaginatedResult<JobResponse>>;
+
+  abstract updateMatchingScore(
+    applyId: string,
+    score: number,
+    criteria: Record<string, any>,
+  ): Promise<void>;
+
+  abstract recalculateRanks(jobId: string): Promise<void>;
 }
