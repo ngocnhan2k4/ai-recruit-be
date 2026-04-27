@@ -13,6 +13,7 @@ import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { EmailModule } from "@/frameworks/email-services/email.module";
 import { UserScheduler } from "./user.scheduler";
+import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UserScheduler } from "./user.scheduler";
     PostgresDataServicesModule,
     WebSocketModule,
     EmailModule,
+    UserUseCasesModule,
   ],
   providers: [
     JobMatchingScheduler,
