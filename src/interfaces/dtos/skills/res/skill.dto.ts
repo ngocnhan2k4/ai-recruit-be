@@ -27,5 +27,5 @@ export class CrawledSkillDto {
   synonym: string | null;
 
   @ApiProperty({ type: "string", format: "date-time" })
-  createdAt: string;
+  createdAt?: Date | undefined;
 }

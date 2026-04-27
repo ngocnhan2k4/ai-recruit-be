@@ -17,13 +17,11 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  Logger,
   NotFoundException,
 } from "@nestjs/common";
 
 @Injectable()
 export class SkillSynonymUseCases {
-  private readonly logger = new Logger(SkillSynonymUseCases.name);
   constructor(
     @Inject(ISkillsSynonymsRepository)
     private readonly skillsSynonymsRepository: ISkillsSynonymsRepository,

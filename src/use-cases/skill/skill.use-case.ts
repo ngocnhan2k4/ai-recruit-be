@@ -80,10 +80,8 @@ export class SkillUseCases {
       await this.skillsSynonymsRepository.getSynonymsSkills(skillNames);
 
     const enriched: CrawledSkillDto[] = data.data.map((s) => ({
-      id: s.id,
-      name: s.name,
+      ...s,
       synonym: matches[s.name]?.resolvedName ?? null,
-      createdAt: (s.createdAt as Date).toISOString(),
     }));
 
     return {
