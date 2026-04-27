@@ -94,6 +94,7 @@ export class CvIndexWorker extends WorkerHost {
     const document = transformCvToDocument({
       id: data.cvId,
       userId: cv.userId,
+      aiCvId: cv.aiCvId,
       name: extractedData.name,
       fileUrl: cv.fileUrl,
       mimeType: cv.mimeType,
@@ -106,6 +107,7 @@ export class CvIndexWorker extends WorkerHost {
       skillNames: extractedData.skillNames || [],
       provinceNames: extractedData.provinceNames || [],
       categoryNames: extractedData.categoryNames || [],
+      experienceLevel: extractedData.experienceLevel ?? undefined,
     });
 
     await this.searchService.indexDocument(indexName, cv.id, document);

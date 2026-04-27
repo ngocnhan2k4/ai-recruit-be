@@ -37,6 +37,7 @@ import {
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
+import { OptimizedCvData } from "./ai-cv.entity";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
@@ -90,8 +91,12 @@ export type SkillSynonym = InferSelectModel<typeof skillsSynonyms>;
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
 
-export type NewAiCv = InferInsertModel<typeof aiCvs>;
-export type AiCv = InferSelectModel<typeof aiCvs>;
+export type NewAiCv = InferInsertModel<typeof aiCvs> & {
+  cvData?: OptimizedCvData;
+};
+export type AiCv = InferSelectModel<typeof aiCvs> & {
+  cvData: OptimizedCvData;
+};
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;

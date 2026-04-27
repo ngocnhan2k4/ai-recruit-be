@@ -230,7 +230,7 @@ export class AIClientService implements IAIService {
   }
 
   async extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse> {
-    const url = `${this.aiServiceUrl}/api/v1/cv/extract-cv`;
+    const url = `${this.aiServiceUrl}/api/v1/cv/extract`;
 
     return firstValueFrom(
       this.httpService

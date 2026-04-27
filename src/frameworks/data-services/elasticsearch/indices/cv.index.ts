@@ -1,4 +1,5 @@
 import { Environment } from "@/common/config";
+import { ExperienceLevelEnum } from "@/core/entities/enum.entity";
 
 export interface CvIndexConfig {
   env: Environment;
@@ -25,7 +26,8 @@ export function getCvIndexMapping({ env }: CvIndexConfig) {
       properties: {
         id: { type: "keyword" },
         userId: { type: "keyword" },
-        cvName: { type: "text", fields: { keyword: { type: "keyword" } } },
+        aiCvId: { type: "keyword" },
+        name: { type: "text", fields: { keyword: { type: "keyword" } } },
         fileUrl: { type: "keyword" },
         mimeType: { type: "keyword" },
 
@@ -83,6 +85,7 @@ export function getCvIndexMapping({ env }: CvIndexConfig) {
 export function transformCvToDocument(params: {
   id: string;
   userId: string;
+  aiCvId: string | null;
   name: string;
   fileUrl: string;
   mimeType: string;
@@ -95,11 +98,13 @@ export function transformCvToDocument(params: {
   skillNames?: string[];
   provinceNames?: string[];
   categoryNames?: string[];
+  experienceLevel?: ExperienceLevelEnum;
 }): Record<string, unknown> {
   return {
     id: params.id,
     userId: params.userId,
-    cvName: params.name,
+    aiCvId: params.aiCvId,
+    name: params.name,
     fileUrl: params.fileUrl,
     mimeType: params.mimeType,
     skillIds: params.skillIds || [],
@@ -110,6 +115,7 @@ export function transformCvToDocument(params: {
     categoryNames: params.categoryNames || [],
     expectedSalary: params.expectedSalary || null,
     experienceYears: params.experienceYears || null,
+    experienceLevel: params.experienceLevel || null,
     updatedAt: params.updatedAt
       ? new Date(params.updatedAt).toISOString()
       : null,

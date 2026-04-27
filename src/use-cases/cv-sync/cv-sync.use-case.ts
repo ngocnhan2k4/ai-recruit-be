@@ -13,6 +13,7 @@ import {
   SyncFromElasticsearchResponseDto,
 } from "@/interfaces/dtos";
 import { CvService } from "@/services/cv/cv.service";
+import { mapWithConcurrency } from "@/common/utils";
 
 @Injectable()
 export class CvSyncUseCases {
@@ -30,15 +31,13 @@ export class CvSyncUseCases {
   }
 
   private async ensureIndex(): Promise<void> {
-    const client = this.searchService.getClient();
-    const indexName = this.indexName();
-    const exists = await client.indices.exists({ index: indexName });
+    const exists = await this.searchService.existsIndex(this.indexName());
     if (!exists) {
       const indexMapping = getCvIndexMapping({
         env: this.configService.get<Environment>("NODE_ENV")!,
       });
-      await this.searchService.createIndex(indexName, indexMapping);
-      this.logger.log(`Created index: ${indexName}`);
+      await this.searchService.createIndex(this.indexName(), indexMapping);
+      this.logger.log(`Created index: ${this.indexName()}`);
     }
   }
 
@@ -66,6 +65,9 @@ export class CvSyncUseCases {
     let hasMore = true;
     let totalSynced = 0;
 
+    const documents: Array<{ id: string; document: Record<string, unknown> }> =
+      [];
+
     while (hasMore) {
       const rows = await this.cvRepository.getCvs({ page, limit: batchSize });
       if (rows.data.length === 0) {
@@ -73,49 +75,51 @@ export class CvSyncUseCases {
         break;
       }
 
-      const documents: Array<{
-        id: string;
-        document: Record<string, unknown>;
-      }> = [];
+      let results = await mapWithConcurrency(
+        rows.data,
+        async (cv) => {
+          const cvId = cv.id;
 
-      // [TODO]: Fix here, if exist aiCvId, should data in aiCv instead of extracted data
-      for (const cv of rows.data) {
-        const cvId = cv.id;
+          const extractedData = await this.cvService.extractCv(cv);
 
-        const extractedData = await this.cvService.extractCv(cv);
+          const document = transformCvToDocument({
+            id: cv.id,
+            userId: cv.userId,
+            aiCvId: cv.aiCvId,
+            name: extractedData.name || cv.name,
+            fileUrl: cv.fileUrl,
+            mimeType: cv.mimeType,
+            updatedAt: cv.updatedAt ?? null,
+            skillIds: extractedData.skillIds || [],
+            provinceIds: extractedData.provinceIds || [],
+            categoryIds: extractedData.categoryIds || [],
+            expectedSalary: extractedData.expectedSalary ?? undefined,
+            experienceYears: extractedData.experienceYears ?? undefined,
+            skillNames: extractedData.skillNames || [],
+            provinceNames: extractedData.provinceNames || [],
+            categoryNames: extractedData.categoryNames || [],
+            experienceLevel: extractedData.experienceLevel ?? undefined,
+          });
 
-        const document = transformCvToDocument({
-          id: cv.id,
-          userId: cv.userId,
-          name: extractedData.name || cv.name,
-          fileUrl: cv.fileUrl,
-          mimeType: cv.mimeType,
-          updatedAt: cv.updatedAt ?? null,
-          skillIds: extractedData.skillIds || [],
-          provinceIds: extractedData.provinceIds || [],
-          categoryIds: extractedData.categoryIds || [],
-          expectedSalary: extractedData.expectedSalary ?? undefined,
-          experienceYears: extractedData.experienceYears ?? undefined,
-          skillNames: extractedData.skillNames || [],
-          provinceNames: extractedData.provinceNames || [],
-          categoryNames: extractedData.categoryNames || [],
-        });
+          return { id: cvId, document };
+        },
+        { continueOnError: true },
+      );
 
-        documents.push({ id: cvId, document });
-      }
-
-      if (documents.length > 0) {
-        const result = await this.searchService.bulkIndex(
-          this.indexName(),
-          documents,
-        );
-        totalSynced += result.success;
-        this.logger.log(
-          `Synced batch: ${result.success} cvs (total: ${totalSynced})`,
-        );
-      }
+      results = results.filter((result) => result !== undefined);
+      documents.push(...results);
 
       page += 1;
+    }
+    if (documents.length > 0) {
+      const result = await this.searchService.bulkIndex(
+        this.indexName(),
+        documents,
+      );
+      totalSynced += result.success;
+      this.logger.log(
+        `Synced batch: ${result.success} cvs (total: ${totalSynced})`,
+      );
     }
 
     this.logger.log(`Full CV sync completed: ${totalSynced} cvs synced`);
@@ -135,12 +139,11 @@ export class CvSyncUseCases {
       dbCount: number;
     }>
   > {
-    const client = this.searchService.getClient();
     const indexName = this.indexName();
 
-    const exists = await client.indices.exists({ index: indexName });
+    const exists = await this.searchService.existsIndex(indexName);
     const esCount = exists
-      ? Number((await client.count({ index: indexName })).count ?? 0)
+      ? Number(await this.searchService.countDocuments(indexName))
       : 0;
 
     const dbCount = await this.cvRepository.count();
@@ -186,7 +189,6 @@ export class CvSyncUseCases {
     );
 
     const targetIndex = dto.targetIndex || this.indexName();
-    await this.ensureIndex();
 
     const sourceAuth =
       dto.sourceUsername && dto.sourcePassword

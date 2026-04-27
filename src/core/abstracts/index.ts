@@ -12,3 +12,4 @@ export * from "./job-search-service.abstract";
 export * from "./message-queue.abstract";
 export * from "./cv-services.abstract";
 export * from "./feature-services.abstract";
+export * from "./skill-services.abstract";

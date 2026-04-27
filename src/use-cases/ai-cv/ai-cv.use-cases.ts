@@ -16,6 +16,7 @@ import {
   TaskTypeEnum,
   TaskStatusEnum,
   IFeatureService,
+  OptimizedCvData,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -327,6 +328,7 @@ export class AiCvUseCases {
     const updateData: Partial<NewAiCv> = {
       ...updateAiCvDto,
       updatedAt: new Date(),
+      cvData: updateAiCvDto?.cvData as OptimizedCvData | undefined,
     };
 
     const updatedRows = await this.aiCvRepository.update(

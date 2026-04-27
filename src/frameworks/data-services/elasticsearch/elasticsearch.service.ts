@@ -70,10 +70,6 @@ export class ElasticsearchService
     await this.client.close();
   }
 
-  getClient(): Client {
-    return this.client;
-  }
-
   async healthCheck(): Promise<boolean> {
     const response = await this.client.cluster.health({
       wait_for_status: "yellow",
@@ -257,5 +253,19 @@ export class ElasticsearchService
     this.logger.log(
       `updateByQuery completed: updated=${response.updated}, took=${response.took}ms`,
     );
+  }
+
+  async countDocuments(indexName: string): Promise<number> {
+    const response = await this.client.count({
+      index: indexName,
+    });
+
+    return response.count ?? 0;
+  }
+
+  async existsIndex(indexName: string): Promise<boolean> {
+    return this.client.indices.exists({
+      index: indexName,
+    });
   }
 }
