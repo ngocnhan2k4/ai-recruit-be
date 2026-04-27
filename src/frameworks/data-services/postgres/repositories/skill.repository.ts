@@ -271,15 +271,6 @@ export class SkillRepository
     const textArray = this.toSqlTextArray(ids);
 
     await this.executeWithTransaction(async (tx) => {
-      const deletingSkills = await tx
-        .select({ id: skills.id, name: skills.name })
-        .from(skills)
-        .where(inArray(skills.id, ids));
-
-      const deletingNames = deletingSkills
-        .map((s) => NormalizeString(s.name))
-        .filter((name) => name.length > 0);
-
       await tx.execute(sql`
         DELETE FROM blog_post_tags
         WHERE skill_id = ANY(${uuidArray})
@@ -328,16 +319,6 @@ export class SkillRepository
         WHERE selected_skill_ids IS NOT NULL
       `);
 
-      if (deletingNames.length > 0) {
-        await tx
-          .delete(skillsSynonyms)
-          .where(inArray(skillsSynonyms.masterName, deletingNames));
-
-        await tx
-          .delete(skillsSynonyms)
-          .where(inArray(skillsSynonyms.aliasName, deletingNames));
-      }
-
       await tx.delete(skills).where(inArray(skills.id, ids));
     });
 
@@ -375,9 +356,6 @@ export class SkillRepository
         .where(inArray(skills.id, sourceIds));
 
       const targetMasterName = NormalizeString(targetSkill.name);
-      const sourceMasterNames = sourceSkills.map((s) =>
-        NormalizeString(s.name),
-      );
 
       await tx.execute(sql`
         DELETE FROM blog_post_tags AS src
@@ -472,12 +450,18 @@ export class SkillRepository
         WHERE selected_skill_ids IS NOT NULL
       `);
 
-      if (sourceMasterNames.length > 0) {
-        await tx
-          .update(skillsSynonyms)
-          .set({ masterName: targetMasterName })
-          .where(inArray(skillsSynonyms.masterName, sourceMasterNames));
-      }
+      await tx.execute(sql`
+        DELETE FROM skills_synonyms AS src
+        USING skills_synonyms AS tgt
+        WHERE src.master_skill_id = ANY(${sourceUuidArray})
+          AND tgt.master_skill_id = ${targetSkillId}::uuid
+          AND src.alias_name = tgt.alias_name
+      `);
+
+      await tx
+        .update(skillsSynonyms)
+        .set({ masterSkillId: targetSkillId })
+        .where(inArray(skillsSynonyms.masterSkillId, sourceIds));
 
       const aliasFromOldSkills = sourceSkills
         .map((skill) => NormalizeString(skill.name))
@@ -488,9 +472,8 @@ export class SkillRepository
           .insert(skillsSynonyms)
           .values(
             aliasFromOldSkills.map((aliasName) => ({
-              masterName: targetMasterName,
+              masterSkillId: targetSkillId,
               aliasName,
-              source: "manual",
             })),
           )
           .onConflictDoNothing();

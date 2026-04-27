@@ -43,22 +43,20 @@ export class SkillSynonymUseCases {
 
   private buildGroupedResponse(
     skills: Pick<Skill, "id" | "name">[],
-    rows: Pick<SkillSynonym, "masterName" | "aliasName">[],
+    rows: Pick<SkillSynonym, "masterSkillId" | "aliasName">[],
   ): SkillSynonymResponseDto[] {
     const aliasMap = new Map<string, Set<string>>();
 
     for (const row of rows) {
-      const normalizedMaster = NormalizeString(row.masterName);
-      if (!aliasMap.has(normalizedMaster)) {
-        aliasMap.set(normalizedMaster, new Set());
+      if (!aliasMap.has(row.masterSkillId)) {
+        aliasMap.set(row.masterSkillId, new Set());
       }
-      aliasMap.get(normalizedMaster)!.add(row.aliasName);
+      aliasMap.get(row.masterSkillId)!.add(row.aliasName);
     }
 
     return skills
       .map((skill) => {
-        const normalizedSkillName = NormalizeString(skill.name);
-        const aliases = aliasMap.get(normalizedSkillName);
+        const aliases = aliasMap.get(skill.id);
 
         return {
           id: skill.id,
@@ -81,7 +79,7 @@ export class SkillSynonymUseCases {
 
     const [allSkills, allRows] = await Promise.all([
       this.skillRepository.getAll(["id", "name"]),
-      this.skillsSynonymsRepository.getAll(["masterName", "aliasName"]),
+      this.skillsSynonymsRepository.getAll(["masterSkillId", "aliasName"]),
     ]);
 
     const grouped = this.buildGroupedResponse(allSkills, allRows);
@@ -138,19 +136,18 @@ export class SkillSynonymUseCases {
       });
     }
 
-    const normalizedCurrentMaster = NormalizeString(currentSkill.name);
-    const aliasNames = dto.aliasNames || [];
+    const aliasNames = this.normalizeAliases(dto.aliasNames || []);
 
     const allRows = await this.skillsSynonymsRepository.getAll([
       "aliasName",
-      "masterName",
+      "masterSkillId",
     ]);
 
     const conflicts = aliasNames.filter((alias) =>
       allRows.some(
         (row) =>
           NormalizeString(row.aliasName) === alias &&
-          NormalizeString(row.masterName) !== normalizedCurrentMaster,
+          row.masterSkillId !== skillId,
       ),
     );
 
@@ -163,16 +160,15 @@ export class SkillSynonymUseCases {
 
     await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
       await this.skillsSynonymsRepository.deletePermanently(
-        { masterName: normalizedCurrentMaster },
+        { masterSkillId: skillId },
         tx,
       );
 
       if (aliasNames.length > 0) {
         await this.skillsSynonymsRepository.createMany(
           aliasNames.map((aliasName) => ({
-            masterName: normalizedCurrentMaster,
+            masterSkillId: skillId,
             aliasName,
-            source: dto.source ?? "manual",
           })),
           tx,
         );
@@ -180,7 +176,7 @@ export class SkillSynonymUseCases {
     });
 
     const latestRows = await this.skillsSynonymsRepository.getByField({
-      masterName: normalizedCurrentMaster,
+      masterSkillId: skillId,
     });
 
     return {

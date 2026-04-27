@@ -1,5 +1,4 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { NormalizeString } from "@/common/utils";
 import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
 import {
   ApiResponse,
@@ -129,8 +128,6 @@ export class SkillUseCases {
     }
 
     const nextName = dto.name.trim();
-    const normalizedOldName = NormalizeString(skill.name);
-    const normalizedNextName = NormalizeString(nextName);
 
     await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
       await this.skillRepository.update(
@@ -140,18 +137,6 @@ export class SkillUseCases {
         },
         tx,
       );
-
-      if (normalizedOldName !== normalizedNextName) {
-        await this.skillsSynonymsRepository.update(
-          {
-            masterName: normalizedOldName,
-          },
-          {
-            masterName: normalizedNextName,
-          },
-          tx,
-        );
-      }
     });
 
     return {
