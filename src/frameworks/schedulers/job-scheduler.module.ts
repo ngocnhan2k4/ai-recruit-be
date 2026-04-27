@@ -12,6 +12,8 @@ import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { EmailModule } from "@/frameworks/email-services/email.module";
+import { UserScheduler } from "./user.scheduler";
+import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 
 @Module({
   imports: [
@@ -24,7 +26,14 @@ import { EmailModule } from "@/frameworks/email-services/email.module";
     PostgresDataServicesModule,
     WebSocketModule,
     EmailModule,
+    UserUseCasesModule,
   ],
-  providers: [JobMatchingScheduler, JobIndexWorker, TaskWorker, EmailWorker],
+  providers: [
+    JobMatchingScheduler,
+    JobIndexWorker,
+    TaskWorker,
+    EmailWorker,
+    UserScheduler,
+  ],
 })
 export class JobMatchingSchedulerModule {}

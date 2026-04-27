@@ -142,6 +142,18 @@ export class GetUserResponseDto {
   @Expose()
   onboardingCompleted: boolean;
 
+  @Expose()
+  status: string;
+
+  @Expose()
+  deletionRequestedAt: Date | null;
+
+  @Expose()
+  purgeAfterAt: Date | null;
+
+  @Expose()
+  deletedAt: Date | null;
+
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {
       excludeExtraneousValues: true,

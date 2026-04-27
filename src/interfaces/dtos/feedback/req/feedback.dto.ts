@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
 import {
   IsArray,
+  IsEmail,
   IsEnum,
   IsDate,
   IsOptional,
@@ -16,6 +17,14 @@ export class CreateFeedbackRequestDto {
   @ApiProperty({ description: "Name of the user submitting feedback" })
   @IsString()
   name: string;
+
+  @ApiProperty({
+    description: "Email to receive notification when resolved",
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiProperty({ description: "Subject of the feedback" })
   @IsString()

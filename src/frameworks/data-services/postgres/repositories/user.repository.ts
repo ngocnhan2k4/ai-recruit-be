@@ -28,6 +28,7 @@ import {
   eq,
   count,
   isNotNull,
+  isNull,
   and,
   sql,
   desc,
@@ -39,14 +40,13 @@ import {
   countDistinct,
   asc,
 } from "drizzle-orm";
-import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
 import { differenceInYears, endOfDay, startOfDay } from "date-fns";
 import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { ProviderEnum } from "@/core";
+import { ProviderEnum, UserStatusEnum } from "@/core";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 
@@ -76,6 +76,43 @@ export class UserRepository
         logger: this.logger,
       },
     );
+  }
+
+  async getByField(
+    field: Partial<User>,
+    omit: (keyof User)[] = [],
+  ): Promise<User[]> {
+    const keys = Object.keys(field) as (keyof User)[];
+    if (keys.length === 0) {
+      return [];
+    }
+
+    const conditions = keys.map((key) => {
+      const value = field[key];
+      if (value === null) {
+        return isNull((this._table as any)[key as string]);
+      }
+      return eq((this._table as any)[key as string], value);
+    });
+
+    if (field.status === undefined) {
+      conditions.push(not(eq(users.status, UserStatusEnum.DELETED as any)));
+    }
+
+    const allColumns = Object.keys(this._table) as (keyof User)[];
+    const selectedColumns = allColumns.filter((c) => !omit.includes(c));
+
+    const result = await this.db
+      .select({
+        ...(selectedColumns as string[]).reduce(
+          (acc, col) => ({ ...acc, [col]: (this._table as any)[col] }),
+          {},
+        ),
+      })
+      .from(this._table as any)
+      .where(and(...conditions));
+
+    return result as User[];
   }
 
   async update(
@@ -220,6 +257,19 @@ export class UserRepository
     return rows.length;
   }
 
+  async getUsersPendingDeletionToFinalize(purgeBefore: Date): Promise<User[]> {
+    return this.db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.status, UserStatusEnum.PENDING_DELETION as any),
+          isNotNull(users.purgeAfterAt),
+          lte(users.purgeAfterAt, purgeBefore),
+        ),
+      );
+  }
+
   async getAllWithOffset(
     query: GetUserQuery,
   ): Promise<PaginatedResult<GetAllUserResponse>> {
@@ -240,6 +290,8 @@ export class UserRepository
         phoneVerified: users.phoneVerified,
         roles: users.roles,
         status: users.status,
+        deletionRequestedAt: users.deletionRequestedAt,
+        purgeAfterAt: users.purgeAfterAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
@@ -374,6 +426,8 @@ export class UserRepository
         | "phoneVerified"
         | "roles"
         | "status"
+        | "deletionRequestedAt"
+        | "purgeAfterAt"
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
@@ -423,6 +477,8 @@ export class UserRepository
         phoneVerified: users.phoneVerified,
         roles: users.roles,
         status: users.status,
+        deletionRequestedAt: users.deletionRequestedAt,
+        purgeAfterAt: users.purgeAfterAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
