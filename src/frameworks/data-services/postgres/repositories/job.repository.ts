@@ -49,7 +49,6 @@ import {
   WorkTypeEnum,
   Notification,
   NotificationType,
-  IUserRepository,
   Category,
   User,
   UserInteractionEnum,
@@ -100,7 +99,6 @@ export class JobRepository
     @Inject(ICacheService) private readonly cacheService: ICacheService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
-    private readonly userRepository: IUserRepository,
   ) {
     super(db, jobs);
   }
