@@ -12,8 +12,10 @@ import {
   ProviderEnum,
   Skill,
   User,
+  UserStatusEnum,
 } from "../../core";
 import {
+  IAuthRepository,
   IBloomFilterService,
   IUserRepository,
   IUserExperienceRepository,
@@ -59,6 +61,10 @@ import {
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { ONE_DAY_MS } from "@/common/constants";
+import { addSeconds } from "date-fns";
+import { buildDeletedEmail } from "@/common/utils";
+import { buildDeletedPhone } from "@/common/utils";
+import { buildDeletedFirebaseUid } from "@/common/utils";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -73,11 +79,51 @@ export class UserUseCases implements OnModuleInit {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly authService: IAuthService,
+    private readonly authRepository: IAuthRepository,
     private readonly casbinService: CasbinService,
     private readonly userEducationRepository: IUserEducationRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
   ) {}
+
+  // private isUserAccountAvailable(user: User): boolean {
+  //   const status = String(user.status);
+
+  //   return (
+  //     status !== String(UserStatusEnum.BANNED) &&
+  //     status !== String(UserStatusEnum.PENDING_DELETION) &&
+  //     status !== String(UserStatusEnum.DELETED)
+  //   );
+  // }
+
+  private async finalizeUserDeletion(userId: string): Promise<void> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      return;
+    }
+
+    const finalizedAt = new Date();
+    const timestampMs = finalizedAt.getTime();
+    const deletedUsername = `deleted_${user.id}_${timestampMs}`;
+
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(userId);
+      await this.userRepository.update(
+        { id: userId },
+        {
+          status: UserStatusEnum.DELETED,
+          username: deletedUsername,
+          email: buildDeletedEmail(user, timestampMs),
+          phone: buildDeletedPhone(user, timestampMs),
+          firebaseUid: buildDeletedFirebaseUid(user, timestampMs),
+          deletedAt: finalizedAt,
+          purgeAfterAt: null,
+          updatedAt: finalizedAt,
+        },
+        tx,
+      );
+    });
+  }
 
   async onModuleInit() {
     try {
@@ -96,6 +142,30 @@ export class UserUseCases implements OnModuleInit {
       "[UserUseCases] [refreshBloomFilterScheduled] Starting scheduled Bloom filter refresh...",
     );
     await this.initializeBloomFilter();
+  }
+
+  async cleanUpPendingDeletionAccounts() {
+    const users = await this.userRepository.getUsersPendingDeletionToFinalize(
+      new Date(),
+    );
+
+    const results = await Promise.allSettled(
+      users.map((user) => this.finalizeUserDeletion(user.id)),
+    );
+
+    const failed = results.filter((result) => result.status === "rejected");
+    failed.forEach((result) => {
+      this.logger.error(
+        "[UserUseCases] [finalizePendingDeletionUsers] Failed to finalize pending deletion user",
+        result.reason,
+      );
+    });
+
+    if (users.length > 0) {
+      this.logger.log(
+        `[UserUseCases] [finalizePendingDeletionUsers] Finalized ${users.length - failed.length}/${users.length} pending deletion account(s)`,
+      );
+    }
   }
 
   private async initializeBloomFilter() {
@@ -118,25 +188,25 @@ export class UserUseCases implements OnModuleInit {
     }
   }
 
-  async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
-    const user: User | null = await this.userRepository.get(id);
-    if (!user) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
-    }
-    const userDto = GetUserResponseDto.from({
-      ...user,
-      provider: user.provider as ProviderEnum,
-      roles: user.roles as RoleEnum[],
-    });
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: userDto,
-    };
-  }
+  // async getUserById(id: string): Promise<ApiResponse<GetUserResponseDto>> {
+  //   const user: User | null = await this.userRepository.get(id);
+  //   if (!user || !this.isUserAccountAvailable(user)) {
+  //     throw new NotFoundException({
+  //       message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+  //       code: RESPONSE_CODE.USER_NOT_FOUND,
+  //     });
+  //   }
+  //   const userDto = GetUserResponseDto.from({
+  //     ...user,
+  //     provider: user.provider as ProviderEnum,
+  //     roles: user.roles as RoleEnum[],
+  //   });
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: userDto,
+  //   };
+  // }
 
   async getUserByAccessToken(
     payload: TokenPayload,
@@ -864,16 +934,16 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async adminDeleteUser(userId: string): Promise<ApiResponse<void>> {
-    const result = await this.userRepository.delete({
-      id: userId,
-      deletedAt: null,
-    });
-    if (result.length === 0) {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
+
+    await this.finalizeUserDeletion(userId);
+
     return {
       message: "User deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1042,18 +1112,75 @@ export class UserUseCases implements OnModuleInit {
   }
 
   async deleteUserAccount(userId: string): Promise<ApiResponse<boolean>> {
-    const result = await this.userRepository.delete({
-      id: userId,
-      deletedAt: null,
-    });
-    if (result.length === 0) {
+    const user = await this.userRepository.get(userId);
+    if (!user || String(user.status) === String(UserStatusEnum.DELETED)) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.USER_NOT_FOUND,
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
+
+    if (String(user.status) === String(UserStatusEnum.PENDING_DELETION)) {
+      return {
+        message: "User account deletion already scheduled",
+        code: RESPONSE_CODE.SUCCESS,
+        data: true,
+      };
+    }
+
+    const deletionRequestedAt = new Date();
+    const purgeAfterAt = addSeconds(deletionRequestedAt, 15);
+
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(userId);
+      await this.userRepository.update(
+        { id: userId },
+        {
+          status: UserStatusEnum.PENDING_DELETION,
+          deletionRequestedAt,
+          purgeAfterAt,
+          updatedAt: deletionRequestedAt,
+        },
+        tx,
+      );
+    });
+
     return {
-      message: "User account deleted successfully",
+      message: "User account scheduled for deletion successfully",
+      code: RESPONSE_CODE.SUCCESS,
+      data: true,
+    };
+  }
+
+  async restoreUserAccount(userId: string): Promise<ApiResponse<boolean>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    if (String(user.status) !== String(UserStatusEnum.PENDING_DELETION)) {
+      throw new ConflictException({
+        message: "User account is not pending deletion",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    await this.userRepository.update(
+      { id: userId },
+      {
+        status: UserStatusEnum.ACTIVE,
+        deletionRequestedAt: null,
+        purgeAfterAt: null,
+        deletedAt: null,
+        updatedAt: new Date(),
+      },
+    );
+
+    return {
+      message: "User account restored successfully",
       code: RESPONSE_CODE.SUCCESS,
       data: true,
     };

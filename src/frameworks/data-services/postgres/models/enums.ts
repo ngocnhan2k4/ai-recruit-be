@@ -17,8 +17,10 @@ export const ProviderEnum = pgEnum("provider", [
 ]);
 export const UserStatusEnum = pgEnum("user_status", [
   "active",
-  "inactive",
+  // "inactive",
   "banned",
+  "pending_deletion",
+  "deleted",
 ]);
 
 export const organizationTypeEnum = pgEnum("organization_type", [

@@ -36,6 +36,8 @@ export abstract class IUserRepository extends IGenericRepository<User> {
         | "phoneVerified"
         | "roles"
         | "status"
+        | "deletionRequestedAt"
+        | "purgeAfterAt"
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
@@ -75,4 +77,8 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     deletedAt?: Date,
     tx?: DBDrizzleTransaction,
   ): Promise<number>;
+
+  abstract getUsersPendingDeletionToFinalize(
+    purgeBefore: Date,
+  ): Promise<User[]>;
 }

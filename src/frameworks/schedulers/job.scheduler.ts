@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { JobMatchingUseCases } from "@/use-cases/job-matching/job-matching.use-cases";
-import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
+// import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
 
 @Injectable()
 export class JobMatchingScheduler {
@@ -9,7 +9,7 @@ export class JobMatchingScheduler {
 
   constructor(
     private readonly jobMatchingUseCases: JobMatchingUseCases,
-    private readonly jobSyncUseCases: JobSyncUseCases,
+    // private readonly jobSyncUseCases: JobSyncUseCases,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
@@ -19,9 +19,9 @@ export class JobMatchingScheduler {
   }
 
   // Sync job every day to sync job crawled
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async syncAllActiveJobs(): Promise<void> {
-    this.logger.log("Running scheduled job sync cron job...");
-    await this.jobSyncUseCases.syncAllActiveJobs();
-  }
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // async syncAllActiveJobs(): Promise<void> {
+  //   this.logger.log("Running scheduled job sync cron job...");
+  //   await this.jobSyncUseCases.syncAllActiveJobs();
+  // }
 }
