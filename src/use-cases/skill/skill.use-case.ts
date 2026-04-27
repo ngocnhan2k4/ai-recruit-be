@@ -80,9 +80,10 @@ export class SkillUseCases {
       await this.skillsSynonymsRepository.getSynonymsSkills(skillNames);
 
     const enriched: CrawledSkillDto[] = data.data.map((s) => ({
-      ...s,
-      createdAt: s.createdAt as Date,
+      id: s.id,
+      name: s.name,
       synonym: matches[s.name]?.resolvedName ?? null,
+      createdAt: (s.createdAt as Date).toISOString(),
     }));
 
     return {
@@ -129,15 +130,12 @@ export class SkillUseCases {
 
     const nextName = dto.name.trim();
 
-    await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
-      await this.skillRepository.update(
-        { id },
-        {
-          name: nextName,
-        },
-        tx,
-      );
-    });
+    await this.skillRepository.update(
+      { id },
+      {
+        name: nextName,
+      },
+    );
 
     return {
       message: "Skill name updated successfully",
