@@ -8,15 +8,27 @@ import {
 } from "../models/blog.model";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { type DBDrizzle, type DBDrizzleTransaction } from "../types";
-import { and, asc, count, desc, eq, ilike, sql, SQL } from "drizzle-orm";
-import { comments, skills, userActions, users } from "../models";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  sql,
+  SQL,
+} from "drizzle-orm";
+import { skills, users } from "../models";
 import { PaginatedResult } from "@/common/types";
 import {
-  BlogPostDetail,
+  BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
+  BlogPostTagItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost, NewBlogPostTag, NewComment } from "@/core";
+import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
+import { generateSlug } from "@/common/utils/string";
 
 @Injectable()
 export class BlogRepository
@@ -124,16 +136,14 @@ export class BlogRepository
       conditions.push(eq(blogPosts.categoryId, filters.category));
     }
 
+    if (filters.status) {
+      conditions.push(eq(blogPosts.status, filters.status));
+    }
+
     return conditions.length ? and(...conditions) : undefined;
   }
 
-  private async getPostTags(postId: string): Promise<
-    Array<{
-      name: string;
-      skillId: string | null;
-      tagId: string | null;
-    }>
-  > {
+  async getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]> {
     const _tags = await this.db
       .select({
         skillName: skills.name,
@@ -161,66 +171,34 @@ export class BlogRepository
     const offset = (page - 1) * limit;
     const whereClause = this.buildPostWhere(filters);
 
-    const [rows, totalRows] = await Promise.all([
-      this.db
-        .select({
-          id: blogPosts.id,
-          title: blogPosts.title,
-          slug: blogPosts.slug,
-          summary: blogPosts.summary,
-          thumbnail: blogPosts.thumbnail,
-          category: blogPosts.categoryId,
-          createdAt: blogPosts.createdAt,
-          status: blogPosts.status,
-          likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
-        })
-        .from(blogPosts)
-        .leftJoin(
-          userActions,
-          and(
-            eq(userActions.objectId, blogPosts.id),
-            eq(userActions.objectType, "BLOG"),
-          ),
-        )
-        .where(whereClause)
-        .groupBy(
-          blogPosts.id,
-          blogPosts.title,
-          blogPosts.slug,
-          blogPosts.summary,
-          blogPosts.thumbnail,
-          blogPosts.categoryId,
-          blogPosts.createdAt,
-          blogPosts.status,
-        )
-        .orderBy(desc(blogPosts.createdAt))
-        .limit(limit)
-        .offset(offset),
-      this.db
-        .select({ total: count(blogPosts.id) })
-        .from(blogPosts)
-        .where(whereClause),
-    ]);
+    const rowsQuery = this.db
+      .select({
+        id: blogPosts.id,
+        title: blogPosts.title,
+        slug: blogPosts.slug,
+        summary: blogPosts.summary,
+        thumbnail: blogPosts.thumbnail,
+        category: blogPosts.categoryId,
+        createdAt: blogPosts.createdAt,
+        status: sql<BlogPostStatus>`${blogPosts.status}`,
+      })
+      .from(blogPosts)
+      .where(whereClause)
+      .orderBy(desc(blogPosts.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const totalQuery = this.db
+      .select({ total: count(blogPosts.id) })
+      .from(blogPosts)
+      .where(whereClause);
+
+    const [rows, totalRows] = await Promise.all([rowsQuery, totalQuery]);
 
     const total = Number(totalRows[0]?.total ?? 0);
 
-    const dataWithTags = await Promise.all(
-      rows.map(async (row) => ({
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        summary: row.summary,
-        thumbnail: row.thumbnail,
-        category: row.category,
-        createdAt: row.createdAt,
-        status: row.status,
-        likes: Number(row.likes ?? 0),
-        tags: await this.getPostTags(row.id),
-      })),
-    );
-
     return {
-      data: dataWithTags,
+      data: rows,
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -260,28 +238,10 @@ export class BlogRepository
           thumbnail: blogPosts.thumbnail,
           category: blogPosts.categoryId,
           createdAt: blogPosts.createdAt,
-          status: blogPosts.status,
-          likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
+          status: sql<BlogPostStatus>`${blogPosts.status}`,
         })
         .from(blogPosts)
-        .leftJoin(
-          userActions,
-          and(
-            eq(userActions.objectId, blogPosts.id),
-            eq(userActions.objectType, "BLOG"),
-          ),
-        )
         .where(whereClause)
-        .groupBy(
-          blogPosts.id,
-          blogPosts.title,
-          blogPosts.slug,
-          blogPosts.summary,
-          blogPosts.thumbnail,
-          blogPosts.categoryId,
-          blogPosts.createdAt,
-          blogPosts.status,
-        )
         .orderBy(desc(blogPosts.createdAt))
         .limit(limit)
         .offset(offset),
@@ -293,23 +253,8 @@ export class BlogRepository
 
     const total = Number(totalRows[0]?.total ?? 0);
 
-    const dataWithTags = await Promise.all(
-      rows.map(async (row) => ({
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        summary: row.summary,
-        thumbnail: row.thumbnail,
-        category: row.category,
-        createdAt: row.createdAt,
-        status: row.status,
-        likes: Number(row.likes ?? 0),
-        tags: await this.getPostTags(row.id),
-      })),
-    );
-
     return {
-      data: dataWithTags,
+      data: rows,
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -317,10 +262,46 @@ export class BlogRepository
     };
   }
 
-  async getPostDetailBySlug(
-    slug: string,
-    userId?: string,
-  ): Promise<BlogPostDetail | null> {
+  async getPostsTags(
+    postIds: string[],
+  ): Promise<Record<string, BlogPostTagItem[]>> {
+    if (!postIds || postIds.length === 0) return {};
+
+    const _tags = await this.db
+      .select({
+        postId: blogPostTags.postId,
+        skillName: skills.name,
+        tagName: tags.name,
+        skillId: blogPostTags.skillId,
+        tagId: blogPostTags.tagId,
+      })
+      .from(blogPostTags)
+      .leftJoin(skills, eq(skills.id, blogPostTags.skillId))
+      .leftJoin(tags, eq(tags.id, blogPostTags.tagId))
+      .where(inArray(blogPostTags.postId, postIds));
+
+    return _tags.reduce(
+      (acc, tag) => {
+        if (!acc[tag.postId]) {
+          acc[tag.postId] = [];
+        }
+
+        acc[tag.postId].push({
+          name: tag.skillName || tag.tagName || "",
+          skillId: tag.skillId,
+          tagId: tag.tagId,
+        });
+
+        return acc;
+      },
+      {} as Record<
+        string,
+        Array<{ name: string; skillId: string | null; tagId: string | null }>
+      >,
+    );
+  }
+
+  async getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null> {
     const [post] = await this.db
       .select({
         id: blogPosts.id,
@@ -330,24 +311,16 @@ export class BlogRepository
         thumbnail: blogPosts.thumbnail,
         content: blogPosts.content,
         category: blogPosts.categoryId,
-        status: blogPosts.status,
+        status: sql<BlogPostStatus>`${blogPosts.status}`,
         viewCount: blogPosts.viewCount,
         createdAt: blogPosts.createdAt,
         authorId: users.id,
         authorUsername: users.username,
         authorName: users.name,
         authorAvatarUrl: users.avatarUrl,
-        likes: sql<number>`COUNT(*) FILTER (WHERE ${userActions.type} = 'LIKE')`,
       })
       .from(blogPosts)
       .innerJoin(users, eq(users.id, blogPosts.authorId))
-      .leftJoin(
-        userActions,
-        and(
-          eq(userActions.objectId, blogPosts.id),
-          eq(userActions.objectType, "BLOG"),
-        ),
-      )
       .where(eq(blogPosts.slug, slug))
       .groupBy(
         blogPosts.id,
@@ -369,34 +342,6 @@ export class BlogRepository
 
     if (!post) return null;
 
-    let isLiked = false;
-    let isSaved = false;
-
-    if (userId) {
-      const [result] = await this.db
-        .select({
-          isLiked: sql<boolean>`
-      BOOL_OR(${userActions.type} = 'LIKE')
-    `,
-          isSaved: sql<boolean>`
-      BOOL_OR(${userActions.type} = 'SAVE')
-    `,
-        })
-        .from(userActions)
-        .where(
-          and(
-            eq(userActions.objectId, post.id),
-            eq(userActions.objectType, "BLOG"),
-            eq(userActions.userId, userId),
-          ),
-        );
-
-      isLiked = result?.isLiked ?? false;
-      isSaved = result?.isSaved ?? false;
-    }
-
-    const tags = await this.getPostTags(post.id);
-
     return {
       id: post.id,
       title: post.title,
@@ -414,10 +359,6 @@ export class BlogRepository
         name: post.authorName,
         avatarUrl: post.authorAvatarUrl,
       },
-      likes: Number(post.likes ?? 0),
-      isSaved,
-      isLiked,
-      tags,
     };
   }
 
@@ -432,8 +373,9 @@ export class BlogRepository
   }
 
   async createPost(data: NewBlogPost): Promise<BlogPost> {
-    return this.db.transaction(async (tx) => {
-      const [created] = await tx.insert(blogPosts).values(data).returning();
+    return this.executeWithTransaction(async () => {
+      const db = this.getExecutor();
+      const [created] = await db.insert(blogPosts).values(data).returning();
 
       const normalizedTags = (data.tags ?? []).filter(
         (item) => item.tagId || item.skillId,
@@ -446,7 +388,7 @@ export class BlogRepository
           skillId: item.skillId ?? null,
         }));
 
-        await tx.insert(blogPostTags).values(tagRows);
+        await db.insert(blogPostTags).values(tagRows);
       }
 
       return created as BlogPost;
@@ -465,8 +407,9 @@ export class BlogRepository
     },
     authorId: string,
     postId?: string,
+    tx?: DBDrizzleTransaction,
   ): Promise<BlogPost> {
-    return this.db.transaction(async (tx) => {
+    return (tx ?? this.db).transaction(async (tx) => {
       if (postId) {
         const updateData: Record<string, unknown> = {
           status: "DRAFT",
@@ -521,7 +464,7 @@ export class BlogRepository
         return updated as BlogPost;
       } else {
         const categoryId = await this.resolveDraftCategoryId(tx, data.category);
-        const slug2 = data.slug ?? this.generateSlug(data.title);
+        const slug2 = data.slug ?? generateSlug(data.title || "draft");
 
         const [created] = await tx
           .insert(blogPosts)
@@ -577,83 +520,10 @@ export class BlogRepository
     return fallbackCategory.id;
   }
 
-  private generateSlug(title?: string): string {
-    const normalizedTitle = (title ?? "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-
-    const baseSlug = normalizedTitle || "draft";
-    const uniqueTail = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
-    return `${baseSlug}-${uniqueTail}`;
-  }
-
-  async toggleLike(postId: string, userId: string): Promise<void> {
-    const [likeAction] = await this.db
-      .select()
-      .from(userActions)
-      .where(
-        and(
-          eq(userActions.objectId, postId),
-          eq(userActions.userId, userId),
-          eq(userActions.type, "LIKE"),
-        ),
-      );
-
-    if (likeAction) {
-      await this.db
-        .delete(userActions)
-        .where(eq(userActions.id, likeAction.id));
-    } else {
-      await this.db.insert(userActions).values({
-        objectId: postId,
-        objectType: "BLOG",
-        userId,
-        type: "LIKE",
-      });
-    }
-  }
-
-  async toggleSave(postId: string, userId: string): Promise<void> {
-    const [saveAction] = await this.db
-      .select()
-      .from(userActions)
-      .where(
-        and(
-          eq(userActions.objectId, postId),
-          eq(userActions.userId, userId),
-          eq(userActions.type, "SAVE"),
-        ),
-      );
-
-    if (saveAction) {
-      await this.db
-        .delete(userActions)
-        .where(eq(userActions.id, saveAction.id));
-    } else {
-      await this.db.insert(userActions).values({
-        objectId: postId,
-        userId,
-        type: "SAVE",
-        objectType: "BLOG",
-      });
-    }
-  }
-
   async incrementViewCount(postId: string): Promise<void> {
     await this.db
       .update(blogPosts)
       .set({ viewCount: sql`${blogPosts.viewCount} + 1` })
       .where(eq(blogPosts.id, postId));
-  }
-
-  async comment(data: NewComment): Promise<void> {
-    await this.db.insert(comments).values({
-      ...data,
-      objectType: "BLOG",
-    });
   }
 }
