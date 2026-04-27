@@ -33,6 +33,8 @@ import {
   IFeatureRepository,
   IUserFeatureUsageRepository,
   ITaskRepository,
+  IUserActionRepository,
+  ICommentRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -81,6 +83,8 @@ import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.reposit
 import { TaskRepository } from "./repositories/task.repository";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { BlogRepository } from "./repositories/blog.repository";
+import { UserActionRepository } from "./repositories/user-action.repository";
+import { CommentRepository } from "./repositories/comment.repository";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 
 @Global()
@@ -293,6 +297,14 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
       provide: IBlogRepository,
       useClass: BlogRepository,
     },
+    {
+      provide: IUserActionRepository,
+      useClass: UserActionRepository,
+    },
+    {
+      provide: ICommentRepository,
+      useClass: CommentRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -334,6 +346,8 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
     IUserFeatureUsageRepository,
     ITaskRepository,
     IBlogRepository,
+    IUserActionRepository,
+    ICommentRepository,
   ],
 })
 export class PostgresDataServicesModule {}
