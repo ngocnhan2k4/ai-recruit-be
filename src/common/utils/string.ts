@@ -41,25 +41,6 @@ export const generateSlug = (text: string, time: Date = new Date()): string => {
   return `${baseSlug}-${shortTime}`;
 };
 
-export const generateUniqueSlug = (text: string): string => {
-  if (!text) {
-    return "";
-  }
-
-  const baseSlug = text
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-
-  const uniqueTail = Math.random().toString(36).substring(2, 8);
-  return `${baseSlug}-${uniqueTail}`;
-};
-
 export const getJobStatus = (status: JobStatusEnum) => {
   switch (status) {
     case JobStatusEnum.ACTIVE:
