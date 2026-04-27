@@ -5,7 +5,7 @@ import {
   SkillFilter,
   SkillReviewStatus,
 } from "@/core";
-import { NormalizeString } from "@/common/utils";
+import { NormalizeString, convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
@@ -17,7 +17,7 @@ import {
   userOnboardings,
   userSkills,
 } from "../models";
-import { jobs } from "../models/job.model";
+import { jobs, jobProvinces } from "../models/job.model";
 import { PaginatedResult } from "@/common/types";
 import {
   count,
@@ -30,6 +30,7 @@ import {
   eq,
   inArray,
   gte,
+  lte,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -234,10 +235,28 @@ export class SkillRepository
   }
 
   async getTopDemandedSkills(
-    months: number,
     limit: number,
+    fromDate?: Date,
+    toDate?: Date,
+    provinceId?: string,
   ): Promise<{ name: string; jobCount: number }[]> {
-    const fromDate = sql`NOW() - (${months} || ' months')::interval`;
+    const conditions: SQL[] = [eq(skills.isApproved, true)];
+
+    if (fromDate) {
+      conditions.push(gte(jobs.datePosted, convertDateToStr(fromDate)));
+    }
+    if (toDate) {
+      conditions.push(lte(jobs.datePosted, convertDateToStr(toDate)));
+    }
+    if (provinceId) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp
+          WHERE jp.job_id = ${jobs.id}
+          AND jp.province_id = ${provinceId}
+        )`,
+      );
+    }
 
     const result = await this.db
       .select({
@@ -247,12 +266,7 @@ export class SkillRepository
       .from(skills)
       .innerJoin(jobSkills, eq(skills.id, jobSkills.skillId))
       .innerJoin(jobs, eq(jobs.id, jobSkills.jobId))
-      .where(
-        and(
-          eq(skills.isApproved, true),
-          gte(jobs.datePosted, sql`${fromDate}`),
-        ),
-      )
+      .where(and(...conditions))
       .groupBy(skills.name)
       .orderBy(desc(count(jobSkills.jobId)))
       .limit(limit);

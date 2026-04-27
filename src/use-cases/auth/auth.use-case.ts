@@ -7,6 +7,7 @@ import {
   ProviderEnum,
   SubscriptionEnum,
   User,
+  UserStatusEnum,
   UserSubscriptionStatusEnum,
 } from "@/core";
 import { IAuthRepository, IUserRepository } from "@/core";
@@ -17,14 +18,29 @@ import { ConfigService } from "@nestjs/config";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { TokenPayload } from "@/common/types";
 import { generateUsername } from "@/common/utils";
-import { normalizeProvider } from "@/common/utils/firebase";
+import {
+  getFirebaseProviderKey,
+  normalizeProvider,
+} from "@/common/utils/firebase";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
+import { buildDeletedEmail } from "@/common/utils";
+import { buildDeletedPhone } from "@/common/utils";
+import { buildDeletedFirebaseUid } from "@/common/utils";
 
 @Injectable()
 export class AuthUseCases {
   private readonly logger = new Logger(AuthUseCases.name);
+  private readonly blockedLoginStatuses = new Set<UserStatusEnum>([
+    UserStatusEnum.BANNED,
+    UserStatusEnum.DELETED,
+  ]);
+  private readonly blockedRefreshStatuses = new Set<UserStatusEnum>([
+    UserStatusEnum.BANNED,
+    UserStatusEnum.PENDING_DELETION,
+    UserStatusEnum.DELETED,
+  ]);
   constructor(
     private readonly authService: IAuthService,
     private readonly authRepository: IAuthRepository,
@@ -35,6 +51,135 @@ export class AuthUseCases {
     private readonly configService: ConfigService,
     private readonly casbinService: CasbinService,
   ) {}
+
+  private assertUserCanLogIn(user: User): void {
+    if (this.blockedLoginStatuses.has(String(user.status) as UserStatusEnum)) {
+      throw new UnauthorizedException({
+        message: "User account is not available for authentication",
+        code: RESPONSE_CODE.UNAUTHORIZED,
+      });
+    }
+  }
+
+  private assertUserCanRefresh(user: User): void {
+    if (
+      this.blockedRefreshStatuses.has(String(user.status) as UserStatusEnum)
+    ) {
+      throw new UnauthorizedException({
+        message: "User account is not available for authentication",
+        code: RESPONSE_CODE.UNAUTHORIZED,
+      });
+    }
+  }
+
+  private async finalizeExpiredPendingDeletionIfNeeded(
+    user: User,
+  ): Promise<User | null> {
+    if (String(user.status) !== String(UserStatusEnum.PENDING_DELETION)) {
+      return user;
+    }
+
+    if (!user.purgeAfterAt) {
+      return user;
+    }
+
+    if (new Date(user.purgeAfterAt).getTime() > Date.now()) {
+      return user;
+    }
+
+    const finalizedAt = new Date();
+    const timestampMs = finalizedAt.getTime();
+    const deletedUsername = `deleted_${user.id}_${timestampMs}`;
+    await this.userRepository.executeWithTransaction(async (tx) => {
+      await this.authRepository.revokeAllForUser(user.id);
+      await this.userRepository.update(
+        { id: user.id },
+        {
+          status: UserStatusEnum.DELETED,
+          username: deletedUsername,
+          email: buildDeletedEmail(user, timestampMs),
+          phone: buildDeletedPhone(user, timestampMs),
+          firebaseUid: buildDeletedFirebaseUid(user, timestampMs),
+          deletedAt: finalizedAt,
+          purgeAfterAt: null,
+          updatedAt: finalizedAt,
+        },
+        tx,
+      );
+    });
+
+    return null;
+  }
+
+  private async createUserFromIdentity(params: {
+    decode: {
+      uid: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+      provider_id?: string;
+      roles?: RoleEnum[];
+      emailVerified?: boolean;
+    };
+    currentProvider: ProviderEnum;
+    resolvedProviderUserId?: string;
+    providerEmail?: string | null;
+    providerName?: string | null;
+    providerPicture?: string | null;
+  }): Promise<User> {
+    const {
+      decode,
+      currentProvider,
+      resolvedProviderUserId,
+      providerEmail,
+      providerName,
+      providerPicture,
+    } = params;
+
+    const newUser: NewUser = {
+      username: generateUsername(decode.name || decode.email || "user"),
+      email: decode.email ?? null,
+      avatarUrl: decode.picture ?? null,
+      firebaseUid: decode.uid,
+      roles: decode.roles || [RoleEnum.USER],
+      name: decode.name ?? "",
+      gender: null,
+      dob: null,
+      phone: null,
+      provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
+      emailVerified: decode.emailVerified,
+    };
+
+    const user = await this.userRepository.executeWithTransaction(
+      async (tx) => {
+        const _user = await this.createUserWithSubscription(newUser, tx);
+        await this.userRepository.addUserIdentity(
+          {
+            userId: _user.id,
+            provider: currentProvider,
+            providerUserId: resolvedProviderUserId,
+            providerEmail,
+            providerName,
+            providerPicture,
+          },
+          tx,
+        );
+
+        return _user;
+      },
+    );
+
+    await this.authService.updateUserClaims(decode.uid, {
+      roles: decode.roles as RoleEnum[],
+    });
+
+    for (const role of decode.roles || [RoleEnum.USER]) {
+      await this.casbinService.addRoleForUser(user.id, role);
+    }
+    await this.casbinService.savePolicy();
+
+    return user;
+  }
 
   async logIn(idToken: string): Promise<
     ApiResponse<{
@@ -71,15 +216,7 @@ export class AuthUseCases {
     const firebaseIdentities = decode.identities as
       | Record<string, string[] | undefined>
       | undefined;
-    const firebaseProviderKey =
-      decode.provider_id ||
-      (currentProvider === ProviderEnum.GOOGLE
-        ? "google.com"
-        : currentProvider === ProviderEnum.FACEBOOK
-          ? "facebook.com"
-          : currentProvider === ProviderEnum.GITHUB
-            ? "github.com"
-            : "password");
+    const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
     const providerUserId = firebaseIdentities?.[firebaseProviderKey]?.[0];
 
     let providerEmail: string | null | undefined;
@@ -104,47 +241,39 @@ export class AuthUseCases {
         })
       )[0] || null;
     if (!user) {
-      const newUser: NewUser = {
-        username: generateUsername(decode.name || decode.email || "user"), // [TODO]: check exist username here
-        email: decode.email ?? null,
-        avatarUrl: decode.picture ?? null,
-        firebaseUid: decode.uid,
-        roles: decode.roles || [RoleEnum.USER],
-        name: decode.name ?? "",
-        gender: null,
-        dob: null,
-        phone: null,
-        provider: normalizeProvider(decode.provider_id || ProviderEnum.EMAIL),
-        emailVerified: decode.emailVerified,
-      };
-      user = await this.userRepository.executeWithTransaction(async (tx) => {
-        const _user = await this.createUserWithSubscription(newUser, tx);
-        await this.userRepository.addUserIdentity(
-          {
-            userId: _user.id,
-            provider: currentProvider,
-            providerUserId: resolvedProviderUserId,
-            providerEmail,
-            providerName,
-            providerPicture,
-          },
-          tx,
-        );
-
-        return _user;
+      user = await this.createUserFromIdentity({
+        decode,
+        currentProvider,
+        resolvedProviderUserId,
+        providerEmail,
+        providerName,
+        providerPicture,
       });
-
-      // Set custom user claims in Firebases
-      await this.authService.updateUserClaims(decode.uid, {
-        roles: decode.roles as RoleEnum[],
-      });
-
-      // Assign roles in Casbin (ptype "g")
-      for (const role of decode.roles || [RoleEnum.USER]) {
-        await this.casbinService.addRoleForUser(user.id, role);
-      }
-      await this.casbinService.savePolicy();
     } else {
+      const userAfterFinalize =
+        await this.finalizeExpiredPendingDeletionIfNeeded(user);
+
+      if (!userAfterFinalize) {
+        user = await this.createUserFromIdentity({
+          decode,
+          currentProvider,
+          resolvedProviderUserId,
+          providerEmail,
+          providerName,
+          providerPicture,
+        });
+      } else {
+        user = userAfterFinalize;
+      }
+
+      if (!user) {
+        throw new UnauthorizedException({
+          message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+          code: RESPONSE_CODE.INVALID_CREDENTIALS,
+        });
+      }
+
+      this.assertUserCanLogIn(user);
       await this.userRepository.addUserIdentity({
         userId: user.id,
         provider: currentProvider,
@@ -155,24 +284,18 @@ export class AuthUseCases {
       });
     }
 
-    const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
-    const otherProviders = loginMethods
-      .filter((m) => m.provider !== user.provider)
-      .map((m) => ({
-        provider: m.provider as any,
-        createdAt: m.createdAt,
-        providerUserId: m.providerUserId ?? null,
-        providerEmail: m.providerEmail ?? null,
-        providerName: m.providerName ?? null,
-        providerPicture: m.providerPicture ?? null,
-      }));
+    if (!user) {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    }
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
       roles: user.roles as RoleEnum[],
-      otherProviders,
     });
 
     // const customToken = await this.authService.customTokenWithClaims(
@@ -183,8 +306,14 @@ export class AuthUseCases {
     // );
 
     return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
+      message:
+        String(user.status) === String(UserStatusEnum.PENDING_DELETION)
+          ? RESPONSE_MESSAGE.ACCOUNT_PENDING_DELETION
+          : RESPONSE_MESSAGE.SUCCESS,
+      code:
+        String(user.status) === String(UserStatusEnum.PENDING_DELETION)
+          ? RESPONSE_CODE.ACCOUNT_PENDING_DELETION
+          : RESPONSE_CODE.SUCCESS,
       data: {
         tokens: { accessToken, refreshToken },
         user: userDto,
@@ -228,7 +357,14 @@ export class AuthUseCases {
       });
     }
     const user = await this.userRepository.get(storedToken.userId);
-    const { accessToken, refreshToken } = await this.issueNewTokens(user!);
+    if (!user) {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    }
+    this.assertUserCanRefresh(user);
+    const { accessToken, refreshToken } = await this.issueNewTokens(user);
     await this.authRepository.revoke(oldRefreshToken);
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

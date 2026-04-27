@@ -148,13 +148,16 @@ export class SkillUseCases {
   async getTopDemandedSkills(
     query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
-    const months = query.months ?? 3;
     const limit = query.limit ?? 10;
+    const { fromDate, toDate, provinceId } = query;
 
-    const data = await this.skillRepository.getTopDemandedSkills(months, limit);
-    this.logger.log(
-      `Fetched top ${limit} demanded skills in last ${months} months`,
+    const data = await this.skillRepository.getTopDemandedSkills(
+      limit,
+      fromDate,
+      toDate,
+      provinceId,
     );
+    this.logger.log(`Fetched top ${limit} demanded skills`);
 
     return {
       message: "Top demanded skills fetched successfully",
