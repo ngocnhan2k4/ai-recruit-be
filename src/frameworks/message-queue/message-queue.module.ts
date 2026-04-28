@@ -40,6 +40,9 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     BullModule.registerQueue({
       name: SCORE_CV_QUEUE,
     }),
+    BullModule.registerFlowProducer({
+      name: "cv_score_flow",
+    }),
   ],
   providers: [
     MessageQueueService,

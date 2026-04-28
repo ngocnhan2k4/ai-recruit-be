@@ -11,6 +11,7 @@ import {
   ICvRepository,
   IUserRepository,
   INotificationRepository,
+  ISearchService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -72,6 +73,7 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS, TASK_EVENT } from "@/common/constants";
+import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
 import { CvUseCases } from "@/use-cases/cv/cv.use-case";
@@ -90,7 +92,37 @@ export class JobUseCases {
     private readonly cvRepository: ICvRepository,
     private readonly cvUseCases: CvUseCases,
     private readonly featureService: IFeatureService,
+    private readonly searchService: ISearchService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private async enqueueScoreCv(params: {
+    applyId: string;
+    jobId: string;
+    cvId: string;
+  }): Promise<void> {
+    const cvIndex = this.configService.get<string>("ELASTICSEARCH_INDEX_CVS")!;
+    const isIndexed = await this.searchService.existsDocument(
+      cvIndex,
+      params.cvId,
+    );
+
+    if (isIndexed) {
+      this.logger.log("index found");
+
+      await this.messageQueueService.addScoreCv(
+        TASK_EVENT.SCORE_CV_APPLY,
+        params,
+      );
+    } else {
+      this.logger.log("index not found");
+
+      await this.messageQueueService.addCvThenScore(
+        { cvId: params.cvId },
+        params,
+      );
+    }
+  }
 
   async getJobs(
     filters: JobFilters,
@@ -673,7 +705,7 @@ export class JobUseCases {
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
     if (applyJobDto.cvId) {
-      await this.messageQueueService.addScoreCv(TASK_EVENT.SCORE_CV_APPLY, {
+      await this.enqueueScoreCv({
         applyId: application.id,
         jobId: applyJobDto.jobId,
         cvId: applyJobDto.cvId,
@@ -762,7 +794,7 @@ export class JobUseCases {
       application = repoResult;
     }
     if (updateApplyJobDto.cvId && application.jobId) {
-      await this.messageQueueService.addScoreCv(TASK_EVENT.SCORE_CV_APPLY, {
+      await this.enqueueScoreCv({
         applyId,
         jobId: application.jobId,
         cvId: updateApplyJobDto.cvId,

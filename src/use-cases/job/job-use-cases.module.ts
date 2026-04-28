@@ -5,6 +5,8 @@ import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.mod
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
 import { FeatureModule } from "@/services";
 import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
+import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
+import { ConfigModule } from "@nestjs/config";
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
     PostgresDataServicesModule,
     FeatureModule,
     CvUseCasesModule,
+    ElasticsearchModule,
+    ConfigModule,
   ],
   providers: [JobUseCases],
   exports: [JobUseCases],
