@@ -69,7 +69,6 @@ export interface ApplyJobResponse {
   status: string;
   answers?: JobAnswer[];
   matchingScore?: string | number | null;
-  matchingRank?: number | null;
   matchingCriteria?: Record<string, any> | null;
   scoredAt?: Date | null;
   createdAt?: Date;

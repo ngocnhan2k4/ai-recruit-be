@@ -18,4 +18,9 @@ export abstract class IMessageQueueService {
    * Add an item to the CV extraction/index queue.
    */
   abstract addCv(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Add an item to the CV scoring queue.
+   */
+  abstract addScoreCv(name: string, data: any, opts?: any): Promise<void>;
 }

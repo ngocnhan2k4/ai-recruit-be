@@ -673,7 +673,7 @@ export class JobUseCases {
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
     if (applyJobDto.cvId) {
-      await this.messageQueueService.addTask(TASK_EVENT.SCORE_CV_APPLY, {
+      await this.messageQueueService.addScoreCv(TASK_EVENT.SCORE_CV_APPLY, {
         applyId: application.id,
         jobId: applyJobDto.jobId,
         cvId: applyJobDto.cvId,
@@ -762,7 +762,7 @@ export class JobUseCases {
       application = repoResult;
     }
     if (updateApplyJobDto.cvId && application.jobId) {
-      await this.messageQueueService.addTask(TASK_EVENT.SCORE_CV_APPLY, {
+      await this.messageQueueService.addScoreCv(TASK_EVENT.SCORE_CV_APPLY, {
         applyId,
         jobId: application.jobId,
         cvId: updateApplyJobDto.cvId,

@@ -6,6 +6,7 @@ import {
   CV_INDEX_QUEUE,
   EMAIL_QUEUE,
   JOB_INDEX_QUEUE,
+  SCORE_CV_QUEUE,
   TASK_QUEUE,
 } from "@/common/constants";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -35,6 +36,9 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     }),
     BullModule.registerQueue({
       name: CV_INDEX_QUEUE,
+    }),
+    BullModule.registerQueue({
+      name: SCORE_CV_QUEUE,
     }),
   ],
   providers: [

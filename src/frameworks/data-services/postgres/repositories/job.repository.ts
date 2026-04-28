@@ -1397,7 +1397,6 @@ export class JobRepository
         status: applyJobs.status,
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
-        matchingRank: applyJobs.matchingRank,
         matchingCriteria: applyJobs.matchingCriteria,
         scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
@@ -1429,7 +1428,6 @@ export class JobRepository
         status: applyJobs.status,
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
-        matchingRank: applyJobs.matchingRank,
         matchingCriteria: applyJobs.matchingCriteria,
         scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
@@ -1463,7 +1461,6 @@ export class JobRepository
       status: item.status,
       answers: item.answers,
       matchingScore: item.matchingScore,
-      matchingRank: item.matchingRank,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       user: item.user,
@@ -2423,7 +2420,7 @@ export class JobRepository
     score: number,
     criteria: Record<string, any>,
   ): Promise<void> {
-    await this.db
+    await this.getExecutor()
       .update(applyJobs)
       .set({
         matchingScore: score.toFixed(2),
@@ -2431,25 +2428,5 @@ export class JobRepository
         scoredAt: new Date(),
       })
       .where(eq(applyJobs.id, applyId));
-  }
-
-  async recalculateRanks(jobId: string): Promise<void> {
-    await this.db.execute(
-      sql`
-        UPDATE apply_jobs
-        SET matching_rank = ranked.rank
-        FROM (
-          SELECT id,
-                 RANK() OVER (
-                   PARTITION BY job_id
-                   ORDER BY matching_score DESC NULLS LAST
-                 ) AS rank
-          FROM apply_jobs
-          WHERE job_id = ${jobId}
-            AND deleted_at IS NULL
-        ) ranked
-        WHERE apply_jobs.id = ranked.id
-      `,
-    );
   }
 }

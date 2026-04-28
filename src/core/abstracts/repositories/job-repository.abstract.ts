@@ -283,6 +283,4 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     score: number,
     criteria: Record<string, any>,
   ): Promise<void>;
-
-  abstract recalculateRanks(jobId: string): Promise<void>;
 }
