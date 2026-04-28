@@ -30,6 +30,7 @@ import {
   AdminJobSyncController,
   JobMatchingController,
   BlogController,
+  AdminBlogController,
   CommentController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
@@ -204,6 +205,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
     SkillSynonymController,
     AdminDeploymentController,
     BlogController,
+    AdminBlogController,
     CommentController,
   ],
   providers: [

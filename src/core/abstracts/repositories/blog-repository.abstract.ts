@@ -34,6 +34,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   ): Promise<Record<string, BlogPostTagItem[]>>;
 
   abstract getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null>;
+  abstract getPostBaseById(id: string): Promise<BlogPostDetailBase | null>;
 
   abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;
 

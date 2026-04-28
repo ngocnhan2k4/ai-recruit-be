@@ -5,6 +5,7 @@ export interface BlogPostFilters extends GeneralQuery {
   category?: string;
   keyword?: string;
   status?: BlogPostStatus;
+  excludeStatus?: BlogPostStatus;
 }
 
 export interface BlogPostListItem {

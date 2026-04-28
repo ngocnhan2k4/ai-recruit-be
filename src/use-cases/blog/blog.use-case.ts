@@ -142,6 +142,64 @@ export class BlogUseCases {
     }));
   }
 
+  async getAdminBlogs(
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const limit = Math.min(query.limit ?? 10, 50);
+    const page = Math.max(query.page ?? 1, 1);
+    const { data, pagination } = await this.blogRepository.getPosts({
+      ...query,
+      limit,
+      page,
+      keyword: query.keyword,
+      category: query.category,
+      excludeStatus: BlogPostStatus.DRAFT,
+    });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
+    };
+  }
+
+  async getAdminBlogById(id: string): Promise<ApiResponse<any>> {
+    await this.blogService.checkNotDraft(id);
+
+    const post = await this.blogRepository.getPostBaseById(id);
+
+    if (!post) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const [tags, likes] = await Promise.all([
+      this.blogRepository.getPostTagsByPostId(post.id),
+      this.userActionRepository.getActionCount(
+        post.id,
+        ObjectType.BLOG,
+        UserActionType.LIKE,
+      ),
+    ]);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        ...post,
+        likes,
+        tags,
+      },
+    };
+  }
+
   async getTopBlogs(): Promise<
     ApiResponse<PaginatedResult<BlogPostListItemDto>>
   > {
@@ -477,14 +535,7 @@ export class BlogUseCases {
     postId: string,
     status: BlogPostStatus.PUBLISHED | BlogPostStatus.REJECTED,
   ): Promise<ApiResponse<{ id: string }>> {
-    const post = await this.blogRepository.get(postId);
-
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-      });
-    }
+    await this.blogService.checkNotDraft(postId);
 
     await this.blogRepository.update(
       { id: postId },

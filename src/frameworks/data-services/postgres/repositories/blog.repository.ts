@@ -18,6 +18,7 @@ import {
   inArray,
   sql,
   SQL,
+  ne,
 } from "drizzle-orm";
 import { skills, users } from "../models";
 import { PaginatedResult } from "@/common/types";
@@ -138,6 +139,10 @@ export class BlogRepository
 
     if (filters.status) {
       conditions.push(eq(blogPosts.status, filters.status));
+    }
+
+    if (filters.excludeStatus) {
+      conditions.push(ne(blogPosts.status, filters.excludeStatus));
     }
 
     return conditions.length ? and(...conditions) : undefined;
@@ -322,6 +327,67 @@ export class BlogRepository
       .from(blogPosts)
       .innerJoin(users, eq(users.id, blogPosts.authorId))
       .where(eq(blogPosts.slug, slug))
+      .groupBy(
+        blogPosts.id,
+        blogPosts.title,
+        blogPosts.slug,
+        blogPosts.summary,
+        blogPosts.thumbnail,
+        blogPosts.content,
+        blogPosts.categoryId,
+        blogPosts.status,
+        blogPosts.viewCount,
+        blogPosts.createdAt,
+        users.id,
+        users.username,
+        users.name,
+        users.avatarUrl,
+      )
+      .limit(1);
+
+    if (!post) return null;
+
+    return {
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      summary: post.summary,
+      thumbnail: post.thumbnail,
+      content: post.content,
+      category: post.category,
+      status: post.status,
+      viewCount: post.viewCount,
+      createdAt: post.createdAt,
+      author: {
+        id: post.authorId,
+        username: post.authorUsername,
+        name: post.authorName,
+        avatarUrl: post.authorAvatarUrl,
+      },
+    };
+  }
+
+  async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
+    const [post] = await this.db
+      .select({
+        id: blogPosts.id,
+        title: blogPosts.title,
+        slug: blogPosts.slug,
+        summary: blogPosts.summary,
+        thumbnail: blogPosts.thumbnail,
+        content: blogPosts.content,
+        category: blogPosts.categoryId,
+        status: sql<BlogPostStatus>`${blogPosts.status}`,
+        viewCount: blogPosts.viewCount,
+        createdAt: blogPosts.createdAt,
+        authorId: users.id,
+        authorUsername: users.username,
+        authorName: users.name,
+        authorAvatarUrl: users.avatarUrl,
+      })
+      .from(blogPosts)
+      .innerJoin(users, eq(users.id, blogPosts.authorId))
+      .where(eq(blogPosts.id, id))
       .groupBy(
         blogPosts.id,
         blogPosts.title,
