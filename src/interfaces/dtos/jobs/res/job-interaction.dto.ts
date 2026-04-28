@@ -55,14 +55,6 @@ export class ApplyJobResponseDto {
   matchingScore?: number | string | null;
 
   @ApiProperty({
-    description: "Rank of the application within the job",
-    required: false,
-    nullable: true,
-    example: 1,
-  })
-  matchingRank?: number | null;
-
-  @ApiProperty({
     description: "Breakdown of why the CV matches the job",
     required: false,
     nullable: true,

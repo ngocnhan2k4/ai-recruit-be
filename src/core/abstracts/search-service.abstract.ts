@@ -84,4 +84,6 @@ export abstract class ISearchService {
     query: estypes.QueryDslQueryContainer,
     script: estypes.Script,
   ): Promise<void>;
+
+  abstract existsDocument(indexName: string, id: string): Promise<boolean>;
 }
