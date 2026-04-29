@@ -22,13 +22,10 @@ export class JobSyncUseCases {
   ) {}
 
   private async ensureIndex(): Promise<void> {
-    const client = this.searchService.getClient();
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
-    const exists = await client.indices.exists({
-      index: indexName,
-    });
+    const exists = await this.searchService.existsIndex(indexName);
     if (!exists) {
       const indexMapping = getJobIndexMapping({
         env: this.configService.get<Environment>("NODE_ENV")!,
@@ -114,14 +111,12 @@ export class JobSyncUseCases {
       dbCount: number;
     }>
   > {
-    const client = this.searchService.getClient();
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
-
-    const exists = await client.indices.exists({ index: indexName });
+    const exists = await this.searchService.existsIndex(indexName);
     const esCount = exists
-      ? Number((await client.count({ index: indexName })).count ?? 0)
+      ? Number(await this.searchService.countDocuments(indexName))
       : 0;
     const dbCount = await this.jobRepository.count({ isCategoryNotNull: true });
 

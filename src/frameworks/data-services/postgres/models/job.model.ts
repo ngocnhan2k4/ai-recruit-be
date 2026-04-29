@@ -137,11 +137,14 @@ export const jobSkills = pgTable(
   ],
 );
 
+// [TODO]: Migrate using user action
 export const userInteractions = pgTable(
   "user_interactions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
     jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id),

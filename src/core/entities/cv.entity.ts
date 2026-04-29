@@ -1,7 +1,8 @@
 import { GeneralQuery, RelatedEntity } from "@/common/types";
 import { ExperienceLevelEnum } from "./enum.entity";
 
-export interface CvExtractedData extends ExtractCvResponse {
+export interface CvExtractedData
+  extends Omit<ExtractCvResponse, "skills" | "provinces" | "categories"> {
   skillIds: string[];
   provinceIds: string[];
   categoryIds: string[];
@@ -21,15 +22,14 @@ export interface ExtractCvRequest {
 
 export interface ExtractCvResponse {
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   skills: RelatedEntity[];
   provinces: RelatedEntity[];
   categories: RelatedEntity[];
-  expectedSalary?: number | null;
   experienceYears?: number | null;
   experienceLevel?: ExperienceLevelEnum | null;
-  summary: string;
+  summary?: string;
 }
 
 export interface GetListCvFilter extends GeneralQuery {
