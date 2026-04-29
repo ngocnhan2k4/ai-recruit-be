@@ -21,22 +21,20 @@ export class SkillService implements ISkillService {
 
   private buildGroupedSkill(
     skills: Pick<Skill, "id" | "name">[],
-    rows: Pick<SkillSynonym, "masterName" | "aliasName">[],
+    rows: Pick<SkillSynonym, "masterSkillId" | "aliasName">[],
   ): SkillSynonymResponse[] {
     const aliasMap = new Map<string, Set<string>>();
 
     for (const row of rows) {
-      const normalizedMaster = normalizeString(row.masterName);
-      if (!aliasMap.has(normalizedMaster)) {
-        aliasMap.set(normalizedMaster, new Set());
+      if (!aliasMap.has(row.masterSkillId)) {
+        aliasMap.set(row.masterSkillId, new Set());
       }
-      aliasMap.get(normalizedMaster)!.add(row.aliasName);
+      aliasMap.get(row.masterSkillId)!.add(row.aliasName);
     }
 
     return skills
       .map((skill) => {
-        const normalizedSkillName = normalizeString(skill.name);
-        const aliases = aliasMap.get(normalizedSkillName);
+        const aliases = aliasMap.get(skill.id);
 
         return {
           id: skill.id,
@@ -48,7 +46,6 @@ export class SkillService implements ISkillService {
       })
       .sort((a, b) => a.masterName.localeCompare(b.masterName));
   }
-
   async getSkillsSynonyms(
     query: SkillFilter,
   ): Promise<PaginatedResult<SkillSynonymResponse>> {
@@ -67,7 +64,7 @@ export class SkillService implements ISkillService {
 
     const [allSkills, allRows] = await Promise.all([
       this.skillRepository.getAll(["id", "name"]),
-      this.skillsSynonymsRepository.getAll(["masterName", "aliasName"]),
+      this.skillsSynonymsRepository.getAll(["masterSkillId", "aliasName"]),
     ]);
     const grouped = this.buildGroupedSkill(allSkills, allRows);
     const filtered = grouped.filter((item) => {

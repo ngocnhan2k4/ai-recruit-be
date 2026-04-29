@@ -22,6 +22,7 @@ export const RESPONSE_CODE = {
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   TOKEN_EXPIRED: "TOKEN_EXPIRED",
   TOKEN_NOT_FOUND: "TOKEN_NOT_FOUND",
+  ACCOUNT_PENDING_DELETION: "ACCOUNT_PENDING_DELETION",
 
   // --- User / profile ---
   USER_NOT_FOUND: "USER_NOT_FOUND",
@@ -116,6 +117,7 @@ export const RESPONSE_CODE = {
 
   // --- Blog ---
   BLOG_POST_NOT_FOUND: "BLOG_POST_NOT_FOUND",
+  BLOG_IS_NOT_DRAFT: "BLOG_IS_NOT_DRAFT",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -130,6 +132,8 @@ export const RESPONSE_MESSAGE = {
 
   // --- Auth ---
   INVALID_CREDENTIALS: "Invalid credentials.",
+  ACCOUNT_PENDING_DELETION:
+    "Account pending deletion. You can restore or continue waiting.",
 
   // --- User / profile ---
   USER_NOT_FOUND: "User not found.",
@@ -188,4 +192,8 @@ export const RESPONSE_MESSAGE = {
   AI_CV_NOT_FOUND: "CV generated from the CV is not found.",
   AI_CV_NOT_UPDATED: "Failed to update AI CV",
   AI_CV_NOT_DELETED: "Failed to delete AI CV from database",
+
+  // --- BLOG ---
+  BLOG_POST_NOT_FOUND: "Blog post not found.",
+  BLOG_IS_NOT_DRAFT: "Only draft blog posts can be submitted via create API.",
 } as const;

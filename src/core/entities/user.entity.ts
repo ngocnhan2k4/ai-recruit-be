@@ -93,6 +93,8 @@ export interface GetAllUserResponse
     | "phoneVerified"
     | "roles"
     | "status"
+    | "deletionRequestedAt"
+    | "purgeAfterAt"
     | "createdAt"
     | "updatedAt"
     | "deletedAt"

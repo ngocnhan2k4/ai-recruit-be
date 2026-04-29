@@ -41,8 +41,10 @@ export enum ProviderEnum {
 }
 export enum UserStatusEnum {
   ACTIVE = "active",
-  INACTIVE = "inactive",
+  // INACTIVE = "inactive",
   BANNED = "banned",
+  PENDING_DELETION = "pending_deletion",
+  DELETED = "deleted",
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
@@ -221,4 +223,21 @@ export enum ExperienceLevelEnum {
   MIDDLE = "middle",
   SENIOR = "senior",
   LEAD = "lead",
+}
+
+export enum ObjectType {
+  BLOG = "BLOG",
+  ORG = "ORG",
+}
+
+export enum UserActionType {
+  LIKE = "LIKE",
+  SAVE = "SAVE",
+}
+
+export enum BlogPostStatus {
+  DRAFT = "DRAFT",
+  PENDING = "PENDING",
+  PUBLISHED = "PUBLISHED",
+  REJECTED = "REJECTED",
 }

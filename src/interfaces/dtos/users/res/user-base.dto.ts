@@ -52,7 +52,13 @@ export class UserDto {
   onboardingCompleted: boolean;
 
   @ApiProperty({ nullable: false, enum: UserStatusEnum })
-  status: UserStatusEnum;
+  status: string;
+
+  @ApiProperty({ nullable: false })
+  deletionRequestedAt: Date | null;
+
+  @ApiProperty({ nullable: false })
+  purgeAfterAt: Date | null;
 
   @ApiProperty({ nullable: false })
   deletedAt: Date | null;

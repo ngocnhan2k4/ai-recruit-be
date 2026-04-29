@@ -15,6 +15,8 @@ import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { EmailModule } from "@/frameworks/email-services/email.module";
 import { CvModule } from "@/services/cv/cv.module";
+import { UserScheduler } from "./user.scheduler";
+import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { CvModule } from "@/services/cv/cv.module";
     WebSocketModule,
     EmailModule,
     CvModule,
+    UserUseCasesModule,
   ],
   providers: [
     JobMatchingScheduler,
@@ -36,6 +39,9 @@ import { CvModule } from "@/services/cv/cv.module";
     TaskWorker,
     ScoreCvWorker,
     EmailWorker,
+    TaskWorker,
+    EmailWorker,
+    UserScheduler,
   ],
 })
 export class JobMatchingSchedulerModule {}

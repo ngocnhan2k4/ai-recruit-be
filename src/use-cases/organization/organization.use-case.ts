@@ -46,7 +46,7 @@ import {
 } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import { OrganizationQuery } from "@/core/entities/organization.entity";
-import { slugify } from "@/common/utils";
+import { generateSlug } from "@/common/utils";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { MultipartFile } from "@fastify/multipart";
@@ -156,7 +156,7 @@ export class OrganizationUseCase {
   ): Promise<ApiResponse<OrganizationWithDetails>> {
     const result = await this.organizationRepository.executeWithTransaction(
       async (tx) => {
-        const slug = this.generateSlug(data.name, new Date());
+        const slug = generateSlug(data.name, new Date());
         const org = await this.organizationRepository.createOrganization(
           {
             ...data,
@@ -1048,14 +1048,6 @@ export class OrganizationUseCase {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
-  }
-
-  generateSlug(name: string, time: Date): string {
-    const baseSlug = slugify(name);
-    // base36
-    const shortTime = time.getTime().toString(36).slice(-5);
-
-    return `${baseSlug}-${shortTime}`;
   }
 
   async getOrganizationTrends(
