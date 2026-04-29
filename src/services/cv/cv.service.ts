@@ -12,7 +12,6 @@ import {
   ICvService,
   IProvinceRepository,
   ISkillService,
-  IUserOnboardingRepository,
   Province,
 } from "@/core";
 import { Injectable } from "@nestjs/common";
@@ -24,27 +23,15 @@ export class CvService implements ICvService {
     private readonly aiCvRepository: IAiCvRepository,
     private readonly provinceRepository: IProvinceRepository,
     private readonly categoryRepository: ICategoryRepository,
-    private readonly userOnboardingRepository: IUserOnboardingRepository,
     private readonly skillService: ISkillService,
   ) {}
 
   async extractCv(cv: Cv): Promise<CvExtractedData> {
-    const userOnboarding = await this.userOnboardingRepository.getByField({
-      userId: cv.userId,
-    });
-    const expectedSalary =
-      userOnboarding.length > 0
-        ? Number(userOnboarding[0].expectedSalary)
-        : null;
-
     if (cv.aiCvId) {
       const aiCv = await this.aiCvRepository.get(cv.aiCvId);
       if (aiCv) {
         const cvData = await this.extractDataFromAiCv(aiCv);
-        return {
-          ...cvData,
-          expectedSalary,
-        };
+        return cvData;
       }
     }
 
@@ -58,7 +45,6 @@ export class CvService implements ICvService {
       skillNames: cvData.skills.map((skill) => skill.name),
       provinceNames: cvData.provinces.map((province) => province.name),
       categoryNames: cvData.categories.map((category) => category.name),
-      expectedSalary,
     };
   }
 

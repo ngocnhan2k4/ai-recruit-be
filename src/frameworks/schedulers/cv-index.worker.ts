@@ -102,7 +102,6 @@ export class CvIndexWorker extends WorkerHost {
       skillIds: extractedData.skillIds || [],
       provinceIds: extractedData.provinceIds || [],
       categoryIds: extractedData.categoryIds || [],
-      expectedSalary: extractedData.expectedSalary ?? undefined,
       experienceYears: extractedData.experienceYears ?? undefined,
       skillNames: extractedData.skillNames || [],
       provinceNames: extractedData.provinceNames || [],

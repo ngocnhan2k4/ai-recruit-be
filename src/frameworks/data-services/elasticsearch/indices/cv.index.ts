@@ -71,7 +71,6 @@ export function getCvIndexMapping({ env }: CvIndexConfig) {
             },
           },
         },
-        expectedSalary: { type: "scaled_float", scaling_factor: 100 },
         experienceYears: { type: "integer" },
 
         extractedAt: { type: "date" },
@@ -93,7 +92,6 @@ export function transformCvToDocument(params: {
   skillIds?: string[];
   provinceIds?: string[];
   categoryIds?: string[];
-  expectedSalary?: number;
   experienceYears?: number;
   skillNames?: string[];
   provinceNames?: string[];
@@ -113,7 +111,6 @@ export function transformCvToDocument(params: {
     provinceNames: params.provinceNames || [],
     categoryIds: params.categoryIds || [],
     categoryNames: params.categoryNames || [],
-    expectedSalary: params.expectedSalary || null,
     experienceYears: params.experienceYears || null,
     experienceLevel: params.experienceLevel || null,
     updatedAt: params.updatedAt

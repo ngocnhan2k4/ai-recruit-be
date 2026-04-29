@@ -9,7 +9,6 @@ export interface CvExtractedData
   skillNames: string[];
   provinceNames: string[];
   categoryNames: string[];
-  expectedSalary?: number | null;
 }
 
 export enum CvEventType {
