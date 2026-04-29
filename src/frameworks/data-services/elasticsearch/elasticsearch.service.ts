@@ -235,6 +235,10 @@ export class ElasticsearchService
     };
   }
 
+  async existsDocument(indexName: string, id: string): Promise<boolean> {
+    return this.client.exists({ index: indexName, id });
+  }
+
   async updateByQuery(
     indexName: string,
     query: estypes.QueryDslQueryContainer,

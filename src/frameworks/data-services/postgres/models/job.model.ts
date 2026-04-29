@@ -181,7 +181,6 @@ export const applyJobs = pgTable(
     cvId: uuid("cv_id").references(() => cvs.id),
     answers: jsonb("answers"),
     matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
-    matchingRank: integer("matching_rank"),
     matchingCriteria: jsonb("matching_criteria"),
     scoredAt: timestamp("scored_at"),
 

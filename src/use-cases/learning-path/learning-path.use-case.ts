@@ -114,7 +114,7 @@ export class LearningPathUseCase {
             notificationId: result.notification.id,
           },
           {
-            jobId: `task.async:${result.task.id}`,
+            jobId: `task-async-${result.task.id}`,
           },
         );
         this.logger.log(

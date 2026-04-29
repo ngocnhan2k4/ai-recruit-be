@@ -34,10 +34,16 @@ import {
   aiCvs,
   skillsSynonyms,
   tasks,
+  comments,
+  userActions,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
 import { OptimizedCvData } from "./ai-cv.entity";
+import {
+  blogPosts,
+  blogPostTags,
+} from "@/frameworks/data-services/postgres/models/blog.model";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
 export * from "./otp.entity";
@@ -220,3 +226,20 @@ export type SubscriptionFeature = InferSelectModel<typeof subscriptionFeatures>;
 
 export type NewUserFeatureUsage = InferInsertModel<typeof userFeatureUsages>;
 export type UserFeatureUsage = InferSelectModel<typeof userFeatureUsages>;
+
+export type NewBlogPostTag = InferInsertModel<typeof blogPostTags>;
+export type BlogPostTag = InferSelectModel<typeof blogPostTags>;
+
+export type NewBlogPost = InferInsertModel<typeof blogPosts> & {
+  tags: {
+    tagId?: string | null;
+    skillId?: string | null;
+  }[];
+};
+export type BlogPost = InferSelectModel<typeof blogPosts> & BlogPostTag;
+
+export type NewComment = InferInsertModel<typeof comments>;
+export type Comment = InferSelectModel<typeof comments>;
+
+export type NewUserAction = InferInsertModel<typeof userActions>;
+export type UserAction = InferSelectModel<typeof userActions>;

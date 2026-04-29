@@ -86,4 +86,6 @@ export abstract class ISearchService {
   abstract countDocuments(indexName: string): Promise<number>;
 
   abstract existsIndex(indexName: string): Promise<boolean>;
+
+  abstract existsDocument(indexName: string, id: string): Promise<boolean>;
 }
