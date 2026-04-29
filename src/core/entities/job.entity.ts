@@ -153,6 +153,3 @@ export interface JobDetailFilter {
   userId?: string;
   statuses?: JobStatusEnum[];
 }
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface JobCandidateRecommendationQuery extends GeneralQuery {}

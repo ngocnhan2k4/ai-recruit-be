@@ -52,7 +52,6 @@ import {
   JobResponse,
   NotificationType,
   FeatureCodeEnum,
-  JobCandidateRecommendationQuery,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -71,7 +70,7 @@ import {
 import { convertDateToStr, getJobStatus } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult, TokenPayload } from "@/common/types";
+import { GeneralQuery, PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -1505,7 +1504,7 @@ export class JobUseCases {
   async getRecommendedCvsForJob(
     jobId: string,
     orgId: string,
-    query: JobCandidateRecommendationQuery,
+    query: GeneralQuery,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     const jobDetail = await this.jobRepository.getFullJobById(jobId);
     if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
