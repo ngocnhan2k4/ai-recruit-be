@@ -46,6 +46,7 @@ export abstract class IUserRepository extends IGenericRepository<User> {
   >;
 
   abstract getUserProfile(userId: string): Promise<UserProfile | null>;
+  abstract getSeekingJobUserIds(): Promise<string[]>;
   abstract getUserCvData(userId: string): Promise<UserCvData | null>;
   abstract getUserTrends(params: UserTrendsQuery): Promise<UserTrends[]>;
 

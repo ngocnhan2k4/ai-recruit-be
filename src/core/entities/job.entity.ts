@@ -73,7 +73,7 @@ export interface ApplyJobResponse {
   scoredAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
-  user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
+  user?: Pick<User, "id" | "email" | "name" | "avatarUrl" | "username">;
   cv?: Pick<Cv, "id" | "name" | "fileUrl" | "mimeType">;
 }
 
@@ -153,3 +153,6 @@ export interface JobDetailFilter {
   userId?: string;
   statuses?: JobStatusEnum[];
 }
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface JobCandidateRecommendationQuery extends GeneralQuery {}

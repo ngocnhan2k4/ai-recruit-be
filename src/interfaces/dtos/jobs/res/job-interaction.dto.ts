@@ -79,6 +79,7 @@ export class ApplyJobResponseDto {
     email: string | null;
     name: string;
     avatarUrl: string | null;
+    username: string | null;
   };
 
   @ApiProperty({

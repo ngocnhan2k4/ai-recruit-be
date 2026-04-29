@@ -1437,6 +1437,7 @@ export class JobRepository
           email: users.email,
           name: users.name,
           avatarUrl: users.avatarUrl,
+          username: users.username,
         },
         cv: {
           id: cvs.id,

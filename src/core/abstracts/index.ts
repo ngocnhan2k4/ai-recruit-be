@@ -9,6 +9,7 @@ export * from "./repositories";
 export * from "./websocket.abstract";
 export * from "./search-service.abstract";
 export * from "./job-search-service.abstract";
+export * from "./cv-search-service.abstract";
 export * from "./message-queue.abstract";
 export * from "./cv-services.abstract";
 export * from "./feature-services.abstract";

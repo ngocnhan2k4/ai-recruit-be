@@ -18,6 +18,7 @@ export interface GetUserQuery extends GeneralQuery {
   subscriptionId?: string;
   statusSubscription?: UserSubscriptionStatusEnum;
   roles?: RoleEnum[];
+  fields?: string[];
 }
 
 export class CreateUserExperience {

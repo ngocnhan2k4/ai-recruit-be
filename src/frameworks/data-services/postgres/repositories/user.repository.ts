@@ -579,6 +579,24 @@ export class UserRepository
     };
   }
 
+  // [TODO]: Using getAllWithOffset to reuse code
+  async getSeekingJobUserIds(): Promise<string[]> {
+    const rows = await this.db
+      .select({ userId: userOnboardings.userId })
+      .from(userOnboardings)
+      .innerJoin(users, eq(users.id, userOnboardings.userId))
+      .where(
+        and(
+          eq(userOnboardings.isSeekingJob, true),
+          isNull(users.deletedAt),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
+      )
+      .orderBy(desc(users.updatedAt));
+
+    return rows.map((row) => row.userId);
+  }
+
   // [TODO] split to 3 function to usecase call(code respository can reuse after)
   async getUserCvData(userId: string): Promise<UserCvData | null> {
     const user = await this.get(userId);

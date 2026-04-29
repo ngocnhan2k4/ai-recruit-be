@@ -12,9 +12,11 @@ import {
   IUserRepository,
   INotificationRepository,
   ISearchService,
+  ICvSearchService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
+  JobCandidateRecommendationDto,
   JobCountsDto,
   OrganizationWithDetailsDto,
   StatisticsJobResponse,
@@ -50,6 +52,7 @@ import {
   JobResponse,
   NotificationType,
   FeatureCodeEnum,
+  JobCandidateRecommendationQuery,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -93,6 +96,7 @@ export class JobUseCases {
     private readonly cvUseCases: CvUseCases,
     private readonly featureService: IFeatureService,
     private readonly searchService: ISearchService,
+    private readonly cvSearchService: ICvSearchService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -1495,6 +1499,179 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: transformedJob,
+    };
+  }
+
+  async getRecommendedCvsForJob(
+    jobId: string,
+    orgId: string,
+    query: JobCandidateRecommendationQuery,
+  ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
+    const jobDetail = await this.jobRepository.getFullJobById(jobId);
+    if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    if (jobDetail.job.organizationId !== orgId) {
+      throw new ForbiddenException({
+        message: "You do not have permission to access this job.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const targetLimit = Math.max(
+      1,
+      Math.min(query.limit ?? jobDetail.job.recruitCount ?? 10, 100),
+    );
+    const poolSize = Math.max(50, Math.min(targetLimit * 5, 1000));
+
+    const seekingUserIds = await this.userRepository.getSeekingJobUserIds();
+    if (seekingUserIds.length === 0) {
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+        data: [],
+      };
+    }
+
+    const jobSkillIds = (jobDetail.skills ?? []).map((s) => s.id);
+    const jobProvinceIds = (jobDetail.provinces ?? []).map((p) => p.id);
+    const jobCategoryId = jobDetail.category?.id ?? null;
+    const jobForMatching = {
+      ...jobDetail.job,
+      skillIds: jobSkillIds,
+      provinceIds: jobProvinceIds,
+      categoryId: jobCategoryId,
+    };
+    const { data: cvDocs } = await this.cvSearchService.searchCvs({
+      userIds: seekingUserIds,
+      limit: poolSize,
+      cursor: query.cursor,
+      keyword: query.keyword,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+      skillIds: jobSkillIds,
+      provinceIds: jobProvinceIds,
+      categoryId: jobCategoryId,
+      experienceMin: jobDetail.job.experienceMin,
+      experienceMax: jobDetail.job.experienceMax,
+      salaryMin: jobDetail.job.salaryMin,
+      salaryMax: jobDetail.job.salaryMax,
+    });
+
+    const recommendations: JobCandidateRecommendationDto[] = [];
+    for (const cv of cvDocs) {
+      if (recommendations.length >= targetLimit) break;
+      if (!cv?.id || !cv?.userId) continue;
+      const criteria = this.buildCvMatchingCriteria(cv, jobForMatching);
+      recommendations.push({
+        cvId: cv.id,
+        userId: cv.userId,
+        name: cv.name ?? "",
+        fileUrl: cv.fileUrl ?? "",
+        mimeType: cv.mimeType ?? "",
+        score: cv.score ?? 0,
+        criteria,
+      });
+    }
+
+    recommendations.sort((a, b) => b.score - a.score);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: recommendations.slice(0, targetLimit),
+    };
+  }
+
+  private buildCvMatchingCriteria(
+    cv: Record<string, any>,
+    job: Record<string, any>,
+  ): Record<string, any> {
+    const cvSkills: string[] = cv.skillIds || [];
+    const jobSkills: string[] = job.skillIds || [];
+    const matchedSkills = cvSkills.filter((s) => jobSkills.includes(s));
+    const missingSkills = jobSkills.filter((s) => !cvSkills.includes(s));
+    const skillScore =
+      jobSkills.length > 0 ? matchedSkills.length / jobSkills.length : 0;
+
+    const expYears: number = cv.experienceYears ?? 0;
+    const expMin: number = job.experienceMin ?? 0;
+    const expMax: number = job.experienceMax ?? expMin;
+    let experienceScore = 0;
+    if (expYears >= expMax) {
+      experienceScore = 1.0;
+    } else if (expYears >= expMin) {
+      experienceScore = 0.8;
+    } else if (expMin > 0 && expYears >= expMin * 0.7) {
+      experienceScore = 0.5;
+    } else {
+      experienceScore = 0.2;
+    }
+
+    const cvProvinces: string[] = cv.provinceIds || [];
+    const jobProvinces: string[] = job.provinceIds || [];
+    const locationMatched =
+      jobProvinces.length === 0 ||
+      cvProvinces.some((p) => jobProvinces.includes(p));
+    const locationScore = locationMatched ? 1.0 : 0.0;
+
+    const cvCategories: string[] = cv.categoryIds || [];
+    const jobCategoryId: string = job.categoryId || "";
+    const categoryScore = jobCategoryId
+      ? cvCategories.includes(jobCategoryId)
+        ? 1.0
+        : 0.0
+      : 0;
+
+    const expectedSalary: number | null = cv.expectedSalary ?? null;
+    const salaryMax: number | null = job.salaryMax
+      ? Number(job.salaryMax)
+      : null;
+    let salaryScore = 1.0;
+    if (expectedSalary !== null && salaryMax !== null) {
+      if (expectedSalary <= salaryMax * 1.2) {
+        salaryScore = 1.0;
+      } else if (expectedSalary <= salaryMax * 1.5) {
+        salaryScore = 0.7;
+      } else {
+        salaryScore = 0.3;
+      }
+    }
+
+    return {
+      skill: {
+        score: skillScore,
+        weight: 0.4,
+        matchedSkills,
+        missingSkills,
+      },
+      experience: {
+        score: experienceScore,
+        weight: 0.25,
+        cvYears: expYears,
+        requiredMin: expMin,
+        requiredMax: expMax,
+      },
+      location: {
+        score: locationScore,
+        weight: 0.15,
+        matched: locationMatched,
+      },
+      category: {
+        score: categoryScore,
+        weight: 0.1,
+        matched: jobCategoryId ? cvCategories.includes(jobCategoryId) : null,
+      },
+      salary: {
+        score: salaryScore,
+        weight: 0.1,
+        expected: expectedSalary,
+        jobMax: salaryMax,
+      },
     };
   }
   async getApplyJobs(
