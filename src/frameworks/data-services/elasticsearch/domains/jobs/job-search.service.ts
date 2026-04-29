@@ -774,4 +774,12 @@ export class JobSearchService implements IJobSearchService {
       },
     };
   }
+
+  async getJobById(jobId: string): Promise<JobSearchDocument | null> {
+    const index = this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
+    const response = await this.searchService.search(index, {
+      query: { term: { id: jobId } },
+    });
+    return response?.hits?.hits?.[0]?._source ?? null;
+  }
 }

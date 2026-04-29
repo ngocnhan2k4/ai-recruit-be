@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { UserDto } from "../../users";
 
 export class JobCandidateRecommendationDto {
   @ApiProperty({ example: "cv-id" })
@@ -24,4 +25,9 @@ export class JobCandidateRecommendationDto {
     type: Object,
   })
   criteria: Record<string, any>;
+
+  @ApiProperty({
+    description: "The user who the CV belongs to",
+  })
+  user?: Pick<UserDto, "id" | "email" | "name" | "avatarUrl" | "username">;
 }

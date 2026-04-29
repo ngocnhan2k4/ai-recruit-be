@@ -13,6 +13,7 @@ import {
   INotificationRepository,
   ISearchService,
   ICvSearchService,
+  ICvService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -52,6 +53,7 @@ import {
   JobResponse,
   NotificationType,
   FeatureCodeEnum,
+  GetAllUserResponse,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -97,6 +99,7 @@ export class JobUseCases {
     private readonly searchService: ISearchService,
     private readonly cvSearchService: ICvSearchService,
     private readonly configService: ConfigService,
+    private readonly cvService: ICvService,
   ) {}
 
   private async enqueueScoreCv(params: {
@@ -1521,11 +1524,7 @@ export class JobUseCases {
       });
     }
 
-    const targetLimit = Math.max(
-      1,
-      Math.min(query.limit ?? jobDetail.job.recruitCount ?? 10, 100),
-    );
-    const poolSize = Math.max(50, Math.min(targetLimit * 5, 1000));
+    const targetLimit = query.limit ?? jobDetail.job.recruitCount ?? 10;
 
     const seekingUserIds = await this.userRepository.getSeekingJobUserIds();
     if (seekingUserIds.length === 0) {
@@ -1547,7 +1546,7 @@ export class JobUseCases {
     };
     const { data: cvDocs } = await this.cvSearchService.searchCvs({
       userIds: seekingUserIds,
-      limit: poolSize,
+      limit: targetLimit,
       cursor: query.cursor,
       keyword: query.keyword,
       sortBy: query.sortBy,
@@ -1561,11 +1560,21 @@ export class JobUseCases {
       salaryMax: jobDetail.job.salaryMax,
     });
 
+    const userIds = cvDocs.map((cv) => cv.userId);
+    const { data: users } = await this.userRepository.getAllWithOffset({
+      userIds,
+      limit: userIds.length,
+    });
+    const userMap = new Map<string, GetAllUserResponse>(
+      users.map((user) => [user.id, user]),
+    );
+
     const recommendations: JobCandidateRecommendationDto[] = [];
     for (const cv of cvDocs) {
-      if (recommendations.length >= targetLimit) break;
-      if (!cv?.id || !cv?.userId) continue;
-      const criteria = this.buildCvMatchingCriteria(cv, jobForMatching);
+      const criteria = this.cvService.calculateMatchingScore(
+        cv,
+        jobForMatching,
+      );
       recommendations.push({
         cvId: cv.id,
         userId: cv.userId,
@@ -1574,105 +1583,17 @@ export class JobUseCases {
         mimeType: cv.mimeType ?? "",
         score: cv.score ?? 0,
         criteria,
+        user: userMap.get(cv.userId),
       });
     }
-
-    recommendations.sort((a, b) => b.score - a.score);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: recommendations.slice(0, targetLimit),
+      data: recommendations,
     };
   }
 
-  private buildCvMatchingCriteria(
-    cv: Record<string, any>,
-    job: Record<string, any>,
-  ): Record<string, any> {
-    const cvSkills: string[] = cv.skillIds || [];
-    const jobSkills: string[] = job.skillIds || [];
-    const matchedSkills = cvSkills.filter((s) => jobSkills.includes(s));
-    const missingSkills = jobSkills.filter((s) => !cvSkills.includes(s));
-    const skillScore =
-      jobSkills.length > 0 ? matchedSkills.length / jobSkills.length : 0;
-
-    const expYears: number = cv.experienceYears ?? 0;
-    const expMin: number = job.experienceMin ?? 0;
-    const expMax: number = job.experienceMax ?? expMin;
-    let experienceScore = 0;
-    if (expYears >= expMax) {
-      experienceScore = 1.0;
-    } else if (expYears >= expMin) {
-      experienceScore = 0.8;
-    } else if (expMin > 0 && expYears >= expMin * 0.7) {
-      experienceScore = 0.5;
-    } else {
-      experienceScore = 0.2;
-    }
-
-    const cvProvinces: string[] = cv.provinceIds || [];
-    const jobProvinces: string[] = job.provinceIds || [];
-    const locationMatched =
-      jobProvinces.length === 0 ||
-      cvProvinces.some((p) => jobProvinces.includes(p));
-    const locationScore = locationMatched ? 1.0 : 0.0;
-
-    const cvCategories: string[] = cv.categoryIds || [];
-    const jobCategoryId: string = job.categoryId || "";
-    const categoryScore = jobCategoryId
-      ? cvCategories.includes(jobCategoryId)
-        ? 1.0
-        : 0.0
-      : 0;
-
-    const expectedSalary: number | null = cv.expectedSalary ?? null;
-    const salaryMax: number | null = job.salaryMax
-      ? Number(job.salaryMax)
-      : null;
-    let salaryScore = 1.0;
-    if (expectedSalary !== null && salaryMax !== null) {
-      if (expectedSalary <= salaryMax * 1.2) {
-        salaryScore = 1.0;
-      } else if (expectedSalary <= salaryMax * 1.5) {
-        salaryScore = 0.7;
-      } else {
-        salaryScore = 0.3;
-      }
-    }
-
-    return {
-      skill: {
-        score: skillScore,
-        weight: 0.4,
-        matchedSkills,
-        missingSkills,
-      },
-      experience: {
-        score: experienceScore,
-        weight: 0.25,
-        cvYears: expYears,
-        requiredMin: expMin,
-        requiredMax: expMax,
-      },
-      location: {
-        score: locationScore,
-        weight: 0.15,
-        matched: locationMatched,
-      },
-      category: {
-        score: categoryScore,
-        weight: 0.1,
-        matched: jobCategoryId ? cvCategories.includes(jobCategoryId) : null,
-      },
-      salary: {
-        score: salaryScore,
-        weight: 0.1,
-        expected: expectedSalary,
-        jobMax: salaryMax,
-      },
-    };
-  }
   async getApplyJobs(
     query: ApplyJobQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {

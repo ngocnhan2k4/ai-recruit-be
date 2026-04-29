@@ -39,6 +39,7 @@ import {
   lte,
   countDistinct,
   asc,
+  inArray,
 } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
@@ -295,6 +296,7 @@ export class UserRepository
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
+        avatarUrl: users.avatarUrl,
 
         subscription: {
           id: subscriptions.id,
@@ -400,6 +402,10 @@ export class UserRepository
       conditions.push(arrayOverlaps(users.roles, query.roles));
     }
 
+    if (query.userIds) {
+      conditions.push(inArray(users.id, query.userIds));
+    }
+
     return conditions;
   }
 
@@ -431,6 +437,7 @@ export class UserRepository
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
+        | "avatarUrl"
       >
     >
   > {
@@ -482,6 +489,7 @@ export class UserRepository
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
+        avatarUrl: users.avatarUrl,
       })
       .from(users)
       .where(and(...conditions))

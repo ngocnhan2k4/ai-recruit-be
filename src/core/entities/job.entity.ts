@@ -1,5 +1,5 @@
 import { TokenPayload, GeneralQuery } from "@/common/types";
-import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "./enum.entity";
 import {
   Category,
   Job,
@@ -66,7 +66,7 @@ export interface JobAnswer {
 export interface ApplyJobResponse {
   id: string;
   jobId: string;
-  status: string;
+  status: ApplyStatusEnum;
   answers?: JobAnswer[];
   matchingScore?: string | number | null;
   matchingCriteria?: Record<string, any> | null;

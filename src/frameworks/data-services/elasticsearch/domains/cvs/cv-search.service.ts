@@ -323,4 +323,14 @@ export class CvSearchService implements ICvSearchService {
       { updatedAt: { order: "desc" as const } },
     ];
   }
+
+  async getCvById(cvId: string): Promise<CvSearchDocument | null> {
+    const index = this.configService.get<string>("ELASTICSEARCH_INDEX_CVS")!;
+    const response = await this.searchService.search(index, {
+      query: {
+        term: { id: cvId },
+      },
+    });
+    return response?.hits?.hits?.[0]?._source ?? null;
+  }
 }
