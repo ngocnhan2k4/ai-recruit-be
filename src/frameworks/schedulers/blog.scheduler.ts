@@ -12,7 +12,7 @@ export class BlogScheduler {
     private readonly blogRepository: IBlogRepository,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async syncBlogViewCount(): Promise<void> {
     try {
       this.logger.log("Running scheduled blog view count sync cron job...");
