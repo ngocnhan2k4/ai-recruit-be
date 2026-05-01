@@ -29,4 +29,8 @@ export const CACHE_KEYS = {
   user: {
     get: (userId: string) => `user:${userId}:get`,
   },
+  blog: {
+    viewCount: (postId: string) => `blog:${postId}:view`,
+    viewDirty: () => `blog:view:dirty`,
+  },
 };

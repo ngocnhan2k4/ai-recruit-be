@@ -14,8 +14,16 @@ export class JobMatchingScheduler {
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async scheduledJobRecommendations(): Promise<void> {
-    this.logger.log("Running scheduled job recommendations cron job...");
-    await this.jobMatchingUseCases.sendJobRecommendationsToUsers();
+    try {
+      this.logger.log("Running scheduled job recommendations cron job...");
+      await this.jobMatchingUseCases.sendJobRecommendationsToUsers();
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to send job recommendations: ${err.message}`,
+        err.stack,
+      );
+    }
   }
 
   // Sync job every day to sync job crawled

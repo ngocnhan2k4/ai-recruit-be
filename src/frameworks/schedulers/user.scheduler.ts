@@ -10,9 +10,17 @@ export class UserScheduler {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanUpPendingDeletionUsers(): Promise<void> {
-    this.logger.log(
-      "Running scheduled user clean up pending deletion users cron job...",
-    );
-    await this.userUseCases.cleanUpPendingDeletionAccounts();
+    try {
+      this.logger.log(
+        "Running scheduled user clean up pending deletion users cron job...",
+      );
+      await this.userUseCases.cleanUpPendingDeletionAccounts();
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Failed to send job recommendations: ${err.message}`,
+        err.stack,
+      );
+    }
   }
 }
