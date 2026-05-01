@@ -916,11 +916,12 @@ export class JobUseCases {
     }
 
     const recipients = (
-      await this.userRepository.getAllAdminUsers({
+      await this.userRepository.getAllWithOffset({
         page: 1,
         limit: 100,
         isActive: true,
         isDeleted: false,
+        roles: [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN],
       })
     ).data.map((m) => ({
       receiverId: m.id,
@@ -1238,11 +1239,12 @@ export class JobUseCases {
     // Step 3: get admin recipients if needed
     const recipients = shouldNotifyAdmins
       ? (
-          await this.userRepository.getAllAdminUsers({
+          await this.userRepository.getAllWithOffset({
             page: 1,
             limit: 100,
             isActive: true,
             isDeleted: false,
+            roles: [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN],
           })
         ).data.map((m) => ({
           receiverId: m.id,
@@ -1526,7 +1528,13 @@ export class JobUseCases {
 
     const targetLimit = query.limit ?? jobDetail.job.recruitCount ?? 10;
 
-    const seekingUserIds = await this.userRepository.getSeekingJobUserIds();
+    const { data: seekingUser } = await this.userRepository.getAllWithOffset({
+      isSeekingJob: true,
+      limit: targetLimit,
+      isActive: true,
+      isDeleted: false,
+    });
+    const seekingUserIds = seekingUser.map((user) => user.id);
     if (seekingUserIds.length === 0) {
       return {
         message: RESPONSE_MESSAGE.SUCCESS,

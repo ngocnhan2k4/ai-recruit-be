@@ -21,6 +21,7 @@ export interface GetUserQuery extends GeneralQuery {
   fields?: string[];
   userIds?: string[];
   skipCount?: boolean;
+  isSeekingJob?: boolean;
 }
 
 export class CreateUserExperience {

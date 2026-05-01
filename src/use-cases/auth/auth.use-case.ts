@@ -390,7 +390,7 @@ export class AuthUseCases {
     newUser: NewUser,
     tx: DBDrizzleTransaction,
   ): Promise<User> {
-    const user = await this.userRepository.createUser(newUser, tx);
+    const user = await this.userRepository.create(newUser, tx);
 
     this.logger.log("Created user successfully with user = ", user);
 
