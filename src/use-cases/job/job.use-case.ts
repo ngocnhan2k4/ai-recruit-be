@@ -12,9 +12,12 @@ import {
   IUserRepository,
   INotificationRepository,
   ISearchService,
+  ICvSearchService,
+  ICvService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
+  JobCandidateRecommendationDto,
   JobCountsDto,
   OrganizationWithDetailsDto,
   StatisticsJobResponse,
@@ -50,6 +53,7 @@ import {
   JobResponse,
   NotificationType,
   FeatureCodeEnum,
+  GetAllUserResponse,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -68,7 +72,7 @@ import {
 import { convertDateToStr, getJobStatus } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult, TokenPayload } from "@/common/types";
+import { GeneralQuery, PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -93,7 +97,9 @@ export class JobUseCases {
     private readonly cvUseCases: CvUseCases,
     private readonly featureService: IFeatureService,
     private readonly searchService: ISearchService,
+    private readonly cvSearchService: ICvSearchService,
     private readonly configService: ConfigService,
+    private readonly cvService: ICvService,
   ) {}
 
   private async enqueueScoreCv(params: {
@@ -910,11 +916,12 @@ export class JobUseCases {
     }
 
     const recipients = (
-      await this.userRepository.getAllAdminUsers({
+      await this.userRepository.getAllWithOffset({
         page: 1,
         limit: 100,
         isActive: true,
         isDeleted: false,
+        roles: [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN],
       })
     ).data.map((m) => ({
       receiverId: m.id,
@@ -1232,11 +1239,12 @@ export class JobUseCases {
     // Step 3: get admin recipients if needed
     const recipients = shouldNotifyAdmins
       ? (
-          await this.userRepository.getAllAdminUsers({
+          await this.userRepository.getAllWithOffset({
             page: 1,
             limit: 100,
             isActive: true,
             isDeleted: false,
+            roles: [RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN],
           })
         ).data.map((m) => ({
           receiverId: m.id,
@@ -1497,6 +1505,103 @@ export class JobUseCases {
       data: transformedJob,
     };
   }
+
+  async getRecommendedCvsForJob(
+    jobId: string,
+    orgId: string,
+    query: GeneralQuery,
+  ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
+    const jobDetail = await this.jobRepository.getFullJobById(jobId);
+    if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    if (jobDetail.job.organizationId !== orgId) {
+      throw new ForbiddenException({
+        message: "You do not have permission to access this job.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const targetLimit = query.limit ?? jobDetail.job.recruitCount ?? 10;
+
+    const { data: seekingUser } = await this.userRepository.getAllWithOffset({
+      isSeekingJob: true,
+      limit: targetLimit,
+      isActive: true,
+      isDeleted: false,
+    });
+    const seekingUserIds = seekingUser.map((user) => user.id);
+    if (seekingUserIds.length === 0) {
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+        data: [],
+      };
+    }
+
+    const jobSkillIds = (jobDetail.skills ?? []).map((s) => s.id);
+    const jobProvinceIds = (jobDetail.provinces ?? []).map((p) => p.id);
+    const jobCategoryId = jobDetail.category?.id ?? null;
+    const jobForMatching = {
+      ...jobDetail.job,
+      skillIds: jobSkillIds,
+      provinceIds: jobProvinceIds,
+      categoryId: jobCategoryId,
+    };
+    const { data: cvDocs } = await this.cvSearchService.searchCvs({
+      userIds: seekingUserIds,
+      limit: targetLimit,
+      cursor: query.cursor,
+      keyword: query.keyword,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
+      skillIds: jobSkillIds,
+      provinceIds: jobProvinceIds,
+      categoryId: jobCategoryId,
+      experienceMin: jobDetail.job.experienceMin,
+      experienceMax: jobDetail.job.experienceMax,
+      salaryMin: jobDetail.job.salaryMin,
+      salaryMax: jobDetail.job.salaryMax,
+    });
+
+    const userIds = cvDocs.map((cv) => cv.userId);
+    const { data: users } = await this.userRepository.getAllWithOffset({
+      userIds,
+      limit: userIds.length,
+    });
+    const userMap = new Map<string, GetAllUserResponse>(
+      users.map((user) => [user.id, user]),
+    );
+
+    const recommendations: JobCandidateRecommendationDto[] = [];
+    for (const cv of cvDocs) {
+      const criteria = this.cvService.calculateMatchingScore(
+        cv,
+        jobForMatching,
+      );
+      recommendations.push({
+        cvId: cv.id,
+        userId: cv.userId,
+        name: cv.name ?? "",
+        fileUrl: cv.fileUrl ?? "",
+        mimeType: cv.mimeType ?? "",
+        score: cv.score ?? 0,
+        criteria,
+        user: userMap.get(cv.userId),
+      });
+    }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: recommendations,
+    };
+  }
+
   async getApplyJobs(
     query: ApplyJobQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<ApplyJobResponseDto>>> {

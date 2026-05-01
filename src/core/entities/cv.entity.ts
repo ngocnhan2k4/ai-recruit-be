@@ -35,3 +35,32 @@ export interface ExtractCvResponse {
 export interface GetListCvFilter extends GeneralQuery {
   skipCount?: boolean;
 }
+
+export interface CvSearchFilters extends GeneralQuery {
+  userIds: string[];
+  skillIds?: string[];
+  provinceIds?: string[];
+  categoryId?: string | null;
+  experienceMin?: number | null;
+  experienceMax?: number | null;
+  salaryMin?: string | number | null;
+  salaryMax?: string | number | null;
+}
+
+export interface CvSearchDocument {
+  id: string;
+  userId: string;
+  name?: string;
+  fileUrl?: string;
+  mimeType?: string;
+  skillIds?: string[];
+  skillNames?: string[];
+  provinceIds?: string[];
+  provinceNames?: string[];
+  categoryIds?: string[];
+  categoryNames?: string[];
+  experienceYears?: number;
+  expectedSalary?: number;
+  updatedAt?: string;
+  score?: number;
+}

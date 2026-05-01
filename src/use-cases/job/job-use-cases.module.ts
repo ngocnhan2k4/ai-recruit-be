@@ -7,6 +7,7 @@ import { FeatureModule } from "@/services";
 import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { ConfigModule } from "@nestjs/config";
+import { CvModule } from "@/services/cv/cv.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ConfigModule } from "@nestjs/config";
     CvUseCasesModule,
     ElasticsearchModule,
     ConfigModule,
+    CvModule,
   ],
   providers: [JobUseCases],
   exports: [JobUseCases],

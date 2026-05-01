@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { Environment } from "@/common/config";
-import { ICvRepository, ISearchService } from "@/core/abstracts";
+import { ICvRepository, ICvService, ISearchService } from "@/core/abstracts";
 import {
   getCvIndexMapping,
   transformCvToDocument,
@@ -12,7 +12,6 @@ import {
   SyncFromElasticsearchRequestDto,
   SyncFromElasticsearchResponseDto,
 } from "@/interfaces/dtos";
-import { CvService } from "@/services/cv/cv.service";
 import { mapWithConcurrency } from "@/common/utils";
 
 @Injectable()
@@ -23,7 +22,7 @@ export class CvSyncUseCases {
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
     private readonly cvRepository: ICvRepository,
-    private readonly cvService: CvService,
+    private readonly cvService: ICvService,
   ) {}
 
   private indexName(): string {

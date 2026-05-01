@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { JobAnswerDto } from "../req/job-interaction.dto";
+import { ApplyStatusEnum } from "@/core";
 
 export class ApplyJobResponseDto {
   @ApiProperty({
@@ -18,7 +19,7 @@ export class ApplyJobResponseDto {
     example: "pending",
     description: "Application status",
   })
-  status: string;
+  status: ApplyStatusEnum;
 
   @ApiProperty({
     type: [JobAnswerDto],
@@ -79,6 +80,7 @@ export class ApplyJobResponseDto {
     email: string | null;
     name: string;
     avatarUrl: string | null;
+    username: string | null;
   };
 
   @ApiProperty({

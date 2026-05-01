@@ -3,10 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { CV_INDEX_QUEUE } from "@/common/constants";
-import { ISearchService } from "@/core/abstracts";
+import { ICvService, ISearchService } from "@/core/abstracts";
 import { ICvRepository } from "@/core/abstracts";
 import { transformCvToDocument } from "@/frameworks/data-services/elasticsearch/indices/cv.index";
-import { CvService } from "@/services/cv/cv.service";
 import { CvEventType } from "@/core";
 
 type CvIndexData = {
@@ -23,7 +22,7 @@ export class CvIndexWorker extends WorkerHost {
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
     private readonly cvRepository: ICvRepository,
-    private readonly cvService: CvService,
+    private readonly cvService: ICvService,
   ) {
     super();
   }
