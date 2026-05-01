@@ -858,10 +858,7 @@ export class UserUseCases implements OnModuleInit {
   async getAllUsers(
     query: GetUserQuery,
   ): Promise<ApiResponse<PaginatedResult<GetAllUserResponse>>> {
-    const result = await this.userRepository.getAllWithOffset({
-      ...query,
-      fields: ["subscription", "userSubscription", ...(query.fields || [])],
-    });
+    const result = await this.userRepository.getAllWithOffset(query);
     return {
       data: result,
       message: "Users retrieved successfully",
