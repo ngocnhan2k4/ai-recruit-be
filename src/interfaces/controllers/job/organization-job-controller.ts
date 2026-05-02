@@ -8,7 +8,6 @@ import {
   UseGuards,
   Post,
   Get,
-  Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { GetUser } from "@/common/decorators";
@@ -20,7 +19,6 @@ import {
   UpdateJobDto,
   JobDto,
   JobCandidateRecommendationDto,
-  QueryJobCandidateRecommendationDto,
 } from "@/interfaces/dtos";
 import {
   JwtAuthGuard,
@@ -89,8 +87,7 @@ export class OrganizationJobController {
   async getRecommendedCvs(
     @Param("jobId") jobId: string,
     @Param("orgId") orgId: string,
-    @Query() query: QueryJobCandidateRecommendationDto,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
-    return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId, query);
+    return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
   }
 }

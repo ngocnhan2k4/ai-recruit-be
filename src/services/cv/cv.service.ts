@@ -20,7 +20,6 @@ import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import type { MultipartFile } from "@fastify/multipart";
 import { CV_FOLDER, RESPONSE_CODE } from "@/common/constants";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()
 export class CvService implements ICvService {
@@ -34,7 +33,6 @@ export class CvService implements ICvService {
     private readonly skillService: ISkillService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly cvRepository: ICvRepository,
-    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async uploadAndPersistCv(

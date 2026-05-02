@@ -72,7 +72,7 @@ import {
 import { convertDateToStr, getJobStatus } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { GeneralQuery, PaginatedResult, TokenPayload } from "@/common/types";
+import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -1510,7 +1510,6 @@ export class JobUseCases {
   async getRecommendedCvsForJob(
     jobId: string,
     orgId: string,
-    query: GeneralQuery,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     const jobDetail = await this.jobRepository.getFullJobById(jobId);
     if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
@@ -1527,13 +1526,14 @@ export class JobUseCases {
       });
     }
 
-    const targetLimit = query.limit ?? jobDetail.job.recruitCount ?? 10;
+    const targetLimit = jobDetail.job.recruitCount ?? 10;
 
     const { data: seekingUser } = await this.userRepository.getAllWithOffset({
       isSeekingJob: true,
       limit: targetLimit,
       isActive: true,
       isDeleted: false,
+      fields: ["onboarding"],
     });
     const seekingUserIds = seekingUser.map((user) => user.id);
     if (seekingUserIds.length === 0) {
@@ -1556,10 +1556,6 @@ export class JobUseCases {
     const { data: cvDocs } = await this.cvSearchService.searchCvs({
       userIds: seekingUserIds,
       limit: targetLimit,
-      cursor: query.cursor,
-      keyword: query.keyword,
-      sortBy: query.sortBy,
-      sortDirection: query.sortDirection,
       skillIds: jobSkillIds,
       provinceIds: jobProvinceIds,
       categoryId: jobCategoryId,
@@ -1591,7 +1587,7 @@ export class JobUseCases {
         fileUrl: cv.fileUrl ?? "",
         mimeType: cv.mimeType ?? "",
         score: cv.score ?? 0,
-        criteria,
+        criteria: criteria.criteria,
         user: userMap.get(cv.userId),
       });
     }
