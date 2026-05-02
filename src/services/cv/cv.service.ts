@@ -5,26 +5,77 @@ import {
   Cv,
   CvExtractedData,
   CvSkillGroup,
+  CvUploadFields,
   ExperienceLevelEnum,
   IAiCvRepository,
   IAIService,
   ICategoryRepository,
+  ICvRepository,
   ICvService,
   IProvinceRepository,
   ISkillService,
   Province,
 } from "@/core";
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import type { MultipartFile } from "@fastify/multipart";
+import { CV_FOLDER, RESPONSE_CODE } from "@/common/constants";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 
 @Injectable()
 export class CvService implements ICvService {
+  private readonly logger = new Logger(CvService.name);
+
   constructor(
     private readonly aiService: IAIService,
     private readonly aiCvRepository: IAiCvRepository,
     private readonly provinceRepository: IProvinceRepository,
     private readonly categoryRepository: ICategoryRepository,
     private readonly skillService: ISkillService,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly cvRepository: ICvRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
+
+  async uploadAndPersistCv(
+    userId: string,
+    file: MultipartFile,
+    payload: CvUploadFields,
+  ): Promise<Cv> {
+    if (!file) {
+      throw new BadRequestException({
+        message: "CV file is required",
+        code: RESPONSE_CODE.CV_FILE_REQUIRED,
+      });
+    }
+
+    const uploadResult = await this.cloudinaryService.uploadFile(file, {
+      folder: CV_FOLDER,
+    });
+
+    if (!uploadResult || !uploadResult.secure_url) {
+      throw new BadRequestException({
+        message: "Failed to upload file to storage",
+        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
+      });
+    }
+
+    const newCv = await this.cvRepository.create({
+      userId: userId,
+      aiCvId: payload.aiCvId,
+      name: payload.name,
+      fileUrl: uploadResult.secure_url,
+      fileName: payload.fileName,
+      mimeType: payload.mimeType,
+      lastUsed: new Date(),
+    });
+
+    this.logger.log(
+      `[uploadAndPersistCv] Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.secure_url}`,
+    );
+
+    return newCv;
+  }
 
   async extractCv(cv: Cv): Promise<CvExtractedData> {
     if (cv.aiCvId) {

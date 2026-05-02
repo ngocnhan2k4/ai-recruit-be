@@ -76,11 +76,10 @@ import { GeneralQuery, PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ROOM_NOTIFICATIONS, TASK_EVENT } from "@/common/constants";
+import { ROOM_NOTIFICATIONS } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
-import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 
 @Injectable()
 export class JobUseCases {
@@ -94,41 +93,12 @@ export class JobUseCases {
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
-    private readonly cvUseCases: CvUseCases,
     private readonly featureService: IFeatureService,
     private readonly searchService: ISearchService,
     private readonly cvSearchService: ICvSearchService,
     private readonly configService: ConfigService,
     private readonly cvService: ICvService,
   ) {}
-
-  private async enqueueScoreCv(params: {
-    applyId: string;
-    jobId: string;
-    cvId: string;
-  }): Promise<void> {
-    const cvIndex = this.configService.get<string>("ELASTICSEARCH_INDEX_CVS")!;
-    const isIndexed = await this.searchService.existsDocument(
-      cvIndex,
-      params.cvId,
-    );
-
-    if (isIndexed) {
-      this.logger.log("index found");
-
-      await this.messageQueueService.addScoreCv(
-        TASK_EVENT.SCORE_CV_APPLY,
-        params,
-      );
-    } else {
-      this.logger.log("index not found");
-
-      await this.messageQueueService.addCvThenScore(
-        { cvId: params.cvId },
-        params,
-      );
-    }
-  }
 
   async getJobs(
     filters: JobFilters,
@@ -645,12 +615,12 @@ export class JobUseCases {
     }
 
     if (cvFile && !applyJobDto.cvId) {
-      const cvResponse = await this.cvUseCases.createCv(userId, cvFile, {
+      const newCv = await this.cvService.uploadAndPersistCv(userId, cvFile, {
         name: applyJobDto.cvName || cvFile.filename,
         fileName: cvFile.filename,
         mimeType: cvFile.mimetype,
       });
-      applyJobDto.cvId = cvResponse.data!.id;
+      applyJobDto.cvId = newCv.id;
     }
 
     const repoResult:
@@ -711,11 +681,14 @@ export class JobUseCases {
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
     if (applyJobDto.cvId) {
-      await this.enqueueScoreCv({
-        applyId: application.id,
-        jobId: applyJobDto.jobId,
-        cvId: applyJobDto.cvId,
-      });
+      await this.messageQueueService.addCvThenScore(
+        { cvId: applyJobDto.cvId },
+        {
+          applyId: application.id,
+          jobId: applyJobDto.jobId,
+          cvId: applyJobDto.cvId,
+        },
+      );
     }
 
     return {
@@ -740,12 +713,16 @@ export class JobUseCases {
     };
 
     if (cvFile && !updateApplyJobDto.cvId) {
-      const cvResponse = await this.cvUseCases.createCv(orgSenderId, cvFile, {
-        name: rawBody.cvName || cvFile.filename,
-        fileName: cvFile.filename,
-        mimeType: cvFile.mimetype,
-      });
-      updateApplyJobDto.cvId = cvResponse.data!.id;
+      const newCv = await this.cvService.uploadAndPersistCv(
+        orgSenderId,
+        cvFile,
+        {
+          name: rawBody.cvName || cvFile.filename,
+          fileName: cvFile.filename,
+          mimeType: cvFile.mimetype,
+        },
+      );
+      updateApplyJobDto.cvId = newCv.id;
     }
 
     const repoResult:
@@ -800,11 +777,14 @@ export class JobUseCases {
       application = repoResult;
     }
     if (updateApplyJobDto.cvId && application.jobId) {
-      await this.enqueueScoreCv({
-        applyId,
-        jobId: application.jobId,
-        cvId: updateApplyJobDto.cvId,
-      });
+      await this.messageQueueService.addCvThenScore(
+        { cvId: updateApplyJobDto.cvId },
+        {
+          applyId: application.id,
+          jobId: application.jobId,
+          cvId: updateApplyJobDto.cvId,
+        },
+      );
     }
 
     return {
@@ -971,15 +951,21 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
-    await this.messageQueueService.addJob(
-      JobEventType.UPSERT_JOB,
-      {
-        jobId: newJob.id,
-      },
-      {
-        jobId: `job-sync-${newJob.id}`,
-      },
-    );
+    this.messageQueueService
+      .addJob(
+        JobEventType.UPSERT_JOB,
+        {
+          jobId: newJob.id,
+        },
+        {
+          jobId: `job-sync-${newJob.id}`,
+        },
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[createJob] [create] Error syncing job ${newJob.id} to message queue: ${error}`,
+        );
+      });
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -1040,10 +1026,10 @@ export class JobUseCases {
     };
   }
 
-  private async finalizeJobUpdate(
+  private finalizeJobUpdate(
     jobId: string,
     updatedJob: Job | null,
-  ): Promise<{ transformedJob: JobDto; updatedJob: Job }> {
+  ): { transformedJob: JobDto; updatedJob: Job } {
     const organizationAllowedStatuses = [
       JobStatusEnum.ACTIVE,
       JobStatusEnum.CLOSED,
@@ -1070,15 +1056,21 @@ export class JobUseCases {
         updatedJob.status as JobStatusEnum,
       )
     ) {
-      await this.messageQueueService.addJob(
-        JobEventType.UPSERT_JOB,
-        {
-          jobId: jobId,
-        },
-        {
-          jobId: `job-sync-${jobId}`,
-        },
-      );
+      this.messageQueueService
+        .addJob(
+          JobEventType.UPSERT_JOB,
+          {
+            jobId: jobId,
+          },
+          {
+            jobId: `job-sync-${jobId}`,
+          },
+        )
+        .catch((error) => {
+          this.logger.error(
+            `[finalizeJobUpdate] [addJob] Error syncing job ${jobId} to message queue: ${error}`,
+          );
+        });
     }
 
     return { transformedJob, updatedJob };
@@ -1302,7 +1294,7 @@ export class JobUseCases {
     }
 
     // Step 5: Publish job update event to message queue for search index update and other async processing
-    const { transformedJob } = await this.finalizeJobUpdate(jobId, updatedJob);
+    const { transformedJob } = this.finalizeJobUpdate(jobId, updatedJob);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -1371,8 +1363,10 @@ export class JobUseCases {
         return { job: updatedJob, notifications: [] };
       });
 
-    const { transformedJob, updatedJob: finalizedJob } =
-      await this.finalizeJobUpdate(jobId, updatedJob);
+    const { transformedJob, updatedJob: finalizedJob } = this.finalizeJobUpdate(
+      jobId,
+      updatedJob,
+    );
 
     if (notifications && notifications.length > 0) {
       const orgRoom = ROOM_NOTIFICATIONS.org({
@@ -1438,15 +1432,22 @@ export class JobUseCases {
     }
 
     this.logger.log(`Deleted job ${jobId}`);
-    await this.messageQueueService.addJob(
-      JobEventType.DELETE_JOB,
-      {
-        jobId: jobId,
-      },
-      {
-        jobId: `job-sync-${jobId}`,
-      },
-    );
+    this.messageQueueService
+      .addJob(
+        JobEventType.DELETE_JOB,
+        {
+          jobId: jobId,
+        },
+        {
+          jobId: `job-sync-${jobId}`,
+        },
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[deleteJob] [delete] Error syncing job ${jobId} to message queue: ${error}`,
+        );
+      });
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

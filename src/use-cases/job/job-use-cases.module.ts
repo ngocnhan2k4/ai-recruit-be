@@ -4,7 +4,6 @@ import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/postgres-data-services.module";
 import { FeatureModule } from "@/services";
-import { CvUseCasesModule } from "@/use-cases/cv/cv-use-cases.module";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { ConfigModule } from "@nestjs/config";
 import { CvModule } from "@/services/cv/cv.module";
@@ -15,7 +14,6 @@ import { CvModule } from "@/services/cv/cv.module";
     MessageQueueModule,
     PostgresDataServicesModule,
     FeatureModule,
-    CvUseCasesModule,
     ElasticsearchModule,
     ConfigModule,
     CvModule,
