@@ -8,7 +8,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import { CV_FOLDER, RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CvDto, CvListResponseDto, CvRequestDto } from "@/interfaces/dtos";
 import { MultipartFile } from "@fastify/multipart";
-import { CvEventType, ICvRepository } from "@/core";
+import { CvEventType, ICvRepository, ICvService } from "@/core";
 import { Cv } from "@/core";
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -20,6 +20,7 @@ export class CvUseCases {
     private readonly cloudinaryService: CloudinaryService,
     private readonly cvRepository: ICvRepository,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly cvService: ICvService,
   ) {}
 
   async getUserCvs(userId: string): Promise<ApiResponse<CvListResponseDto>> {
@@ -84,52 +85,31 @@ export class CvUseCases {
       });
     }
 
-    // Upload file to Cloudinary
-    const uploadResult = await this.cloudinaryService.uploadFile(file, {
-      folder: CV_FOLDER,
-    });
+    const newCv = await this.cvService.uploadAndPersistCv(
+      userId,
+      file,
+      createCvDto,
+    );
 
-    if (!uploadResult || !uploadResult.secure_url) {
-      throw new BadRequestException({
-        message: "Failed to upload file to storage",
-        code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
+    // Fire-and-forget: sync CV to message queue asynchronously
+    this.messageQueueService
+      .addCv(
+        CvEventType.UPSERT_CV,
+        {
+          cvId: newCv.id,
+        },
+        {
+          jobId: `cv-sync-${newCv.id}`,
+        },
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[createCv] [addCv] Error syncing CV ${newCv.id} for user ${userId}: ${error}`,
+        );
       });
-    }
-
-    // Save CV record to database
-    const newCv = await this.cvRepository.create({
-      userId: userId,
-      aiCvId: createCvDto.aiCvId,
-      name: createCvDto.name,
-      fileUrl: uploadResult.secure_url,
-      fileName: createCvDto.fileName,
-      mimeType: createCvDto.mimeType,
-      lastUsed: new Date(),
-    });
-
-    this.logger.log(
-      `[createCv] [create]Created CV ${newCv.id} for user ${userId} with file URL: ${uploadResult.secure_url}`,
-    );
-
-    // Fire-and-forget: extract + index CV asynchronously
-    await this.messageQueueService.addCv(
-      CvEventType.UPSERT_CV,
-      {
-        cvId: newCv.id,
-      },
-      {
-        jobId: `cv-extract-and-index-${newCv.id}`,
-      },
-    );
 
     const cvDto: CvDto = {
-      id: newCv.id,
-      userId: newCv.userId,
-      aiCvId: newCv.aiCvId,
-      name: newCv.name,
-      fileUrl: newCv.fileUrl,
-      fileName: newCv.fileName,
-      mimeType: newCv.mimeType,
+      ...newCv,
       lastUsed: newCv.lastUsed
         ? new Date(newCv.lastUsed)
         : new Date(newCv.createdAt),
@@ -219,15 +199,21 @@ export class CvUseCases {
       `[updateCv] [update] Updated CV ${cvId} for user ${userId}`,
     );
 
-    await this.messageQueueService.addCv(
-      CvEventType.UPSERT_CV,
-      {
-        cvId: cvId,
-      },
-      {
-        jobId: `cv-extract-and-index-${cvId}`,
-      },
-    );
+    this.messageQueueService
+      .addCv(
+        CvEventType.UPSERT_CV,
+        {
+          cvId: cvId,
+        },
+        {
+          jobId: `cv-sync-${cvId}`,
+        },
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[updateCv] [addCv] Error syncing CV ${cvId} for user ${userId}: ${error}`,
+        );
+      });
 
     const cvDto: CvDto = {
       id: updatedCv.id,
@@ -273,15 +259,21 @@ export class CvUseCases {
       });
     }
 
-    await this.messageQueueService.addCv(
-      CvEventType.DELETE_CV,
-      {
-        cvId: cvId,
-      },
-      {
-        jobId: `cv-sync-${cvId}`,
-      },
-    );
+    this.messageQueueService
+      .addCv(
+        CvEventType.DELETE_CV,
+        {
+          cvId: cvId,
+        },
+        {
+          jobId: `cv-sync-${cvId}`,
+        },
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[deleteCv] [addCv] Error deleting CV ${cvId} for user ${userId}: ${error}`,
+        );
+      });
 
     this.logger.log(
       `[deleteCv] [delete] Deleted CV ${cvId} for user ${userId}`,

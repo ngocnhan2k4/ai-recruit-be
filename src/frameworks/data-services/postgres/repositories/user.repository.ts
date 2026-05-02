@@ -276,12 +276,8 @@ export class UserRepository
     const offset = (page - 1) * limit;
 
     const fields = this.ensureGetUsersColumns(query);
-    const db = this.joinGetUsersBuilder(fields);
+    const { db, countDb } = this.joinGetUsersBuilder(fields);
     const conditions = this.buildGetAllAdminUsersQuery(query);
-
-    const countNeedsUserSubscriptionJoin =
-      query.subscriptionId !== undefined ||
-      query.statusSubscription !== undefined;
 
     const [items, totalRow] = await Promise.all([
       db
@@ -289,19 +285,7 @@ export class UserRepository
         .limit(limit)
         .offset(offset)
         .orderBy(this.buildSort(query.sortBy, query.sortDirection)),
-      (countNeedsUserSubscriptionJoin
-        ? this.db
-            .select({
-              count: countDistinct(users.id).as("count"),
-            })
-            .from(users)
-            .leftJoin(userSubscriptions, eq(userSubscriptions.userId, users.id))
-        : this.db
-            .select({
-              count: countDistinct(users.id).as("count"),
-            })
-            .from(users)
-      ).where(conditions.length > 0 ? and(...conditions) : undefined),
+      countDb.where(conditions.length > 0 ? and(...conditions) : undefined),
     ]);
 
     const total = Number(totalRow[0]?.count ?? 0);
@@ -401,9 +385,18 @@ export class UserRepository
     }
 
     let db: any = this.db.select(selectedFields).from(users);
+    let countDb: any = this.db
+      .select({
+        count: countDistinct(users.id).as("count"),
+      })
+      .from(users);
 
     if (needUserSubscription) {
       db = db.leftJoin(
+        userSubscriptions,
+        eq(userSubscriptions.userId, users.id),
+      );
+      countDb = countDb.leftJoin(
         userSubscriptions,
         eq(userSubscriptions.userId, users.id),
       );
@@ -418,9 +411,13 @@ export class UserRepository
 
     if (needOnboarding) {
       db = db.innerJoin(userOnboardings, eq(userOnboardings.userId, users.id));
+      countDb = countDb.innerJoin(
+        userOnboardings,
+        eq(userOnboardings.userId, users.id),
+      );
     }
 
-    return db;
+    return { db, countDb };
   }
 
   private buildGetAllAdminUsersQuery(query: GetUserQuery) {

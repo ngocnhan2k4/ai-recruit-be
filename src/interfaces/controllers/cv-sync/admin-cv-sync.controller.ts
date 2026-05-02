@@ -17,7 +17,7 @@ import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @ApiTags("CV Sync Admin")
 @ApiBearerAuth()
-// @UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
+@UseGuards(JwtAuthGuard, SystemAuthorizeGuard)
 @Controller("admin/cv-sync")
 export class AdminCvSyncController {
   constructor(private readonly cvSyncUseCases: CvSyncUseCases) {}

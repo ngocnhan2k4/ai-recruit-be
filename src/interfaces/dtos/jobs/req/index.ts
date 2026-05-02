@@ -5,4 +5,3 @@ export * from "./statistic-job.dto";
 export * from "./compare-statistics.dto";
 export * from "./sync-from-es.dto";
 export * from "./job-trends.dto";
-export * from "./job-candidate.dto";
