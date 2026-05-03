@@ -277,6 +277,14 @@ export class CvSearchService implements ICvSearchService {
           },
         },
         sort: this.buildSort(sortBy, sortDirection),
+        collapse: {
+          field: "userId",
+          inner_hits: {
+            name: "top_cv",
+            size: 1,
+            sort: [{ _score: "desc" }, { updatedAt: "desc" }],
+          },
+        },
         size: limit + 1,
         ...(searchAfter && { search_after: searchAfter }),
         _source: {
