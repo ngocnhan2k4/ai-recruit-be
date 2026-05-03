@@ -1576,6 +1576,7 @@ export class JobUseCases {
 
     const recommendations: JobCandidateRecommendationDto[] = [];
     for (const cv of cvDocs) {
+      const user = userMap.get(cv.userId);
       const criteria = this.cvService.calculateMatchingScore(
         cv,
         jobForMatching,
@@ -1588,7 +1589,13 @@ export class JobUseCases {
         mimeType: cv.mimeType ?? "",
         score: cv.score ?? 0,
         criteria: criteria.criteria,
-        user: userMap.get(cv.userId),
+        user: {
+          id: user?.id ?? "",
+          email: user?.email ?? "",
+          name: user?.name ?? "",
+          avatarUrl: user?.avatarUrl ?? "",
+          username: user?.username ?? "",
+        },
       });
     }
 
