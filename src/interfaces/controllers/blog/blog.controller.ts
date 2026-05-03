@@ -23,13 +23,14 @@ import {
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
   QueryBlogTagsDto,
-  CreateBlogCommentDto,
   BlogPostDetailDto,
   BlogCategoryDto,
   BlogTagCursorResponseDto,
   BlogPostListItemDto,
 } from "@/interfaces/dtos/blog";
 import { ApiResponse } from "@/interfaces/dtos";
+import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
+import { Comment } from "@/core/entities";
 
 @ApiTags("Blogs")
 @Controller("blogs")
@@ -104,8 +105,8 @@ export class BlogController {
   async createComment(
     @GetUser() user: TokenPayload,
     @Param("postId") postId: string,
-    @Body() dto: CreateBlogCommentDto,
-  ): Promise<ApiResponse<any>> {
+    @Body() dto: CommentDto,
+  ): Promise<ApiResponse<Comment>> {
     return this.blogUseCase.createComment(user, postId, dto);
   }
 
@@ -168,7 +169,7 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
     @Body() dto: UpdateBlogPostDto,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<UpdateBlogPostDto>> {
     return this.blogUseCase.updatePost(user, id, dto);
   }
 

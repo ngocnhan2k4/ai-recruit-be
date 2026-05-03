@@ -14,20 +14,6 @@ export class BlogAuthorDto {
   avatarUrl?: string | null;
 }
 
-export class BlogCommentDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  content: string;
-
-  @ApiProperty()
-  createdAt: Date;
-
-  @ApiProperty({ type: BlogAuthorDto })
-  author: BlogAuthorDto;
-}
-
 export class BlogTagItemDto {
   @ApiProperty()
   name: string;

@@ -12,14 +12,18 @@ import { ICommentRepository } from "@/core/abstracts/repositories/comment-reposi
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogPostDto,
-  CreateBlogCommentDto,
   QueryBlogsDto,
   QueryBlogTagsDto,
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
 } from "@/interfaces/dtos/blog/req";
 import { BlogService } from "@/services/blog/blog.service";
-import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
+import {
+  BlogPostListItemDto,
+  BlogPostDetailDto,
+  BlogCategoryDto,
+  BlogTagCursorResponseDto,
+} from "@/interfaces/dtos/blog/res/blog-post.dto";
 import {
   BlogPostListItem,
   BlogPostUserActions,
@@ -31,6 +35,7 @@ import {
   UserActionType,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
+import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
 
 @Injectable()
 export class BlogUseCases {
@@ -44,7 +49,7 @@ export class BlogUseCases {
   async createComment(
     user: TokenPayload,
     postId: string,
-    dto: CreateBlogCommentDto,
+    dto: CommentDto,
   ): Promise<ApiResponse<Comment>> {
     const post = await this.blogRepository.get(postId);
 
@@ -153,6 +158,7 @@ export class BlogUseCases {
       page,
       keyword: query.keyword,
       category: query.category,
+      status: query.status,
       excludeStatus: BlogPostStatus.DRAFT,
     });
 
@@ -168,7 +174,7 @@ export class BlogUseCases {
     };
   }
 
-  async getAdminBlogById(id: string): Promise<ApiResponse<any>> {
+  async getAdminBlogById(id: string): Promise<ApiResponse<BlogPostDetailDto>> {
     await this.blogService.checkNotDraft(id);
 
     const post = await this.blogRepository.getPostBaseById(id);
@@ -196,7 +202,9 @@ export class BlogUseCases {
         ...post,
         likes,
         tags,
-      },
+        isSaved: false,
+        isLiked: false,
+      } as BlogPostDetailDto,
     };
   }
 
@@ -213,17 +221,19 @@ export class BlogUseCases {
     };
   }
 
-  async getCategories(): Promise<ApiResponse<any>> {
+  async getCategories(): Promise<ApiResponse<BlogCategoryDto[]>> {
     const categories = await this.blogRepository.getCategories();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: categories,
+      data: categories as BlogCategoryDto[],
     };
   }
 
-  async getTags(query: QueryBlogTagsDto): Promise<ApiResponse<any>> {
+  async getTags(
+    query: QueryBlogTagsDto,
+  ): Promise<ApiResponse<BlogTagCursorResponseDto>> {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
     const result = await this.blogRepository.getMergedTags({
       limit,
@@ -237,23 +247,30 @@ export class BlogUseCases {
       data: {
         items: result.data,
         pagination: {
-          nextCursor: result.pagination.nextCursor ?? null,
+          nextCursor: (result.pagination.nextCursor as string) || null,
           hasNextPage: !!result.pagination.hasNextPage,
         },
-      },
+      } as BlogTagCursorResponseDto,
     };
   }
 
   async getBlogBySlug(
     slug: string,
     userId?: string,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<BlogPostDetailDto>> {
     const post = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!post) {
       throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    if (post.status !== BlogPostStatus.PUBLISHED && post.author.id !== userId) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
       });
     }
 
@@ -435,7 +452,7 @@ export class BlogUseCases {
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
     const updated = await this.blogRepository.executeWithTransaction(
       async (tx) => {
-        await this.blogService.checkIsAuthor(postId, user.userId);
+        const post = await this.blogService.checkIsAuthor(postId, user.userId);
 
         const rows = await this.blogRepository.update(
           {
@@ -448,6 +465,10 @@ export class BlogUseCases {
             content: dto.content,
             categoryId: dto.category,
             updatedAt: new Date(),
+            status:
+              post.status === (BlogPostStatus.DRAFT as string)
+                ? BlogPostStatus.DRAFT
+                : BlogPostStatus.PENDING,
           },
           tx,
         );

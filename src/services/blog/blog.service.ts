@@ -24,7 +24,7 @@ export class BlogService {
     return post;
   }
 
-  async checkIsAuthor(postId: string, userId: string): Promise<void> {
+  async checkIsAuthor(postId: string, userId: string): Promise<BlogPost> {
     const post = await this.checkValidPost(postId);
 
     if (post.authorId !== userId) {
@@ -33,6 +33,8 @@ export class BlogService {
         code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
       });
     }
+
+    return post;
   }
 
   async checkPostExists(postId: string): Promise<void> {

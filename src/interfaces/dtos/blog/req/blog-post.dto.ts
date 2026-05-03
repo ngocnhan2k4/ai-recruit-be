@@ -10,7 +10,9 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
+  IsEnum,
 } from "class-validator";
+import { BlogPostStatus } from "@/core/entities";
 
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -34,6 +36,14 @@ export class QueryBlogsDto extends GeneralQueryDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @ApiPropertyOptional({
+    description: "Filter by status",
+    enum: BlogPostStatus,
+  })
+  @IsOptional()
+  @IsEnum(BlogPostStatus)
+  status?: BlogPostStatus;
 }
 
 export class CreateBlogPostDto {
@@ -137,18 +147,6 @@ export class UpdateBlogPostDto {
   @IsOptional()
   @IsString()
   thumbnail?: string | null;
-}
-
-export class CreateBlogCommentDto {
-  @ApiPropertyOptional({ nullable: true, format: "uuid" })
-  @IsOptional()
-  @IsUUID("4")
-  parentCommentId?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  content: string;
 }
 
 export class QueryBlogTagsDto extends GeneralQueryDto {}

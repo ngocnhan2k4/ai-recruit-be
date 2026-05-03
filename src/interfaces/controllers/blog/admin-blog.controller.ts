@@ -8,6 +8,8 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
 import { QueryBlogsDto } from "@/interfaces/dtos/blog/req";
+import { BlogPostDetailDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
+import { ApiResponse } from "@/interfaces/dtos";
 import { Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common";
 
 @ApiTags("Admin - Blog System")
@@ -33,7 +35,9 @@ export class AdminBlogController {
   })
   @ApiParam({ name: "id", description: "Blog post ID" })
   @Get(":id")
-  async getAdminBlogById(@Param("id") id: string) {
+  async getAdminBlogById(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<BlogPostDetailDto>> {
     return this.blogUseCases.getAdminBlogById(id);
   }
 
