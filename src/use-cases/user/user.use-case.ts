@@ -893,36 +893,51 @@ export class UserUseCases implements OnModuleInit {
       );
     }
 
-    const updatedUser = {
-      ...user,
-      ...updateUserDto,
+    const updatePayload: Partial<User> = {
+      updatedAt: new Date(),
     };
 
-    const updatedUserResult = await this.userRepository.update(
-      { id: userId },
-      updatedUser,
-    );
-    if (!updatedUserResult) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-        code: RESPONSE_CODE.USER_NOT_UPDATED,
-      });
+    if (updateUserDto.roles !== undefined) {
+      updatePayload.roles = updateUserDto.roles;
     }
+
+    let currentUser = user;
+    if (Object.keys(updatePayload).length > 1) {
+      const updatedUserResult = await this.userRepository.update(
+        { id: userId },
+        updatePayload,
+      );
+      if (!updatedUserResult || updatedUserResult.length === 0) {
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+          code: RESPONSE_CODE.USER_NOT_UPDATED,
+        });
+      }
+      currentUser = updatedUserResult[0];
+    }
+
     const rolesToUpdate = updateUserDto.roles || user.roles;
 
-    for (const role of rolesToUpdate) {
-      await this.casbinService.addRoleForUser(userId, role);
+    if (updateUserDto.roles !== undefined) {
+      const existingRoles = await this.casbinService.getRolesForUser(userId);
+      for (const existingRole of existingRoles) {
+        await this.casbinService.deleteRoleForUser(userId, existingRole);
+      }
+
+      for (const role of rolesToUpdate) {
+        await this.casbinService.addRoleForUser(userId, role);
+      }
+      await this.casbinService.savePolicy();
     }
-    await this.casbinService.savePolicy();
 
     const loginMethods = await this.userRepository.getUserLoginMethods(userId);
     const otherProviders = loginMethods
-      .filter((m) => m.provider !== updatedUser.provider)
+      .filter((m) => m.provider !== currentUser.provider)
       .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
 
     const userDto = GetUserResponseDto.from({
-      ...updatedUser,
-      provider: updatedUser.provider as ProviderEnum,
+      ...currentUser,
+      provider: currentUser.provider as ProviderEnum,
       roles: rolesToUpdate as RoleEnum[],
       otherProviders,
     });

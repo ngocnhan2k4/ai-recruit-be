@@ -39,6 +39,14 @@ export class CasbinService {
     return this.enforcer;
   }
 
+  private invalidateUserCache(userId: string): void {
+    this.cache.delete(userId);
+  }
+
+  private invalidateAllCachedEnforcers(): void {
+    this.cache.clear();
+  }
+
   async getCachedEnforcer(userId: string): Promise<SyncedEnforcer> {
     // Check cache first
     if (this.cache.has(userId)) {
@@ -83,13 +91,20 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.addNamedPolicy(
+    const added = await this.enforcer.addNamedPolicy(
       ptype,
       subject,
       object,
       action,
       effect,
     );
+
+    // "p" rules are loaded for every cached user enforcer.
+    if (added) {
+      this.invalidateAllCachedEnforcers();
+    }
+
+    return added;
   }
 
   async removePolicy(
@@ -109,7 +124,7 @@ export class CasbinService {
 
     if (deletedCount > 0) {
       // Reload policies into memory after successful deletion
-      await this.enforcer.loadPolicy();
+      await this.loadPolicy();
       return true;
     }
 
@@ -126,7 +141,7 @@ export class CasbinService {
     action: string,
     effect: string = "allow",
   ): Promise<boolean> {
-    return await this.enforcer.addNamedPolicy(
+    const added = await this.enforcer.addNamedPolicy(
       ptype,
       subject,
       domainType,
@@ -134,6 +149,13 @@ export class CasbinService {
       action,
       effect,
     );
+
+    // "p2" rules are loaded for every cached user enforcer.
+    if (added) {
+      this.invalidateAllCachedEnforcers();
+    }
+
+    return added;
   }
 
   async removePolicy2(
@@ -156,7 +178,7 @@ export class CasbinService {
 
       if (deletedCount > 0) {
         // Reload policies into memory after successful deletion
-        await this.enforcer.loadPolicy();
+        await this.loadPolicy();
         return true;
       }
 
@@ -170,15 +192,31 @@ export class CasbinService {
 
   // Role management methods for ptype "g" (basic role assignments)
   async addRoleForUser(user: string, role: string): Promise<boolean> {
-    return await this.enforcer.addNamedGroupingPolicy(
+    const added = await this.enforcer.addNamedGroupingPolicy(
       PtypeEnum.BASIC_ASSIGNMENT,
       user,
       role,
     );
+
+    if (added) {
+      this.invalidateUserCache(user);
+    }
+
+    return added;
   }
 
   async deleteRoleForUser(user: string, role: string): Promise<boolean> {
-    return await this.enforcer.removeNamedGroupingPolicy(user, role);
+    const removed = await this.enforcer.removeNamedGroupingPolicy(
+      PtypeEnum.BASIC_ASSIGNMENT,
+      user,
+      role,
+    );
+
+    if (removed) {
+      this.invalidateUserCache(user);
+    }
+
+    return removed;
   }
 
   // Role management methods for ptype "g2" (domain-based role assignments)
@@ -199,7 +237,7 @@ export class CasbinService {
 
     // Clear user's cached enforcer so it reloads with new g2 policy
     if (result) {
-      this.cache.delete(user);
+      this.invalidateUserCache(user);
     }
 
     return result;
@@ -222,7 +260,7 @@ export class CasbinService {
 
     // Clear user's cached enforcer so it reloads without old g2 policy
     if (result) {
-      this.cache.delete(user);
+      this.invalidateUserCache(user);
     }
 
     return result;
@@ -316,6 +354,7 @@ export class CasbinService {
 
   async loadPolicy(): Promise<void> {
     await this.enforcer.loadPolicy();
+    this.invalidateAllCachedEnforcers();
   }
 
   // Helper method to check permissions with domain support
