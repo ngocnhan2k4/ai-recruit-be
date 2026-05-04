@@ -520,10 +520,23 @@ export class BlogRepository
     return fallbackCategory.id;
   }
 
-  async incrementViewCount(postId: string): Promise<void> {
-    await this.db
-      .update(blogPosts)
-      .set({ viewCount: sql`${blogPosts.viewCount} + 1` })
-      .where(eq(blogPosts.id, postId));
+  async incrementViewCount(
+    data: { postId: string; viewCount: number }[],
+  ): Promise<void> {
+    if (data.length === 0) {
+      return;
+    }
+
+    const valueRows = sql.join(
+      data.map((row) => sql`(${row.postId}::uuid, ${row.viewCount}::int)`),
+      sql`, `,
+    );
+
+    await this.db.execute(sql`
+      UPDATE ${blogPosts}
+      SET view_count = ${blogPosts.viewCount} + v.inc
+      FROM (VALUES ${valueRows}) AS v(id, inc)
+      WHERE ${blogPosts.id} = v.id
+    `);
   }
 }
