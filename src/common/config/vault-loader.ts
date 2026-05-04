@@ -7,6 +7,11 @@ dotenv.config();
  * Load secrets from Vault and merge into process.env
  */
 export async function loadVaultIntoEnv(): Promise<void> {
+  if (process.env.ENABLE_VAULT === "false") {
+    console.log("Vault is disabled, skipping Vault secrets loading");
+    return;
+  }
+
   const vaultAddr = process.env.VAULT_ADDR;
   const vaultToken = process.env.VAULT_TOKEN;
   const vaultSecretPath = process.env.VAULT_SECRET_PATH;
