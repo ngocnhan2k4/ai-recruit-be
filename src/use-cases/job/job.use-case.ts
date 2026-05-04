@@ -1526,6 +1526,8 @@ export class JobUseCases {
       });
     }
 
+    console.log("jobDetail", jobDetail);
+
     const targetLimit = jobDetail.job.recruitCount ?? 10;
 
     const { data: seekingUser } = await this.userRepository.getAllWithOffset({
@@ -1565,13 +1567,8 @@ export class JobUseCases {
       salaryMax: jobDetail.job.salaryMax,
     });
 
-    const userIds = cvDocs.map((cv) => cv.userId);
-    const { data: users } = await this.userRepository.getAllWithOffset({
-      userIds,
-      limit: userIds.length,
-    });
     const userMap = new Map<string, GetAllUserResponse>(
-      users.map((user) => [user.id, user]),
+      seekingUser.map((user) => [user.id, user]),
     );
 
     const recommendations: JobCandidateRecommendationDto[] = [];
