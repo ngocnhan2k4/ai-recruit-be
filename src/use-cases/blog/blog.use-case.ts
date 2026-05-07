@@ -5,7 +5,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PaginatedResult, TokenPayload } from "@/common/types";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  CACHE_KEYS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+} from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
@@ -35,6 +39,7 @@ import {
   UserActionType,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
+import { ICacheService } from "@/core";
 import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
 
 @Injectable()
@@ -44,6 +49,7 @@ export class BlogUseCases {
     private readonly userActionRepository: IUserActionRepository,
     private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
+    private readonly cacheService: ICacheService,
   ) {}
 
   async createComment(
@@ -292,18 +298,19 @@ export class BlogUseCases {
       ),
     ]);
 
-    await this.blogRepository.incrementViewCount(post.id);
+    // [TODO] Should tracking view count from IP address to prevent duplicate view count
+    // Update view count into cache
+    await this.cacheService.increment(CACHE_KEYS.blog.viewCount(post.id), 1);
+    await this.cacheService.addToSet(CACHE_KEYS.blog.viewDirty(), post.id);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         ...post,
+        ...actions,
         likes,
-        isSaved: actions.isSaved,
-        isLiked: actions.isLiked,
         tags,
-        viewCount: post.viewCount + 1,
       },
     };
   }

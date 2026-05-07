@@ -177,5 +177,7 @@ export class GetUserQueryDto extends GeneralQueryDto {
 export class AdminUpdateUserRequestDto {
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
+  @IsArray()
+  @IsEnum(RoleEnum, { each: true })
   roles?: RoleEnum[];
 }

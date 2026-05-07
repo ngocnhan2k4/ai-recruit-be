@@ -19,14 +19,35 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     return this.redis.get(key);
   }
 
-  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    if (ttlSeconds) {
-      await this.redis.setex(key, ttlSeconds, value);
-    } else {
-      await this.redis.set(key, value);
+  async set(
+    key: string,
+    value: string,
+    options?: { ttlSeconds?: number; NX?: boolean },
+  ): Promise<boolean> {
+    if (options?.ttlSeconds && options?.NX) {
+      const result = await this.redis.set(
+        key,
+        value,
+        "EX",
+        options.ttlSeconds,
+        "NX",
+      );
+      return result === "OK";
     }
-  }
 
+    if (options?.ttlSeconds) {
+      await this.redis.setex(key, value, options.ttlSeconds);
+      return true;
+    }
+
+    if (options?.NX) {
+      const result = await this.redis.setnx(key, value);
+      return result === 1;
+    }
+
+    await this.redis.set(key, value);
+    return true;
+  }
   async del(key: string): Promise<void> {
     await this.redis.del(key);
   }
@@ -48,7 +69,7 @@ export class RedisService implements ICacheService, OnModuleDestroy {
 
   async setJson(key: string, value: any, ttlMs?: number): Promise<void> {
     const ttl = this.ttlSeconds(ttlMs);
-    await this.set(key, JSON.stringify(value), ttl);
+    await this.set(key, JSON.stringify(value), { ttlSeconds: ttl });
   }
 
   async setWithExpiry(
@@ -159,5 +180,29 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     }
 
     return members;
+  }
+
+  async increment(key: string, value: number): Promise<void> {
+    await this.redis.incrby(key, value);
+  }
+
+  async addToSet(key: string, member: string): Promise<void> {
+    await this.redis.sadd(key, member);
+  }
+
+  async removeFromSet(key: string, ...members: string[]): Promise<void> {
+    await this.redis.srem(key, ...members);
+  }
+
+  async getSetMembers(key: string): Promise<string[]> {
+    return this.redis.smembers(key);
+  }
+
+  async eval(
+    script: string,
+    keys: number,
+    ...args: string[]
+  ): Promise<string[]> {
+    return (await this.redis.eval(script, keys, ...args)) as string[];
   }
 }

@@ -57,5 +57,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     tx?: DBDrizzleTransaction,
   ): Promise<BlogPost>;
 
-  abstract incrementViewCount(postId: string): Promise<void>;
+  abstract incrementViewCount(
+    data: { postId: string; viewCount: number }[],
+  ): Promise<void>;
 }
