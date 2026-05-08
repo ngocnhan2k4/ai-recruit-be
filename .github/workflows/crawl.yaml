@@ -205,6 +205,7 @@ jobs:
         id: export_jobs
         working-directory: ./crawl_jobs
         run: |
+          mkdir -p extract_skills/data
           python scripts/export_recent_jobs_for_extraction.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --output-file "extract_skills/data/jobs_export.csv" \
