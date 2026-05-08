@@ -129,7 +129,7 @@ jobs:
 
           echo "queue_mode=$QUEUE_MODE" >> "$GITHUB_OUTPUT"
 
-          python main.py \
+          python -u main.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --gha-output "$GITHUB_OUTPUT" \
             --mode ${{ inputs.mode || 'update' }} \
