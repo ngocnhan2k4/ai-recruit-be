@@ -40,6 +40,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install psycopg2-binary pandas transformers torch --no-cache-dir
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: crawl_jobs/job_index_queue/package-lock.json
+
+      - name: Install queue bridge dependencies
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            npm ci --omit=dev --prefix ./job_index_queue
+          else
+            echo "Skip queue bridge install: REDIS_URL secret is empty."
+          fi
+
       - name: Export uncategorized jobs to CSV
         working-directory: ./crawl_jobs
         run: |
@@ -51,9 +69,7 @@ jobs:
         id: check_jobs
         working-directory: ./crawl_jobs
         run: |
-          LINES=$(wc -l < classifier/data/predict_jobs.csv)
-          # Subtract 1 for header
-          JOB_COUNT=$((LINES - 1))
+          JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('classifier/data/predict_jobs.csv')))")
           echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
 
           if [ "$JOB_COUNT" -le 0 ]; then
@@ -79,14 +95,16 @@ jobs:
         run: |
           python scripts/update_category.py \
             --db_url "${{ secrets.DATABASE_URL }}" \
-            --csv_file "classifier/data/results.csv"
+            --csv_file "classifier/data/results.csv" \
+            --redis_url "${{ secrets.REDIS_URL }}"
 
       - name: Delete jobs with 'Other' category
         if: steps.check_jobs.outputs.skip != 'true'
         working-directory: ./crawl_jobs
         run: |
           python scripts/delete_other_category_jobs.py \
-            --db_url "${{ secrets.DATABASE_URL }}"
+            --db_url "${{ secrets.DATABASE_URL }}" \
+            --redis_url "${{ secrets.REDIS_URL }}"
 
       - name: Delete unused categories
         working-directory: ./crawl_jobs

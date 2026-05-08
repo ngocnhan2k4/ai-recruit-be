@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup
 from helpers.extraction import extract_experience_years, extract_salary
 from helpers.http import crawl, fetch_page, human_delay
 from helpers.province import is_likely_province
-from helpers.skills import extract_skills_from_text
 from helpers.text import html_to_mixed_content, safe_text
 
 
@@ -53,9 +52,8 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
         # Skills from requirements section
         skills = _extract_skills_from_sections(soup, locations)
 
-        # Also extract common tech skills from full page text
-        desc_text = safe_text(soup.select_one("body"))
-        skills = extract_skills_from_text(desc_text, skills)
+        # skills already contains extracted tags
+        # (Model extraction will be done asynchronously later)
 
         # Description — mixed content (markdown headings + raw HTML)
         description = _extract_description(soup)
@@ -194,7 +192,9 @@ def _extract_skills_from_sections(soup, locations):
         ["h2", "h3", "h4", "strong", "b"],
         string=lambda t: (
             t
-            and ("yêu cầu" in t.lower() or "kỹ năng" in t.lower() or "skill" in t.lower())
+            and (
+                "yêu cầu" in t.lower() or "kỹ năng" in t.lower() or "skill" in t.lower()
+            )
         ),
     )
 
@@ -298,7 +298,9 @@ def scrape_page(scraper, page_num, headers):
                 if company_elem:
                     job_data["company"] = safe_text(company_elem)
 
-            print(f"\n[{idx + 1}/{min(len(unique_jobs), 15)}] Processing: {job_data['title'][:50]}...")
+            print(
+                f"\n[{idx + 1}/{min(len(unique_jobs), 15)}] Processing: {job_data['title'][:50]}..."
+            )
             scrape_job_detail(scraper, job_url, job_data, companies)
             human_delay(2, 3)
 

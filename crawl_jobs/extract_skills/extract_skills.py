@@ -82,7 +82,7 @@ def main():
     parser.add_argument("--db-url", required=True, help="PostgreSQL Connection String")
     parser.add_argument(
         "--model-path",
-        default="./artifacts/extract_skills_model",
+        default="tienminhktvn/extract-skills-model",
         help="Path to the trained NER model",
     )
     parser.add_argument(

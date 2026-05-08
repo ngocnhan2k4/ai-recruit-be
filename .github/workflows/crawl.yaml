@@ -166,3 +166,74 @@ jobs:
             🔹 VietnamWorks: ${{ steps.run_crawler.outputs.vietnamworks }} jobs (${{ inputs.vietnamworks_pages || '1' }} pages)
 
             ✅ Status: ${{ job.status }}
+
+  extract-skills:
+    needs: run-crawler
+    strategy:
+      matrix:
+        env: [dev, prod]
+    environment: ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: ./crawl_jobs
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary pandas transformers torch bs4 tqdm --no-cache-dir
+
+      - name: Export unextracted jobs
+        id: export_jobs
+        working-directory: ./crawl_jobs
+        run: |
+          python scripts/export_recent_jobs_for_extraction.py \
+            --db-url "${{ secrets.DATABASE_URL }}" \
+            --output-file "extract_skills/data/jobs_export.csv" \
+            --hours 24
+
+          if [ -f "extract_skills/data/jobs_export.csv" ]; then
+            LINES=$(wc -l < extract_skills/data/jobs_export.csv)
+            JOB_COUNT=$((LINES - 1))
+          else
+            JOB_COUNT=0
+          fi
+          echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Extract skills using huggingface model
+        working-directory: ./crawl_jobs
+        run: |
+          python extract_skills/extract_skills.py \
+            --db-url "${{ secrets.DATABASE_URL }}" \
+            --model-path "tienminhktvn/extract-skills-model" \
+            --input-file "extract_skills/data/jobs_export.csv"
+
+      - name: Notify Slack
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
+          SLACK_CHANNEL: crawl
+          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: "🧠 Kết quả trích xuất kỹ năng chuyên sâu (${{ matrix.env }})"
+          SLACK_MESSAGE: |
+            📊 Số lượng jobs đã check & xử lý: ${{ steps.export_jobs.outputs.job_count || '0' }}
+            ✅ Status: ${{ job.status }}
