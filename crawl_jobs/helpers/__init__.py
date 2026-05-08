@@ -82,7 +82,4 @@ __all__ = [
     "is_safe_db_url",
     "DISALLOWED_SCHEMES",
     "BLACKLISTED_NETWORKS",
-    # Skills
-    "COMMON_TECH_SKILLS",
-    "extract_skills_from_text",
 ]
