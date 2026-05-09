@@ -61,10 +61,11 @@ import {
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { ONE_DAY_MS } from "@/common/constants";
-import { addSeconds } from "date-fns";
+import { addDays } from "date-fns";
 import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
+import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -84,6 +85,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly userEducationRepository: IUserEducationRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
+    private readonly configService: ConfigService,
   ) {}
 
   // private isUserAccountAvailable(user: User): boolean {
@@ -1143,8 +1145,12 @@ export class UserUseCases implements OnModuleInit {
       };
     }
 
+    const timeToDeleteAccount = this.configService.get<number>(
+      "TIME_TO_DELETE_ACCOUNT_DAYS",
+    )!;
+
     const deletionRequestedAt = new Date();
-    const purgeAfterAt = addSeconds(deletionRequestedAt, 15);
+    const purgeAfterAt = addDays(deletionRequestedAt, timeToDeleteAccount);
 
     await this.userRepository.executeWithTransaction(async (tx) => {
       await this.authRepository.revokeAllForUser(userId);
