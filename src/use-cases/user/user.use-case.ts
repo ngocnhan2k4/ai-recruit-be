@@ -1146,7 +1146,7 @@ export class UserUseCases implements OnModuleInit {
     }
 
     const timeToDeleteAccount = this.configService.get<number>(
-      "TIME_TO_DELETE_ACCOUNT_IN_DAYS",
+      "TIME_TO_DELETE_ACCOUNT_DAYS",
     )!;
 
     const deletionRequestedAt = new Date();
