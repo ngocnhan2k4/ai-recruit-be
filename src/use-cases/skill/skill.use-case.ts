@@ -1,5 +1,4 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { NormalizeString } from "@/common/utils";
 import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
 import {
   ApiResponse,
@@ -82,7 +81,6 @@ export class SkillUseCases {
 
     const enriched: CrawledSkillDto[] = data.data.map((s) => ({
       ...s,
-      createdAt: s.createdAt as Date,
       synonym: matches[s.name]?.resolvedName ?? null,
     }));
 
@@ -129,30 +127,13 @@ export class SkillUseCases {
     }
 
     const nextName = dto.name.trim();
-    const normalizedOldName = NormalizeString(skill.name);
-    const normalizedNextName = NormalizeString(nextName);
 
-    await this.skillsSynonymsRepository.executeWithTransaction(async (tx) => {
-      await this.skillRepository.update(
-        { id },
-        {
-          name: nextName,
-        },
-        tx,
-      );
-
-      if (normalizedOldName !== normalizedNextName) {
-        await this.skillsSynonymsRepository.update(
-          {
-            masterName: normalizedOldName,
-          },
-          {
-            masterName: normalizedNextName,
-          },
-          tx,
-        );
-      }
-    });
+    await this.skillRepository.update(
+      { id },
+      {
+        name: nextName,
+      },
+    );
 
     return {
       message: "Skill name updated successfully",
@@ -163,13 +144,16 @@ export class SkillUseCases {
   async getTopDemandedSkills(
     query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
-    const months = query.months ?? 3;
     const limit = query.limit ?? 10;
+    const { fromDate, toDate, provinceId } = query;
 
-    const data = await this.skillRepository.getTopDemandedSkills(months, limit);
-    this.logger.log(
-      `Fetched top ${limit} demanded skills in last ${months} months`,
+    const data = await this.skillRepository.getTopDemandedSkills(
+      limit,
+      fromDate,
+      toDate,
+      provinceId,
     );
+    this.logger.log(`Fetched top ${limit} demanded skills`);
 
     return {
       message: "Top demanded skills fetched successfully",

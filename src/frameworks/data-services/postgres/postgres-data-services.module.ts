@@ -33,6 +33,8 @@ import {
   IFeatureRepository,
   IUserFeatureUsageRepository,
   ITaskRepository,
+  IUserActionRepository,
+  ICommentRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -79,7 +81,12 @@ import { UserSubscriptionRepository } from "./repositories/user-subscription.rep
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 import { TaskRepository } from "./repositories/task.repository";
+import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
+import { BlogRepository } from "./repositories/blog.repository";
+import { UserActionRepository } from "./repositories/user-action.repository";
+import { CommentRepository } from "./repositories/comment.repository";
 import { RedisModule } from "@/frameworks/redis/redis.module";
+import { createLoggerQuery } from "@/common/utils";
 
 @Global()
 @Module({
@@ -101,6 +108,8 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          (pool as any).query = createLoggerQuery(pool, { logger });
 
           // Wrap pool để log SQL queries
           const maxRetries = 3;
@@ -287,6 +296,18 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
       provide: IUserFeatureUsageRepository,
       useClass: UserFeatureUsageRepository,
     },
+    {
+      provide: IBlogRepository,
+      useClass: BlogRepository,
+    },
+    {
+      provide: IUserActionRepository,
+      useClass: UserActionRepository,
+    },
+    {
+      provide: ICommentRepository,
+      useClass: CommentRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -327,6 +348,9 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
     IUserSubscriptionRepository,
     IUserFeatureUsageRepository,
     ITaskRepository,
+    IBlogRepository,
+    IUserActionRepository,
+    ICommentRepository,
   ],
 })
 export class PostgresDataServicesModule {}

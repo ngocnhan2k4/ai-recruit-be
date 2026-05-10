@@ -1,4 +1,4 @@
-import { UserCvData } from "@/core/entities";
+import { User, UserCvData } from "@/core/entities";
 
 /**
  * Converts UserCvData to a text format suitable for AI CV optimization
@@ -67,3 +67,31 @@ export function userCvDataToText(cvData: UserCvData): string {
 
   return sections.join("\n\n---\n\n");
 }
+
+export const buildDeletedEmail = (
+  user: User,
+  timestampMs: number,
+): string | null => {
+  if (!user.email) return null;
+  const localPart = user.email.split("@")[0] || "user";
+  const safeLocalPart = localPart.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40);
+  return `deleted+${safeLocalPart}.${user.id}.${timestampMs}@anon.local`;
+};
+
+export const buildDeletedPhone = (
+  user: User,
+  timestampMs: number,
+): string | null => {
+  if (!user.phone) return null;
+  const digits = user.phone.replace(/\D/g, "");
+  const suffix = digits.slice(-4) || "0000";
+  return `deleted${String(timestampMs).slice(-10)}${suffix}`.slice(0, 20);
+};
+
+export const buildDeletedFirebaseUid = (
+  user: User,
+  timestampMs: number,
+): string | null => {
+  if (!user.firebaseUid) return null;
+  return `deleted_${user.id}_${timestampMs}`;
+};

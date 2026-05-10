@@ -8,6 +8,7 @@ import {
   NotificationType,
   IMessageQueueService,
   FeedbackAssignedEmailData,
+  FeedbackResolvedEmailData,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { FeedbackFilter } from "@/core/entities/feedback.entity";
@@ -44,6 +45,7 @@ export class FeedbackUseCase {
 
     const newFeedback: NewFeedback = {
       name: data.name || user?.name || "Anonymous",
+      email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
       images: data.images,
@@ -99,7 +101,17 @@ export class FeedbackUseCase {
         message: "Feedback not found",
       };
     }
+    if ((existing.status as string) === "resolved") {
+      return {
+        code: RESPONSE_CODE.FEEDBACK_ALREADY_RESOLVED,
+        message: "Feedback đã được xử lý, không thể cập nhật.",
+      };
+    }
     const previousAssigneeId = existing.assignedToUserId ?? null;
+    const statusChangedToResolved =
+      data.status === FeedbackStatusEnum.RESOLVED &&
+      existing.status !== "resolved";
+
     let assignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
     if (data.assignedToUserId != null) {
       assignee = await this.userRepository.get(data.assignedToUserId);
@@ -122,6 +134,22 @@ export class FeedbackUseCase {
           message: "Feedback not found",
         };
       }
+
+      if (statusChangedToResolved && existing.email) {
+        this.messageQueueService.addEmail(
+          EmailJobType.FEEDBACK_RESOLVED,
+          {
+            to: existing.email,
+            recipientName: existing.name,
+            feedbackSubject: existing.subject,
+          } as FeedbackResolvedEmailData,
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+          },
+        );
+      }
+
       return {
         code: RESPONSE_CODE.SUCCESS,
         message: "Feedback updated successfully",
@@ -181,6 +209,22 @@ export class FeedbackUseCase {
         },
       );
     }
+
+    if (statusChangedToResolved && existing.email) {
+      this.messageQueueService.addEmail(
+        EmailJobType.FEEDBACK_RESOLVED,
+        {
+          to: existing.email,
+          recipientName: existing.name,
+          feedbackSubject: feedbackSubjectForEmail,
+        } as FeedbackResolvedEmailData,
+        {
+          attempts: 3,
+          backoff: { type: "exponential", delay: 5000 },
+        },
+      );
+    }
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: "Feedback updated successfully",

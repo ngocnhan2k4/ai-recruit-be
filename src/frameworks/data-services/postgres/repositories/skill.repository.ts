@@ -5,7 +5,7 @@ import {
   SkillFilter,
   SkillReviewStatus,
 } from "@/core";
-import { NormalizeString } from "@/common/utils";
+import { NormalizeString, convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
@@ -17,7 +17,7 @@ import {
   userOnboardings,
   userSkills,
 } from "../models";
-import { jobs } from "../models/job.model";
+import { jobs, jobProvinces } from "../models/job.model";
 import { PaginatedResult } from "@/common/types";
 import {
   count,
@@ -30,6 +30,7 @@ import {
   eq,
   inArray,
   gte,
+  lte,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -234,10 +235,28 @@ export class SkillRepository
   }
 
   async getTopDemandedSkills(
-    months: number,
     limit: number,
+    fromDate?: Date,
+    toDate?: Date,
+    provinceId?: string,
   ): Promise<{ name: string; jobCount: number }[]> {
-    const fromDate = sql`NOW() - (${months} || ' months')::interval`;
+    const conditions: SQL[] = [eq(skills.isApproved, true)];
+
+    if (fromDate) {
+      conditions.push(gte(jobs.datePosted, convertDateToStr(fromDate)));
+    }
+    if (toDate) {
+      conditions.push(lte(jobs.datePosted, convertDateToStr(toDate)));
+    }
+    if (provinceId) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobProvinces} jp
+          WHERE jp.job_id = ${jobs.id}
+          AND jp.province_id = ${provinceId}
+        )`,
+      );
+    }
 
     const result = await this.db
       .select({
@@ -247,12 +266,7 @@ export class SkillRepository
       .from(skills)
       .innerJoin(jobSkills, eq(skills.id, jobSkills.skillId))
       .innerJoin(jobs, eq(jobs.id, jobSkills.jobId))
-      .where(
-        and(
-          eq(skills.isApproved, true),
-          gte(jobs.datePosted, sql`${fromDate}`),
-        ),
-      )
+      .where(and(...conditions))
       .groupBy(skills.name)
       .orderBy(desc(count(jobSkills.jobId)))
       .limit(limit);
@@ -271,15 +285,6 @@ export class SkillRepository
     const textArray = this.toSqlTextArray(ids);
 
     await this.executeWithTransaction(async (tx) => {
-      const deletingSkills = await tx
-        .select({ id: skills.id, name: skills.name })
-        .from(skills)
-        .where(inArray(skills.id, ids));
-
-      const deletingNames = deletingSkills
-        .map((s) => NormalizeString(s.name))
-        .filter((name) => name.length > 0);
-
       await tx.execute(sql`
         DELETE FROM blog_post_tags
         WHERE skill_id = ANY(${uuidArray})
@@ -328,16 +333,6 @@ export class SkillRepository
         WHERE selected_skill_ids IS NOT NULL
       `);
 
-      if (deletingNames.length > 0) {
-        await tx
-          .delete(skillsSynonyms)
-          .where(inArray(skillsSynonyms.masterName, deletingNames));
-
-        await tx
-          .delete(skillsSynonyms)
-          .where(inArray(skillsSynonyms.aliasName, deletingNames));
-      }
-
       await tx.delete(skills).where(inArray(skills.id, ids));
     });
 
@@ -375,9 +370,6 @@ export class SkillRepository
         .where(inArray(skills.id, sourceIds));
 
       const targetMasterName = NormalizeString(targetSkill.name);
-      const sourceMasterNames = sourceSkills.map((s) =>
-        NormalizeString(s.name),
-      );
 
       await tx.execute(sql`
         DELETE FROM blog_post_tags AS src
@@ -472,12 +464,18 @@ export class SkillRepository
         WHERE selected_skill_ids IS NOT NULL
       `);
 
-      if (sourceMasterNames.length > 0) {
-        await tx
-          .update(skillsSynonyms)
-          .set({ masterName: targetMasterName })
-          .where(inArray(skillsSynonyms.masterName, sourceMasterNames));
-      }
+      await tx.execute(sql`
+        DELETE FROM skills_synonyms AS src
+        USING skills_synonyms AS tgt
+        WHERE src.master_skill_id = ANY(${sourceUuidArray})
+          AND tgt.master_skill_id = ${targetSkillId}::uuid
+          AND src.alias_name = tgt.alias_name
+      `);
+
+      await tx
+        .update(skillsSynonyms)
+        .set({ masterSkillId: targetSkillId })
+        .where(inArray(skillsSynonyms.masterSkillId, sourceIds));
 
       const aliasFromOldSkills = sourceSkills
         .map((skill) => NormalizeString(skill.name))
@@ -488,9 +486,8 @@ export class SkillRepository
           .insert(skillsSynonyms)
           .values(
             aliasFromOldSkills.map((aliasName) => ({
-              masterName: targetMasterName,
+              masterSkillId: targetSkillId,
               aliasName,
-              source: "manual",
             })),
           )
           .onConflictDoNothing();

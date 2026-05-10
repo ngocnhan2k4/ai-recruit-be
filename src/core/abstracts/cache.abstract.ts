@@ -1,6 +1,10 @@
 export abstract class ICacheService {
   abstract get(key: string): Promise<string | null>;
-  abstract set(key: string, value: string, ttlSeconds?: number): Promise<void>;
+  abstract set(
+    key: string,
+    value: string,
+    options?: { ttlSeconds?: number; NX?: boolean },
+  ): Promise<boolean>;
   abstract del(key: string): Promise<void>;
   abstract exists(key: string): Promise<boolean>;
 
@@ -55,4 +59,14 @@ export abstract class ICacheService {
   abstract getKeysByPattern(pattern: string): Promise<string[]>;
   abstract deleteMultipleKeys(keys: string[]): Promise<void>;
   abstract popMinFromSortedSet(key: string, count?: number): Promise<string[]>;
+
+  abstract increment(key: string, value: number): Promise<void>;
+  abstract addToSet(key: string, member: string): Promise<void>;
+  abstract removeFromSet(key: string, ...members: string[]): Promise<void>;
+  abstract getSetMembers(key: string): Promise<string[]>;
+  abstract eval(
+    script: string,
+    keys: number,
+    ...args: string[]
+  ): Promise<string[]>;
 }

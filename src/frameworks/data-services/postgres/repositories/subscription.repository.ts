@@ -106,6 +106,9 @@ export class SubscriptionRepository
     if (keyword) {
       whereConditions.push(ilike(subscriptions.name, `%${keyword}%`));
     }
+    if (query.exactName) {
+      whereConditions.push(eq(subscriptions.name, query.exactName));
+    }
 
     const selectedField = {
       id: subscriptions.id,
