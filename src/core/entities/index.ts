@@ -36,6 +36,7 @@ import {
   tasks,
   comments,
   userActions,
+  skillNotes,
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
@@ -239,3 +240,6 @@ export type Comment = InferSelectModel<typeof comments>;
 
 export type NewUserAction = InferInsertModel<typeof userActions>;
 export type UserAction = InferSelectModel<typeof userActions>;
+
+export type SkillNote = InferSelectModel<typeof skillNotes>;
+export type NewSkillNote = InferInsertModel<typeof skillNotes>;
