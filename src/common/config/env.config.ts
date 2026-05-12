@@ -190,6 +190,11 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   DEPLOY_SERVICE_NAME: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  TIME_TO_DELETE_ACCOUNT_DAYS: number = 30;
 }
 
 export const validateConfig = (
