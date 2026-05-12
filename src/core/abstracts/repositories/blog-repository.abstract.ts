@@ -9,7 +9,6 @@ import {
 } from "@/core/entities/blog.entity";
 import { BlogPost, NewBlogPost } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract getCategories(): Promise<BlogCategoryItem[]>;
@@ -54,10 +53,14 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     },
     authorId: string,
     postId?: string,
-    tx?: DBDrizzleTransaction,
   ): Promise<BlogPost>;
 
   abstract incrementViewCount(
     data: { postId: string; viewCount: number }[],
+  ): Promise<void>;
+
+  abstract updatePostTags(
+    postId: string,
+    tags: Array<{ tagId?: string | null; skillId?: string | null }>,
   ): Promise<void>;
 }

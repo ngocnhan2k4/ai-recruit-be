@@ -17,6 +17,7 @@ export interface BlogPostListItem {
   category: string;
   status: BlogPostStatus;
   createdAt: Date;
+  updatedAt?: Date | null;
 }
 
 export interface BlogPostAuthor {
@@ -49,6 +50,7 @@ export interface BlogPostDetailBase {
   author: BlogPostAuthor;
   status: BlogPostStatus;
   createdAt: Date;
+  updatedAt?: Date | null;
 }
 
 export interface BlogPostDetail {
@@ -67,6 +69,7 @@ export interface BlogPostDetail {
   status: BlogPostStatus;
   tags: BlogPostTagItem[];
   createdAt: Date;
+  updatedAt?: Date | null;
 }
 
 export interface BlogLikeResult {

@@ -47,6 +47,9 @@ export class BlogPostListItemDto {
   @ApiProperty()
   createdAt: Date;
 
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
+
   @ApiProperty()
   likes: number;
 
@@ -106,6 +109,9 @@ export class BlogPostDetailDto {
 
   @ApiProperty()
   createdAt: Date;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
 
   @ApiProperty({ type: BlogAuthorDto })
   author: BlogAuthorDto;

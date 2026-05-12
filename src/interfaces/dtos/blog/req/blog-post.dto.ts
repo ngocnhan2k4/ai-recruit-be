@@ -147,6 +147,13 @@ export class UpdateBlogPostDto {
   @IsOptional()
   @IsString()
   thumbnail?: string | null;
+
+  @ApiPropertyOptional({ type: [BlogPostTagInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BlogPostTagInputDto)
+  tags?: BlogPostTagInputDto[];
 }
 
 export class QueryBlogTagsDto extends GeneralQueryDto {}

@@ -7,7 +7,7 @@ import {
   tags,
 } from "../models/blog.model";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
-import { type DBDrizzle, type DBDrizzleTransaction } from "../types";
+import { type DBDrizzle } from "../types";
 import {
   and,
   asc,
@@ -318,6 +318,7 @@ export class BlogRepository
         status: sql<BlogPostStatus>`${blogPosts.status}`,
         viewCount: blogPosts.viewCount,
         createdAt: blogPosts.createdAt,
+        updatedAt: blogPosts.updatedAt,
         authorId: users.id,
         authorUsername: users.username,
         authorName: users.name,
@@ -341,6 +342,7 @@ export class BlogRepository
         users.username,
         users.name,
         users.avatarUrl,
+        blogPosts.updatedAt,
       )
       .limit(1);
 
@@ -357,6 +359,7 @@ export class BlogRepository
       status: post.status,
       viewCount: post.viewCount,
       createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
       author: {
         id: post.authorId,
         username: post.authorUsername,
@@ -379,6 +382,7 @@ export class BlogRepository
         status: sql<BlogPostStatus>`${blogPosts.status}`,
         viewCount: blogPosts.viewCount,
         createdAt: blogPosts.createdAt,
+        updatedAt: blogPosts.updatedAt,
         authorId: users.id,
         authorUsername: users.username,
         authorName: users.name,
@@ -402,6 +406,7 @@ export class BlogRepository
         users.username,
         users.name,
         users.avatarUrl,
+        blogPosts.updatedAt,
       )
       .limit(1);
 
@@ -418,6 +423,7 @@ export class BlogRepository
       status: post.status,
       viewCount: post.viewCount,
       createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
       author: {
         id: post.authorId,
         username: post.authorUsername,
@@ -447,12 +453,7 @@ export class BlogRepository
       );
 
       if (normalizedTags.length > 0) {
-        const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
-          postId: created.id,
-          tagId: item.tagId ?? null,
-          skillId: item.skillId ?? null,
-        }));
-        await db.insert(blogPostTags).values(tagRows);
+        await this.updatePostTags(created.id, normalizedTags);
       }
 
       return created as BlogPost;
@@ -471,9 +472,9 @@ export class BlogRepository
     },
     authorId: string,
     postId?: string,
-    tx?: DBDrizzleTransaction,
   ): Promise<BlogPost> {
-    return (tx ?? this.db).transaction(async (tx) => {
+    return this.executeWithTransaction(async () => {
+      const tx = this.getExecutor();
       if (postId) {
         const updateData: Record<string, unknown> = { status: "DRAFT" };
 
@@ -490,19 +491,7 @@ export class BlogRepository
           .where(eq(blogPosts.id, postId));
 
         if (data.tags) {
-          await tx.delete(blogPostTags).where(eq(blogPostTags.postId, postId));
-
-          const normalizedTags = data.tags.filter(
-            (item) => item.tagId || item.skillId,
-          );
-          if (normalizedTags.length > 0) {
-            const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
-              postId,
-              tagId: item.tagId ?? null,
-              skillId: item.skillId ?? null,
-            }));
-            await tx.insert(blogPostTags).values(tagRows);
-          }
+          await this.updatePostTags(postId, data.tags);
         }
 
         const [updated] = await tx
@@ -511,7 +500,7 @@ export class BlogRepository
           .where(eq(blogPosts.id, postId));
         return updated as BlogPost;
       } else {
-        const categoryId = await this.resolveDraftCategoryId(tx, data.category);
+        const categoryId = await this.resolveDraftCategoryId(data.category);
         const slug2 = data.slug ?? generateSlug(data.title || "draft");
 
         const [created] = await tx
@@ -545,10 +534,8 @@ export class BlogRepository
     });
   }
 
-  private async resolveDraftCategoryId(
-    tx: DBDrizzleTransaction,
-    categoryId?: string,
-  ): Promise<string> {
+  private async resolveDraftCategoryId(categoryId?: string): Promise<string> {
+    const tx = this.getExecutor();
     if (categoryId) return categoryId;
 
     const [fallbackCategory] = await tx
@@ -580,5 +567,23 @@ export class BlogRepository
       FROM (VALUES ${valueRows}) AS v(id, inc)
       WHERE ${blogPosts.id} = v.id
     `);
+  }
+
+  async updatePostTags(
+    postId: string,
+    tags: Array<{ tagId?: string | null; skillId?: string | null }>,
+  ): Promise<void> {
+    const executor = this.getExecutor();
+    await executor.delete(blogPostTags).where(eq(blogPostTags.postId, postId));
+
+    const normalizedTags = tags.filter((item) => item.tagId || item.skillId);
+    if (normalizedTags.length > 0) {
+      const tagRows: any[] = normalizedTags.map((item) => ({
+        postId,
+        tagId: item.tagId ?? null,
+        skillId: item.skillId ?? null,
+      }));
+      await executor.insert(blogPostTags).values(tagRows);
+    }
   }
 }

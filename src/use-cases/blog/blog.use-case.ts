@@ -363,7 +363,6 @@ export class BlogUseCases {
             },
             user.userId,
             dto.postId,
-            tx,
           );
 
           const [updated] = await this.blogRepository.update(
@@ -428,7 +427,7 @@ export class BlogUseCases {
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     const result = await this.blogRepository.executeWithTransaction(
-      async (tx) => {
+      async () => {
         return this.blogRepository.saveDraft(
           {
             title: dto.title,
@@ -440,7 +439,6 @@ export class BlogUseCases {
           },
           user.userId,
           postId,
-          tx,
         );
       },
     );
@@ -485,6 +483,10 @@ export class BlogUseCases {
             code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
             message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
           });
+        }
+
+        if (dto.tags) {
+          await this.blogRepository.updatePostTags(postId, dto.tags);
         }
 
         return rows[0];
