@@ -4,6 +4,7 @@ import {
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
+  BlogPostOffsetFilters,
   BlogPostTagItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
@@ -20,7 +21,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   }): Promise<PaginatedResult<BlogTagCursorItem>>;
 
   abstract getPosts(
-    filters: BlogPostFilters,
+    filters: BlogPostOffsetFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
   abstract getMyBlogs(

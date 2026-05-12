@@ -26,6 +26,7 @@ import {
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
+  BlogPostOffsetFilters,
   BlogPostTagItem,
 } from "@/core/entities/blog.entity";
 import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
@@ -150,7 +151,12 @@ export class BlogRepository
     };
   }
 
-  private buildPostWhere(filters: BlogPostFilters) {
+  private buildPostWhere(
+    filters: Pick<
+      BlogPostFilters,
+      "keyword" | "category" | "status" | "excludeStatus"
+    >,
+  ) {
     const conditions: SQL[] = [];
 
     if (filters.keyword) {
@@ -193,10 +199,56 @@ export class BlogRepository
   }
 
   async getPosts(
-    filters: BlogPostFilters,
+    filters: BlogPostOffsetFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const baseWhere = this.buildPostWhere(filters);
-    return this.queryPostsWithCursor(filters, baseWhere);
+    return this.queryPostsWithOffset(filters, baseWhere);
+  }
+
+  private async queryPostsWithOffset(
+    filters: BlogPostOffsetFilters,
+    baseWhere: ReturnType<typeof and> | undefined,
+  ): Promise<PaginatedResult<BlogPostListItem>> {
+    const limit = Math.min(filters.limit ?? 10, 50);
+    const page = Math.max(filters.page ?? 1, 1);
+    const offset = (page - 1) * limit;
+
+    const [rows, totalRows] = await Promise.all([
+      this.db
+        .select({
+          id: blogPosts.id,
+          title: blogPosts.title,
+          slug: blogPosts.slug,
+          summary: blogPosts.summary,
+          thumbnail: blogPosts.thumbnail,
+          category: blogPosts.categoryId,
+          createdAt: blogPosts.createdAt,
+          updatedAt: blogPosts.updatedAt,
+          status: sql<BlogPostStatus>`${blogPosts.status}`,
+        })
+        .from(blogPosts)
+        .where(baseWhere)
+        .orderBy(desc(blogPosts.createdAt), desc(blogPosts.id))
+        .limit(limit)
+        .offset(offset),
+
+      this.db
+        .select({ total: count(blogPosts.id) })
+        .from(blogPosts)
+        .where(baseWhere),
+    ]);
+
+    const total = Number(totalRows[0]?.total ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: rows,
+      pagination: {
+        total,
+        hasNextPage: page < totalPages,
+        nextCursor: null,
+      },
+    };
   }
 
   async getMyBlogs(

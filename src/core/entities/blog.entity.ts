@@ -8,6 +8,15 @@ export interface BlogPostFilters extends GeneralQuery {
   excludeStatus?: BlogPostStatus;
 }
 
+export interface BlogPostOffsetFilters {
+  page: number;
+  limit: number;
+  keyword?: string;
+  category?: string;
+  status?: BlogPostStatus;
+  excludeStatus?: BlogPostStatus;
+}
+
 export interface BlogPostListItem {
   id: string;
   title: string;

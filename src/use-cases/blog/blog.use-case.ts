@@ -87,7 +87,6 @@ export class BlogUseCases {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
     const { data, pagination } = await this.blogRepository.getPosts({
-      ...query,
       limit,
       page,
       keyword: query.keyword,
@@ -159,7 +158,6 @@ export class BlogUseCases {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
     const { data, pagination } = await this.blogRepository.getPosts({
-      ...query,
       limit,
       page,
       keyword: query.keyword,
