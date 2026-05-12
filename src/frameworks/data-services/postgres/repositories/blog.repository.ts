@@ -31,6 +31,30 @@ import {
 import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
 import { generateSlug } from "@/common/utils/string";
 
+const sortExpr = (bp: typeof blogPosts) =>
+  sql`coalesce(${bp.updatedAt}, ${bp.createdAt})`;
+
+function encodeCursor(
+  sortTime: Date | string | null | undefined,
+  id: string,
+): string {
+  const t = sortTime
+    ? new Date(sortTime).toISOString()
+    : new Date(0).toISOString();
+  return `${t}|${id}`;
+}
+
+function decodeCursor(
+  cursor: string | undefined | null,
+): { sortTime: Date; id: string } | null {
+  if (!cursor) return null;
+  const parts = cursor.split("|");
+  if (parts.length !== 2) return null;
+  const d = new Date(parts[0]);
+  if (isNaN(d.getTime())) return null;
+  return { sortTime: d, id: parts[1] };
+}
+
 @Injectable()
 export class BlogRepository
   extends GenericRepository<BlogPost, typeof blogPosts>
@@ -171,67 +195,39 @@ export class BlogRepository
   async getPosts(
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
-    const limit = Math.min(filters.limit ?? 10, 50);
-    const page = Math.max(filters.page ?? 1, 1);
-    const offset = (page - 1) * limit;
-    const whereClause = this.buildPostWhere(filters);
-
-    const rowsQuery = this.db
-      .select({
-        id: blogPosts.id,
-        title: blogPosts.title,
-        slug: blogPosts.slug,
-        summary: blogPosts.summary,
-        thumbnail: blogPosts.thumbnail,
-        category: blogPosts.categoryId,
-        createdAt: blogPosts.createdAt,
-        status: sql<BlogPostStatus>`${blogPosts.status}`,
-      })
-      .from(blogPosts)
-      .where(whereClause)
-      .orderBy(desc(blogPosts.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    const totalQuery = this.db
-      .select({ total: count(blogPosts.id) })
-      .from(blogPosts)
-      .where(whereClause);
-
-    const [rows, totalRows] = await Promise.all([rowsQuery, totalQuery]);
-
-    const total = Number(totalRows[0]?.total ?? 0);
-
-    return {
-      data: rows,
-      pagination: {
-        total,
-        hasNextPage: offset + rows.length < total,
-      },
-    };
+    const baseWhere = this.buildPostWhere(filters);
+    return this.queryPostsWithCursor(filters, baseWhere);
   }
 
   async getMyBlogs(
     authorId: string,
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
+    const conditions: SQL[] = [eq(blogPosts.authorId, authorId)];
+    if (filters.keyword)
+      conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
+    if (filters.category)
+      conditions.push(eq(blogPosts.categoryId, filters.category));
+    const baseWhere = and(...conditions);
+    return this.queryPostsWithCursor(filters, baseWhere);
+  }
+
+  private async queryPostsWithCursor(
+    filters: BlogPostFilters,
+    baseWhere: SQL | ReturnType<typeof and> | undefined,
+  ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
-    const page = Math.max(filters.page ?? 1, 1);
-    const offset = (page - 1) * limit;
+    const decoded = decodeCursor(filters.cursor);
 
-    const whereConditions: SQL[] = [eq(blogPosts.authorId, authorId)];
-
-    if (filters.keyword) {
-      whereConditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
-    }
-
-    if (filters.category) {
-      whereConditions.push(eq(blogPosts.categoryId, filters.category));
-    }
-
-    const whereClause = whereConditions.length
-      ? and(...whereConditions)
-      : undefined;
+    const finalWhere = decoded
+      ? and(
+          baseWhere,
+          sql`(
+            ${sortExpr(blogPosts)} < ${decoded.sortTime}
+            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id})
+          )`,
+        )
+      : baseWhere;
 
     const [rows, totalRows] = await Promise.all([
       this.db
@@ -243,26 +239,33 @@ export class BlogRepository
           thumbnail: blogPosts.thumbnail,
           category: blogPosts.categoryId,
           createdAt: blogPosts.createdAt,
+          updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
         })
         .from(blogPosts)
-        .where(whereClause)
-        .orderBy(desc(blogPosts.createdAt))
-        .limit(limit)
-        .offset(offset),
+        .where(finalWhere)
+        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .limit(limit + 1),
+
       this.db
         .select({ total: count(blogPosts.id) })
         .from(blogPosts)
-        .where(whereClause),
+        .where(baseWhere),
     ]);
 
-    const total = Number(totalRows[0]?.total ?? 0);
+    const hasNextPage = rows.length > limit;
+    const data = hasNextPage ? rows.slice(0, limit) : rows;
+    const last = data[data.length - 1];
 
     return {
-      data: rows,
+      data,
       pagination: {
-        total,
-        hasNextPage: offset + rows.length < total,
+        total: Number(totalRows[0]?.total ?? 0),
+        hasNextPage,
+        nextCursor:
+          hasNextPage && last
+            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+            : null,
       },
     };
   }
@@ -287,16 +290,12 @@ export class BlogRepository
 
     return _tags.reduce(
       (acc, tag) => {
-        if (!acc[tag.postId]) {
-          acc[tag.postId] = [];
-        }
-
+        if (!acc[tag.postId]) acc[tag.postId] = [];
         acc[tag.postId].push({
           name: tag.skillName || tag.tagName || "",
           skillId: tag.skillId,
           tagId: tag.tagId,
         });
-
         return acc;
       },
       {} as Record<
@@ -453,7 +452,6 @@ export class BlogRepository
           tagId: item.tagId ?? null,
           skillId: item.skillId ?? null,
         }));
-
         await db.insert(blogPostTags).values(tagRows);
       }
 
@@ -477,28 +475,14 @@ export class BlogRepository
   ): Promise<BlogPost> {
     return (tx ?? this.db).transaction(async (tx) => {
       if (postId) {
-        const updateData: Record<string, unknown> = {
-          status: "DRAFT",
-        };
+        const updateData: Record<string, unknown> = { status: "DRAFT" };
 
-        if (data.title !== undefined) {
-          updateData.title = data.title;
-        }
-        if (data.summary !== undefined) {
-          updateData.summary = data.summary;
-        }
-        if (data.content !== undefined) {
-          updateData.content = data.content;
-        }
-        if (data.category !== undefined) {
-          updateData.categoryId = data.category;
-        }
-        if (data.thumbnail !== undefined) {
-          updateData.thumbnail = data.thumbnail;
-        }
-        if (data.slug !== undefined) {
-          updateData.slug = data.slug;
-        }
+        if (data.title !== undefined) updateData.title = data.title;
+        if (data.summary !== undefined) updateData.summary = data.summary;
+        if (data.content !== undefined) updateData.content = data.content;
+        if (data.category !== undefined) updateData.categoryId = data.category;
+        if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
+        if (data.slug !== undefined) updateData.slug = data.slug;
 
         await tx
           .update(blogPosts)
@@ -511,7 +495,6 @@ export class BlogRepository
           const normalizedTags = data.tags.filter(
             (item) => item.tagId || item.skillId,
           );
-
           if (normalizedTags.length > 0) {
             const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
               postId,
@@ -526,7 +509,6 @@ export class BlogRepository
           .select()
           .from(blogPosts)
           .where(eq(blogPosts.id, postId));
-
         return updated as BlogPost;
       } else {
         const categoryId = await this.resolveDraftCategoryId(tx, data.category);
@@ -549,14 +531,12 @@ export class BlogRepository
         const normalizedTags = (data.tags ?? []).filter(
           (item) => item.tagId || item.skillId,
         );
-
         if (normalizedTags.length > 0) {
           const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
             postId: created.id,
             tagId: item.tagId ?? null,
             skillId: item.skillId ?? null,
           }));
-
           await tx.insert(blogPostTags).values(tagRows);
         }
 
@@ -569,9 +549,7 @@ export class BlogRepository
     tx: DBDrizzleTransaction,
     categoryId?: string,
   ): Promise<string> {
-    if (categoryId) {
-      return categoryId;
-    }
+    if (categoryId) return categoryId;
 
     const [fallbackCategory] = await tx
       .select({ id: blogCategories.id })
@@ -589,9 +567,7 @@ export class BlogRepository
   async incrementViewCount(
     data: { postId: string; viewCount: number }[],
   ): Promise<void> {
-    if (data.length === 0) {
-      return;
-    }
+    if (data.length === 0) return;
 
     const valueRows = sql.join(
       data.map((row) => sql`(${row.postId}::uuid, ${row.viewCount}::int)`),
