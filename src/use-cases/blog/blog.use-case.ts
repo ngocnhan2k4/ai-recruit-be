@@ -118,6 +118,7 @@ export class BlogUseCases {
       page,
       keyword: query.keyword,
       category: query.category,
+      status: query.status,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);

@@ -260,6 +260,7 @@ export class BlogRepository
       conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
     if (filters.category)
       conditions.push(eq(blogPosts.categoryId, filters.category));
+    if (filters.status) conditions.push(eq(blogPosts.status, filters.status));
     const baseWhere = and(...conditions);
     return this.queryPostsWithCursor(filters, baseWhere);
   }
