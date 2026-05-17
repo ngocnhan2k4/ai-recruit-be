@@ -55,11 +55,16 @@ jobs:
           fi
 
       - name: Validate Redis credentials
-        if: ${{ secrets.REDIS_URL != '' }}
         working-directory: ./crawl_jobs
         env:
           QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
+          if [ -z "$QUEUE_REDIS_URL" ]; then
+            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
+            echo "Skip Redis validation: REDIS_URL secret is empty."
+            exit 0
+          fi
+
           echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
 
           node <<'NODE'
