@@ -219,20 +219,24 @@ export class AuthUseCases {
     const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
     const providerUserId = firebaseIdentities?.[firebaseProviderKey]?.[0];
 
-    let providerEmail: string | null | undefined;
-    let providerName: string | null | undefined;
-    let providerPicture: string | null | undefined;
-    let resolvedProviderUserId: string | undefined = providerUserId;
+    let providerInfo: {
+      email: string | null;
+      name: string | null;
+      picture: string | null;
+      userId: string | null;
+    } | null = null;
+
     const profiles = await this.authService.getUserProviderProfiles(decode.uid);
     const currentProfile = profiles.find(
       (p) => p.providerId === firebaseProviderKey,
     );
     if (currentProfile) {
-      resolvedProviderUserId =
-        currentProfile.providerUserId ?? resolvedProviderUserId;
-      providerEmail = currentProfile.email ?? null;
-      providerName = currentProfile.name ?? null;
-      providerPicture = currentProfile.picture ?? null;
+      providerInfo = {
+        userId: currentProfile.providerUserId ?? providerUserId ?? null,
+        email: currentProfile.email ?? null,
+        name: currentProfile.name ?? null,
+        picture: currentProfile.picture ?? null,
+      };
     }
     let user =
       (
@@ -244,10 +248,10 @@ export class AuthUseCases {
       user = await this.createUserFromIdentity({
         decode,
         currentProvider,
-        resolvedProviderUserId,
-        providerEmail,
-        providerName,
-        providerPicture,
+        resolvedProviderUserId: providerInfo?.userId || undefined,
+        providerEmail: providerInfo?.email,
+        providerName: providerInfo?.name,
+        providerPicture: providerInfo?.picture,
       });
     } else {
       const userAfterFinalize =
@@ -257,10 +261,10 @@ export class AuthUseCases {
         user = await this.createUserFromIdentity({
           decode,
           currentProvider,
-          resolvedProviderUserId,
-          providerEmail,
-          providerName,
-          providerPicture,
+          resolvedProviderUserId: providerInfo?.userId || undefined,
+          providerEmail: providerInfo?.email,
+          providerName: providerInfo?.name,
+          providerPicture: providerInfo?.picture,
         });
       } else {
         user = userAfterFinalize;
@@ -274,14 +278,6 @@ export class AuthUseCases {
       }
 
       this.assertUserCanLogIn(user);
-      await this.userRepository.addUserIdentity({
-        userId: user.id,
-        provider: currentProvider,
-        providerUserId: resolvedProviderUserId,
-        providerEmail,
-        providerName,
-        providerPicture,
-      });
     }
 
     if (!user) {
@@ -396,7 +392,7 @@ export class AuthUseCases {
 
     const freeSub = await this.subscriptionRepo.getListSubscriptions({
       limit: 1,
-      name: SubscriptionEnum.FREE,
+      exactName: SubscriptionEnum.FREE,
       skipCount: true,
     });
 

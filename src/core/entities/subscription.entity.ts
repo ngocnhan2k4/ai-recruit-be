@@ -3,7 +3,7 @@ import { SubscriptionEnum, UserSubscriptionStatusEnum } from "./enum.entity";
 import { Feature, Subscription } from ".";
 
 export interface SubscriptionFilter extends GeneralQuery {
-  name?: SubscriptionEnum;
+  exactName?: SubscriptionEnum;
   skipCount?: boolean;
   fields?: string[];
 }

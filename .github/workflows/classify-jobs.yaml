@@ -11,20 +11,12 @@ jobs:
     strategy:
       matrix:
         env: [dev, prod]
+      max-parallel: 1
 
     environment: ${{ matrix.env }}
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
 
     steps:
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          df -h
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
