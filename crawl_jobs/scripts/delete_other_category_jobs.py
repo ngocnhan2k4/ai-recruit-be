@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import psycopg2
 
@@ -62,11 +62,12 @@ def delete_other_category_jobs(db_url: str, redis_url: str = None) -> int:
         if redis_url and count > 0:
             try:
                 parsed = urlparse(redis_url)
+                redis_password = unquote(parsed.password) if parsed.password else None
                 producer = JobIndexQueueProducer(
                     QueueConfig(
                         redis_host=parsed.hostname,
                         redis_port=parsed.port or 6379,
-                        redis_password=parsed.password,
+                        redis_password=redis_password,
                         redis_db=0,
                         event_name="delete.job",
                     )

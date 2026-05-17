@@ -24,6 +24,13 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: crawl_jobs/job_index_queue/package-lock.json
+
       - name: Install dependencies
         working-directory: ./crawl_jobs
         run: |
@@ -35,6 +42,58 @@ jobs:
             transformers \
             torch \
             --no-cache-dir
+
+      - name: Install queue bridge dependencies
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            npm ci --omit=dev --prefix ./job_index_queue
+          else
+            echo "Skip queue bridge install: REDIS_URL secret is empty."
+          fi
+
+      - name: Validate Redis credentials
+        if: ${{ secrets.REDIS_URL != '' }}
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
+
+          node <<'NODE'
+          const Redis = require("ioredis");
+
+          const url = process.env.QUEUE_REDIS_URL;
+          const client = new Redis(url, {
+            enableReadyCheck: true,
+            connectTimeout: 5000,
+            maxRetriesPerRequest: 1,
+            retryStrategy: () => null,
+          });
+
+          const timer = setTimeout(() => {
+            console.error("Redis connection timeout");
+            process.exit(1);
+          }, 6000);
+
+          client.once("ready", async () => {
+            clearTimeout(timer);
+            await client.quit();
+            process.exit(0);
+          });
+
+          client.once("error", (err) => {
+            console.error(err?.message || err);
+            process.exit(1);
+          });
+          NODE
+
+          if [ $? -ne 0 ]; then
+            echo "Queue disabled: Redis auth/connect failed."
+            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
+          fi
 
       - name: Export uncategorized jobs to CSV
         working-directory: ./crawl_jobs
@@ -76,7 +135,7 @@ jobs:
         working-directory: ./crawl_jobs
         shell: bash
         env:
-          QUEUE_REDIS_URL: ${{ secrets.QUEUE_REDIS_URL }}
+          QUEUE_REDIS_URL: ${{ env.QUEUE_REDIS_URL_EFFECTIVE }}
         run: |
           EXTRA_ARGS=""
 

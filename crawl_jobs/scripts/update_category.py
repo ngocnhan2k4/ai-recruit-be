@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import pandas as pd
 import psycopg2
@@ -76,11 +76,12 @@ def update_database(db_url, csv_file, redis_url=None):
         if redis_url and updated_job_ids:
             try:
                 parsed = urlparse(redis_url)
+                redis_password = unquote(parsed.password) if parsed.password else None
                 producer = JobIndexQueueProducer(
                     QueueConfig(
                         redis_host=parsed.hostname,
                         redis_port=parsed.port or 6379,
-                        redis_password=parsed.password,
+                        redis_password=redis_password,
                         redis_db=0,
                         event_name="upsert.job",
                     )

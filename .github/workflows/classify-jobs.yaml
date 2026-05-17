@@ -50,6 +50,47 @@ jobs:
             echo "Skip queue bridge install: REDIS_URL secret is empty."
           fi
 
+      - name: Validate Redis credentials
+        if: ${{ secrets.REDIS_URL != '' }}
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
+
+          node <<'NODE'
+          const Redis = require("ioredis");
+
+          const url = process.env.QUEUE_REDIS_URL;
+          const client = new Redis(url, {
+            enableReadyCheck: true,
+            connectTimeout: 5000,
+            maxRetriesPerRequest: 1,
+            retryStrategy: () => null,
+          });
+
+          const timer = setTimeout(() => {
+            console.error("Redis connection timeout");
+            process.exit(1);
+          }, 6000);
+
+          client.once("ready", async () => {
+            clearTimeout(timer);
+            await client.quit();
+            process.exit(0);
+          });
+
+          client.once("error", (err) => {
+            console.error(err?.message || err);
+            process.exit(1);
+          });
+          NODE
+
+          if [ $? -ne 0 ]; then
+            echo "Queue disabled: Redis auth/connect failed."
+            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
+          fi
+
       - name: Export uncategorized jobs to CSV
         working-directory: ./crawl_jobs
         run: |
@@ -88,7 +129,7 @@ jobs:
           python scripts/update_category.py \
             --db_url "${{ secrets.DATABASE_URL }}" \
             --csv_file "classifier/data/results.csv" \
-            --redis_url "${{ secrets.REDIS_URL }}"
+            --redis_url "${{ env.QUEUE_REDIS_URL_EFFECTIVE }}"
 
       - name: Delete jobs with 'Other' category
         if: steps.check_jobs.outputs.skip != 'true'
@@ -96,7 +137,7 @@ jobs:
         run: |
           python scripts/delete_other_category_jobs.py \
             --db_url "${{ secrets.DATABASE_URL }}" \
-            --redis_url "${{ secrets.REDIS_URL }}"
+            --redis_url "${{ env.QUEUE_REDIS_URL_EFFECTIVE }}"
 
       - name: Delete unused categories
         working-directory: ./crawl_jobs
