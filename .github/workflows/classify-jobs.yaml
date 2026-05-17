@@ -64,7 +64,10 @@ jobs:
           echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
 
           node <<'NODE'
-          const Redis = require("ioredis");
+          const path = require("path");
+          const Redis = require(
+            path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis")
+          );
 
           const url = process.env.QUEUE_REDIS_URL;
           const client = new Redis(url, {
