@@ -10,7 +10,7 @@ def main():
     parser.add_argument(
         "--local_path",
         type=str,
-        default="./classifier/artifacts/multi_class_model",
+        default="./extract_skills/artifacts/extract_skills_model",
         help="Path to your local model folder",
     )
     parser.add_argument(
@@ -22,7 +22,7 @@ def main():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="job-category-classifier",
+        default="extract-skills-model",
         help="Name for the new repository",
     )
     parser.add_argument(

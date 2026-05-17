@@ -1,18 +1,230 @@
-name: Classify Uncategorized Jobs
+name: Crawl Jobs
 
 on:
   schedule:
-    # Run twice a week: Monday and Thursday at 2:00 AM UTC
-    - cron: "0 2 * * 1,4"
+    - cron: "30 10 * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode for existing jobs"
+        required: false
+        default: "skip"
+        type: choice
+        options:
+          - skip
+          - update
+      itviec_pages:
+        description: "ITViec pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      linkedin_pages:
+        description: "LinkedIn pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      topcv_pages:
+        description: "TopCV pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      jobsgo_pages:
+        description: "JobsGO pages to crawl"
+        required: false
+        default: "1"
+        type: string
+      vietnamworks_pages:
+        description: "VietnamWorks pages to crawl"
+        required: false
+        default: "1"
+        type: string
 
 jobs:
-  classify-jobs:
+  run-crawler:
     strategy:
       matrix:
         env: [dev, prod]
-      max-parallel: 1
 
+    environment: ${{ matrix.env }}
+    runs-on: arc-runner-set
+    outputs:
+      total_inserted: ${{ steps.run_crawler.outputs.total_inserted }}
+      total_updated: ${{ steps.run_crawler.outputs.total_updated }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select LinkedIn keyword
+        id: keyword
+        run: |
+          FILE="crawl_jobs/classifier/data/categories.txt"
+
+          if [ ! -f "$FILE" ]; then
+            echo "Categories file not found: $FILE"
+            exit 1
+          fi
+
+          mapfile -t KEYWORDS < <(grep . "$FILE")
+
+          COUNT=${#KEYWORDS[@]}
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No keywords found in $FILE"
+            exit 1
+          fi
+
+          DAY_INDEX=$(date +%-j)
+          IDX=$(( DAY_INDEX % COUNT ))
+
+          SELECTED="${KEYWORDS[$IDX]}"
+
+          echo "keyword=$SELECTED" >> $GITHUB_OUTPUT
+          echo "Selected LinkedIn keyword: $SELECTED"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: crawl_jobs/job_index_queue/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./crawl_jobs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install queue bridge dependencies
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            npm ci --omit=dev --prefix ./job_index_queue
+          else
+            echo "Skip queue bridge install: REDIS_URL secret is empty."
+          fi
+
+      - name: Validate Redis credentials
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          if [ -z "$QUEUE_REDIS_URL" ]; then
+            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
+            echo "Skip Redis validation: REDIS_URL secret is empty."
+            exit 0
+          fi
+
+          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
+
+          node <<'NODE'
+          const path = require("path");
+          const Redis = require(
+            path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis")
+          );
+
+          const url = process.env.QUEUE_REDIS_URL;
+          const client = new Redis(url, {
+            enableReadyCheck: true,
+            connectTimeout: 5000,
+            maxRetriesPerRequest: 1,
+            retryStrategy: () => null,
+          });
+
+          const timer = setTimeout(() => {
+            console.error("Redis connection timeout");
+            process.exit(1);
+          }, 6000);
+
+          client.once("ready", async () => {
+            clearTimeout(timer);
+            await client.quit();
+            process.exit(0);
+          });
+
+          client.once("error", (err) => {
+            console.error(err?.message || err);
+            process.exit(1);
+          });
+          NODE
+
+          if [ $? -ne 0 ]; then
+            echo "Queue disabled: Redis auth/connect failed."
+            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run crawler
+        id: run_crawler
+        working-directory: ./crawl_jobs
+        env:
+          QUEUE_REDIS_URL: ${{ env.QUEUE_REDIS_URL_EFFECTIVE }}
+        run: |
+          QUEUE_ARGS=()
+          QUEUE_MODE="disabled"
+
+          if [ -n "$QUEUE_REDIS_URL" ]; then
+            QUEUE_MODE="enabled"
+            QUEUE_ARGS+=(
+              --queue-index-enabled
+              --queue-redis-url "$QUEUE_REDIS_URL"
+            )
+          else
+            echo "Queue indexing disabled: REDIS_URL secret is empty."
+          fi
+
+          echo "queue_mode=$QUEUE_MODE" >> "$GITHUB_OUTPUT"
+
+          python main.py \
+            --db-url "${{ secrets.DATABASE_URL }}" \
+            --gha-output "$GITHUB_OUTPUT" \
+            --mode ${{ inputs.mode || 'update' }} \
+            --itviec-pages ${{ inputs.itviec_pages || '1' }} \
+            --linkedin-pages ${{ inputs.linkedin_pages || '1' }} \
+            --topcv-pages ${{ inputs.topcv_pages || '1' }} \
+            --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
+            --vietnamworks-pages ${{ inputs.vietnamworks_pages || '1' }} \
+            --linkedin-keywords "${{ steps.keyword.outputs.keyword }}" \
+            "${QUEUE_ARGS[@]}"
+
+      - name: Notify Slack
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
+          SLACK_CHANNEL: crawl
+          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: "📊 Kết quả crawl việc làm (${{ matrix.env }}) - Mode: ${{ inputs.mode || 'update' }}"
+          SLACK_MESSAGE: |
+            🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
+
+            📈 Tổng hợp:
+            ✓ Inserted: ${{ steps.run_crawler.outputs.total_inserted }} jobs
+            ↻ Updated: ${{ steps.run_crawler.outputs.total_updated }} jobs
+            📨 Queue Indexed: ${{ steps.run_crawler.outputs.total_queue_enqueued || '0' }} jobs
+            ⚠ Queue Failed: ${{ steps.run_crawler.outputs.total_queue_failed || '0' }} jobs
+            ⚙ Queue Mode: ${{ steps.run_crawler.outputs.queue_mode }}
+
+            🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs (${{ inputs.itviec_pages || '1' }} pages)
+            🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs (${{ inputs.topcv_pages || '1' }} pages)
+            🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs (${{ inputs.jobsgo_pages || '1' }} pages)
+            🔹 LinkedIn: ${{ steps.run_crawler.outputs.linkedin }} jobs (${{ inputs.linkedin_pages || '1' }} pages)
+            🔹 VietnamWorks: ${{ steps.run_crawler.outputs.vietnamworks }} jobs (${{ inputs.vietnamworks_pages || '1' }} pages)
+
+            ✅ Status: ${{ job.status }}
+
+  extract-skills:
+    needs: run-crawler
+    if: ${{ needs.run-crawler.outputs.total_inserted != '0' || needs.run-crawler.outputs.total_updated != '0' }}
+    strategy:
+      matrix:
+        env: [dev, prod]
     environment: ${{ matrix.env }}
     runs-on: arc-runner-set
 
@@ -30,61 +242,45 @@ jobs:
         working-directory: ./crawl_jobs
         run: |
           python -m pip install --upgrade pip
-          pip install psycopg2-binary pandas transformers torch --no-cache-dir
 
-      - name: Export uncategorized jobs to CSV
-        working-directory: ./crawl_jobs
-        run: |
-          python scripts/export_uncategorized_jobs.py \
-            --db_url "${{ secrets.DATABASE_URL }}" \
-            --output_file "classifier/data/predict_jobs.csv"
+          pip install \
+            psycopg2-binary \
+            pandas \
+            transformers \
+            torch \
+            bs4 \
+            tqdm \
+            --no-cache-dir
 
-      - name: Check if there are jobs to classify
-        id: check_jobs
+      - name: Export unextracted jobs
+        id: export_jobs
         working-directory: ./crawl_jobs
+        shell: bash
         run: |
-          LINES=$(wc -l < classifier/data/predict_jobs.csv)
-          # Subtract 1 for header
-          JOB_COUNT=$((LINES - 1))
+          mkdir -p extract_skills/data
+
+          python scripts/export_recent_jobs_for_extraction.py \
+            --db-url "${{ secrets.DATABASE_URL }}" \
+            --output-file "extract_skills/data/jobs_export.csv" \
+            --hours 24
+
+          JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('extract_skills/data/jobs_export.csv')))" 2>/dev/null || echo 0)
           echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
 
-          if [ "$JOB_COUNT" -le 0 ]; then
-            echo "📭 No uncategorized jobs found. Skipping classification."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "📋 Found $JOB_COUNT jobs to classify"
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run job classifier
-        if: steps.check_jobs.outputs.skip != 'true'
+      - name: Extract skills using huggingface model
+        if: steps.export_jobs.outputs.job_count != '0'
         working-directory: ./crawl_jobs
         run: |
-          python classifier/predict.py \
-            --model "tienminhktvn/job-category-classifier" \
-            --input_file "classifier/data/predict_jobs.csv" \
-            --output_file "classifier/data/results.csv"
+          python extract_skills/extract_skills.py \
+            --db-url "${{ secrets.DATABASE_URL }}" \
+            --model-path "tienminhktvn/extract-skills-model" \
+            --input-file "extract_skills/data/jobs_export.csv"
 
-      - name: Update job categories in database
-        if: steps.check_jobs.outputs.skip != 'true'
-        working-directory: ./crawl_jobs
+      - name: Cleanup HuggingFace cache
+        if: always()
         run: |
-          python scripts/update_category.py \
-            --db_url "${{ secrets.DATABASE_URL }}" \
-            --csv_file "classifier/data/results.csv"
-
-      - name: Delete jobs with 'Other' category
-        if: steps.check_jobs.outputs.skip != 'true'
-        working-directory: ./crawl_jobs
-        run: |
-          python scripts/delete_other_category_jobs.py \
-            --db_url "${{ secrets.DATABASE_URL }}"
-
-      - name: Delete unused categories
-        working-directory: ./crawl_jobs
-        run: |
-          python scripts/cleanup_unused_categories.py \
-            --db_url "${{ secrets.DATABASE_URL }}"
+          rm -rf ~/.cache/huggingface || true
+          rm -rf ~/.cache/pip || true
 
       - name: Notify Slack
         if: always()
@@ -93,7 +289,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
           SLACK_CHANNEL: crawl
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "🏷️ Job Classification Results (${{ matrix.env }})"
+          SLACK_TITLE: "🧠 Skill Extraction Results (${{ matrix.env }})"
           SLACK_MESSAGE: |
-            📊 Jobs processed: ${{ steps.check_jobs.outputs.job_count || '0' }}
+            📊 Jobs processed: ${{ steps.export_jobs.outputs.job_count || '0' }}
             ✅ Status: ${{ job.status }}
