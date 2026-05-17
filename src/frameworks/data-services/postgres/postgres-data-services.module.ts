@@ -85,6 +85,8 @@ import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.a
 import { BlogRepository } from "./repositories/blog.repository";
 import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
+import { SkillNoteRepository } from "./repositories/skill-note.repository";
+import { ISkillNoteRepository } from "@/core/abstracts";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { createLoggerQuery } from "@/common/utils";
 
@@ -308,6 +310,10 @@ import { createLoggerQuery } from "@/common/utils";
       provide: ICommentRepository,
       useClass: CommentRepository,
     },
+    {
+      provide: ISkillNoteRepository,
+      useClass: SkillNoteRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -351,6 +357,7 @@ import { createLoggerQuery } from "@/common/utils";
     IBlogRepository,
     IUserActionRepository,
     ICommentRepository,
+    ISkillNoteRepository,
   ],
 })
 export class PostgresDataServicesModule {}
