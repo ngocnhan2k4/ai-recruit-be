@@ -20,6 +20,10 @@ import {
   QueryBlogTagsDto,
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
+  UpdateBlogStatusRequest,
+  CreateBlogCategoryDto,
+  CreateBlogTagDto,
+  QueryBlogCategoriesDto,
 } from "@/interfaces/dtos/blog/req";
 import { BlogService } from "@/services/blog/blog.service";
 import {
@@ -37,6 +41,8 @@ import {
   Comment,
   ObjectType,
   UserActionType,
+  BlogCategory,
+  Tag,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
@@ -120,6 +126,33 @@ export class BlogUseCases {
       category: query.category,
       status: query.status,
     });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
+    };
+  }
+
+  async getSavedBlogs(
+    userId: string,
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const limit = Math.min(query.limit ?? 10, 50);
+    const { data, pagination } = await this.blogRepository.getSavedBlogs(
+      userId,
+      {
+        ...query,
+        limit,
+        keyword: query.keyword,
+        category: query.category,
+      },
+    );
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
@@ -503,12 +536,19 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkIsAuthor(postId, user.userId);
+    const post = await this.blogService.checkIsAuthor(postId, user.userId);
 
-    await this.blogRepository.delete({
-      id: postId,
-      authorId: user.userId,
-    });
+    if (post.status === (BlogPostStatus.DRAFT as string)) {
+      await this.blogRepository.deletePermanently({
+        id: postId,
+        authorId: user.userId,
+      });
+    } else {
+      await this.blogRepository.delete({
+        id: postId,
+        authorId: user.userId,
+      });
+    }
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -538,7 +578,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkValidPost(postId);
+    await this.blogService.checkPublished(postId);
 
     await this.userActionRepository.toggleAction(
       postId,
@@ -560,6 +600,17 @@ export class BlogUseCases {
     return this.reviewPost(postId, BlogPostStatus.REJECTED);
   }
 
+  async updateBlogStatus(
+    postId: string,
+    request: UpdateBlogStatusRequest,
+  ): Promise<ApiResponse<{ id: string }>> {
+    const status =
+      request.status === "approved"
+        ? BlogPostStatus.PUBLISHED
+        : BlogPostStatus.REJECTED;
+    return this.reviewPost(postId, status);
+  }
+
   private async reviewPost(
     postId: string,
     status: BlogPostStatus.PUBLISHED | BlogPostStatus.REJECTED,
@@ -578,6 +629,81 @@ export class BlogUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: { id: postId },
+    };
+  }
+
+  async createCategory(
+    dto: CreateBlogCategoryDto,
+  ): Promise<ApiResponse<BlogCategory>> {
+    const existing = await this.blogRepository.getCategoryByName(
+      dto.name.trim(),
+    );
+    if (existing) {
+      throw new BadRequestException("Category name already exists.");
+    }
+
+    const created = await this.blogRepository.createCategory({
+      name: dto.name.trim(),
+      description: dto.description?.trim(),
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: created,
+    };
+  }
+
+  async getCategoriesPaginated(
+    query: QueryBlogCategoriesDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogCategory>>> {
+    const paginated = await this.blogRepository.getCategoriesPaginated({
+      keyword: query.keyword,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: paginated,
+    };
+  }
+
+  async createTag(dto: CreateBlogTagDto): Promise<ApiResponse<Tag>> {
+    const name = dto.name.trim();
+    const slug = generateSlug(name);
+
+    const existing = await this.blogRepository.getTagByNameOrSlug(name, slug);
+    if (existing) {
+      throw new BadRequestException("Tag name or slug already exists.");
+    }
+
+    const created = await this.blogRepository.createTag({
+      name,
+      slug,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: created,
+    };
+  }
+
+  async getTagsPaginated(
+    query: QueryBlogTagsDto,
+  ): Promise<ApiResponse<PaginatedResult<Tag>>> {
+    const paginated = await this.blogRepository.getTagsPaginated({
+      keyword: query.keyword,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: paginated,
     };
   }
 }

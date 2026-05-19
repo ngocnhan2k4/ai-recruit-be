@@ -63,6 +63,20 @@ export class BlogController {
     return this.blogUseCase.getMyBlogs(user.userId, query);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get("saved")
+  @ApiOperation({
+    summary: "Get Saved Blogs",
+    description:
+      "Retrieve blogs saved by the authenticated user with cursor pagination",
+  })
+  async getSavedBlogs(
+    @GetUser() user: TokenPayload,
+    @Query() query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    return this.blogUseCase.getSavedBlogs(user.userId, query);
+  }
+
   @Get("top")
   @ApiOperation({
     summary: "Get Top Blogs",
@@ -201,5 +215,20 @@ export class BlogController {
     @Param("blogId") blogId: string,
   ): Promise<ApiResponse<void>> {
     return this.blogUseCase.toggleLike(user, blogId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":blogId/saves")
+  @ApiOperation({
+    summary: "Toggle Save",
+    description:
+      "Save or unsave a blog post. Toggles the save state for the current user.",
+  })
+  @ApiParam({ name: "blogId", description: "Blog post ID" })
+  async toggleSave(
+    @GetUser() user: TokenPayload,
+    @Param("blogId") blogId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.blogUseCase.toggleSave(user, blogId);
   }
 }

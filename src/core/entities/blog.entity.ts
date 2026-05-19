@@ -3,16 +3,6 @@ import { BlogPostStatus } from "./enum.entity";
 
 export interface BlogPostFilters extends GeneralQuery {
   category?: string;
-  keyword?: string;
-  status?: BlogPostStatus;
-  excludeStatus?: BlogPostStatus;
-}
-
-export interface BlogPostOffsetFilters {
-  page: number;
-  limit: number;
-  keyword?: string;
-  category?: string;
   status?: BlogPostStatus;
   excludeStatus?: BlogPostStatus;
 }

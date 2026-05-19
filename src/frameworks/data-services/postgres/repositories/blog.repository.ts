@@ -19,17 +19,26 @@ import {
   sql,
   SQL,
   ne,
+  isNull,
+  or,
 } from "drizzle-orm";
-import { skills, users } from "../models";
+import { skills, users, userActions } from "../models";
+import { ObjectType, UserActionType } from "@/core/entities";
 import { PaginatedResult } from "@/common/types";
 import {
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
-  BlogPostOffsetFilters,
   BlogPostTagItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, BlogPostStatus, NewBlogPost, NewBlogPostTag } from "@/core";
+import {
+  BlogPost,
+  BlogPostStatus,
+  NewBlogPost,
+  NewBlogPostTag,
+  BlogCategory,
+  Tag,
+} from "@/core";
 import { generateSlug } from "@/common/utils/string";
 
 const sortExpr = (bp: typeof blogPosts) =>
@@ -63,6 +72,15 @@ export class BlogRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, blogPosts);
+  }
+
+  async get(id: string): Promise<BlogPost | null> {
+    const [post] = await this.db
+      .select()
+      .from(blogPosts)
+      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+      .limit(1);
+    return (post as BlogPost) ?? null;
   }
 
   async getCategories(): Promise<{ id: string; name: string }[]> {
@@ -157,7 +175,7 @@ export class BlogRepository
       "keyword" | "category" | "status" | "excludeStatus"
     >,
   ) {
-    const conditions: SQL[] = [];
+    const conditions: SQL[] = [isNull(blogPosts.deletedAt)];
 
     if (filters.keyword) {
       conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
@@ -175,7 +193,7 @@ export class BlogRepository
       conditions.push(ne(blogPosts.status, filters.excludeStatus));
     }
 
-    return conditions.length ? and(...conditions) : undefined;
+    return and(...conditions);
   }
 
   async getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]> {
@@ -199,14 +217,14 @@ export class BlogRepository
   }
 
   async getPosts(
-    filters: BlogPostOffsetFilters,
+    filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const baseWhere = this.buildPostWhere(filters);
     return this.queryPostsWithOffset(filters, baseWhere);
   }
 
   private async queryPostsWithOffset(
-    filters: BlogPostOffsetFilters,
+    filters: BlogPostFilters,
     baseWhere: ReturnType<typeof and> | undefined,
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
@@ -255,7 +273,10 @@ export class BlogRepository
     authorId: string,
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
-    const conditions: SQL[] = [eq(blogPosts.authorId, authorId)];
+    const conditions: SQL[] = [
+      eq(blogPosts.authorId, authorId),
+      isNull(blogPosts.deletedAt),
+    ];
     if (filters.keyword)
       conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
     if (filters.category)
@@ -263,6 +284,90 @@ export class BlogRepository
     if (filters.status) conditions.push(eq(blogPosts.status, filters.status));
     const baseWhere = and(...conditions);
     return this.queryPostsWithCursor(filters, baseWhere);
+  }
+
+  async getSavedBlogs(
+    userId: string,
+    filters: BlogPostFilters,
+  ): Promise<PaginatedResult<BlogPostListItem>> {
+    const limit = Math.min(filters.limit ?? 10, 50);
+    const decoded = decodeCursor(filters.cursor);
+
+    const conditions: SQL[] = [
+      eq(userActions.userId, userId),
+      eq(userActions.objectType, ObjectType.BLOG),
+      eq(userActions.type, UserActionType.SAVE),
+      sql`${userActions.deletedAt} IS NULL`,
+      eq(blogPosts.status, BlogPostStatus.PUBLISHED),
+      isNull(blogPosts.deletedAt),
+    ];
+
+    if (filters.keyword)
+      conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
+    if (filters.category)
+      conditions.push(eq(blogPosts.categoryId, filters.category));
+
+    const baseWhere = and(...conditions);
+
+    const finalWhere = decoded
+      ? and(
+          baseWhere,
+          sql`(
+            ${sortExpr(blogPosts)} < ${decoded.sortTime}
+            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id})
+          )`,
+        )
+      : baseWhere;
+
+    const [rows, totalRows] = await Promise.all([
+      this.db
+        .select({
+          id: blogPosts.id,
+          title: blogPosts.title,
+          slug: blogPosts.slug,
+          summary: blogPosts.summary,
+          thumbnail: blogPosts.thumbnail,
+          category: blogPosts.categoryId,
+          createdAt: blogPosts.createdAt,
+          updatedAt: blogPosts.updatedAt,
+          status: sql<BlogPostStatus>`${blogPosts.status}`,
+        })
+        .from(userActions)
+        .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
+        .where(finalWhere)
+        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .limit(limit + 1),
+
+      this.db
+        .select({ total: count(blogPosts.id) })
+        .from(userActions)
+        .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
+        .where(
+          and(
+            eq(userActions.userId, userId),
+            eq(userActions.objectType, ObjectType.BLOG),
+            eq(userActions.type, UserActionType.SAVE),
+            sql`${userActions.deletedAt} IS NULL`,
+            eq(blogPosts.status, BlogPostStatus.PUBLISHED),
+          ),
+        ),
+    ]);
+
+    const hasNextPage = rows.length > limit;
+    const data = hasNextPage ? rows.slice(0, limit) : rows;
+    const last = data[data.length - 1];
+
+    return {
+      data,
+      pagination: {
+        total: Number(totalRows[0]?.total ?? 0),
+        hasNextPage,
+        nextCursor:
+          hasNextPage && last
+            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+            : null,
+      },
+    };
   }
 
   private async queryPostsWithCursor(
@@ -379,7 +484,7 @@ export class BlogRepository
       })
       .from(blogPosts)
       .innerJoin(users, eq(users.id, blogPosts.authorId))
-      .where(eq(blogPosts.slug, slug))
+      .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
       .groupBy(
         blogPosts.id,
         blogPosts.title,
@@ -443,7 +548,7 @@ export class BlogRepository
       })
       .from(blogPosts)
       .innerJoin(users, eq(users.id, blogPosts.authorId))
-      .where(eq(blogPosts.id, id))
+      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
       .groupBy(
         blogPosts.id,
         blogPosts.title,
@@ -490,7 +595,7 @@ export class BlogRepository
     const [post] = await this.db
       .select()
       .from(blogPosts)
-      .where(eq(blogPosts.slug, slug))
+      .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
       .limit(1);
 
     return (post as BlogPost) ?? null;
@@ -638,5 +743,134 @@ export class BlogRepository
       }));
       await executor.insert(blogPostTags).values(tagRows);
     }
+  }
+
+  async getCategoriesPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<BlogCategory>> {
+    const limit = Math.min(filters.limit ?? 10, 50);
+    const page = Math.max(filters.page ?? 1, 1);
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [isNull(blogCategories.deletedAt)];
+    if (filters.keyword) {
+      conditions.push(ilike(blogCategories.name, `%${filters.keyword}%`));
+    }
+
+    const baseWhere = and(...conditions);
+
+    const [rows, totalRows] = await Promise.all([
+      this.db
+        .select()
+        .from(blogCategories)
+        .where(baseWhere)
+        .orderBy(desc(blogCategories.createdAt))
+        .limit(limit)
+        .offset(offset),
+
+      this.db
+        .select({ total: count(blogCategories.id) })
+        .from(blogCategories)
+        .where(baseWhere),
+    ]);
+
+    const total = Number(totalRows[0]?.total ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: rows,
+      pagination: {
+        total,
+        hasNextPage: page < totalPages,
+        nextCursor: null,
+      },
+    };
+  }
+
+  async getTagsPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<Tag>> {
+    const limit = Math.min(filters.limit ?? 10, 50);
+    const page = Math.max(filters.page ?? 1, 1);
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [isNull(tags.deletedAt)];
+    if (filters.keyword) {
+      conditions.push(ilike(tags.name, `%${filters.keyword}%`));
+    }
+
+    const baseWhere = and(...conditions);
+
+    const [rows, totalRows] = await Promise.all([
+      this.db
+        .select()
+        .from(tags)
+        .where(baseWhere)
+        .orderBy(desc(tags.createdAt))
+        .limit(limit)
+        .offset(offset),
+
+      this.db
+        .select({ total: count(tags.id) })
+        .from(tags)
+        .where(baseWhere),
+    ]);
+
+    const total = Number(totalRows[0]?.total ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: rows,
+      pagination: {
+        total,
+        hasNextPage: page < totalPages,
+        nextCursor: null,
+      },
+    };
+  }
+
+  async createCategory(data: {
+    name: string;
+    description?: string;
+  }): Promise<BlogCategory> {
+    const [created] = await this.db
+      .insert(blogCategories)
+      .values(data)
+      .returning();
+    return created;
+  }
+
+  async createTag(data: { name: string; slug: string }): Promise<Tag> {
+    const [created] = await this.db.insert(tags).values(data).returning();
+    return created;
+  }
+
+  async getCategoryByName(name: string): Promise<BlogCategory | null> {
+    const [row] = await this.db
+      .select()
+      .from(blogCategories)
+      .where(
+        and(eq(blogCategories.name, name), isNull(blogCategories.deletedAt)),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async getTagByNameOrSlug(name: string, slug: string): Promise<Tag | null> {
+    const [row] = await this.db
+      .select()
+      .from(tags)
+      .where(
+        and(
+          or(eq(tags.name, name), eq(tags.slug, slug)),
+          isNull(tags.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 }

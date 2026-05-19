@@ -4,11 +4,10 @@ import {
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
-  BlogPostOffsetFilters,
   BlogPostTagItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost } from "@/core/entities";
+import { BlogPost, NewBlogPost, BlogCategory, Tag } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
@@ -21,11 +20,16 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   }): Promise<PaginatedResult<BlogTagCursorItem>>;
 
   abstract getPosts(
-    filters: BlogPostOffsetFilters,
+    filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
   abstract getMyBlogs(
     authorId: string,
+    filters: BlogPostFilters,
+  ): Promise<PaginatedResult<BlogPostListItem>>;
+
+  abstract getSavedBlogs(
+    userId: string,
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
@@ -64,4 +68,27 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     postId: string,
     tags: Array<{ tagId?: string | null; skillId?: string | null }>,
   ): Promise<void>;
+
+  abstract getCategoriesPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<BlogCategory>>;
+
+  abstract getTagsPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<Tag>>;
+
+  abstract createCategory(data: {
+    name: string;
+    description?: string;
+  }): Promise<BlogCategory>;
+
+  abstract createTag(data: { name: string; slug: string }): Promise<Tag>;
+
+  abstract getCategoryByName(name: string): Promise<BlogCategory | null>;
+
+  abstract getTagByNameOrSlug(name: string, slug: string): Promise<Tag | null>;
 }

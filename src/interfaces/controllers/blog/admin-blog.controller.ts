@@ -7,10 +7,26 @@ import {
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards/system-authorize.guard";
 import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
-import { QueryBlogsDto } from "@/interfaces/dtos/blog/req";
+import {
+  QueryBlogsDto,
+  UpdateBlogStatusRequest,
+  CreateBlogCategoryDto,
+  CreateBlogTagDto,
+  QueryBlogCategoriesDto,
+  QueryBlogTagsDto,
+} from "@/interfaces/dtos/blog/req";
 import { BlogPostDetailDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
 import { ApiResponse } from "@/interfaces/dtos";
-import { Controller, Get, Param, Put, Query, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Param,
+  Put,
+  Query,
+  UseGuards,
+  Body,
+  Post,
+} from "@nestjs/common";
 
 @ApiTags("Admin - Blog System")
 @ApiBearerAuth()
@@ -42,24 +58,52 @@ export class AdminBlogController {
   }
 
   @ApiOperation({
-    summary: "Approve a pending or rejected blog post",
+    summary: "Update blog status",
     description:
-      "Changes a blog post status to PUBLISHED. Cannot be used on DRAFT.",
+      "Changes a blog post status to PUBLISHED (approved) or REJECTED. Cannot be used on DRAFT.",
   })
   @ApiParam({ name: "id", description: "Blog post ID" })
-  @Put(":id/approve")
-  async approvePost(@Param("id") id: string) {
-    return this.blogUseCases.approvePost(id);
+  @Put(":id/status")
+  async updateBlogStatus(
+    @Param("id") id: string,
+    @Body() request: UpdateBlogStatusRequest,
+  ) {
+    return this.blogUseCases.updateBlogStatus(id, request);
   }
 
   @ApiOperation({
-    summary: "Reject a pending or published blog post",
-    description:
-      "Changes a blog post status to REJECTED. Cannot be used on DRAFT.",
+    summary: "Create a blog category",
+    description: "Create a new blog category.",
   })
-  @ApiParam({ name: "id", description: "Blog post ID" })
-  @Put(":id/reject")
-  async rejectPost(@Param("id") id: string) {
-    return this.blogUseCases.rejectPost(id);
+  @Post("categories")
+  async createCategory(@Body() body: CreateBlogCategoryDto) {
+    return this.blogUseCases.createCategory(body);
+  }
+
+  @ApiOperation({
+    summary: "Get paginated categories",
+    description: "Retrieve a paginated list of blog categories.",
+  })
+  @Get("categories")
+  async getCategories(@Query() query: QueryBlogCategoriesDto) {
+    return this.blogUseCases.getCategoriesPaginated(query);
+  }
+
+  @ApiOperation({
+    summary: "Create a blog tag",
+    description: "Create a new blog tag.",
+  })
+  @Post("tags")
+  async createTag(@Body() body: CreateBlogTagDto) {
+    return this.blogUseCases.createTag(body);
+  }
+
+  @ApiOperation({
+    summary: "Get paginated tags",
+    description: "Retrieve a paginated list of blog tags.",
+  })
+  @Get("tags")
+  async getTags(@Query() query: QueryBlogTagsDto) {
+    return this.blogUseCases.getTagsPaginated(query);
   }
 }

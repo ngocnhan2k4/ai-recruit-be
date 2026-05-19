@@ -42,6 +42,8 @@ import { SchoolTypeEnum } from "./enum.entity";
 import {
   blogPosts,
   blogPostTags,
+  blogCategories,
+  tags,
 } from "@/frameworks/data-services/postgres/models/blog.model";
 export * from "./enum.entity";
 export * from "./learning-path.entity";
@@ -239,3 +241,9 @@ export type Comment = InferSelectModel<typeof comments>;
 
 export type NewUserAction = InferInsertModel<typeof userActions>;
 export type UserAction = InferSelectModel<typeof userActions>;
+
+export type NewBlogCategory = InferInsertModel<typeof blogCategories>;
+export type BlogCategory = InferSelectModel<typeof blogCategories>;
+
+export type NewTag = InferInsertModel<typeof tags>;
+export type Tag = InferSelectModel<typeof tags>;

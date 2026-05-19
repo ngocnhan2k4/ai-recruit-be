@@ -157,3 +157,36 @@ export class UpdateBlogPostDto {
 }
 
 export class QueryBlogTagsDto extends GeneralQueryDto {}
+
+export class UpdateBlogStatusRequest {
+  @ApiProperty({
+    description: "Blog post status",
+    enum: ["approved", "rejected"],
+  })
+  @IsNotEmpty()
+  @IsEnum(["approved", "rejected"])
+  status: "approved" | "rejected";
+}
+
+export class CreateBlogCategoryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class CreateBlogTagDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name: string;
+}
+
+export class QueryBlogCategoriesDto extends GeneralQueryDto {}

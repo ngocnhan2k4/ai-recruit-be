@@ -53,4 +53,17 @@ export class BlogService {
 
     return post;
   }
+
+  async checkPublished(postId: string): Promise<BlogPost> {
+    const post = await this.checkValidPost(postId);
+
+    if (post.status !== (BlogPostStatus.PUBLISHED as string)) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    return post;
+  }
 }
