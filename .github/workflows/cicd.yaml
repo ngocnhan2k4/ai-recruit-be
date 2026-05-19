@@ -9,7 +9,7 @@ on:
 jobs:
   ci:
     environment: dev
-    runs-on: arc-runner-set
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
   cd:
     needs: ci
     if: github.event_name == 'push'
-    runs-on: arc-runner-set
+    runs-on: self-hosted
     environment: dev
     env:
       IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
