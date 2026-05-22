@@ -64,6 +64,7 @@ export const jobs = pgTable(
     experienceMin: integer("experience_min"),
     experienceMax: integer("experience_max"),
     questions: jsonb("questions"),
+    applyUrl: varchar("apply_url", { length: 500 }),
     endDate: date("end_date"),
     status: JobStatusEnum("status").notNull().default("pending_approval"),
     workType: WorkTypeEnum("work_type"),
@@ -72,6 +73,7 @@ export const jobs = pgTable(
     ),
     rejectReason: text("reject_reason"),
     categoryId: uuid("category_id").references(() => categories.id),
+    recruitCount: integer("recruit_count"),
     ...timestamps,
   },
   (table) => [
@@ -147,7 +149,7 @@ export const userInteractions = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_user_interactions_user_job_type").on(
+    uniqueIndex("uniq_user_interactions_user_job_type").on(
       table.userId,
       table.jobId,
       table.type,
@@ -175,6 +177,10 @@ export const applyJobs = pgTable(
     status: ApplyStatusEnum("status").default("pending"),
     cvId: uuid("cv_id").references(() => cvs.id),
     answers: jsonb("answers"),
+    matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
+    matchingRank: integer("matching_rank"),
+    matchingCriteria: jsonb("matching_criteria"),
+    scoredAt: timestamp("scored_at"),
 
     ...timestamps,
   },
@@ -200,5 +206,6 @@ export const cvs = pgTable("cvs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
+  extractedData: jsonb("extracted_data"),
   ...timestamps,
 });

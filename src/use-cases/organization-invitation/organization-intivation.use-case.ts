@@ -8,6 +8,8 @@ import {
   IUserRepository,
   IOrganizationRepository,
   EmailJobType,
+  IMessageQueueService,
+  OrganizationInvitationEmailData,
 } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IOrganizationMemberInvitationRepository } from "@/core/abstracts/repositories/organization-member-invitations-repository.abstract";
@@ -25,8 +27,6 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { IEmailQueueStorageService } from "@/core";
-import { randomUUID } from "crypto";
 import { ConfigService } from "@nestjs/config";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 
@@ -41,7 +41,7 @@ export class OrganizationInvitationUseCase {
     private readonly organizationMemberRepository: IOrganizationMembersRepository,
     private readonly notificationService: INotificationService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly emailQueueStorage: IEmailQueueStorageService,
+    private readonly messageQueueService: IMessageQueueService,
     private readonly userRepository: IUserRepository,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly configService: ConfigService,
@@ -190,7 +190,6 @@ export class OrganizationInvitationUseCase {
           {
             userId: data.inviteeId,
           },
-          tx,
         );
       },
     );
@@ -232,20 +231,23 @@ export class OrganizationInvitationUseCase {
           [OrganizationRoleEnum.ORGANIZATION_VIEWER]: "Thành viên",
         };
 
-        this.emailQueueStorage.addToQueue({
-          id: randomUUID(),
-          type: EmailJobType.ORGANIZATION_INVITATION,
-          data: {
+        await this.messageQueueService.addEmail(
+          EmailJobType.ORGANIZATION_INVITATION,
+          {
             to: invitee.email,
             organizationName: organization.name,
             inviterName: inviter.name,
             invitationLink,
             role: roleMap[role] || role,
+          } as OrganizationInvitationEmailData,
+          {
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 5000,
+            },
           },
-          attempts: 0,
-          maxAttempts: 3,
-          createdAt: new Date(),
-        });
+        );
       }
     } catch (error) {
       this.logger.error("Failed to queue invitation email", error);

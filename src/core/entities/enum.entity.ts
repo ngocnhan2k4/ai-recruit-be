@@ -41,11 +41,14 @@ export enum ProviderEnum {
 }
 export enum UserStatusEnum {
   ACTIVE = "active",
-  INACTIVE = "inactive",
+  // INACTIVE = "inactive",
   BANNED = "banned",
+  PENDING_DELETION = "pending_deletion",
+  DELETED = "deleted",
 }
 export enum NotificationType {
   JOB_POSTED = "job_posted",
+  JOB_UPDATED = "job_updated",
   JOB_APPROVED = "job_approved",
   JOB_APPLIED = "job_applied",
   ADMIN_JOB_APPROVED = "admin_job_approved",
@@ -158,7 +161,7 @@ export enum EmailJobType {
   ORGANIZATION_CHANGE_EMAIL = "organization_change_email",
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
-  CUSTOM = "custom",
+  FEEDBACK_RESOLVED = "feedback_resolved",
 }
 
 export enum OtpPurpose {
@@ -181,6 +184,7 @@ export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",
   SUGGEST_CV_FIELD = "suggest_cv_field",
   OPTIMIZE_CV = "optimize_cv",
+  SAVE_JOB = "save_job",
 }
 export enum BillingCycleSubscriptionEnum {
   MONTHLY = "monthly",
@@ -210,4 +214,21 @@ export enum TaskStatusEnum {
 export enum TaskTypeEnum {
   LEARNING_PATH_GENERATION = "learning_path_generation",
   CV_GENERATION = "cv_generation",
+}
+
+export enum ObjectType {
+  BLOG = "BLOG",
+  ORG = "ORG",
+}
+
+export enum UserActionType {
+  LIKE = "LIKE",
+  SAVE = "SAVE",
+}
+
+export enum BlogPostStatus {
+  DRAFT = "DRAFT",
+  PENDING = "PENDING",
+  PUBLISHED = "PUBLISHED",
+  REJECTED = "REJECTED",
 }

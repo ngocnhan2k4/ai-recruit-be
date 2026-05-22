@@ -33,6 +33,8 @@ import {
   IFeatureRepository,
   IUserFeatureUsageRepository,
   ITaskRepository,
+  IUserActionRepository,
+  ICommentRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -76,14 +78,21 @@ import { FeatureRepository } from "./repositories/feature.repository";
 import { UserFeatureUsageRepository } from "./repositories/user-feature-usage.repository";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
 import { UserSubscriptionRepository } from "./repositories/user-subscription.repository";
-import { ISubscriptionFeatureRepository } from "@/core/abstracts/repositories/subscription-feature-repository.abstract";
-import { SubscriptionFeatureRepository } from "./repositories/subscription-feature.repository";
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { SkillsSynonymsRepository } from "./repositories/skills-synonyms.repository";
 import { TaskRepository } from "./repositories/task.repository";
+import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
+import { BlogRepository } from "./repositories/blog.repository";
+import { UserActionRepository } from "./repositories/user-action.repository";
+import { CommentRepository } from "./repositories/comment.repository";
+import { SkillNoteRepository } from "./repositories/skill-note.repository";
+import { ISkillNoteRepository } from "@/core/abstracts";
+import { RedisModule } from "@/frameworks/redis/redis.module";
+import { createLoggerQuery } from "@/common/utils";
 
 @Global()
 @Module({
+  imports: [RedisModule],
   providers: [
     {
       provide: "DRIZZLE",
@@ -101,6 +110,8 @@ import { TaskRepository } from "./repositories/task.repository";
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          (pool as any).query = createLoggerQuery(pool, { logger });
 
           // Wrap pool để log SQL queries
           const maxRetries = 3;
@@ -284,12 +295,24 @@ import { TaskRepository } from "./repositories/task.repository";
       useClass: UserSubscriptionRepository,
     },
     {
-      provide: ISubscriptionFeatureRepository,
-      useClass: SubscriptionFeatureRepository,
-    },
-    {
       provide: IUserFeatureUsageRepository,
       useClass: UserFeatureUsageRepository,
+    },
+    {
+      provide: IBlogRepository,
+      useClass: BlogRepository,
+    },
+    {
+      provide: IUserActionRepository,
+      useClass: UserActionRepository,
+    },
+    {
+      provide: ICommentRepository,
+      useClass: CommentRepository,
+    },
+    {
+      provide: ISkillNoteRepository,
+      useClass: SkillNoteRepository,
     },
   ],
   exports: [
@@ -329,9 +352,12 @@ import { TaskRepository } from "./repositories/task.repository";
     IFeatureRepository,
     IUserFeatureUsageRepository,
     IUserSubscriptionRepository,
-    ISubscriptionFeatureRepository,
     IUserFeatureUsageRepository,
     ITaskRepository,
+    IBlogRepository,
+    IUserActionRepository,
+    ICommentRepository,
+    ISkillNoteRepository,
   ],
 })
 export class PostgresDataServicesModule {}

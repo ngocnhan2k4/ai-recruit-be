@@ -1,5 +1,11 @@
 import { SentryModule } from "@sentry/nestjs/setup";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { PrometheusModule } from "@willsoto/nestjs-prometheus";
+import {
+  HTTP_REQUESTS_TOTAL,
+  HTTP_REQUEST_DURATION_SECONDS,
+} from "@/common/config/prometheus.config";
+import { PrometheusMetricsInterceptor } from "@/common/interceptors";
 import {
   UserController,
   AuthController,
@@ -23,6 +29,8 @@ import {
   LearningPathController,
   AdminJobSyncController,
   JobMatchingController,
+  BlogController,
+  CommentController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -84,11 +92,19 @@ import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscriptio
 import { FeatureUseCasesModule } from "@/use-cases/feature/feature-use-cases.module";
 import { SkillSynonymUseCasesModule } from "@/use-cases/skill-synonym/skill-synonym.use-cases.module";
 import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/skill-synonym.controller";
+import { DeploymentUseCasesModule } from "@/use-cases/deployment/deployment-use-cases.module";
+import { AdminDeploymentController } from "@/interfaces/controllers/deployment/admin-deployment.controller";
+import { BlogUseCasesModule } from "./use-cases/blog/blog-use-cases.module";
+import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 
 @Module({
   imports: [
     // SentryModule must be the first import so Sentry can instrument all other modules
     SentryModule.forRoot(),
+    PrometheusModule.register({
+      defaultMetrics: { enabled: true },
+      path: "/metrics",
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env", ".env.development", ".env.production"],
@@ -149,6 +165,9 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     SubscriptionUseCasesModule,
     FeatureUseCasesModule,
     SkillSynonymUseCasesModule,
+    DeploymentUseCasesModule,
+    BlogUseCasesModule,
+    CommentUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -183,6 +202,9 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
     AdminSubscriptionController,
     AdminFeatureController,
     SkillSynonymController,
+    AdminDeploymentController,
+    BlogController,
+    CommentController,
   ],
   providers: [
     JwtStrategy,
@@ -207,6 +229,12 @@ import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/s
       inject: [ConfigService, ILoggerServices],
     },
     RateLimitMiddleware,
+    HTTP_REQUESTS_TOTAL,
+    HTTP_REQUEST_DURATION_SECONDS,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PrometheusMetricsInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {

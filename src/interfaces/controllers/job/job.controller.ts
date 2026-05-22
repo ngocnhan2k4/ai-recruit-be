@@ -7,10 +7,11 @@ import {
   Post,
   Body,
   Put,
-  Delete,
   Param,
   UseInterceptors,
 } from "@nestjs/common";
+import { UploadFileAndBody } from "@/common/decorators/upload-file.decorater";
+import { MultipartFile } from "@fastify/multipart";
 import { CacheTTL } from "@nestjs/cache-manager";
 import { HttpCacheInterceptor } from "@/common/interceptors/http-cache.interceptor";
 import { LONG_TTL } from "@/common/constants";
@@ -20,9 +21,8 @@ import {
   ApiResponseDto,
   TopInMarketDtoResponse,
 } from "../../dtos";
-import { QueryJobDto, CreateJobDto } from "@/interfaces/dtos";
+import { QueryJobDto } from "@/interfaces/dtos";
 import {
-  JobDto,
   JobPaginationResponseDto,
   SavedJobsResponseDto,
   AppliedJobsResponseDto,
@@ -40,8 +40,6 @@ import {
   UserInteractionResponseDto,
   SaveJobDto,
   //HideJobDto,
-  ApplyJobDto,
-  UpdateApplyJobDto,
   ApplyJobQueryDto,
 } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -166,9 +164,14 @@ export class JobController {
   @Post("apply")
   async applyJob(
     @GetUser() user: TokenPayload,
-    @Body() applyJobDto: ApplyJobDto,
+    @UploadFileAndBody({ required: false })
+    uploadData: { file?: MultipartFile; body: Record<string, any> },
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    return await this.jobUseCases.applyJob(user.userId, applyJobDto);
+    return await this.jobUseCases.applyJob(
+      user.userId,
+      uploadData.body,
+      uploadData.file,
+    );
   }
 
   @ApiOperation({
@@ -182,12 +185,14 @@ export class JobController {
   async updateApplyJob(
     @GetUser() user: TokenPayload,
     @Param("applyId") applyId: string,
-    @Body() updateApplyJobDto: UpdateApplyJobDto,
+    @UploadFileAndBody({ required: false })
+    uploadData: { file?: MultipartFile; body: Record<string, any> },
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
     return await this.jobUseCases.updateApplyJob(
       user.userId,
       applyId,
-      updateApplyJobDto,
+      uploadData.body,
+      uploadData.file,
     );
   }
 
@@ -218,8 +223,8 @@ export class JobController {
   }
 
   @ApiOperation({
-    summary: "Save a job",
-    description: "Save a job for later viewing",
+    summary: "Toggle save job",
+    description: "Toggle save/unsave a job for later viewing",
   })
   @UseGuards(JwtAuthGuard)
   @ApiResponseDto(UserInteractionResponseDto)
@@ -228,11 +233,7 @@ export class JobController {
     @GetUser() user: TokenPayload,
     @Body() saveJobDto: SaveJobDto,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    return await this.jobUseCases.saveJob(
-      user.userId,
-      saveJobDto.jobId,
-      saveJobDto.save!,
-    );
+    return await this.jobUseCases.toggleSaveJob(user.userId, saveJobDto.jobId);
   }
   // [TODO] remove later
   // @ApiOperation({
@@ -252,16 +253,6 @@ export class JobController {
   //     hideJobDto.hide!,
   //   );
   // }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(JobDto)
-  @Post()
-  async createJob(
-    @GetUser() user: TokenPayload,
-    @Body() createJobDto: CreateJobDto,
-  ): Promise<ApiResponse<JobDto>> {
-    return await this.jobUseCases.createJob(user.userId, createJobDto);
-  }
 
   @ApiOperation({
     summary: "Get job by ID",
@@ -292,14 +283,14 @@ export class JobController {
     return await this.jobUseCases.getAllSavedJobs(user.userId, query);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("saved/count")
-  async getNumberOfSavedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponseDto(Number)
+  // @Get("saved/count")
+  // async getNumberOfSavedJobs(
+  //   @GetUser() user: TokenPayload,
+  // ): Promise<ApiResponse<number>> {
+  //   return await this.jobUseCases.getNumberOfSavedJobs(user.userId);
+  // }
 
   @ApiOperation({
     summary: "Get applied jobs for the authenticated user",
@@ -314,28 +305,5 @@ export class JobController {
     @Query() query: GeneralQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<AppliedJobsResponseDto>>> {
     return await this.jobUseCases.getAllAppliedJobs(user.userId, query);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiResponseDto(Number)
-  @Get("applied/count")
-  async getNumberOfAppliedJobs(
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<number>> {
-    return await this.jobUseCases.getNumberOfAppliedJobs(user.userId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: "Delete a job",
-    description: "Delete a job posting (for organization)",
-  })
-  @Delete(":id")
-  async deleteJob(
-    @GetUser() user: TokenPayload,
-    @Param("id") jobId: string,
-    @Query("organizationId") organizationId: string,
-  ): Promise<ApiResponse<{ message: string }>> {
-    return await this.jobUseCases.deleteJob(user, jobId, organizationId);
   }
 }

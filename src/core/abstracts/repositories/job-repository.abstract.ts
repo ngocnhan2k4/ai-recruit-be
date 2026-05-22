@@ -7,6 +7,7 @@ import {
   User,
   JobTrends,
   JobTrendsQuery,
+  JobDetailFilter,
 } from "@/core/entities";
 import {
   JobResponse,
@@ -129,7 +130,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum,
+    status: ApplyStatusEnum | undefined,
     sendNotifications: boolean,
     senderUserId?: string,
     userCvId?: string,
@@ -145,11 +146,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getApplyJobById(applyId: string): Promise<ApplyJobResponse | null>;
 
-  abstract saveJob(
+  // abstract saveJob(
+  //   userId: string,
+  //   jobId: string,
+  //   save: boolean,
+  // ): Promise<UserInteractionResponse | null>;
+
+  abstract toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
-  ): Promise<UserInteractionResponse | null>;
+  ): Promise<{
+    status: "saved" | "unsaved" | "unchanged";
+    interaction: UserInteractionResponse | null;
+  }>;
 
   // [TODO] remove later
   // abstract hideJob(
@@ -165,15 +174,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       skillNames?: string[];
       provinceIds?: string[];
     },
-    sendNotifications?: boolean,
-    senderUserId?: string,
-  ): Promise<
-    | Job
-    | {
-        job: Job;
-        newNotifications: Notification[];
-      }
-  >;
+  ): Promise<Job>;
   abstract updateJob(
     jobId: string,
     job: Partial<Job> & {
@@ -182,19 +183,10 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       provinceIds?: string[];
     },
   ): Promise<Job | null>;
-  abstract updateJobWithNotifications(
-    jobId: string,
-    job: Partial<Job> & {
-      skillIds?: string[];
-      skillNames?: string[];
-      provinceIds?: string[];
-    },
-    userId: string,
-  ): Promise<{ job: Job | null; newNotifications: Notification[] }>;
 
   abstract getFullJobById(
     jobId: string,
-    userId?: string,
+    filter?: JobDetailFilter,
   ): Promise<JobResponse | null>;
 
   abstract getApplyJobs(
@@ -221,8 +213,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
       isApplied: boolean;
     }>
   >;
-  abstract getNumberOfSavedJobs(userId: string): Promise<number>;
-  abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
+  // abstract getNumberOfSavedJobs(userId: string): Promise<number>;
+  // abstract getNumberOfAppliedJobs(userId: string): Promise<number>;
   abstract getAllAppliedJobs(
     userId: string,
     params: GeneralQuery,

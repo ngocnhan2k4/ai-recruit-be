@@ -1,12 +1,11 @@
 import {
-  CrawledSkillResponse,
   GetListSkillResponse,
   Skill,
   SkillFilter,
   SkillReviewStatus,
 } from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { PaginatedResult } from "@/common/types";
 
 export type SkillWithQuestionCount = Skill & { questionCount: number };
 
@@ -19,19 +18,22 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
 
   abstract getSkillById(id: string): Promise<Pick<Skill, "name" | "id"> | null>;
 
-  abstract getCrawledSkills(
-    query: GeneralQuery,
-  ): Promise<PaginatedResult<CrawledSkillResponse>>;
-
   abstract bulkReviewSkills(
     ids: string[],
     status: SkillReviewStatus,
   ): Promise<void>;
 
-  abstract deleteSkillAndReferences(skillId: string): Promise<void>;
+  abstract deleteSkillAndReferences(skillIds: string[]): Promise<void>;
+
+  abstract mergeSkillsAndReferences(
+    targetSkillId: string,
+    sourceSkillIds: string[],
+  ): Promise<void>;
 
   abstract getTopDemandedSkills(
-    months: number,
     limit: number,
+    fromDate?: Date,
+    toDate?: Date,
+    provinceId?: string,
   ): Promise<{ name: string; jobCount: number }[]>;
 }

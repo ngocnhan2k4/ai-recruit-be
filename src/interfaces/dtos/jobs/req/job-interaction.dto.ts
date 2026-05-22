@@ -3,14 +3,13 @@ import {
   IsUUID,
   IsOptional,
   IsArray,
-  IsBoolean,
   IsEnum,
   IsString,
   IsInt,
   Min,
   ValidateNested,
 } from "class-validator";
-import { Type, Transform } from "class-transformer";
+import { Type } from "class-transformer";
 import { ApplyStatusEnum } from "@/core";
 
 export class JobAnswerDto {
@@ -48,6 +47,15 @@ export class ApplyJobDto {
   cvId?: string;
 
   @ApiProperty({
+    example: "My CV",
+    required: false,
+    description: "Name for the new CV when uploading a file",
+  })
+  @IsOptional()
+  @IsString()
+  cvName?: string;
+
+  @ApiProperty({
     type: [JobAnswerDto],
     required: false,
     description: "Answers to job questions",
@@ -79,19 +87,19 @@ export class SaveJobDto {
   @IsUUID()
   jobId: string;
 
-  @ApiProperty({
-    example: true,
-    required: false,
-    description:
-      "Whether to save (true) or unsave (false) the job. Defaults to true.",
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === undefined) return true;
-    return value as boolean;
-  })
-  save?: boolean;
+  // @ApiProperty({
+  //   example: true,
+  //   required: false,
+  //   description:
+  //     "Whether to save (true) or unsave (false) the job. Defaults to true.",
+  // })
+  // @IsOptional()
+  // @IsBoolean()
+  // @Transform(({ value }) => {
+  //   if (value === undefined) return true;
+  //   return value as boolean;
+  // })
+  // save?: boolean;
 }
 
 // export class HideJobDto {
@@ -165,7 +173,7 @@ export class UpdateApplyJobDto {
   })
   @IsOptional()
   @IsUUID()
-  userCvId?: string;
+  cvId?: string;
 
   @ApiProperty({
     type: [JobAnswerDto],

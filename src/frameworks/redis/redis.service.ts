@@ -6,6 +6,11 @@ import { Redis } from "ioredis";
 export class RedisService implements ICacheService, OnModuleDestroy {
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
+  private ttlSeconds(ttlMs?: number) {
+    if (!ttlMs) return undefined;
+    return Math.max(1, Math.ceil(ttlMs / 1000));
+  }
+
   async onModuleDestroy() {
     await this.redis.quit();
   }
@@ -14,14 +19,35 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     return this.redis.get(key);
   }
 
-  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    if (ttlSeconds) {
-      await this.redis.setex(key, ttlSeconds, value);
-    } else {
-      await this.redis.set(key, value);
+  async set(
+    key: string,
+    value: string,
+    options?: { ttlSeconds?: number; NX?: boolean },
+  ): Promise<boolean> {
+    if (options?.ttlSeconds && options?.NX) {
+      const result = await this.redis.set(
+        key,
+        value,
+        "EX",
+        options.ttlSeconds,
+        "NX",
+      );
+      return result === "OK";
     }
-  }
 
+    if (options?.ttlSeconds) {
+      await this.redis.setex(key, value, options.ttlSeconds);
+      return true;
+    }
+
+    if (options?.NX) {
+      const result = await this.redis.setnx(key, value);
+      return result === 1;
+    }
+
+    await this.redis.set(key, value);
+    return true;
+  }
   async del(key: string): Promise<void> {
     await this.redis.del(key);
   }
@@ -29,6 +55,21 @@ export class RedisService implements ICacheService, OnModuleDestroy {
   async exists(key: string): Promise<boolean> {
     const result = await this.redis.exists(key);
     return result === 1;
+  }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    const raw = await this.get(key);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async setJson(key: string, value: any, ttlMs?: number): Promise<void> {
+    const ttl = this.ttlSeconds(ttlMs);
+    await this.set(key, JSON.stringify(value), { ttlSeconds: ttl });
   }
 
   async setWithExpiry(
@@ -139,5 +180,29 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     }
 
     return members;
+  }
+
+  async increment(key: string, value: number): Promise<void> {
+    await this.redis.incrby(key, value);
+  }
+
+  async addToSet(key: string, member: string): Promise<void> {
+    await this.redis.sadd(key, member);
+  }
+
+  async removeFromSet(key: string, ...members: string[]): Promise<void> {
+    await this.redis.srem(key, ...members);
+  }
+
+  async getSetMembers(key: string): Promise<string[]> {
+    return this.redis.smembers(key);
+  }
+
+  async eval(
+    script: string,
+    keys: number,
+    ...args: string[]
+  ): Promise<string[]> {
+    return (await this.redis.eval(script, keys, ...args)) as string[];
   }
 }

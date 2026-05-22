@@ -163,6 +163,17 @@ export class CreateJobDto {
   @IsString()
   salaryMax?: string | null;
 
+  @ApiProperty({
+    type: "number",
+    required: false,
+    nullable: true,
+    description: "Number of candidates requested for recommendation",
+    example: 10,
+  })
+  @IsOptional()
+  @IsNumber()
+  recruitCount?: number | null;
+
   @ApiProperty({ type: "number", nullable: true })
   @IsOptional()
   @IsNumber()
@@ -247,6 +258,17 @@ export class CreateJobDto {
   @ApiProperty({ type: "string", format: "uuid", nullable: true })
   @IsUUID()
   categoryId: string | null;
+
+  @ApiProperty({
+    type: "string",
+    nullable: true,
+    required: false,
+    description: "Application URL for external applications",
+    example: "https://company.com/apply/job-123",
+  })
+  @IsOptional()
+  @IsString()
+  applyUrl?: string | null;
 }
 
 export class UpdateJobDto {
@@ -268,6 +290,17 @@ export class UpdateJobDto {
   @IsUUID()
   companyId?: string;
 
+  @ApiProperty({
+    type: "string",
+    format: "uuid",
+    nullable: true,
+    required: false,
+    description: "Category ID to associate with the job",
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string | null;
+
   @ApiProperty({ type: "string", nullable: true, required: false })
   @IsOptional()
   @IsString()
@@ -277,6 +310,17 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   salaryMax?: string | null;
+
+  @ApiProperty({
+    type: "number",
+    required: false,
+    nullable: true,
+    description: "Number of candidates requested for recommendation",
+    example: 10,
+  })
+  @IsOptional()
+  @IsNumber()
+  recruitCount?: number | null;
 
   @ApiProperty({ type: "number", nullable: true, required: false })
   @IsOptional()

@@ -3,6 +3,7 @@ import {
   bigserial,
   varchar,
   date,
+  timestamp,
   uuid,
   text,
   boolean,
@@ -55,7 +56,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    username: varchar("username", { length: 255 }).notNull().unique(),
+    username: varchar("username", { length: 255 }).notNull(),
     email: varchar("email", { length: 255 }),
     emailVerified: boolean("email_verified").notNull().default(false),
     phone: varchar("phone", { length: 20 }),
@@ -74,6 +75,8 @@ export const users = pgTable(
     gender: GenderEnum("gender"),
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
+    deletionRequestedAt: timestamp("deletion_requested_at"),
+    purgeAfterAt: timestamp("purge_after_at"),
     ...timestamps,
     onboardingCompleted: boolean("onboarding_completed")
       .notNull()
@@ -89,6 +92,7 @@ export const users = pgTable(
       table.deletedAt,
       sql`${table.createdAt} DESC`,
     ),
+    index("idx_users_status_purge_after").on(table.status, table.purgeAfterAt),
     index("idx_users_roles_gin").using("gin", table.roles),
   ],
 );
@@ -156,6 +160,7 @@ export const userOnboardings = pgTable(
     provinceIds: uuid("province_ids").array(),
     categoryIds: uuid("category_ids").array(),
     expectedSalary: numeric("expected_salary", { precision: 12, scale: 2 }),
+    isSeekingJob: boolean("is_seeking_job").notNull().default(false),
   },
   (table) => [
     index("idx_user_onboardings_skills_gin").using("gin", table.skills),

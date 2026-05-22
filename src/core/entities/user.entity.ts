@@ -39,6 +39,7 @@ export interface UserProfile {
   provinceIds: Province["id"][];
   categoryIds: Category["id"][];
   expectedSalary?: number;
+  isSeekingJob?: boolean;
 }
 
 export interface UserCvExperience {
@@ -92,6 +93,8 @@ export interface GetAllUserResponse
     | "phoneVerified"
     | "roles"
     | "status"
+    | "deletionRequestedAt"
+    | "purgeAfterAt"
     | "createdAt"
     | "updatedAt"
     | "deletedAt"

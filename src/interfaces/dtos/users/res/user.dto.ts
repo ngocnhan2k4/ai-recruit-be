@@ -41,6 +41,9 @@ export class UserPublicResponseDto {
   @ApiProperty({ required: false, type: Number, nullable: true })
   expectedSalary?: number | null;
 
+  @ApiProperty({ required: false, type: Boolean, nullable: true })
+  isSeekingJob?: boolean;
+
   @ApiProperty({ required: false, type: Number, nullable: true })
   experienceYears?: number | null;
 
@@ -138,6 +141,18 @@ export class GetUserResponseDto {
 
   @Expose()
   onboardingCompleted: boolean;
+
+  @Expose()
+  status: string;
+
+  @Expose()
+  deletionRequestedAt: Date | null;
+
+  @Expose()
+  purgeAfterAt: Date | null;
+
+  @Expose()
+  deletedAt: Date | null;
 
   static from(partial: Partial<GetUserResponseDto>) {
     return plainToInstance(GetUserResponseDto, partial, {

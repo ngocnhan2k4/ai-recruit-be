@@ -1,6 +1,6 @@
-import { Injectable, ForbiddenException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Inject } from "@nestjs/common";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { type DBDrizzle } from "../types";
 import {
   features,
   subscriptionFeatures,
@@ -8,7 +8,7 @@ import {
   userFeatureUsages,
   userSubscriptions,
 } from "../models";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   FeatureCodeEnum,
   UserFeatureUsage,
@@ -16,28 +16,24 @@ import {
 } from "@/core";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { GenericRepository } from "./generic-repository";
-import { ONE_DAY_MS, RESPONSE_CODE } from "@/common/constants";
-import { getTx } from "@/common/utils";
+import { ONE_DAY_MS } from "@/common/constants";
+import { ISubscriptionRepository } from "@/core";
 
 @Injectable()
 export class UserFeatureUsageRepository
   extends GenericRepository<UserFeatureUsage, typeof userFeatureUsages>
   implements IUserFeatureUsageRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    private readonly subscriptionRepository: ISubscriptionRepository,
+  ) {
     super(db, userFeatureUsages);
   }
 
   async getUserFeatures(userId: string) {
-    const rows = await this.db
+    const [subscriptionRow] = await this.db
       .select({
-        featureId: features.id,
-        code: features.code,
-        name: features.name,
-        description: features.description,
-        limit: subscriptionFeatures.limit,
-        usage: sql<number>`coalesce(${userFeatureUsages.usage}, 0)`,
-        lastRefillAt: userFeatureUsages.lastRefillAt,
         subscriptionId: subscriptions.id,
         subscriptionName: subscriptions.name,
         billingCycle: subscriptions.billingCycle,
@@ -47,76 +43,90 @@ export class UserFeatureUsageRepository
       })
       .from(userSubscriptions)
       .innerJoin(
-        subscriptionFeatures,
-        eq(
-          subscriptionFeatures.subscriptionId,
-          userSubscriptions.subscriptionId,
-        ),
-      )
-      .innerJoin(
         subscriptions,
         eq(subscriptions.id, userSubscriptions.subscriptionId),
-      )
-      .innerJoin(features, eq(features.id, subscriptionFeatures.featureId))
-      .leftJoin(
-        userFeatureUsages,
-        and(
-          eq(userFeatureUsages.userId, userId),
-          eq(userFeatureUsages.featureId, features.id),
-        ),
       )
       .where(
         and(
           eq(userSubscriptions.userId, userId),
           eq(subscriptions.isActive, true),
-          eq(features.isActive, true),
         ),
       )
-      .orderBy(desc(userSubscriptions.startedAt));
+      .orderBy(desc(userSubscriptions.startedAt))
+      .limit(1);
 
-    if (!rows.length) {
+    if (!subscriptionRow) {
       return {
         subscription: null,
         features: [],
       };
     }
 
-    const latestSubscriptionId = rows[0].subscriptionId;
-
-    const filteredRows = rows.filter(
-      (row) => row.subscriptionId === latestSubscriptionId,
-    );
-
     const currentSubscription = {
-      id: filteredRows[0].subscriptionId,
-      name: filteredRows[0].subscriptionName,
-      billingCycle: filteredRows[0].billingCycle,
-      status: filteredRows[0].subscriptionStatus as UserSubscriptionStatusEnum,
-      expiredAt: filteredRows[0].expiredAt,
-      startedAt: filteredRows[0].startedAt,
+      id: subscriptionRow.subscriptionId,
+      name: subscriptionRow.subscriptionName,
+      billingCycle: subscriptionRow.billingCycle,
+      status: subscriptionRow.subscriptionStatus as UserSubscriptionStatusEnum,
+      expiredAt: subscriptionRow.expiredAt,
+      startedAt: subscriptionRow.startedAt,
     };
+
+    const featureSnapshots =
+      await this.subscriptionRepository.getSubscriptionFeatures(
+        currentSubscription.id,
+      );
+
+    if (!featureSnapshots.length) {
+      return {
+        subscription: currentSubscription,
+        features: [],
+      };
+    }
+
+    const featureIds = featureSnapshots.map((f) => f.id);
+    const usageRows = await this.db
+      .select({
+        featureId: userFeatureUsages.featureId,
+        usage: userFeatureUsages.usage,
+        lastRefillAt: userFeatureUsages.lastRefillAt,
+      })
+      .from(userFeatureUsages)
+      .where(
+        and(
+          eq(userFeatureUsages.userId, userId),
+          inArray(userFeatureUsages.featureId, featureIds),
+        ),
+      );
+
+    const usageMap = new Map<
+      number,
+      { usage: number; lastRefillAt: Date | null }
+    >();
+    for (const row of usageRows) {
+      usageMap.set(row.featureId, {
+        usage: row.usage ?? 0,
+        lastRefillAt: row.lastRefillAt ?? null,
+      });
+    }
 
     return {
       subscription: currentSubscription,
-      features: filteredRows.map((row) => ({
-        id: row.featureId,
-        code: row.code as FeatureCodeEnum,
-        name: row.name,
-        description: row.description,
-        limit: row.limit,
-        usage: row.usage ?? 0,
-        lastRefillAt: row.lastRefillAt,
-      })),
+      features: featureSnapshots.map((f) => {
+        const usage = usageMap.get(f.id);
+        return {
+          id: f.id,
+          code: f.code,
+          name: f.name,
+          description: f.description,
+          limit: f.limit,
+          usage: usage?.usage ?? 0,
+          lastRefillAt: usage?.lastRefillAt ?? null,
+        };
+      }),
     };
   }
 
-  // [TODO] Using redis to enhance performance
-  async consumeFeature(
-    userId: string,
-    featureCode: FeatureCodeEnum,
-    amount = 1,
-  ): Promise<{ limit: number; usage: number }> {
-    // 1) Get feature, subscription data
+  async getConsumeFeatureUsage(userId: string, featureCode: FeatureCodeEnum) {
     const [result] = await this.db
       .select({
         featureId: features.id,
@@ -152,174 +162,160 @@ export class UserFeatureUsageRepository
         and(
           eq(features.code, featureCode),
           eq(features.isActive, true),
-
           eq(userSubscriptions.userId, userId),
           eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
-
           eq(subscriptions.isActive, true),
         ),
       )
       .orderBy(desc(userSubscriptions.startedAt))
       .limit(1);
 
-    // 2. Validate
-    if (!result) {
-      throw new ForbiddenException({
-        message: "Feature or subscription not available",
-        code: RESPONSE_CODE.FEATURE_OR_SUBSCRIPTION_NOT_AVAILABLE,
-      });
-    }
-
-    const { featureId, subscriptionId, limit, expiredAt } = result;
-
-    if (!subscriptionId) {
-      throw new ForbiddenException({
-        message: "No subscription",
-        code: RESPONSE_CODE.NO_SUBSCRIPTION,
-      });
-    }
-
-    if (!featureId) {
-      throw new ForbiddenException({
-        message: "Feature not available",
-        code: RESPONSE_CODE.FEATURE_NOT_AVAILABLE,
-      });
-    }
-
-    if (expiredAt && new Date(expiredAt).getTime() <= Date.now()) {
-      throw new ForbiddenException({
-        message: "Subscription has expired",
-        code: RESPONSE_CODE.SUBSCRIPTION_EXPIRED,
-      });
-    }
-
-    if ((limit ?? 0) <= 0) {
-      throw new ForbiddenException({
-        message: "Feature not included in subscription",
-        code: RESPONSE_CODE.FEATURE_NOT_INCLUDED_IN_SUBSCRIPTION,
-      });
-    }
-
-    const tx = getTx();
-
-    // Support both usecase use transaction or not
-    if (tx) {
-      return this._consumeFeatureInternal(tx, {
-        ...result,
-        userId,
-        amount,
-      });
-    } else {
-      return this.db.transaction(async (tx) =>
-        this._consumeFeatureInternal(tx, {
-          ...result,
-          userId,
-          amount,
-        }),
-      );
-    }
+    return result;
   }
 
-  private async _consumeFeatureInternal(
-    ctx: DBDrizzle | DBDrizzleTransaction,
-    data: {
-      featureId: number;
-      subscriptionId: string;
-      expiredAt: Date | null;
-      limit: number;
-      usage: number | null;
-      userId: string;
-      amount: number;
-    },
-  ) {
-    const now = new Date();
-    const { featureId, limit } = data;
+  async createIfNotExists(
+    userId: string,
+    featureId: number,
+    now: Date,
+  ): Promise<void> {
+    const dbClient = this.getExecutor();
 
-    // 3. Nếu chưa có record → create mới
-    if (data.usage == null) {
-      await ctx
-        .insert(userFeatureUsages)
-        .values({
-          userId: data.userId,
-          featureId,
-          usage: 0,
-          lastRefillAt: now,
-        })
-        .onConflictDoNothing();
-    }
+    await dbClient
+      .insert(userFeatureUsages)
+      .values({
+        userId,
+        featureId,
+        usage: 0,
+        lastRefillAt: now,
+      })
+      .onConflictDoNothing();
+  }
 
-    // 4. Nếu đã qua 1 ngày → refill + consume
-    const refill = await ctx
+  async tryRefillAndConsume(
+    userId: string,
+    featureId: number,
+    amount: number,
+    now: Date,
+  ): Promise<boolean> {
+    const dbClient = this.getExecutor();
+
+    const refill = await dbClient
       .update(userFeatureUsages)
       .set({
-        usage: data.amount,
+        usage: amount,
         lastRefillAt: now,
         updatedAt: now,
       })
       .where(
         and(
-          eq(userFeatureUsages.userId, data.userId),
+          eq(userFeatureUsages.userId, userId),
           eq(userFeatureUsages.featureId, featureId),
           sql`${userFeatureUsages.lastRefillAt} <= ${new Date(
             now.getTime() - ONE_DAY_MS,
           )}`,
         ),
       )
-      .returning({
-        usage: userFeatureUsages.usage,
-      });
+      .returning({ usage: userFeatureUsages.usage });
 
-    if (refill.length > 0) {
-      return { limit, usage: data.amount };
-    }
+    return refill.length > 0;
+  }
 
-    // 5. Update usage with no race condition
-    const consume = await ctx
+  async tryConsumeWithinLimit(
+    userId: string,
+    featureId: number,
+    amount: number,
+    limit: number,
+    now: Date,
+  ): Promise<boolean> {
+    const dbClient = this.getExecutor();
+
+    const consume = await dbClient
       .update(userFeatureUsages)
       .set({
-        usage: sql`${userFeatureUsages.usage} + ${data.amount}`,
+        usage: sql`${userFeatureUsages.usage} + ${amount}`,
         updatedAt: now,
       })
       .where(
         and(
-          eq(userFeatureUsages.userId, data.userId),
+          eq(userFeatureUsages.userId, userId),
           eq(userFeatureUsages.featureId, featureId),
-          sql`${userFeatureUsages.usage} + ${data.amount} <= ${limit}`,
+          sql`${userFeatureUsages.usage} + ${amount} <= ${limit}`,
         ),
       )
-      .returning({
-        usage: userFeatureUsages.usage,
-      });
+      .returning({ usage: userFeatureUsages.usage });
 
-    if (consume.length > 0) {
-      return {
-        limit,
-        usage: consume[0].usage,
-      };
-    }
+    return consume.length > 0;
+  }
 
-    // 6. Hết quota → trả thời gian còn lại
-    const [row] = await ctx
-      .select({
-        lastRefillAt: userFeatureUsages.lastRefillAt,
-      })
+  async getLastRefillAt(
+    userId: string,
+    featureId: number,
+  ): Promise<Date | null> {
+    const dbClient = this.getExecutor();
+
+    const [row] = await dbClient
+      .select({ lastRefillAt: userFeatureUsages.lastRefillAt })
       .from(userFeatureUsages)
       .where(
         and(
-          eq(userFeatureUsages.userId, data.userId),
+          eq(userFeatureUsages.userId, userId),
           eq(userFeatureUsages.featureId, featureId),
         ),
       )
       .limit(1);
+    return row?.lastRefillAt ?? null;
+  }
 
-    const nextRefillAt = new Date(
-      (row?.lastRefillAt?.getTime() ?? 0) + ONE_DAY_MS,
-    );
-    const seconds = Math.max(
-      0,
-      Math.ceil((nextRefillAt.getTime() - now.getTime()) / 1000),
-    );
+  async refillExpiredFeatureUsages(
+    userId: string,
+    featureIds: number[],
+    now: Date,
+  ): Promise<number> {
+    if (!featureIds.length) return 0;
+    const dbClient = this.getExecutor();
 
-    throw new ForbiddenException(`Quota exceeded. Try again in ${seconds}s`);
+    const updated = await dbClient
+      .update(userFeatureUsages)
+      .set({
+        usage: 0,
+        lastRefillAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(userFeatureUsages.userId, userId),
+          inArray(userFeatureUsages.featureId, featureIds),
+          or(
+            isNull(userFeatureUsages.lastRefillAt),
+            sql`${userFeatureUsages.lastRefillAt} <= ${new Date(
+              now.getTime() - ONE_DAY_MS,
+            )}`,
+          ),
+        ),
+      )
+      .returning({ featureId: userFeatureUsages.featureId });
+
+    return updated.length;
+  }
+
+  async releaseUsage(
+    userId: string,
+    featureId: number,
+    amount: number,
+    now: Date,
+  ): Promise<void> {
+    const dbClient = this.getExecutor();
+    await dbClient
+      .update(userFeatureUsages)
+      .set({
+        usage: sql`${userFeatureUsages.usage} - ${amount}`,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(userFeatureUsages.userId, userId),
+          eq(userFeatureUsages.featureId, featureId),
+        ),
+      );
   }
 }

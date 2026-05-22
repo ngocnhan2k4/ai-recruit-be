@@ -1,13 +1,11 @@
-import { ISkillRepository, SkillSynonym } from "@/core";
+import { ICacheService, ISkillRepository, SkillSynonym } from "@/core";
 import { ISkillsSynonymsRepository } from "@/core/abstracts/repositories/skills-synonyms-repository.abstract";
 import { GenericRepository } from "./generic-repository";
 import type { DBDrizzle } from "../types";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { SynonymSkillResponse } from "@/core/entities/skill-synonym.entity";
 import * as fuzz from "fuzzball";
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { CACHE_KEYS, SHORT_TTL, VERY_LONG_TTL } from "@/common/constants";
-import type { Cache } from "cache-manager";
 import { cacheWithDedup } from "@/common/utils";
 import { skillsSynonyms } from "../models";
 
@@ -20,12 +18,12 @@ export class SkillsSynonymsRepository
 
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(ICacheService) private readonly cacheService: ICacheService,
     private readonly skillRepository: ISkillRepository,
   ) {
     super(db, skillsSynonyms);
   }
-
+  ss;
   async getSynonymsSkills(skillNames: string[]): Promise<SynonymSkillResponse> {
     const synonymKey = CACHE_KEYS.skillSynonym.getAll();
     const skillsKey = CACHE_KEYS.skill.getAll();
@@ -35,23 +33,25 @@ export class SkillsSynonymsRepository
     const [allSkills, allSynonyms] = await Promise.all([
       cacheWithDedup<Pick<any, "id" | "name" | "isApproved">[]>(
         skillsKey,
-        () =>
-          this.cacheManager.get<
-            Pick<any, "id" | "name" | "isApproved">[] | undefined
-          >(skillsKey),
+        async () =>
+          (await this.cacheService.getJson<
+            Pick<any, "id" | "name" | "isApproved">[]
+          >(skillsKey)) ?? undefined,
         () => this.skillRepository.getAll(["id", "name", "isApproved"]),
-        (data) => this.cacheManager.set(skillsKey, data, SHORT_TTL),
+        (data) => this.cacheService.setJson(skillsKey, data, SHORT_TTL),
         { logger: this.logger },
       ),
-      cacheWithDedup<Pick<SkillSynonym, "id" | "masterName" | "aliasName">[]>(
+      cacheWithDedup<
+        Pick<SkillSynonym, "id" | "masterSkillId" | "aliasName">[]
+      >(
         synonymKey,
-        () =>
-          this.cacheManager.get<
-            Pick<SkillSynonym, "id" | "masterName" | "aliasName">[] | undefined
-          >(synonymKey),
-        () => this.getAll(["id", "masterName", "aliasName"]),
-        (data: Pick<SkillSynonym, "id" | "masterName" | "aliasName">[]) =>
-          this.cacheManager.set(synonymKey, data, VERY_LONG_TTL),
+        async () =>
+          (await this.cacheService.getJson<
+            Pick<SkillSynonym, "id" | "masterSkillId" | "aliasName">[]
+          >(synonymKey)) ?? undefined,
+        () => this.getAll(["id", "masterSkillId", "aliasName"]),
+        (data: Pick<SkillSynonym, "id" | "masterSkillId" | "aliasName">[]) =>
+          this.cacheService.setJson(synonymKey, data, VERY_LONG_TTL),
         {
           logger: this.logger,
         },
@@ -71,9 +71,12 @@ export class SkillsSynonymsRepository
     });
 
     // Skills Synonyms Table
-    const synonymMap = new Map<string, string>();
+    const synonymMap = new Map<string, string[]>();
     allSynonyms.forEach((syn) => {
-      synonymMap.set(syn.aliasName.toLowerCase(), syn.masterName);
+      const key = syn.aliasName.toLowerCase();
+      const existing = synonymMap.get(key) ?? [];
+      existing.push(syn.masterSkillId);
+      synonymMap.set(key, existing);
     });
 
     const choices = Array.from(skillNameMap.keys());
@@ -100,8 +103,8 @@ export class SkillsSynonymsRepository
 
       // Exact Match with Synonyms Table
       if (synonymMap.has(normalizedInput)) {
-        const masterName = synonymMap.get(normalizedInput)!;
-        const skillId = skillNameMap.get(masterName.toLowerCase());
+        const candidateSkillIds = synonymMap.get(normalizedInput)!;
+        const skillId = candidateSkillIds.find((id) => skillIdToName.has(id));
         if (skillId) {
           result.matches[inputName] = {
             skillId,
@@ -135,8 +138,8 @@ export class SkillsSynonymsRepository
 
       if (synFuzzy.length > 0 && synFuzzy[0][1] >= threshold) {
         const matchedSynName = synFuzzy[0][0];
-        const masterName = synonymMap.get(matchedSynName)!;
-        const skillId = skillNameMap.get(masterName.toLowerCase());
+        const candidateSkillIds = synonymMap.get(matchedSynName)!;
+        const skillId = candidateSkillIds.find((id) => skillIdToName.has(id));
         if (skillId) {
           result.matches[inputName] = {
             skillId,

@@ -17,8 +17,10 @@ export const ProviderEnum = pgEnum("provider", [
 ]);
 export const UserStatusEnum = pgEnum("user_status", [
   "active",
-  "inactive",
+  // "inactive",
   "banned",
+  "pending_deletion",
+  "deleted",
 ]);
 
 export const organizationTypeEnum = pgEnum("organization_type", [
@@ -52,6 +54,7 @@ export const SchoolTypeEnum = pgEnum("school_type", [
 ]);
 export const NotificationTypeEnum = pgEnum("notification_type", [
   "job_posted",
+  "job_updated",
   "job_approved",
   "admin_job_approved",
   "admin_job_rejected",
@@ -148,6 +151,7 @@ export const FeatureCodeEnum = pgEnum("FeatureCodeEnum", [
   "cv",
   "suggest_cv_field",
   "optimize_cv",
+  "save_job",
 ]);
 
 export const SubscriptionEnum = pgEnum("SubscriptionEnum", [
@@ -168,3 +172,14 @@ export const TaskTypeEnum = pgEnum("task_type", [
   "learning_path_generation",
   "cv_generation",
 ]);
+
+export const BlogPostStatusEnum = pgEnum("blog_post_status", [
+  "DRAFT",
+  "PENDING",
+  "PUBLISHED",
+  "REJECTED",
+]);
+
+export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
+
+export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);

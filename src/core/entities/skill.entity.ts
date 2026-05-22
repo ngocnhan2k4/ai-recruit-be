@@ -5,14 +5,12 @@ export interface SkillFilter extends GeneralQuery {
   fields?: string[];
   questions?: boolean; // Get skill if it exist question
   skillIds?: string[];
+  isApproved?: boolean;
 }
 
 export type GetListSkillResponse = Pick<Skill, "name" | "id"> & {
+  createdAt?: Skill["createdAt"];
   questionCount?: number;
-};
-
-export type CrawledSkillResponse = Pick<Skill, "id" | "name" | "createdAt"> & {
-  synonym: null;
 };
 
 export enum SkillReviewStatus {

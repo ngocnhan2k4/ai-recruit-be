@@ -160,6 +160,41 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SENTRY_DSN: string;
+
+  // Deployment via SSH
+  @IsOptional()
+  @IsString()
+  DEPLOY_SSH_HOST: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DEPLOY_SSH_PORT: number = 22;
+
+  @IsOptional()
+  @IsString()
+  DEPLOY_SSH_USER: string;
+
+  @IsOptional()
+  @IsString()
+  DEPLOY_SSH_PASSWORD: string;
+
+  @IsOptional()
+  @IsString()
+  DEPLOY_WORKDIR: string;
+
+  @IsOptional()
+  @IsString()
+  DEPLOY_COMPOSE_FILE: string;
+
+  @IsOptional()
+  @IsString()
+  DEPLOY_SERVICE_NAME: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  TIME_TO_DELETE_ACCOUNT_DAYS: number = 30;
 }
 
 export const validateConfig = (

@@ -3,6 +3,7 @@ import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
 import {
   ApiResponse,
   BulkReviewSkillDto,
+  DeleteSkillsDto,
   CrawledSkillDto,
   GetCrawledSkillsQueryDto,
   GetSkillsQueryDto,
@@ -11,6 +12,7 @@ import {
   SkillDto,
   TopDemandedSkillItemDto,
   CreateSkillDto,
+  UpdateSkillNameDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
 
@@ -64,18 +66,23 @@ export class SkillUseCases {
   async getCrawledSkills(
     query: GetCrawledSkillsQueryDto,
   ): Promise<ApiResponse<PaginatedResultDto<CrawledSkillDto>>> {
-    const data = await this.skillRepository.getCrawledSkills(query);
+    const fields = Array.from(new Set([...(query.fields ?? []), "createdAt"]));
+    const data = await this.skillRepository.getPaginatedSkills({
+      ...query,
+      fields,
+      isApproved: false,
+      sortBy: query.sortBy ?? "createdAt",
+      sortDirection: query.sortDirection ?? "desc",
+    });
 
     const skillNames = data.data.map((s) => s.name);
     const { matches } =
       await this.skillsSynonymsRepository.getSynonymsSkills(skillNames);
 
-    const enriched = data.data.map((s) => ({
+    const enriched: CrawledSkillDto[] = data.data.map((s) => ({
       ...s,
       synonym: matches[s.name]?.resolvedName ?? null,
     }));
-
-    this.logger.log(`Fetched crawled skills`);
 
     return {
       message: "Crawled skills fetched successfully",
@@ -97,10 +104,39 @@ export class SkillUseCases {
     };
   }
 
-  async deleteSkill(id: string): Promise<ApiResponse<void>> {
-    await this.skillRepository.deleteSkillAndReferences(id);
+  async deleteSkill(dto: DeleteSkillsDto): Promise<ApiResponse<void>> {
+    const skillIds = Array.isArray(dto.skillIds)
+      ? dto.skillIds
+      : [dto.skillIds];
+
+    await this.skillRepository.deleteSkillAndReferences(skillIds);
+
     return {
-      message: "Skill deleted successfully",
+      message: "Skills deleted successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async updateSkillName(
+    id: string,
+    dto: UpdateSkillNameDto,
+  ): Promise<ApiResponse<void>> {
+    const skill = await this.skillRepository.get(id);
+    if (!skill) {
+      throw new NotFoundException(`Skill with ID ${id} not found`);
+    }
+
+    const nextName = dto.name.trim();
+
+    await this.skillRepository.update(
+      { id },
+      {
+        name: nextName,
+      },
+    );
+
+    return {
+      message: "Skill name updated successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -108,13 +144,16 @@ export class SkillUseCases {
   async getTopDemandedSkills(
     query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
-    const months = query.months ?? 3;
     const limit = query.limit ?? 10;
+    const { fromDate, toDate, provinceId } = query;
 
-    const data = await this.skillRepository.getTopDemandedSkills(months, limit);
-    this.logger.log(
-      `Fetched top ${limit} demanded skills in last ${months} months`,
+    const data = await this.skillRepository.getTopDemandedSkills(
+      limit,
+      fromDate,
+      toDate,
+      provinceId,
     );
+    this.logger.log(`Fetched top ${limit} demanded skills`);
 
     return {
       message: "Top demanded skills fetched successfully",

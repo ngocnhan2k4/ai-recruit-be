@@ -26,16 +26,17 @@ export class NotificationUseCase {
   ) {}
 
   private getTypeFilters(filter: NotificationFilter, isAdmin: boolean) {
-    const includeTypes: string[] = [];
-    const excludeTypes: string[] = [];
+    const enrichTypes: string[] = [
+      NotificationType.JOB_POSTED,
+      NotificationType.JOB_UPDATED,
+      NotificationType.FEEDBACK_ASSIGNED,
+    ];
 
     if (isAdmin) {
-      includeTypes.push(NotificationType.JOB_POSTED);
-      return { ...filter, includeTypes, excludeTypes: undefined };
+      return { ...filter, includeTypes: enrichTypes, excludeTypes: undefined };
     }
 
-    excludeTypes.push(NotificationType.JOB_POSTED);
-    return { ...filter, excludeTypes, includeTypes: undefined };
+    return { ...filter, excludeTypes: enrichTypes, includeTypes: undefined };
   }
 
   private buildGetNotificationsSuccessResponse(
@@ -59,7 +60,12 @@ export class NotificationUseCase {
                 ...d.task,
                 type: d.task.type as TaskTypeEnum,
                 status: d.task.status as TaskStatusEnum,
-                result: d.task.result as Record<string, any>,
+                result: d.task.result
+                  ? // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    (({ data, ...rest }) => rest)(
+                      d.task.result as Record<string, any>,
+                    )
+                  : null,
               }
             : null,
         })),

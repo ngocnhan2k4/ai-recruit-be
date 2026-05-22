@@ -40,6 +40,12 @@ export * from "./notification/admin-notification.controller";
 // casbin controllers
 export * from "./casbin/casbin.controller";
 
+// blog controllers
+export * from "./blog/blog.controller";
+
+// comment controllers
+export * from "./comment/comment.controller";
+
 export * from "./learning-path/learning-path.controller";
 export * from "./subscription/admin-subscription.controller";
 export * from "./feature/admin-feature.controller";

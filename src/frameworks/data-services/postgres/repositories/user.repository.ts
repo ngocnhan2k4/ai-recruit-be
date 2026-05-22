@@ -1,6 +1,6 @@
 import { GenericRepository } from "./generic-repository";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   users,
   userSkills,
@@ -28,6 +28,7 @@ import {
   eq,
   count,
   isNotNull,
+  isNull,
   and,
   sql,
   desc,
@@ -39,23 +40,126 @@ import {
   countDistinct,
   asc,
 } from "drizzle-orm";
-import { isNull } from "lodash";
 import { PaginatedResult } from "@/common/types";
 import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
-import { RoleEnum } from "@/common/constants";
+import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
 import { differenceInYears, endOfDay, startOfDay } from "date-fns";
-import { convertDateToStr } from "@/common/utils";
-import { ProviderEnum } from "@/core";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
+import { ProviderEnum, UserStatusEnum } from "@/core";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
 
 @Injectable()
 export class UserRepository
   extends GenericRepository<User, typeof users>
   implements IUserRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  private readonly logger = new Logger(UserRepository.name);
+
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, users);
   }
+
+  get(id: string): Promise<User | null> {
+    const key = CACHE_KEYS.user.get(id);
+    return cacheWithDedup<User | null>(
+      key,
+      () => this.cacheManager.get<User | null>(key),
+      () => super.get(id),
+      (data: User | null) =>
+        this.cacheManager.set<User | null>(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
+  }
+
+  async getByField(
+    field: Partial<User>,
+    omit: (keyof User)[] = [],
+  ): Promise<User[]> {
+    const keys = Object.keys(field) as (keyof User)[];
+    if (keys.length === 0) {
+      return [];
+    }
+
+    const conditions = keys.map((key) => {
+      const value = field[key];
+      if (value === null) {
+        return isNull((this._table as any)[key as string]);
+      }
+      return eq((this._table as any)[key as string], value);
+    });
+
+    if (field.status === undefined) {
+      conditions.push(not(eq(users.status, UserStatusEnum.DELETED as any)));
+    }
+
+    const allColumns = Object.keys(this._table) as (keyof User)[];
+    const selectedColumns = allColumns.filter((c) => !omit.includes(c));
+
+    const result = await this.db
+      .select({
+        ...(selectedColumns as string[]).reduce(
+          (acc, col) => ({ ...acc, [col]: (this._table as any)[col] }),
+          {},
+        ),
+      })
+      .from(this._table as any)
+      .where(and(...conditions));
+
+    return result as User[];
+  }
+
+  async update(
+    where: Partial<User>,
+    item: Partial<User>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<User[]> {
+    const data = await super.update(where, item, tx);
+
+    const keys: string[] = [];
+    for (const user of data) {
+      const keyGet = CACHE_KEYS.user.get(user.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for user ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
+  async delete(
+    where: Partial<User>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<User[]> {
+    const data = await super.delete(where, tx);
+
+    const keys: string[] = [];
+    for (const user of data) {
+      const keyGet = CACHE_KEYS.user.get(user.id);
+      keys.push(keyGet);
+    }
+    await this.cacheManager
+      .mdel(keys)
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for user ${keys.join(",")}:`,
+          err,
+        ),
+      );
+    return data;
+  }
+
   async addUserIdentity(
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
@@ -153,6 +257,19 @@ export class UserRepository
     return rows.length;
   }
 
+  async getUsersPendingDeletionToFinalize(purgeBefore: Date): Promise<User[]> {
+    return this.db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.status, UserStatusEnum.PENDING_DELETION as any),
+          isNotNull(users.purgeAfterAt),
+          lte(users.purgeAfterAt, purgeBefore),
+        ),
+      );
+  }
+
   async getAllWithOffset(
     query: GetUserQuery,
   ): Promise<PaginatedResult<GetAllUserResponse>> {
@@ -173,6 +290,8 @@ export class UserRepository
         phoneVerified: users.phoneVerified,
         roles: users.roles,
         status: users.status,
+        deletionRequestedAt: users.deletionRequestedAt,
+        purgeAfterAt: users.purgeAfterAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
@@ -292,23 +411,6 @@ export class UserRepository
     return userData[0];
   }
 
-  async adminUpdateUser(userId: string, user: Partial<User>): Promise<User> {
-    const updatedUser = (
-      await this.db
-        .update(users)
-        .set({
-          ...user,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, userId))
-        .returning()
-    )[0];
-    if (!updatedUser) {
-      throw new NotFoundException("User not found");
-    }
-    return updatedUser;
-  }
-
   async getAllAdminUsers(
     query: GetUserQuery,
   ): Promise<
@@ -324,6 +426,8 @@ export class UserRepository
         | "phoneVerified"
         | "roles"
         | "status"
+        | "deletionRequestedAt"
+        | "purgeAfterAt"
         | "createdAt"
         | "updatedAt"
         | "deletedAt"
@@ -373,6 +477,8 @@ export class UserRepository
         phoneVerified: users.phoneVerified,
         roles: users.roles,
         status: users.status,
+        deletionRequestedAt: users.deletionRequestedAt,
+        purgeAfterAt: users.purgeAfterAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         deletedAt: users.deletedAt,
@@ -435,6 +541,7 @@ export class UserRepository
             categoryIds: userOnboardings.categoryIds,
             expectedSalary: userOnboardings.expectedSalary,
             experienceYears: userOnboardings.experienceYears,
+            isSeekingJob: userOnboardings.isSeekingJob,
           })
           .from(userOnboardings)
           .where(eq(userOnboardings.userId, userId)),
@@ -468,6 +575,7 @@ export class UserRepository
       expectedSalary: onboarding?.expectedSalary
         ? Number(onboarding.expectedSalary)
         : undefined,
+      isSeekingJob: onboarding?.isSeekingJob ?? false,
     };
   }
 

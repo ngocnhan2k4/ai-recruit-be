@@ -10,10 +10,10 @@ import {
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
   IWeeklyProgressRepository,
-  IUserFeatureUsageRepository,
   ITaskRepository,
   INotificationRepository,
   IWebSocketGateway,
+  ISkillNoteRepository,
 } from "@/core/abstracts";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import {
@@ -21,6 +21,9 @@ import {
   GetRoadmapsQueryDto,
   RoadmapProgressStatsDto,
   WeeklyProgressResponseDto,
+  UpsertSkillNoteDto,
+  SkillNoteDto,
+  SkillNoteForStudyGuideDto,
 } from "@/interfaces/dtos/learning-path";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
@@ -34,6 +37,7 @@ import {
   TaskStatusEnum,
 } from "@/core";
 import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
+import { FeatureService } from "@/services";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -45,11 +49,12 @@ export class LearningPathUseCase {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly weeklyProgressRepository: IWeeklyProgressRepository,
-    private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly featureService: FeatureService,
+    private readonly skillNoteRepository: ISkillNoteRepository,
   ) {}
 
   async createRoadmap(
@@ -60,9 +65,9 @@ export class LearningPathUseCase {
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
 
-    const result = await this.userFeatureUsageRepository.executeWithTransaction(
+    const result = await this.taskRepository.executeWithTransaction(
       async (tx) => {
-        await this.userFeatureUsageRepository.consumeFeature(
+        await this.featureService.consumeFeature(
           userId,
           FeatureCodeEnum.LEARNING_PATH,
         );
@@ -93,7 +98,6 @@ export class LearningPathUseCase {
               },
             },
             [{ receiverId: userId }],
-            tx,
           );
         return {
           task,
@@ -540,6 +544,98 @@ export class LearningPathUseCase {
         scheduledSkills,
       },
       message: "Weekly progress retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getSkillNote(
+    roadmapId: string,
+    skillId: string,
+    userId: string,
+  ): Promise<ApiResponse<SkillNoteDto | null>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const note = await this.skillNoteRepository.getBySkillAndUser(
+      skillId,
+      userId,
+    );
+
+    return {
+      data: note
+        ? {
+            id: note.id,
+            roadmapSkillId: note.roadmapSkillId,
+            content: note.content,
+          }
+        : null,
+      message: "Skill note retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async upsertSkillNote(
+    roadmapId: string,
+    skillId: string,
+    userId: string,
+    dto: UpsertSkillNoteDto,
+  ): Promise<ApiResponse<SkillNoteDto>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const note = await this.skillNoteRepository.upsert(
+      skillId,
+      userId,
+      dto.content,
+    );
+
+    return {
+      data: {
+        id: note.id,
+        roadmapSkillId: note.roadmapSkillId,
+        content: note.content,
+      },
+      message: "Skill note saved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async getStudyGuideNotes(
+    roadmapId: string,
+    userId: string,
+  ): Promise<ApiResponse<SkillNoteForStudyGuideDto[]>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const notes = await this.skillNoteRepository.getAllByRoadmapAndUser(
+      roadmapId,
+      userId,
+    );
+
+    return {
+      data: notes
+        .filter((n) => n.content.trim().length > 0)
+        .map((n) => ({
+          skillName: n.skillName,
+          phaseName: n.phaseName,
+          content: n.content,
+        })),
+      message: "Study guide notes retrieved successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

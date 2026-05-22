@@ -7,7 +7,10 @@ import {
 import {
   IJobRepository,
   IOrganizationRepository,
-  ISearchService,
+  IJobSearchService,
+  ICvRepository,
+  IUserRepository,
+  INotificationRepository,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -44,6 +47,8 @@ import {
   Notification,
   Category,
   JobResponse,
+  NotificationType,
+  FeatureCodeEnum,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -59,7 +64,7 @@ import {
   JobFilters,
   StatisticsJobFilter,
 } from "@/core";
-import { convertDateToStr } from "@/common/utils";
+import { convertDateToStr, getJobStatus } from "@/common/utils";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -67,7 +72,9 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { JobMatchingQuery } from "@/frameworks/data-services/elasticsearch/queries/job-matching.query";
+import { FeatureService } from "@/services";
+import { MultipartFile } from "@fastify/multipart";
+import { CvUseCases } from "@/use-cases/cv/cv.use-case";
 
 @Injectable()
 export class JobUseCases {
@@ -75,10 +82,14 @@ export class JobUseCases {
   constructor(
     private readonly jobRepository: IJobRepository,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly userRepository: IUserRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
-    private readonly searchService: ISearchService,
-    private readonly jobMatchingQuery: JobMatchingQuery,
+    private readonly jobSearchService: IJobSearchService,
+    private readonly notificationRepository: INotificationRepository,
+    private readonly cvRepository: ICvRepository,
+    private readonly featureService: FeatureService,
+    private readonly cvUseCases: CvUseCases,
   ) {}
 
   async getJobs(
@@ -107,26 +118,18 @@ export class JobUseCases {
       ];
     }
 
-    const esQuery = this.jobMatchingQuery.buildSearchQuery(filters);
-
-    // Execute query
-    const response = await this.searchService.search(
-      esQuery.index as string,
-      esQuery.body,
-    );
-
-    // Check if we got more results than requested (to determine hasMore)
-    const hits = response.hits.hits;
-    const hasMore = hits.length > filters.limit;
-    const actualHits = hasMore ? hits.slice(0, filters.limit) : hits;
+    const {
+      data: docs,
+      pagination: { nextCursor, hasNextPage: hasMore },
+    } = await this.jobSearchService.searchJobs(filters);
 
     const jobIds: string[] = [];
     const orgIds: string[] = [];
 
-    for (const hit of actualHits) {
-      const source = hit._source;
-      jobIds.push(source.id);
-      const orgId = source.organizationId;
+    for (const doc of docs) {
+      if (!doc?.id) continue;
+      jobIds.push(doc.id);
+      const orgId = doc.organizationId;
       if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
     }
 
@@ -155,20 +158,12 @@ export class JobUseCases {
     const organizationMap = keyBy(organizations, "id");
     const jobMap = keyBy(jobInfos.data, "job.id");
 
-    // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
-    if (hasMore) {
-      const lastHit = actualHits[actualHits.length - 1];
-      const searchAfter = lastHit.sort;
-      nextCursor = Buffer.from(JSON.stringify(searchAfter)).toString("base64");
-    }
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
         data: this.convertHitToDto(
-          actualHits,
+          docs,
           organizationMap,
           userJobStatusMap,
           jobMap,
@@ -195,9 +190,9 @@ export class JobUseCases {
     >,
     jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
-    return actualHits.map((hit: any) => {
-      const source = hit._source;
-
+    return actualHits.map((source: any) => {
+      const applyUrl = jobMap[source.id]?.applyUrl ?? null;
+      const questions = jobMap[source.id]?.job?.questions ?? source.questions;
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -226,7 +221,7 @@ export class JobUseCases {
       };
 
       // Transform job - datePosted/endDate are date strings, not Date objects
-      const job: Job = {
+      const job: Omit<Job, "applyUrl" | "recruitCount"> = {
         id: source.id,
         title: source.title,
         description: source.description,
@@ -249,7 +244,7 @@ export class JobUseCases {
           ? new Date(source.updatedAt as string)
           : new Date(),
         deletedAt: null,
-        questions: source.questions,
+        questions,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -269,7 +264,7 @@ export class JobUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
-        applyUrl: jobMap[job.id]?.applyUrl,
+        applyUrl,
       } as JobResponseDto;
     });
   }
@@ -376,6 +371,42 @@ export class JobUseCases {
     return [...ranked]
       .sort((a, b) => (Number(b[key]) || 0) - (Number(a[key]) || 0))
       .slice(0, limit);
+  }
+
+  private normalizeQuestionText(value: string): string {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[đĐ]/g, "d")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private extractPhoneFromApplyAnswers(
+    answers?: ApplyJobDto["answers"],
+  ): string | null {
+    if (!answers || answers.length === 0) return null;
+
+    for (const item of answers) {
+      const normalizedQuestion = this.normalizeQuestionText(
+        item.question || "",
+      );
+      const isPhoneQuestion =
+        normalizedQuestion.includes("so dien thoai") ||
+        normalizedQuestion === "sdt" ||
+        normalizedQuestion.includes("phone");
+
+      if (!isPhoneQuestion) continue;
+
+      const rawPhone = (item.answer || "").trim();
+      if (!rawPhone) return null;
+
+      const normalizedPhone = rawPhone.replace(/[^\d+]/g, "");
+      return normalizedPhone.length >= 9 ? normalizedPhone : null;
+    }
+
+    return null;
   }
 
   async getCompareStatistics(
@@ -527,10 +558,27 @@ export class JobUseCases {
 
   async applyJob(
     userId: string,
-    applyJobDto: ApplyJobDto,
+    rawBody: Record<string, any>,
+    cvFile?: MultipartFile,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    // Ensure job exists
-    const job = await this.jobRepository.get(applyJobDto.jobId);
+    const applyJobDto: ApplyJobDto = {
+      jobId: rawBody.jobId,
+      cvId: rawBody.cvId || undefined,
+      cvName: rawBody.cvName || undefined,
+      answers: rawBody.answers
+        ? JSON.parse(rawBody.answers as string)
+        : undefined,
+    };
+
+    const [job, existingCvMimeType] = await Promise.all([
+      this.jobRepository.get(applyJobDto.jobId),
+      applyJobDto.cvId && !cvFile
+        ? this.cvRepository
+            .get(applyJobDto.cvId)
+            .then((cv) => cv?.mimeType ?? null)
+        : Promise.resolve(null),
+    ]);
+
     if (!job || job.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
@@ -538,7 +586,28 @@ export class JobUseCases {
       });
     }
 
-    const isSendNotifications = true;
+    if ((job.status as JobStatusEnum) !== JobStatusEnum.ACTIVE) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_ACTIVE,
+        code: RESPONSE_CODE.JOB_NOT_ACTIVE,
+      });
+    }
+
+    if (existingCvMimeType && existingCvMimeType !== "application/pdf") {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.INVALID_FILE_TYPE,
+        code: RESPONSE_CODE.CV_FILE_INVALID,
+      });
+    }
+
+    if (cvFile && !applyJobDto.cvId) {
+      const cvResponse = await this.cvUseCases.createCv(userId, cvFile, {
+        name: applyJobDto.cvName || cvFile.filename,
+        fileName: cvFile.filename,
+        mimeType: cvFile.mimetype,
+      });
+      applyJobDto.cvId = cvResponse.data!.id;
+    }
 
     const repoResult:
       | ApplyJobResponse
@@ -549,7 +618,7 @@ export class JobUseCases {
         } = await this.jobRepository.applyJob({
       jobId: applyJobDto.jobId,
       userCvId: applyJobDto.cvId!,
-      sendNotifications: isSendNotifications,
+      sendNotifications: true,
       senderUserId: userId,
       answers: applyJobDto.answers,
     });
@@ -560,7 +629,6 @@ export class JobUseCases {
       const notifications = repoResult.notifications;
       const jobTitle = repoResult.jobTitle;
 
-      // Send notifications to room org
       this.webSocketGateway.sendToRoom(
         ROOM_NOTIFICATIONS.org({ orgId: job.organizationId }),
         notifications[0],
@@ -570,6 +638,31 @@ export class JobUseCases {
       );
     } else {
       application = repoResult;
+    }
+
+    const phoneFromAnswers = this.extractPhoneFromApplyAnswers(
+      applyJobDto.answers,
+    );
+    if (phoneFromAnswers) {
+      this.userRepository
+        .get(userId)
+        .then((user) => {
+          if (user?.phone && user.phone.trim().length > 0) return;
+          return this.userRepository.update(
+            { id: userId },
+            { phone: phoneFromAnswers },
+          );
+        })
+        .then(() => {
+          this.logger.log(
+            `Updated missing phone for user ${userId} from apply answers`,
+          );
+        })
+        .catch((error: any) => {
+          this.logger.warn(
+            `Could not update phone for user ${userId}: ${error?.message || "unknown error"}`,
+          );
+        });
     }
 
     this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
@@ -584,9 +677,25 @@ export class JobUseCases {
   async updateApplyJob(
     orgSenderId: string,
     applyId: string,
-    updateApplyJobDto: UpdateApplyJobDto,
+    rawBody: Record<string, any>,
+    cvFile?: MultipartFile,
   ): Promise<ApiResponse<ApplyJobResponseDto>> {
-    const isSendNotifications = true;
+    const updateApplyJobDto: UpdateApplyJobDto = {
+      status: rawBody.status,
+      cvId: rawBody.cvId || undefined,
+      answers: rawBody.answers
+        ? JSON.parse(rawBody.answers as string)
+        : undefined,
+    };
+
+    if (cvFile && !updateApplyJobDto.cvId) {
+      const cvResponse = await this.cvUseCases.createCv(orgSenderId, cvFile, {
+        name: rawBody.cvName || cvFile.filename,
+        fileName: cvFile.filename,
+        mimeType: cvFile.mimetype,
+      });
+      updateApplyJobDto.cvId = cvResponse.data!.id;
+    }
 
     const repoResult:
       | ApplyJobResponse
@@ -596,10 +705,10 @@ export class JobUseCases {
           jobTitle: string;
         } = await this.jobRepository.updateApplyJob(
       applyId,
-      updateApplyJobDto.status!,
-      isSendNotifications,
+      updateApplyJobDto.status,
+      true,
       orgSenderId,
-      updateApplyJobDto.userCvId,
+      updateApplyJobDto.cvId,
       updateApplyJobDto.answers,
     );
 
@@ -666,19 +775,35 @@ export class JobUseCases {
     };
   }
 
-  async saveJob(
+  async toggleSaveJob(
     userId: string,
     jobId: string,
-    save: boolean,
   ): Promise<ApiResponse<UserInteractionResponseDto | null>> {
-    const result = await this.jobRepository.saveJob(userId, jobId, save);
-    this.logger.log(
-      `User ${userId} ${save ? "saved" : "unsaved"} job ${jobId}`,
-    );
+    const { status, interaction } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const result = await this.jobRepository.toggleSaveJob(userId, jobId);
+
+        if (result.status === "saved") {
+          await this.featureService.consumeFeature(
+            userId,
+            FeatureCodeEnum.SAVE_JOB,
+          );
+        } else if (result.status === "unsaved") {
+          await this.featureService.releaseFeature(
+            userId,
+            FeatureCodeEnum.SAVE_JOB,
+          );
+        }
+
+        return result;
+      });
+
+    this.logger.log(`User ${userId} ${status} job ${jobId}`);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: interaction,
     };
   }
 
@@ -711,6 +836,7 @@ export class JobUseCases {
   ): Promise<ApiResponse<JobDto>> {
     const jobData: Partial<Job> = {
       ...createJobDto,
+      applyUrl: createJobDto.applyUrl,
       questions: createJobDto.questions || undefined,
       datePosted: convertDateToStr(new Date()),
       endDate: createJobDto.endDate
@@ -731,27 +857,50 @@ export class JobUseCases {
       });
     }
 
-    const repoResult = await this.jobRepository.createJob(
-      jobData,
-      true,
-      userId,
-    );
+    const recipients = (
+      await this.userRepository.getAllAdminUsers({
+        page: 1,
+        limit: 100,
+        isActive: true,
+        isDeleted: false,
+      })
+    ).data.map((m) => ({
+      receiverId: m.id,
+    }));
 
-    let newJob: Job;
-    if ("job" in repoResult) {
-      newJob = repoResult.job;
-      const notifications = repoResult.newNotifications;
+    const sender = await this.userRepository.get(userId);
 
-      // Broadcast notification to admin room instead of looping through each user
-      if (notifications && notifications.length > 0) {
-        const notification = notifications[0]; // Use first notification for broadcast
-        this.webSocketGateway.sendToRoom("admin", notification);
-        this.logger.log(
-          `Broadcast job-created notification to admin room for job "${newJob.title}" (${notifications.length} notifications created in DB)`,
-        );
-      }
-    } else {
-      newJob = repoResult;
+    const { job: newJob, newNotifications } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const newJob = await this.jobRepository.createJob(jobData);
+
+        let newNotifications: Notification[] = [];
+        if (recipients.length > 0) {
+          newNotifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Công việc mới được tạo",
+                message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
+                type: NotificationType.JOB_POSTED,
+                senderId: userId,
+                payload: {
+                  jobId: newJob.id,
+                  orgId: newJob.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+        }
+
+        return { job: newJob, newNotifications };
+      });
+
+    if (newNotifications.length > 0) {
+      this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+      this.logger.log(
+        `Broadcast job-created notification to admin room for job "${newJob.title}" (${newNotifications.length} notifications created in DB)`,
+      );
     }
 
     // Transform questions field
@@ -773,18 +922,11 @@ export class JobUseCases {
     };
   }
 
-  private async processJobUpdate(
+  private async validateJobUpdate(
     jobId: string,
     updateJobDto: UpdateJobDto,
-    executeUpdate: (
-      updateData: Partial<Job>,
-    ) => Promise<{ updatedJob: Job | null; notifications?: Notification[] }>,
     isAdminUpdate = false,
-  ): Promise<{
-    transformedJob: JobDto;
-    updatedJob: Job;
-    notifications?: Notification[];
-  }> {
+  ): Promise<{ currentJob: JobResponse }> {
     const organizationAllowedStatuses = [
       JobStatusEnum.ACTIVE,
       JobStatusEnum.CLOSED,
@@ -792,8 +934,8 @@ export class JobUseCases {
     ];
 
     const { status: targetStatus } = updateJobDto;
-    const job = await this.jobRepository.get(jobId);
-    if (!job || job.deletedAt) {
+    const jobDetail = await this.jobRepository.getFullJobById(jobId);
+    if (!jobDetail || jobDetail.job?.deletedAt) {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
         code: RESPONSE_CODE.JOB_NOT_FOUND,
@@ -810,14 +952,16 @@ export class JobUseCases {
     ) {
       throw new BadRequestException({
         message: "experienceMin must be less than experienceMax",
-        code: RESPONSE_CODE.BAD_REQUEST,
+        code: RESPONSE_CODE.INVALID_REQUEST,
       });
     }
 
     if (
       !isAdminUpdate &&
       organizationAllowedStatuses.includes(targetStatus) &&
-      !organizationAllowedStatuses.includes(job.status as JobStatusEnum)
+      !organizationAllowedStatuses.includes(
+        jobDetail.job.status as JobStatusEnum,
+      )
     ) {
       throw new ForbiddenException({
         message:
@@ -825,14 +969,22 @@ export class JobUseCases {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
-    const updateData: Partial<Job> = {
-      ...updateJobDto,
-      status: updateJobDto.status || undefined,
-      questions: updateJobDto.questions || undefined,
-      workType: updateJobDto.workType,
-    };
 
-    const { updatedJob, notifications } = await executeUpdate(updateData);
+    return {
+      currentJob: jobDetail,
+    };
+  }
+
+  private async finalizeJobUpdate(
+    jobId: string,
+    updatedJob: Job | null,
+  ): Promise<{ transformedJob: JobDto; updatedJob: Job }> {
+    const organizationAllowedStatuses = [
+      JobStatusEnum.ACTIVE,
+      JobStatusEnum.CLOSED,
+      JobStatusEnum.PAUSED,
+    ];
+
     if (!updatedJob) {
       throw new BadRequestException({
         message: "Failed to update job",
@@ -858,24 +1010,227 @@ export class JobUseCases {
       });
     }
 
-    return { transformedJob, updatedJob, notifications };
+    return { transformedJob, updatedJob };
+  }
+
+  private normalizeComparableValue(field: string, value: unknown): unknown {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    let normalized = value.replace(/\r\n/g, "\n").trim();
+
+    if (field === "description") {
+      // Ignore formatting-only differences in markdown/html line breaks.
+      normalized = normalized
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/(## [^\n]+)\n+(<p>)/g, "$1\n$2");
+    }
+
+    return normalized;
+  }
+
+  private getSortableValue(item: unknown): string {
+    if (typeof item === "string") {
+      return item;
+    }
+
+    if (
+      typeof item === "number" ||
+      typeof item === "boolean" ||
+      typeof item === "bigint"
+    ) {
+      return `${item}`;
+    }
+
+    return JSON.stringify(item);
+  }
+
+  private getChangedFields(
+    currentJob: JobResponse,
+    updateJobDto: UpdateJobDto,
+  ): string[] {
+    const currentComparableValues: Record<string, unknown> = {
+      ...(currentJob.job as Record<string, unknown>),
+      provinceIds: currentJob?.provinces?.map((province) => province.id) ?? [],
+      skillIds: currentJob?.skills?.map((skill) => skill.id) ?? [],
+      skillNames:
+        currentJob?.skills
+          ?.map((skill) => skill.name)
+          .filter((name): name is string => Boolean(name)) ?? [],
+    };
+
+    type NonReapprovalField = keyof UpdateJobDto;
+    const nonReapprovalFieldList: NonReapprovalField[] = [
+      "status",
+      "salaryMin",
+      "salaryMax",
+      "experienceMin",
+      "experienceMax",
+      "workType",
+      "categoryId",
+      "provinceIds",
+    ];
+    const unorderedArrayFieldList: NonReapprovalField[] = [
+      "provinceIds",
+      "skillIds",
+      "skillNames",
+    ];
+
+    const nonReapprovalFields = new Set<string>(nonReapprovalFieldList);
+
+    const unorderedArrayFields = new Set<string>(unorderedArrayFieldList);
+
+    const normalizeArrayForCompare = (
+      field: string,
+      value: unknown,
+    ): unknown[] => {
+      const normalizedArray = (Array.isArray(value) ? value : [value])
+        .map((item) => this.normalizeComparableValue(field, item))
+        .filter((item) => typeof item !== "undefined" && item !== null);
+
+      if (unorderedArrayFields.has(field)) {
+        const uniqueValues = new Map<string, unknown>();
+
+        for (const item of normalizedArray) {
+          const sortable = this.getSortableValue(item);
+          if (!uniqueValues.has(sortable)) {
+            uniqueValues.set(sortable, item);
+          }
+        }
+
+        return [...uniqueValues.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([, item]) => item);
+      }
+
+      return normalizedArray;
+    };
+
+    const changedFields = Object.entries(updateJobDto)
+      .filter(([key, value]) => {
+        if (
+          typeof value === "undefined" ||
+          value === null ||
+          nonReapprovalFields.has(key)
+        ) {
+          return false;
+        }
+
+        const currentValue = currentComparableValues[key];
+
+        if (Array.isArray(value) || Array.isArray(currentValue)) {
+          return (
+            JSON.stringify(normalizeArrayForCompare(key, value)) !==
+            JSON.stringify(normalizeArrayForCompare(key, currentValue))
+          );
+        }
+
+        const normalizedNewValue = this.normalizeComparableValue(key, value);
+        const normalizedCurrentValue = this.normalizeComparableValue(
+          key,
+          currentValue,
+        );
+        return normalizedNewValue !== normalizedCurrentValue;
+      })
+      .map(([key]) => key);
+    return changedFields;
   }
 
   async updateJob(
     jobId: string,
     updateJobDto: UpdateJobDto,
+    senderUserId: string,
   ): Promise<ApiResponse<JobDto>> {
-    const { transformedJob } = await this.processJobUpdate(
-      jobId,
-      updateJobDto,
-      async (updateData) => {
-        const updatedJob = await this.jobRepository.updateJob(
-          jobId,
-          updateData,
-        );
-        return { updatedJob };
-      },
-    );
+    // Step 1: validate update and get current job details
+    const { currentJob } = await this.validateJobUpdate(jobId, updateJobDto);
+
+    // Step 2: Determine if changes require pending approval
+    const changedFields = this.getChangedFields(currentJob, updateJobDto);
+
+    const shouldSetPendingApproval = changedFields.length > 0;
+
+    if (shouldSetPendingApproval) {
+      this.logger.log(
+        `Fields triggering pending approval for job ${jobId}: ${changedFields.join(", ")}`,
+      );
+    }
+
+    if (shouldSetPendingApproval) {
+      updateJobDto.status = JobStatusEnum.PENDING_APPROVAL;
+    }
+
+    const shouldNotifyAdmins =
+      (currentJob.job.status as JobStatusEnum) !==
+        JobStatusEnum.PENDING_APPROVAL && shouldSetPendingApproval;
+
+    // Step 3: get admin recipients if needed
+    const recipients = shouldNotifyAdmins
+      ? (
+          await this.userRepository.getAllAdminUsers({
+            page: 1,
+            limit: 100,
+            isActive: true,
+            isDeleted: false,
+          })
+        ).data.map((m) => ({
+          receiverId: m.id,
+        }))
+      : [];
+
+    const sender = shouldNotifyAdmins
+      ? await this.userRepository.get(senderUserId)
+      : null;
+
+    // Step 4: update job in DB, create notifications if needed
+    const { job: updatedJob, newNotifications } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const updatedJob = await this.jobRepository.updateJob(jobId, {
+          ...updateJobDto,
+          questions: updateJobDto.questions || undefined,
+          skillIds: updateJobDto.skillIds || undefined,
+          skillNames: updateJobDto.skillNames || undefined,
+          provinceIds: updateJobDto.provinceIds || undefined,
+        });
+        if (!updatedJob) {
+          return { job: null, newNotifications: [] };
+        }
+
+        let newNotifications: Notification[] = [];
+        if (shouldNotifyAdmins && recipients.length > 0) {
+          newNotifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Công việc được cập nhật",
+                message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+                type: NotificationType.JOB_UPDATED,
+                senderId: senderUserId,
+                payload: {
+                  jobId: updatedJob.id,
+                  orgId: updatedJob.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+        }
+
+        return { job: updatedJob, newNotifications };
+      });
+
+    if (newNotifications.length > 0) {
+      this.webSocketGateway.sendToRoom(
+        ROOM_NOTIFICATIONS.admin,
+        newNotifications[0],
+      );
+      this.logger.log(
+        `Broadcast job-updated notification to admin room for job "${updatedJob?.title}" (${newNotifications.length} notifications created in DB)`,
+      );
+    }
+
+    // Step 5: Publish job update event to message queue for search index update and other async processing
+    const { transformedJob } = await this.finalizeJobUpdate(jobId, updatedJob);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -888,29 +1243,71 @@ export class JobUseCases {
     updateJobDto: UpdateJobDto,
     user: TokenPayload,
   ): Promise<ApiResponse<JobDto>> {
-    const { transformedJob, updatedJob, notifications } =
-      await this.processJobUpdate(
-        jobId,
-        updateJobDto,
-        async (updateData) => {
-          const { job, newNotifications } =
-            await this.jobRepository.updateJobWithNotifications(
-              jobId,
-              updateData,
-              user.userId,
-            );
-          return { updatedJob: job, notifications: newNotifications };
-        },
-        true,
+    // Step 1: validate update and get current job details
+    const { currentJob } = await this.validateJobUpdate(
+      jobId,
+      updateJobDto,
+      true,
+    );
+
+    // Step 2: Get org members to notify
+    const orgUsers =
+      await this.organizationRepository.getMemberIdsOfOrganization(
+        currentJob.job.organizationId,
       );
+
+    const recipients = orgUsers.map((ou) => ({
+      receiverId: ou.id,
+      organizationId: currentJob.job.organizationId,
+    }));
+
+    const sender = await this.userRepository.get(user.userId);
+
+    // Step 3: update job in DB, create notifications for org members about status change
+    const { job: updatedJob, notifications } =
+      await this.jobRepository.executeWithTransaction(async () => {
+        const updatedJob = await this.jobRepository.updateJob(jobId, {
+          ...updateJobDto,
+          questions: updateJobDto.questions || undefined,
+          skillIds: updateJobDto.skillIds || undefined,
+          skillNames: updateJobDto.skillNames || undefined,
+          provinceIds: updateJobDto.provinceIds || undefined,
+        });
+
+        if (recipients.length > 0) {
+          const notifications =
+            await this.notificationRepository.createNotificationWithRecipients(
+              {
+                title: "Cập nhật trạng thái công việc",
+                message: `Công việc "${updateJobDto.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
+                type:
+                  updateJobDto.status === JobStatusEnum.ACTIVE
+                    ? NotificationType.ADMIN_JOB_APPROVED
+                    : NotificationType.ADMIN_JOB_REJECTED,
+                senderId: user.userId,
+                payload: {
+                  jobId,
+                  orgId: currentJob.job.organizationId,
+                  avatarUrl: sender?.avatarUrl ?? undefined,
+                },
+              },
+              recipients,
+            );
+          return { job: updatedJob, notifications };
+        }
+        return { job: updatedJob, notifications: [] };
+      });
+
+    const { transformedJob, updatedJob: finalizedJob } =
+      await this.finalizeJobUpdate(jobId, updatedJob);
 
     if (notifications && notifications.length > 0) {
       const orgRoom = ROOM_NOTIFICATIONS.org({
-        orgId: updatedJob.organizationId,
+        orgId: finalizedJob.organizationId,
       });
       this.webSocketGateway.sendToRoom(orgRoom, notifications[0]);
       this.logger.log(
-        `Broadcast job-updated notification to org room ${orgRoom} for job "${updatedJob.title}" (${notifications.length} notifications created in DB)`,
+        `Broadcast job-updated notification to org room ${orgRoom} for job "${finalizedJob.title}" (${notifications.length} notifications created in DB)`,
       );
     }
     return {
@@ -989,10 +1386,18 @@ export class JobUseCases {
       skills: Skill[];
       isSaved?: boolean;
       isApplied?: boolean;
-      applyStatus?: string;
-      applyId?: string;
+      applyStatus?: string | null;
+      applyId?: string | null;
       applyUrl?: string | null;
-    } | null = await this.jobRepository.getFullJobById(jobId, userId);
+      category?: Category;
+    } | null = await this.jobRepository.getFullJobById(jobId, {
+      userId,
+      statuses: [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.PAUSED,
+        JobStatusEnum.CLOSED,
+      ],
+    });
     if (!job) {
       this.logger.error(
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
@@ -1012,15 +1417,7 @@ export class JobUseCases {
         status: job.job.status as JobStatusEnum,
         workType: job.job.workType as WorkTypeEnum,
       },
-      organization: {
-        id: job.organization.id,
-        name: job.organization.name,
-        slug: job.organization.slug,
-        type: job.organization.type,
-        description: job.organization.description,
-        address: job.organization.address,
-        logoUrl: job.organization.logoUrl,
-      } as OrganizationWithDetailsDto,
+      organization: job.organization as OrganizationWithDetailsDto,
     };
 
     return {
@@ -1069,22 +1466,22 @@ export class JobUseCases {
       data: transformedData,
     };
   }
-  async getNumberOfSavedJobs(userId: string): Promise<ApiResponse<number>> {
-    const count = await this.jobRepository.getNumberOfSavedJobs(userId);
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: count,
-    };
-  }
-  async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
-    const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: count,
-    };
-  }
+  // async getNumberOfSavedJobs(userId: string): Promise<ApiResponse<number>> {
+  //   const count = await this.jobRepository.getNumberOfSavedJobs(userId);
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: count,
+  //   };
+  // }
+  // async getNumberOfAppliedJobs(userId: string): Promise<ApiResponse<number>> {
+  //   const count = await this.jobRepository.getNumberOfAppliedJobs(userId);
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: count,
+  //   };
+  // }
   async getAllAppliedJobs(
     userId: string,
     query: GeneralQueryDto,
