@@ -232,3 +232,9 @@ export enum BlogPostStatus {
   PUBLISHED = "PUBLISHED",
   REJECTED = "REJECTED",
 }
+
+export enum BlogSourceType {
+  USER = "USER",
+  AI = "AI",
+  CRAWLED = "CRAWLED",
+}

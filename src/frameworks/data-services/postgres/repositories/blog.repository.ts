@@ -29,6 +29,8 @@ import {
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
+  BlogPostSource,
+  BlogSourceType,
   BlogPostTagItem,
 } from "@/core/entities/blog.entity";
 import {
@@ -241,7 +243,7 @@ export class BlogRepository
   private buildPostWhere(
     filters: Pick<
       BlogPostFilters,
-      "keyword" | "category" | "status" | "excludeStatus"
+      "keyword" | "category" | "status" | "excludeStatus" | "sourceType"
     >,
   ) {
     const conditions: SQL[] = [isNull(blogPosts.deletedAt)];
@@ -260,6 +262,10 @@ export class BlogRepository
 
     if (filters.excludeStatus) {
       conditions.push(ne(blogPosts.status, filters.excludeStatus));
+    }
+
+    if (filters.sourceType) {
+      conditions.push(eq(blogPosts.sourceType, filters.sourceType));
     }
 
     return and(...conditions);
@@ -312,6 +318,8 @@ export class BlogRepository
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
+          sourceType: blogPosts.sourceType,
+          source: blogPosts.source,
         })
         .from(blogPosts)
         .where(baseWhere)
@@ -329,7 +337,7 @@ export class BlogRepository
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: rows,
+      data: rows as BlogPostListItem[],
       pagination: {
         total,
         hasNextPage: page < totalPages,
@@ -400,6 +408,8 @@ export class BlogRepository
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
+          sourceType: blogPosts.sourceType,
+          source: blogPosts.source,
         })
         .from(userActions)
         .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
@@ -427,7 +437,7 @@ export class BlogRepository
     const last = data[data.length - 1];
 
     return {
-      data,
+      data: data as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
@@ -468,6 +478,8 @@ export class BlogRepository
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
+          sourceType: blogPosts.sourceType,
+          source: blogPosts.source,
         })
         .from(blogPosts)
         .where(finalWhere)
@@ -485,7 +497,7 @@ export class BlogRepository
     const last = data[data.length - 1];
 
     return {
-      data,
+      data: data as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
@@ -549,6 +561,8 @@ export class BlogRepository
             category: blogPosts.categoryId,
             status: sql<BlogPostStatus>`${blogPosts.status}`,
             viewCount: blogPosts.viewCount,
+            sourceType: blogPosts.sourceType,
+            source: blogPosts.source,
             createdAt: blogPosts.createdAt,
             updatedAt: blogPosts.updatedAt,
             authorId: users.id,
@@ -557,7 +571,7 @@ export class BlogRepository
             authorAvatarUrl: users.avatarUrl,
           })
           .from(blogPosts)
-          .innerJoin(users, eq(users.id, blogPosts.authorId))
+          .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
           .groupBy(
             blogPosts.id,
@@ -569,6 +583,8 @@ export class BlogRepository
             blogPosts.categoryId,
             blogPosts.status,
             blogPosts.viewCount,
+            blogPosts.sourceType,
+            blogPosts.source,
             blogPosts.createdAt,
             users.id,
             users.username,
@@ -590,14 +606,18 @@ export class BlogRepository
           category: post.category,
           status: post.status,
           viewCount: post.viewCount,
+          sourceType: post.sourceType as BlogSourceType,
+          source: post.source as BlogPostSource | null,
           createdAt: post.createdAt,
           updatedAt: post.updatedAt,
-          author: {
-            id: post.authorId,
-            username: post.authorUsername,
-            name: post.authorName,
-            avatarUrl: post.authorAvatarUrl,
-          },
+          author: post.authorId
+            ? {
+                id: post.authorId,
+                username: post.authorUsername!,
+                name: post.authorName!,
+                avatarUrl: post.authorAvatarUrl,
+              }
+            : null,
         };
       },
       (data: BlogPostDetailBase | null) =>
@@ -625,6 +645,8 @@ export class BlogRepository
             category: blogPosts.categoryId,
             status: sql<BlogPostStatus>`${blogPosts.status}`,
             viewCount: blogPosts.viewCount,
+            sourceType: blogPosts.sourceType,
+            source: blogPosts.source,
             createdAt: blogPosts.createdAt,
             updatedAt: blogPosts.updatedAt,
             authorId: users.id,
@@ -633,7 +655,7 @@ export class BlogRepository
             authorAvatarUrl: users.avatarUrl,
           })
           .from(blogPosts)
-          .innerJoin(users, eq(users.id, blogPosts.authorId))
+          .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
           .groupBy(
             blogPosts.id,
@@ -645,6 +667,8 @@ export class BlogRepository
             blogPosts.categoryId,
             blogPosts.status,
             blogPosts.viewCount,
+            blogPosts.sourceType,
+            blogPosts.source,
             blogPosts.createdAt,
             users.id,
             users.username,
@@ -666,14 +690,18 @@ export class BlogRepository
           category: post.category,
           status: post.status,
           viewCount: post.viewCount,
+          sourceType: post.sourceType as BlogSourceType,
+          source: post.source as BlogPostSource | null,
           createdAt: post.createdAt,
           updatedAt: post.updatedAt,
-          author: {
-            id: post.authorId,
-            username: post.authorUsername,
-            name: post.authorName,
-            avatarUrl: post.authorAvatarUrl,
-          },
+          author: post.authorId
+            ? {
+                id: post.authorId,
+                username: post.authorUsername!,
+                name: post.authorName!,
+                avatarUrl: post.authorAvatarUrl,
+              }
+            : null,
         };
       },
       (data: BlogPostDetailBase | null) =>

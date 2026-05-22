@@ -198,6 +198,7 @@ export class BlogUseCases {
       category: query.category,
       status: query.status,
       excludeStatus: BlogPostStatus.DRAFT,
+      sourceType: query.sourceType,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
@@ -305,7 +306,10 @@ export class BlogUseCases {
       });
     }
 
-    if (post.status !== BlogPostStatus.PUBLISHED && post.author.id !== userId) {
+    if (
+      post.status !== BlogPostStatus.PUBLISHED &&
+      (!post.author || post.author.id !== userId)
+    ) {
       throw new NotFoundException({
         code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
         message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,

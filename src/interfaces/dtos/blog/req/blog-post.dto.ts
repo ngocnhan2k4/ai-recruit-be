@@ -12,7 +12,7 @@ import {
   ValidateNested,
   IsEnum,
 } from "class-validator";
-import { BlogPostStatus } from "@/core/entities";
+import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -44,6 +44,14 @@ export class QueryBlogsDto extends GeneralQueryDto {
   @IsOptional()
   @IsEnum(BlogPostStatus)
   status?: BlogPostStatus;
+
+  @ApiPropertyOptional({
+    description: "Filter by source type",
+    enum: BlogSourceType,
+  })
+  @IsOptional()
+  @IsEnum(BlogSourceType)
+  sourceType?: BlogSourceType;
 }
 
 export class CreateBlogPostDto {

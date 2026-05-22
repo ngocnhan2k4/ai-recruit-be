@@ -1,10 +1,18 @@
 import { GeneralQuery } from "@/common/types";
-import { BlogPostStatus } from "./enum.entity";
+import { BlogPostStatus, BlogSourceType } from "./enum.entity";
+export { BlogSourceType };
 
 export interface BlogPostFilters extends GeneralQuery {
   category?: string;
   status?: BlogPostStatus;
   excludeStatus?: BlogPostStatus;
+  sourceType?: BlogSourceType;
+}
+
+export interface BlogPostSource {
+  url?: string | null;
+  author?: string | null;
+  platform?: string | null;
 }
 
 export interface BlogPostListItem {
@@ -15,6 +23,8 @@ export interface BlogPostListItem {
   thumbnail: string | null;
   category: string;
   status: BlogPostStatus;
+  sourceType: BlogSourceType;
+  source: BlogPostSource | null;
   createdAt: Date;
   updatedAt?: Date | null;
 }
@@ -46,8 +56,10 @@ export interface BlogPostDetailBase {
   content: string;
   category: string;
   viewCount: number;
-  author: BlogPostAuthor;
+  author: BlogPostAuthor | null;
   status: BlogPostStatus;
+  sourceType: BlogSourceType;
+  source: BlogPostSource | null;
   createdAt: Date;
   updatedAt?: Date | null;
 }
@@ -61,11 +73,13 @@ export interface BlogPostDetail {
   content: string;
   category: string;
   viewCount: number;
-  author: BlogPostAuthor;
+  author: BlogPostAuthor | null;
   likes: number;
   isSaved: boolean;
   isLiked: boolean;
   status: BlogPostStatus;
+  sourceType: BlogSourceType;
+  source: BlogPostSource | null;
   tags: BlogPostTagItem[];
   createdAt: Date;
   updatedAt?: Date | null;

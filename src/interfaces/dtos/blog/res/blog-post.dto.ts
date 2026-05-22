@@ -25,6 +25,17 @@ export class BlogTagItemDto {
   tagId: string | null;
 }
 
+export class BlogPostSourceDto {
+  @ApiPropertyOptional({ nullable: true })
+  url?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  author?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  platform?: string | null;
+}
+
 export class BlogPostListItemDto {
   @ApiProperty()
   id: string;
@@ -55,6 +66,12 @@ export class BlogPostListItemDto {
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ enum: ["USER", "AI", "CRAWLED"] })
+  sourceType?: string;
+
+  @ApiPropertyOptional({ type: BlogPostSourceDto, nullable: true })
+  source?: BlogPostSourceDto | null;
 
   @ApiProperty({ type: [BlogTagItemDto] })
   tags: BlogTagItemDto[];
@@ -113,8 +130,8 @@ export class BlogPostDetailDto {
   @ApiPropertyOptional({ nullable: true })
   updatedAt?: Date | null;
 
-  @ApiProperty({ type: BlogAuthorDto })
-  author: BlogAuthorDto;
+  @ApiPropertyOptional({ type: BlogAuthorDto, nullable: true })
+  author?: BlogAuthorDto | null;
 
   @ApiProperty()
   likes: number;
@@ -127,6 +144,12 @@ export class BlogPostDetailDto {
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ enum: ["USER", "AI", "CRAWLED"] })
+  sourceType?: string;
+
+  @ApiPropertyOptional({ type: BlogPostSourceDto, nullable: true })
+  source?: BlogPostSourceDto | null;
 
   @ApiProperty({ type: [BlogTagItemDto] })
   tags: BlogTagItemDto[];
