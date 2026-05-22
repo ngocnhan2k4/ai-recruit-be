@@ -61,11 +61,16 @@ function decodeCursor(
   cursor: string | undefined | null,
 ): { sortTime: Date; id: string } | null {
   if (!cursor) return null;
-  const parts = cursor.split("|");
-  if (parts.length !== 2) return null;
-  const d = new Date(parts[0]);
-  if (isNaN(d.getTime())) return null;
-  return { sortTime: d, id: parts[1] };
+  try {
+    const decoded = decodeURIComponent(cursor);
+    const parts = decoded.split("|");
+    if (parts.length !== 2) return null;
+    const d = new Date(parts[0]);
+    if (isNaN(d.getTime())) return null;
+    return { sortTime: d, id: parts[1] };
+  } catch {
+    return null;
+  }
 }
 @Injectable()
 export class BlogRepository
@@ -378,7 +383,7 @@ export class BlogRepository
           baseWhere,
           sql`(
             ${sortExpr(blogPosts)} < ${decoded.sortTime}
-            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id})
+            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id}::uuid)
           )`,
         )
       : baseWhere;
@@ -445,8 +450,8 @@ export class BlogRepository
       ? and(
           baseWhere,
           sql`(
-            ${sortExpr(blogPosts)} < ${decoded.sortTime}
-            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id})
+            ${sortExpr(blogPosts)} < (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+            OR (${sortExpr(blogPosts)} = (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC') AND ${blogPosts.id} < ${decoded.id}::uuid)
           )`,
         )
       : baseWhere;
