@@ -36,3 +36,4 @@ export * from "./ai-cv-repository.abstract";
 export * from "./blog-repository.abstract";
 export * from "./user-action-repository.abstract";
 export * from "./comment-repository.abstract";
+export * from "./skill-note-repository.abstract";

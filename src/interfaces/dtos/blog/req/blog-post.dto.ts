@@ -10,7 +10,9 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
+  IsEnum,
 } from "class-validator";
+import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -34,6 +36,22 @@ export class QueryBlogsDto extends GeneralQueryDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @ApiPropertyOptional({
+    description: "Filter by status",
+    enum: BlogPostStatus,
+  })
+  @IsOptional()
+  @IsEnum(BlogPostStatus)
+  status?: BlogPostStatus;
+
+  @ApiPropertyOptional({
+    description: "Filter by source type",
+    enum: BlogSourceType,
+  })
+  @IsOptional()
+  @IsEnum(BlogSourceType)
+  sourceType?: BlogSourceType;
 }
 
 export class CreateBlogPostDto {
@@ -137,18 +155,46 @@ export class UpdateBlogPostDto {
   @IsOptional()
   @IsString()
   thumbnail?: string | null;
-}
 
-export class CreateBlogCommentDto {
-  @ApiPropertyOptional({ nullable: true, format: "uuid" })
+  @ApiPropertyOptional({ type: [BlogPostTagInputDto] })
   @IsOptional()
-  @IsUUID("4")
-  parentCommentId?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BlogPostTagInputDto)
+  tags?: BlogPostTagInputDto[];
 }
 
 export class QueryBlogTagsDto extends GeneralQueryDto {}
+
+export class UpdateBlogStatusRequest {
+  @ApiProperty({
+    description: "Blog post status",
+    enum: ["approved", "rejected"],
+  })
+  @IsNotEmpty()
+  @IsEnum(["approved", "rejected"])
+  status: "approved" | "rejected";
+}
+
+export class CreateBlogCategoryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class CreateBlogTagDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name: string;
+}
+
+export class QueryBlogCategoriesDto extends GeneralQueryDto {}

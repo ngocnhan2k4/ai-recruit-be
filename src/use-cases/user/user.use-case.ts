@@ -61,10 +61,11 @@ import {
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
 import { ONE_DAY_MS } from "@/common/constants";
-import { addSeconds } from "date-fns";
+import { addDays } from "date-fns";
 import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
+import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -84,6 +85,7 @@ export class UserUseCases implements OnModuleInit {
     private readonly userEducationRepository: IUserEducationRepository,
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
+    private readonly configService: ConfigService,
   ) {}
 
   // private isUserAccountAvailable(user: User): boolean {
@@ -893,36 +895,51 @@ export class UserUseCases implements OnModuleInit {
       );
     }
 
-    const updatedUser = {
-      ...user,
-      ...updateUserDto,
+    const updatePayload: Partial<User> = {
+      updatedAt: new Date(),
     };
 
-    const updatedUserResult = await this.userRepository.update(
-      { id: userId },
-      updatedUser,
-    );
-    if (!updatedUserResult) {
-      throw new NotFoundException({
-        message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
-        code: RESPONSE_CODE.USER_NOT_UPDATED,
-      });
+    if (updateUserDto.roles !== undefined) {
+      updatePayload.roles = updateUserDto.roles;
     }
+
+    let currentUser = user;
+    if (Object.keys(updatePayload).length > 1) {
+      const updatedUserResult = await this.userRepository.update(
+        { id: userId },
+        updatePayload,
+      );
+      if (!updatedUserResult || updatedUserResult.length === 0) {
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.USER_NOT_UPDATED,
+          code: RESPONSE_CODE.USER_NOT_UPDATED,
+        });
+      }
+      currentUser = updatedUserResult[0];
+    }
+
     const rolesToUpdate = updateUserDto.roles || user.roles;
 
-    for (const role of rolesToUpdate) {
-      await this.casbinService.addRoleForUser(userId, role);
+    if (updateUserDto.roles !== undefined) {
+      const existingRoles = await this.casbinService.getRolesForUser(userId);
+      for (const existingRole of existingRoles) {
+        await this.casbinService.deleteRoleForUser(userId, existingRole);
+      }
+
+      for (const role of rolesToUpdate) {
+        await this.casbinService.addRoleForUser(userId, role);
+      }
+      await this.casbinService.savePolicy();
     }
-    await this.casbinService.savePolicy();
 
     const loginMethods = await this.userRepository.getUserLoginMethods(userId);
     const otherProviders = loginMethods
-      .filter((m) => m.provider !== updatedUser.provider)
+      .filter((m) => m.provider !== currentUser.provider)
       .map((m) => ({ provider: m.provider as any, createdAt: m.createdAt }));
 
     const userDto = GetUserResponseDto.from({
-      ...updatedUser,
-      provider: updatedUser.provider as ProviderEnum,
+      ...currentUser,
+      provider: currentUser.provider as ProviderEnum,
       roles: rolesToUpdate as RoleEnum[],
       otherProviders,
     });
@@ -1128,8 +1145,12 @@ export class UserUseCases implements OnModuleInit {
       };
     }
 
+    const timeToDeleteAccount = this.configService.get<number>(
+      "TIME_TO_DELETE_ACCOUNT_DAYS",
+    )!;
+
     const deletionRequestedAt = new Date();
-    const purgeAfterAt = addSeconds(deletionRequestedAt, 15);
+    const purgeAfterAt = addDays(deletionRequestedAt, timeToDeleteAccount);
 
     await this.userRepository.executeWithTransaction(async (tx) => {
       await this.authRepository.revokeAllForUser(userId);

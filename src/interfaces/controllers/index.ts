@@ -43,6 +43,7 @@ export * from "./casbin/casbin.controller";
 
 // blog controllers
 export * from "./blog/blog.controller";
+export * from "./blog/admin-blog.controller";
 
 // comment controllers
 export * from "./comment/comment.controller";

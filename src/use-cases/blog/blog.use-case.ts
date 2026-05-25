@@ -5,21 +5,33 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PaginatedResult, TokenPayload } from "@/common/types";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  CACHE_KEYS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+} from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogPostDto,
-  CreateBlogCommentDto,
   QueryBlogsDto,
   QueryBlogTagsDto,
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
+  UpdateBlogStatusRequest,
+  CreateBlogCategoryDto,
+  CreateBlogTagDto,
+  QueryBlogCategoriesDto,
 } from "@/interfaces/dtos/blog/req";
 import { BlogService } from "@/services/blog/blog.service";
-import { BlogPostListItemDto } from "@/interfaces/dtos/blog/res/blog-post.dto";
+import {
+  BlogPostListItemDto,
+  BlogPostDetailDto,
+  BlogCategoryDto,
+  BlogTagCursorResponseDto,
+} from "@/interfaces/dtos/blog/res/blog-post.dto";
 import {
   BlogPostListItem,
   BlogPostUserActions,
@@ -29,8 +41,12 @@ import {
   Comment,
   ObjectType,
   UserActionType,
+  BlogCategory,
+  Tag,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
+import { ICacheService } from "@/core";
+import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
 
 @Injectable()
 export class BlogUseCases {
@@ -39,12 +55,13 @@ export class BlogUseCases {
     private readonly userActionRepository: IUserActionRepository,
     private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
+    private readonly cacheService: ICacheService,
   ) {}
 
   async createComment(
     user: TokenPayload,
     postId: string,
-    dto: CreateBlogCommentDto,
+    dto: CommentDto,
   ): Promise<ApiResponse<Comment>> {
     const post = await this.blogRepository.get(postId);
 
@@ -76,7 +93,6 @@ export class BlogUseCases {
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
     const { data, pagination } = await this.blogRepository.getPosts({
-      ...query,
       limit,
       page,
       keyword: query.keyword,
@@ -108,7 +124,35 @@ export class BlogUseCases {
       page,
       keyword: query.keyword,
       category: query.category,
+      status: query.status,
     });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
+    };
+  }
+
+  async getSavedBlogs(
+    userId: string,
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const limit = Math.min(query.limit ?? 10, 50);
+    const { data, pagination } = await this.blogRepository.getSavedBlogs(
+      userId,
+      {
+        ...query,
+        limit,
+        keyword: query.keyword,
+        category: query.category,
+      },
+    );
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
@@ -142,6 +186,67 @@ export class BlogUseCases {
     }));
   }
 
+  async getAdminBlogs(
+    query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const limit = Math.min(query.limit ?? 10, 50);
+    const page = Math.max(query.page ?? 1, 1);
+    const { data, pagination } = await this.blogRepository.getPosts({
+      limit,
+      page,
+      keyword: query.keyword,
+      category: query.category,
+      status: query.status,
+      excludeStatus: BlogPostStatus.DRAFT,
+      sourceType: query.sourceType,
+    });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        data: dataWithTags,
+        pagination,
+      },
+    };
+  }
+
+  async getAdminBlogById(id: string): Promise<ApiResponse<BlogPostDetailDto>> {
+    await this.blogService.checkNotDraft(id);
+
+    const post = await this.blogRepository.getPostBaseById(id);
+
+    if (!post) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const [tags, likes] = await Promise.all([
+      this.blogRepository.getPostTagsByPostId(post.id),
+      this.userActionRepository.getActionCount(
+        post.id,
+        ObjectType.BLOG,
+        UserActionType.LIKE,
+      ),
+    ]);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        ...post,
+        likes,
+        tags,
+        isSaved: false,
+        isLiked: false,
+      } as BlogPostDetailDto,
+    };
+  }
+
   async getTopBlogs(): Promise<
     ApiResponse<PaginatedResult<BlogPostListItemDto>>
   > {
@@ -155,17 +260,19 @@ export class BlogUseCases {
     };
   }
 
-  async getCategories(): Promise<ApiResponse<any>> {
+  async getCategories(): Promise<ApiResponse<BlogCategoryDto[]>> {
     const categories = await this.blogRepository.getCategories();
 
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: categories,
+      data: categories as BlogCategoryDto[],
     };
   }
 
-  async getTags(query: QueryBlogTagsDto): Promise<ApiResponse<any>> {
+  async getTags(
+    query: QueryBlogTagsDto,
+  ): Promise<ApiResponse<BlogTagCursorResponseDto>> {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
     const result = await this.blogRepository.getMergedTags({
       limit,
@@ -179,23 +286,33 @@ export class BlogUseCases {
       data: {
         items: result.data,
         pagination: {
-          nextCursor: result.pagination.nextCursor ?? null,
+          nextCursor: (result.pagination.nextCursor as string) || null,
           hasNextPage: !!result.pagination.hasNextPage,
         },
-      },
+      } as BlogTagCursorResponseDto,
     };
   }
 
   async getBlogBySlug(
     slug: string,
     userId?: string,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<BlogPostDetailDto>> {
     const post = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!post) {
       throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Blog post not found",
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    if (
+      post.status !== BlogPostStatus.PUBLISHED &&
+      (!post.author || post.author.id !== userId)
+    ) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
       });
     }
 
@@ -217,18 +334,19 @@ export class BlogUseCases {
       ),
     ]);
 
-    await this.blogRepository.incrementViewCount(post.id);
+    // [TODO] Should tracking view count from IP address to prevent duplicate view count
+    // Update view count into cache
+    await this.cacheService.increment(CACHE_KEYS.blog.viewCount(post.id), 1);
+    await this.cacheService.addToSet(CACHE_KEYS.blog.viewDirty(), post.id);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: {
         ...post,
+        ...actions,
         likes,
-        isSaved: actions.isSaved,
-        isLiked: actions.isLiked,
         tags,
-        viewCount: post.viewCount + 1,
       },
     };
   }
@@ -281,7 +399,6 @@ export class BlogUseCases {
             },
             user.userId,
             dto.postId,
-            tx,
           );
 
           const [updated] = await this.blogRepository.update(
@@ -346,7 +463,7 @@ export class BlogUseCases {
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     const result = await this.blogRepository.executeWithTransaction(
-      async (tx) => {
+      async () => {
         return this.blogRepository.saveDraft(
           {
             title: dto.title,
@@ -358,7 +475,6 @@ export class BlogUseCases {
           },
           user.userId,
           postId,
-          tx,
         );
       },
     );
@@ -377,7 +493,7 @@ export class BlogUseCases {
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
     const updated = await this.blogRepository.executeWithTransaction(
       async (tx) => {
-        await this.blogService.checkIsAuthor(postId, user.userId);
+        const post = await this.blogService.checkIsAuthor(postId, user.userId);
 
         const rows = await this.blogRepository.update(
           {
@@ -390,6 +506,10 @@ export class BlogUseCases {
             content: dto.content,
             categoryId: dto.category,
             updatedAt: new Date(),
+            status:
+              post.status === (BlogPostStatus.DRAFT as string)
+                ? BlogPostStatus.DRAFT
+                : BlogPostStatus.PENDING,
           },
           tx,
         );
@@ -399,6 +519,10 @@ export class BlogUseCases {
             code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
             message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
           });
+        }
+
+        if (dto.tags) {
+          await this.blogRepository.updatePostTags(postId, dto.tags);
         }
 
         return rows[0];
@@ -416,12 +540,19 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkIsAuthor(postId, user.userId);
+    const post = await this.blogService.checkIsAuthor(postId, user.userId);
 
-    await this.blogRepository.delete({
-      id: postId,
-      authorId: user.userId,
-    });
+    if (post.status === (BlogPostStatus.DRAFT as string)) {
+      await this.blogRepository.deletePermanently({
+        id: postId,
+        authorId: user.userId,
+      });
+    } else {
+      await this.blogRepository.delete({
+        id: postId,
+        authorId: user.userId,
+      });
+    }
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -451,7 +582,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkValidPost(postId);
+    await this.blogService.checkPublished(postId);
 
     await this.userActionRepository.toggleAction(
       postId,
@@ -473,18 +604,22 @@ export class BlogUseCases {
     return this.reviewPost(postId, BlogPostStatus.REJECTED);
   }
 
+  async updateBlogStatus(
+    postId: string,
+    request: UpdateBlogStatusRequest,
+  ): Promise<ApiResponse<{ id: string }>> {
+    const status =
+      request.status === "approved"
+        ? BlogPostStatus.PUBLISHED
+        : BlogPostStatus.REJECTED;
+    return this.reviewPost(postId, status);
+  }
+
   private async reviewPost(
     postId: string,
     status: BlogPostStatus.PUBLISHED | BlogPostStatus.REJECTED,
   ): Promise<ApiResponse<{ id: string }>> {
-    const post = await this.blogRepository.get(postId);
-
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-      });
-    }
+    await this.blogService.checkNotDraft(postId);
 
     await this.blogRepository.update(
       { id: postId },
@@ -498,6 +633,81 @@ export class BlogUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
       data: { id: postId },
+    };
+  }
+
+  async createCategory(
+    dto: CreateBlogCategoryDto,
+  ): Promise<ApiResponse<BlogCategory>> {
+    const existing = await this.blogRepository.getCategoryByName(
+      dto.name.trim(),
+    );
+    if (existing) {
+      throw new BadRequestException("Category name already exists.");
+    }
+
+    const created = await this.blogRepository.createCategory({
+      name: dto.name.trim(),
+      description: dto.description?.trim(),
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: created,
+    };
+  }
+
+  async getCategoriesPaginated(
+    query: QueryBlogCategoriesDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogCategory>>> {
+    const paginated = await this.blogRepository.getCategoriesPaginated({
+      keyword: query.keyword,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: paginated,
+    };
+  }
+
+  async createTag(dto: CreateBlogTagDto): Promise<ApiResponse<Tag>> {
+    const name = dto.name.trim();
+    const slug = generateSlug(name);
+
+    const existing = await this.blogRepository.getTagByNameOrSlug(name, slug);
+    if (existing) {
+      throw new BadRequestException("Tag name or slug already exists.");
+    }
+
+    const created = await this.blogRepository.createTag({
+      name,
+      slug,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: created,
+    };
+  }
+
+  async getTagsPaginated(
+    query: QueryBlogTagsDto,
+  ): Promise<ApiResponse<PaginatedResult<Tag>>> {
+    const paginated = await this.blogRepository.getTagsPaginated({
+      keyword: query.keyword,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: paginated,
     };
   }
 }

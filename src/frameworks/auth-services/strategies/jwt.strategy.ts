@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 import { ConfigService } from "@nestjs/config";
 import { RoleEnum } from "@/common/constants";
 import { TokenPayload } from "@/common/types";
+import { UserStatusEnum } from "@/core";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,6 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       roles: payload.roles || [RoleEnum.USER],
       userId: payload.userId,
+      status: payload.status as UserStatusEnum,
     };
   }
 }

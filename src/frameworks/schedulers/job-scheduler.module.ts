@@ -17,6 +17,8 @@ import { EmailModule } from "@/frameworks/email-services/email.module";
 import { CvModule } from "@/services/cv/cv.module";
 import { UserScheduler } from "./user.scheduler";
 import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
+import { RedisModule } from "@/frameworks/redis/redis.module";
+import { BlogScheduler } from "./blog.scheduler";
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
     EmailModule,
     CvModule,
     UserUseCasesModule,
+    RedisModule,
   ],
   providers: [
     JobMatchingScheduler,
@@ -42,6 +45,7 @@ import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
     TaskWorker,
     EmailWorker,
     UserScheduler,
+    BlogScheduler,
   ],
 })
 export class JobMatchingSchedulerModule {}
