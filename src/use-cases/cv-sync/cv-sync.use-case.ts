@@ -8,10 +8,6 @@ import {
   getCvIndexMapping,
   transformCvToDocument,
 } from "@/frameworks/data-services/elasticsearch/indices/cv.index";
-import {
-  SyncFromElasticsearchRequestDto,
-  SyncFromElasticsearchResponseDto,
-} from "@/interfaces/dtos";
 import { mapWithConcurrency } from "@/common/utils";
 
 @Injectable()
@@ -176,39 +172,6 @@ export class CvSyncUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: { message: `CV ${cvId} deleted from search index successfully` },
-    };
-  }
-
-  async syncFromElasticsearch(
-    dto: SyncFromElasticsearchRequestDto,
-  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
-    this.logger.log(
-      `Starting CV sync from remote ES: ${dto.sourceNode}/${dto.sourceIndex}`,
-    );
-
-    const targetIndex = dto.targetIndex || this.indexName();
-
-    const sourceAuth =
-      dto.sourceUsername && dto.sourcePassword
-        ? { username: dto.sourceUsername, password: dto.sourcePassword }
-        : undefined;
-
-    const reindexResult = await this.searchService.reindexFromRemote(
-      dto.sourceNode,
-      dto.sourceIndex,
-      targetIndex,
-      sourceAuth,
-      dto.query,
-    );
-
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: {
-        total: reindexResult.total,
-        took: reindexResult.took,
-        message: `Successfully synced ${reindexResult.total} documents from ${dto.sourceIndex} to ${targetIndex}`,
-      },
     };
   }
 }

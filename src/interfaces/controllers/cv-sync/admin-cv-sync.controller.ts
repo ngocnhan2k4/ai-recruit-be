@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -12,8 +11,6 @@ import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import { CvSyncUseCases } from "@/use-cases/cv-sync/cv-sync.use-case";
-import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
-import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @ApiTags("CV Sync Admin")
 @ApiBearerAuth()
@@ -81,18 +78,5 @@ export class AdminCvSyncController {
     @Param("cvId") cvId: string,
   ): Promise<ApiResponse<{ message: string }>> {
     return this.cvSyncUseCases.deleteCv(cvId);
-  }
-
-  @ApiOperation({
-    summary: "Sync CV data from another Elasticsearch instance",
-    description:
-      "Sync data from a remote Elasticsearch instance to the current one.",
-  })
-  @ApiResponseDto(SyncFromElasticsearchResponseDto)
-  @Post("sync-from-es")
-  syncFromElasticsearch(
-    @Body() dto: SyncFromElasticsearchRequestDto,
-  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
-    return this.cvSyncUseCases.syncFromElasticsearch(dto);
   }
 }

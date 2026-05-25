@@ -8,8 +8,6 @@ import {
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { ConfigService } from "@nestjs/config";
 import { Environment } from "@/common/config";
-import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
-import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class JobSyncUseCases {
@@ -167,54 +165,6 @@ export class JobSyncUseCases {
       data: {
         message: `Index ${indexName} deleted successfully`,
       },
-    };
-  }
-
-  /**
-   * Sync data from another Elasticsearch instance
-   */
-  async syncFromElasticsearch(
-    dto: SyncFromElasticsearchRequestDto,
-  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
-    this.logger.log(
-      `Starting sync from remote ES: ${dto.sourceNode}/${dto.sourceIndex}`,
-    );
-
-    // Ensure target index exists
-    const targetIndex =
-      dto.targetIndex ||
-      this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
-    await this.ensureIndex();
-
-    const sourceAuth =
-      dto.sourceUsername && dto.sourcePassword
-        ? {
-            username: dto.sourceUsername,
-            password: dto.sourcePassword,
-          }
-        : undefined;
-
-    const reindexResult = await this.searchService.reindexFromRemote(
-      dto.sourceNode,
-      dto.sourceIndex,
-      targetIndex,
-      sourceAuth,
-      dto.query,
-    );
-    const result = {
-      total: reindexResult.total,
-      took: reindexResult.took,
-      message: `Successfully synced ${reindexResult.total} documents from ${dto.sourceIndex} to ${targetIndex}`,
-    };
-
-    this.logger.log(
-      `Sync completed: ${result.total} documents synced to ${targetIndex}`,
-    );
-
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: result,
     };
   }
 }
