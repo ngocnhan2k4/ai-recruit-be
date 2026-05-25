@@ -94,7 +94,7 @@ export class CvIndexWorker extends WorkerHost {
       id: data.cvId,
       userId: cv.userId,
       aiCvId: cv.aiCvId,
-      name: extractedData.name,
+      name: cv.name,
       fileUrl: cv.fileUrl,
       mimeType: cv.mimeType,
       updatedAt: cv.updatedAt ?? null,

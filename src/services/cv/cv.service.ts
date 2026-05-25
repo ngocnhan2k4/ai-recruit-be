@@ -88,34 +88,30 @@ export class CvService implements ICvService {
 
     return {
       ...cvData,
-      skillIds: cvData.skills.map((skill) => skill.id as string),
-      provinceIds: cvData.provinces.map((province) => province.id as string),
-      categoryIds: cvData.categories.map((category) => category.id as string),
-      skillNames: cvData.skills.map((skill) => skill.name),
-      provinceNames: cvData.provinces.map((province) => province.name),
-      categoryNames: cvData.categories.map((category) => category.name),
+      skillIds: (cvData.skills || []).map((skill) => skill.id as string),
+      provinceIds: cvData.location ? [cvData.location.id as string] : [],
+      categoryIds: cvData.category ? [cvData.category.id as string] : [],
+      skillNames: cvData.skills?.map((skill) => skill.name) || [],
+      provinceNames: cvData.location ? [cvData.location.name] : [],
+      categoryNames: cvData.category ? [cvData.category.name] : [],
     };
   }
 
   private async extractDataFromAiCv(aiCv: AiCv): Promise<CvExtractedData> {
     const skills = await this.extractSkillFromAiCv(aiCv);
-    const provinces = await this.extractProvinceFromAiCv(aiCv);
+    const province = await this.extractProvinceFromAiCv(aiCv);
     const categories = await this.extractCategoryFromAiCv(aiCv);
     const experienceYears = this.extractExperienceYearsFromAiCv(aiCv);
     const experienceLevel = this.extractExperienceLevelFromAiCv(aiCv);
 
     return {
-      name: aiCv.cvData.personalInfo.name,
-      email: aiCv.cvData.personalInfo.email,
-      phone: aiCv.cvData.personalInfo.phone,
-      summary: aiCv.cvData.summary,
       experienceYears,
       experienceLevel,
       skillIds: skills.map((skill) => skill.id as string),
       skillNames: skills.map((skill) => skill.name),
-      provinceIds: provinces.map((province) => province.id as string),
+      provinceIds: province ? [province.id as string] : [],
       categoryIds: categories.map((category) => category.id as string),
-      provinceNames: provinces.map((province) => province.name),
+      provinceNames: province ? [province.name] : [],
       categoryNames: categories.map((category) => category.name),
     };
   }
@@ -315,15 +311,17 @@ export class CvService implements ICvService {
     return skills;
   }
 
-  private async extractProvinceFromAiCv(aiCv: AiCv): Promise<RelatedEntity[]> {
+  private async extractProvinceFromAiCv(
+    aiCv: AiCv,
+  ): Promise<RelatedEntity | null> {
     const provinces = await this.provinceRepository.getAll(["id", "name"]);
     const location = aiCv.cvData.personalInfo.location || "";
 
-    if (!location) return [];
+    if (!location) return null;
 
     const found = provinces.find((p) => this.compareProvince(location, p));
 
-    return found ? [found] : [];
+    return found ?? null;
   }
 
   /*
@@ -470,31 +468,21 @@ export class CvService implements ICvService {
 
     const criteria = {
       skill: {
-        score: skillScore,
-        weight: 0.4,
         matchedSkills,
         missingSkills,
       },
       experience: {
-        score: experienceScore,
-        weight: 0.25,
         cvYears: expYears,
         requiredMin: expMin,
         requiredMax: expMax,
       },
       location: {
-        score: locationScore,
-        weight: 0.15,
         matched: locationMatched,
       },
       category: {
-        score: categoryScore,
-        weight: 0.1,
         matched: jobCategoryId ? cvCategories.includes(jobCategoryId) : null,
       },
       salary: {
-        score: salaryScore,
-        weight: 0.1,
         expected: expectedSalary,
         jobMax: salaryMax,
       },

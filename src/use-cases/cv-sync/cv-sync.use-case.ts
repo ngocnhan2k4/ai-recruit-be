@@ -81,7 +81,7 @@ export class CvSyncUseCases {
             id: cv.id,
             userId: cv.userId,
             aiCvId: cv.aiCvId,
-            name: extractedData.name || cv.name,
+            name: cv.name,
             fileUrl: cv.fileUrl,
             mimeType: cv.mimeType,
             updatedAt: cv.updatedAt ?? null,

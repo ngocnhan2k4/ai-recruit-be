@@ -1526,8 +1526,6 @@ export class JobUseCases {
       });
     }
 
-    console.log("jobDetail", jobDetail);
-
     const targetLimit = jobDetail.job.recruitCount ?? 10;
 
     const { data: seekingUser } = await this.userRepository.getAllWithOffset({
