@@ -255,3 +255,36 @@ export const weeklyProgressRelations = relations(weeklyProgress, ({ one }) => ({
     references: [learningRoadmaps.id],
   }),
 }));
+
+export const skillNotes = pgTable(
+  "skill_notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    roadmapSkillId: uuid("roadmap_skill_id")
+      .notNull()
+      .references(() => roadmapSkills.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    content: text("content").notNull().default(""),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("idx_skill_notes_skill_user").on(
+      table.roadmapSkillId,
+      table.userId,
+    ),
+  ],
+);
+
+export const skillNotesRelations = relations(skillNotes, ({ one }) => ({
+  roadmapSkill: one(roadmapSkills, {
+    fields: [skillNotes.roadmapSkillId],
+    references: [roadmapSkills.id],
+  }),
+
+  user: one(users, {
+    fields: [skillNotes.userId],
+    references: [users.id],
+  }),
+}));

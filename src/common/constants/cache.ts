@@ -30,6 +30,10 @@ export const CACHE_KEYS = {
     get: (userId: string) => `user:${userId}:get`,
   },
   blog: {
+    patternDetail: (postId: string) => `blog:${postId}:*`,
+    get: (postId: string) => `blog:${postId}:get`,
+    getPostBaseById: (postId: string) => `blog:${postId}:getPostBaseById`,
+    getPostBaseBySlug: (slug: string) => `blog:slug:${slug}:getPostBaseBySlug`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
   },
