@@ -180,6 +180,12 @@ export const BlogPostStatusEnum = pgEnum("blog_post_status", [
   "REJECTED",
 ]);
 
+export const BlogPostSourceTypeEnum = pgEnum("blog_post_source_type", [
+  "USER",
+  "AI",
+  "CRAWLED",
+]);
+
 export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
 
 export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);

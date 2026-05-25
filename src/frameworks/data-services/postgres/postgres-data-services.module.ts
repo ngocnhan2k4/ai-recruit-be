@@ -85,7 +85,10 @@ import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.a
 import { BlogRepository } from "./repositories/blog.repository";
 import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
+import { SkillNoteRepository } from "./repositories/skill-note.repository";
+import { ISkillNoteRepository } from "@/core/abstracts";
 import { RedisModule } from "@/frameworks/redis/redis.module";
+import { createLoggerQuery } from "@/common/utils";
 
 @Global()
 @Module({
@@ -107,6 +110,8 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
             connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
           });
+
+          (pool as any).query = createLoggerQuery(pool, { logger });
 
           // Wrap pool để log SQL queries
           const maxRetries = 3;
@@ -305,6 +310,10 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
       provide: ICommentRepository,
       useClass: CommentRepository,
     },
+    {
+      provide: ISkillNoteRepository,
+      useClass: SkillNoteRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -348,6 +357,7 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
     IBlogRepository,
     IUserActionRepository,
     ICommentRepository,
+    ISkillNoteRepository,
   ],
 })
 export class PostgresDataServicesModule {}

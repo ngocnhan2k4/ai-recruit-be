@@ -29,6 +29,9 @@ import {
   RoadmapProgressStatsDto,
   UpdateWeeklyHoursDto,
   WeeklyProgressResponseDto,
+  UpsertSkillNoteDto,
+  SkillNoteDto,
+  SkillNoteForStudyGuideDto,
 } from "@/interfaces/dtos/learning-path";
 import {
   LearningRoadmap,
@@ -230,6 +233,53 @@ export class LearningPathController {
     return await this.learningPathUseCase.getWeeklyProgress(
       roadmapId,
       parseInt(weekNumber, 10),
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/skills/:skillId/note")
+  @ApiOperation({ summary: "Get note for a skill" })
+  async getSkillNote(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("skillId") skillId: string,
+  ): Promise<ApiResponse<SkillNoteDto | null>> {
+    return await this.learningPathUseCase.getSkillNote(
+      roadmapId,
+      skillId,
+      user.userId,
+    );
+  }
+
+  @Put(":roadmapId/skills/:skillId/note")
+  @ApiOperation({ summary: "Create or update note for a skill" })
+  async upsertSkillNote(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("skillId") skillId: string,
+    @Body() dto: UpsertSkillNoteDto,
+  ): Promise<ApiResponse<SkillNoteDto>> {
+    return await this.learningPathUseCase.upsertSkillNote(
+      roadmapId,
+      skillId,
+      user.userId,
+      dto,
+    );
+  }
+
+  @Get(":roadmapId/study-guide")
+  @ApiOperation({
+    summary: "Get all notes for Study Guide export",
+    description:
+      "Returns all non-empty skill notes in this roadmap, ordered by phase and skill, for generating a Study Guide.",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  async getStudyGuideNotes(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+  ): Promise<ApiResponse<SkillNoteForStudyGuideDto[]>> {
+    return await this.learningPathUseCase.getStudyGuideNotes(
+      roadmapId,
       user.userId,
     );
   }

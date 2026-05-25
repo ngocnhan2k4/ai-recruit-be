@@ -6,7 +6,6 @@ from helpers.date import parse_posted_date
 from helpers.extraction import extract_employee_range
 from helpers.http import get_headers, human_delay
 from helpers.province import process_province
-from helpers.skills import extract_skills_from_text
 from helpers.text import html_to_mixed_content, safe_text
 
 
@@ -57,11 +56,6 @@ def linkedin_crawl(
             desc_wrap = soup.select_one("div.show-more-less-html__markup")
             description = html_to_mixed_content(desc_wrap) if desc_wrap else ""
 
-            # Extract skills from description text
-            skills = extract_skills_from_text(
-                desc_wrap.get_text() if desc_wrap else ""
-            )
-
             human_delay(base=3, jitter=2)
 
             # --- Company page ---
@@ -84,7 +78,9 @@ def linkedin_crawl(
                 try:
                     employees_min, employees_max = extract_employee_range(company_size)
                 except Exception as e:
-                    print(f"Could not parse employee range from '{company_size}'. Error: {e}")
+                    print(
+                        f"Could not parse employee range from '{company_size}'. Error: {e}"
+                    )
 
             comp_addr = [safe_text(dd[3])] if len(dd) > 3 else []
 
@@ -106,7 +102,7 @@ def linkedin_crawl(
                 "locations": locations,
                 "job_url": job_url,
                 "date_posted": process,
-                "skills": skills,
+                "skills": [],
                 "crawled_at": datetime.now(timezone.utc),
                 "source": "linkedin",
             }
