@@ -322,6 +322,7 @@ export class AuthUseCases {
     const payload: TokenPayload = {
       userId: user.id,
       roles: user.roles as RoleEnum[],
+      status: user.status as UserStatusEnum,
     };
     const accessToken = this.authService.signJwt(payload);
     const refreshToken = randomBytes(48).toString("hex");
