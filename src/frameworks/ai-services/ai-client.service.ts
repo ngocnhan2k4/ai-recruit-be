@@ -13,7 +13,12 @@ import {
 } from "rxjs";
 import { AxiosError, AxiosResponse } from "axios";
 
-import { OptimizeAtsRequest, OptimizeAtsResponse } from "@/core";
+import {
+  ExtractCvResponse,
+  ExtractCvRequest,
+  OptimizeAtsRequest,
+  OptimizeAtsResponse,
+} from "@/core";
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
@@ -25,6 +30,7 @@ export class AIClientService implements IAIService {
   private readonly aiServiceUrl: string;
   private readonly aiServiceTimeout: number;
   private readonly maxRetries: number;
+  private readonly apiKey: string;
 
   constructor(
     private readonly httpService: HttpService,
@@ -39,6 +45,36 @@ export class AIClientService implements IAIService {
 
     this.maxRetries =
       this.configService.get<number>("AI_SERVICE_MAX_RETRIES") || 3;
+
+    this.apiKey = this.configService.get<string>("AI_API_KEY")!;
+  }
+
+  private formatAxiosErrorMessage(error: AxiosError): string {
+    const errorData = error.response?.data as any;
+
+    if (typeof errorData?.detail === "string") {
+      return errorData.detail;
+    }
+
+    if (Array.isArray(errorData?.detail)) {
+      return errorData.detail
+        .map((err: any) => {
+          if (typeof err === "string") return err;
+          if (err?.msg) return `${err.loc?.join(".") || "field"}: ${err.msg}`;
+          return JSON.stringify(err);
+        })
+        .join("; ");
+    }
+
+    if (typeof errorData?.message === "string" && errorData.message.trim()) {
+      return errorData.message;
+    }
+
+    if (typeof errorData === "string" && errorData.trim()) {
+      return errorData;
+    }
+
+    return error.message || "Unknown error";
   }
 
   generateRoadmap(request: RoadmapGenerateRequest): Observable<MessageEvent> {
@@ -51,7 +87,7 @@ export class AIClientService implements IAIService {
             this.httpService.post(url, request, {
               headers: {
                 "Content-Type": "application/json",
-                "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
+                "X-API-Key": this.apiKey,
               },
               responseType: "stream",
               timeout: this.aiServiceTimeout,
@@ -112,7 +148,7 @@ export class AIClientService implements IAIService {
         .post<OptimizeAtsResponse>(url, request, {
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
+            "X-API-Key": this.apiKey,
           },
         })
         .pipe(
@@ -126,29 +162,7 @@ export class AIClientService implements IAIService {
             resetOnSuccess: true,
           }),
           catchError((error: AxiosError) => {
-            const errorData = error.response?.data as any;
-            let errorMsg: string;
-
-            // Handle different error response formats
-            if (typeof errorData?.detail === "string") {
-              errorMsg = errorData.detail;
-            } else if (Array.isArray(errorData?.detail)) {
-              // FastAPI validation errors return array of objects
-              errorMsg = errorData.detail
-                .map((err: any) => {
-                  if (typeof err === "string") return err;
-                  if (err.msg)
-                    return `${err.loc?.join(".") || "field"}: ${err.msg}`;
-                  return JSON.stringify(err);
-                })
-                .join("; ");
-            } else if (errorData?.message) {
-              errorMsg = errorData.message;
-            } else if (typeof errorData === "string") {
-              errorMsg = errorData;
-            } else {
-              errorMsg = error.message || "Unknown error";
-            }
+            const errorMsg = this.formatAxiosErrorMessage(error);
 
             this.logger.error(
               `AI Service CV optimization failed: ${errorMsg}`,
@@ -181,7 +195,7 @@ export class AIClientService implements IAIService {
         .post<CvFieldSuggestionResponse>(url, request, {
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
+            "X-API-Key": this.apiKey,
           },
         })
         .pipe(
@@ -195,29 +209,7 @@ export class AIClientService implements IAIService {
             resetOnSuccess: true,
           }),
           catchError((error: AxiosError) => {
-            const errorData = error.response?.data as any;
-            let errorMsg: string;
-
-            // Handle different error response formats
-            if (typeof errorData?.detail === "string") {
-              errorMsg = errorData.detail;
-            } else if (Array.isArray(errorData?.detail)) {
-              // FastAPI validation errors
-              errorMsg = errorData.detail
-                .map((err: any) => {
-                  if (typeof err === "string") return err;
-                  if (err.msg)
-                    return `${err.loc?.join(".") || "field"}: ${err.msg}`;
-                  return JSON.stringify(err);
-                })
-                .join("; ");
-            } else if (errorData?.message) {
-              errorMsg = errorData.message;
-            } else if (typeof errorData === "string") {
-              errorMsg = errorData;
-            } else {
-              errorMsg = error.message || "Unknown error";
-            }
+            const errorMsg = this.formatAxiosErrorMessage(error);
 
             this.logger.error(
               `AI Service CV field suggestion failed: ${errorMsg}`,
@@ -232,6 +224,48 @@ export class AIClientService implements IAIService {
             (
               response: AxiosResponse<CvFieldSuggestionResponse>,
             ): CvFieldSuggestionResponse => response.data,
+          ),
+        ),
+    );
+  }
+
+  async extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/extract`;
+
+    return firstValueFrom(
+      this.httpService
+        .post<ExtractCvResponse>(url, request, {
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": this.apiKey,
+          },
+        })
+        .pipe(
+          timeout(this.aiServiceTimeout),
+
+          retry({
+            count: this.maxRetries,
+            delay: (_, retryCount) => {
+              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
+              return new Promise((resolve) => setTimeout(resolve, delayMs));
+            },
+            resetOnSuccess: true,
+          }),
+
+          catchError((error: AxiosError) => {
+            const errorMsg = this.formatAxiosErrorMessage(error);
+
+            this.logger.error(
+              `AI Service CV extraction failed: ${errorMsg}`,
+              error.stack,
+            );
+
+            throw new Error(`AI Service CV extraction failed: ${errorMsg}`);
+          }),
+
+          map(
+            (response: AxiosResponse<ExtractCvResponse>): ExtractCvResponse =>
+              response.data,
           ),
         ),
     );

@@ -20,12 +20,14 @@ export interface PaginatedResult<T> {
   summary?: Record<string, number>;
 }
 
+export type SortDirection = "asc" | "desc";
+
 export interface GeneralQuery {
   limit: number;
   cursor?: string;
   page?: number;
   sortBy?: string;
-  sortDirection?: "asc" | "desc";
+  sortDirection?: SortDirection;
   keyword?: string;
 }
 
