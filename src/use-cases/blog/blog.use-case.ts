@@ -5,11 +5,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PaginatedResult, TokenPayload } from "@/common/types";
-import {
-  CACHE_KEYS,
-  RESPONSE_CODE,
-  RESPONSE_MESSAGE,
-} from "@/common/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { CACHE_KEYS } from "@/common/constants/cache";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
@@ -247,11 +244,110 @@ export class BlogUseCases {
     };
   }
 
-  async getTopBlogs(): Promise<
-    ApiResponse<PaginatedResult<BlogPostListItemDto>>
-  > {
-    await Promise.resolve();
-    const result = [] as any;
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    const cacheKey = CACHE_KEYS.blog.topBlogs();
+    const cached =
+      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
+    if (cached) {
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        data: cached,
+      };
+    }
+
+    const { data } = await this.blogRepository.getPosts({
+      limit: 100,
+      page: 1,
+      status: BlogPostStatus.PUBLISHED,
+    });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+    const now = new Date().getTime();
+
+    const scoredPosts = dataWithTags.map((post) => {
+      const createdAtTime = new Date(post.createdAt).getTime();
+      const ageInHours = Math.max(0, (now - createdAtTime) / (1000 * 60 * 60));
+      const score = post.likes / Math.pow(ageInHours + 2, 1.5);
+      return { post, score };
+    });
+
+    scoredPosts.sort((a, b) => b.score - a.score);
+    const result = scoredPosts.slice(0, 10).map((item) => item.post);
+
+    await this.cacheService.setJson(cacheKey, result, 600000);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async getRelatedPosts(
+    slug: string,
+    limit = 4,
+  ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    const cacheKey = CACHE_KEYS.blog.relatedPosts(slug);
+    const cached =
+      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
+    if (cached) {
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        data: cached,
+      };
+    }
+
+    const currentPost = await this.blogRepository.getPostBaseBySlug(slug);
+
+    if (!currentPost) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const currentTags = await this.blogRepository.getPostTagsByPostId(
+      currentPost.id,
+    );
+    const currentTagNames = new Set(currentTags.map((t) => t.name));
+
+    const { data } = await this.blogRepository.getPosts({
+      limit: 50,
+      page: 1,
+      status: BlogPostStatus.PUBLISHED,
+    });
+
+    const candidates = data.filter((p) => p.slug !== slug);
+    const candidatesWithTags = await this.getBlogsWithTags(candidates);
+
+    const scored = candidatesWithTags.map((post) => {
+      let score = 0;
+
+      if (post.category === currentPost.category) {
+        score += 5;
+      }
+
+      if (post.tags) {
+        for (const tag of post.tags) {
+          if (currentTagNames.has(tag.name)) {
+            score += 2;
+          }
+        }
+      }
+
+      if (post.sourceType === currentPost.sourceType) {
+        score += 1;
+      }
+
+      return { post, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const result = scored.slice(0, limit).map((item) => item.post);
+
+    await this.cacheService.setJson(cacheKey, result, 1800000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,

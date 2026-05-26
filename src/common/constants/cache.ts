@@ -36,5 +36,7 @@ export const CACHE_KEYS = {
     getPostBaseBySlug: (slug: string) => `blog:slug:${slug}:getPostBaseBySlug`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
+    topBlogs: () => `blog:top`,
+    relatedPosts: (slug: string) => `blog:related:${slug}`,
   },
 };

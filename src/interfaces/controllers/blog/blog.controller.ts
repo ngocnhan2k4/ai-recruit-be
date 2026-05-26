@@ -83,9 +83,7 @@ export class BlogController {
     description:
       "Retrieve trending/top blogs, typically sorted by likes or view count",
   })
-  async getTopBlogs(): Promise<
-    ApiResponse<PaginatedResult<BlogPostListItemDto>>
-  > {
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
     return this.blogUseCase.getTopBlogs();
   }
 
@@ -122,6 +120,19 @@ export class BlogController {
     @Body() dto: CommentDto,
   ): Promise<ApiResponse<Comment>> {
     return this.blogUseCase.createComment(user, postId, dto);
+  }
+
+  @Get(":slug/related")
+  @ApiOperation({
+    summary: "Get Related Blog Posts",
+    description:
+      "Retrieve related blog posts for a given slug using Content-Based Similarity Scoring (same category +5, common tags +2 each, same source type +1)",
+  })
+  @ApiParam({ name: "slug", description: "URL-friendly slug of the blog post" })
+  async getRelatedPosts(
+    @Param("slug") slug: string,
+  ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    return this.blogUseCase.getRelatedPosts(slug);
   }
 
   @UseGuards(OptionalJwtAuthGuard)
