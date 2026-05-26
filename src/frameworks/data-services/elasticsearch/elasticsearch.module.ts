@@ -1,9 +1,10 @@
 import { Global, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ElasticsearchService } from "./elasticsearch.service";
-import { IJobSearchService, ISearchService } from "@/core";
+import { ICvSearchService, IJobSearchService, ISearchService } from "@/core";
 import { LoggerServiceModule } from "@/frameworks/logger-services/logger.module";
 import { JobSearchService } from "./domains/jobs/job-search.service";
+import { CvSearchService } from "./domains/cvs/cv-search.service";
 
 @Global()
 @Module({
@@ -17,7 +18,11 @@ import { JobSearchService } from "./domains/jobs/job-search.service";
       provide: IJobSearchService,
       useClass: JobSearchService,
     },
+    {
+      provide: ICvSearchService,
+      useClass: CvSearchService,
+    },
   ],
-  exports: [ISearchService, IJobSearchService],
+  exports: [ISearchService, IJobSearchService, ICvSearchService],
 })
 export class ElasticsearchModule {}

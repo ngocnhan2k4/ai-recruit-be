@@ -82,6 +82,7 @@ import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching
 import { JobMatchingSchedulerModule } from "@/frameworks/schedulers/job-scheduler.module";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.module";
+import { CvSyncUseCaseModule } from "@/use-cases/cv-sync/cv-sync.use-case.module";
 import { OtpModule } from "@/frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
@@ -95,7 +96,8 @@ import { SkillSynonymUseCasesModule } from "@/use-cases/skill-synonym/skill-syno
 import { SkillSynonymController } from "@/interfaces/controllers/skill-synonym/skill-synonym.controller";
 import { DeploymentUseCasesModule } from "@/use-cases/deployment/deployment-use-cases.module";
 import { AdminDeploymentController } from "@/interfaces/controllers/deployment/admin-deployment.controller";
-import { BlogUseCasesModule } from "./use-cases/blog/blog-use-cases.module";
+import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv-sync.controller";
+import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 
 @Module({
@@ -160,6 +162,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
     JobMatchingSchedulerModule,
     ElasticsearchModule,
     JobSyncUseCaseModule,
+    CvSyncUseCaseModule,
     OtpModule,
     OtpStorageModule,
     AiCvUseCasesModule,
@@ -197,6 +200,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
     FeedbackAdminController,
     LearningPathController,
     AdminJobSyncController,
+    AdminCvSyncController,
     AdminExamController,
     ExamController,
     AiCvController,

@@ -40,6 +40,7 @@ import {
 } from "@/frameworks/data-services/postgres/models";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { SchoolTypeEnum } from "./enum.entity";
+import { OptimizedCvData } from "./ai-cv.entity";
 import {
   blogPosts,
   blogPostTags,
@@ -57,6 +58,7 @@ export * from "./feedback.entity";
 export * from "./skill.entity";
 export * from "./subscription.entity";
 export * from "./email.entity";
+export * from "./cv.entity";
 export * from "./comment.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
@@ -100,8 +102,12 @@ export type SkillSynonym = InferSelectModel<typeof skillsSynonyms>;
 export type NewCv = InferInsertModel<typeof cvs>;
 export type Cv = InferSelectModel<typeof cvs>;
 
-export type NewAiCv = InferInsertModel<typeof aiCvs>;
-export type AiCv = InferSelectModel<typeof aiCvs>;
+export type NewAiCv = InferInsertModel<typeof aiCvs> & {
+  cvData?: OptimizedCvData;
+};
+export type AiCv = InferSelectModel<typeof aiCvs> & {
+  cvData: OptimizedCvData;
+};
 
 export type NewUserOnboarding = InferInsertModel<typeof userOnboardings>;
 export type UserOnboarding = InferSelectModel<typeof userOnboardings>;

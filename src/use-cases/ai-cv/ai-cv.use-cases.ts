@@ -15,6 +15,8 @@ import {
   NotificationType,
   TaskTypeEnum,
   TaskStatusEnum,
+  IFeatureService,
+  OptimizedCvData,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -24,20 +26,17 @@ import {
   OptimizeAtsUploadDto,
   AiCvDto,
   AiCvListResponseDto,
-  AiCvRequestDto,
   OptimizedCvDataDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos";
 import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
-import { FeatureService } from "@/services";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
@@ -45,10 +44,10 @@ import puppeteer from "puppeteer-core";
 export class AiCvUseCases {
   private readonly logger = new Logger(AiCvUseCases.name);
   constructor(
-    @Inject(IAiCvRepository) private readonly aiCvRepository: IAiCvRepository,
-    @Inject(IAIService) private readonly aiService: IAIService,
+    private readonly aiCvRepository: IAiCvRepository,
+    private readonly aiService: IAIService,
     private readonly userRepository: IUserRepository,
-    private readonly featureService: FeatureService,
+    private readonly featureService: IFeatureService,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
@@ -283,35 +282,35 @@ export class AiCvUseCases {
     };
   }
 
-  async createAiCv(
-    userId: string,
-    createAiCvDto: AiCvRequestDto,
-  ): Promise<ApiResponse<AiCvDto>> {
-    const aiCvData: NewAiCv = {
-      ...createAiCvDto,
-      userId: userId,
-      isFavorite: createAiCvDto.isFavorite ?? false,
-      language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
-      template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
-    };
+  // async createAiCv(
+  //   userId: string,
+  //   createAiCvDto: AiCvRequestDto,
+  // ): Promise<ApiResponse<AiCvDto>> {
+  //   const aiCvData: NewAiCv = {
+  //     ...createAiCvDto,
+  //     userId: userId,
+  //     isFavorite: createAiCvDto.isFavorite ?? false,
+  //     language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
+  //     template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
+  //   };
 
-    const newAiCv = await this.aiCvRepository.create(aiCvData);
+  //   const newAiCv = await this.aiCvRepository.create(aiCvData);
 
-    const transformedAiCv: AiCvDto = {
-      ...newAiCv,
-      cvData: newAiCv.cvData as OptimizedCvDataDto,
-      language: newAiCv.language as CvLanguageEnum,
-      template: newAiCv.template as CvTemplateEnum,
-      createdAt: new Date(newAiCv.createdAt),
-      updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
-    };
+  //   const transformedAiCv: AiCvDto = {
+  //     ...newAiCv,
+  //     cvData: newAiCv.cvData as OptimizedCvDataDto,
+  //     language: newAiCv.language as CvLanguageEnum,
+  //     template: newAiCv.template as CvTemplateEnum,
+  //     createdAt: new Date(newAiCv.createdAt),
+  //     updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
+  //   };
 
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: transformedAiCv,
-    };
-  }
+  //   return {
+  //     message: RESPONSE_MESSAGE.SUCCESS,
+  //     code: RESPONSE_CODE.SUCCESS,
+  //     data: transformedAiCv,
+  //   };
+  // }
 
   async updateAiCv(
     userId: string,
@@ -329,6 +328,7 @@ export class AiCvUseCases {
     const updateData: Partial<NewAiCv> = {
       ...updateAiCvDto,
       updatedAt: new Date(),
+      cvData: updateAiCvDto?.cvData as OptimizedCvData | undefined,
     };
 
     const updatedRows = await this.aiCvRepository.update(
@@ -513,10 +513,16 @@ export class AiCvUseCases {
 
     await retry(
       async () => {
-        await this.messageQueueService.addTask(TaskTypeEnum.CV_GENERATION, {
-          taskId: result.task.id,
-          notificationId: result.notification.id,
-        });
+        await this.messageQueueService.addTask(
+          TaskTypeEnum.CV_GENERATION,
+          {
+            taskId: result.task.id,
+            notificationId: result.notification.id,
+          },
+          {
+            jobId: `task-async-${result.task.id}`,
+          },
+        );
         this.logger.log(
           `CV generation task added to message queue: ${result.task.id}`,
         );

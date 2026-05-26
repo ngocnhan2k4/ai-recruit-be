@@ -68,3 +68,36 @@ export const cacheWithDedup = async <T>(
 
   return pendingFetches.get(key);
 };
+
+export const mapWithConcurrency = async <T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  options: { concurrency?: number; continueOnError?: boolean } = {},
+): Promise<R[]> => {
+  const { concurrency = 10, continueOnError = false } = options;
+  const workerCount = Math.min(concurrency, items.length);
+
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const currentIndex = index++;
+      if (currentIndex >= items.length) break;
+
+      try {
+        results[currentIndex] = await fn(items[currentIndex]);
+      } catch (error) {
+        console.error(
+          `Error executing function for item ${currentIndex}:`,
+          error,
+        );
+        if (!continueOnError) throw error;
+        results[currentIndex] = error as R;
+      }
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+};

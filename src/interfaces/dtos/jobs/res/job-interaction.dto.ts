@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { JobAnswerDto } from "../req/job-interaction.dto";
+import { ApplyStatusEnum } from "@/core";
 
 export class ApplyJobResponseDto {
   @ApiProperty({
@@ -18,7 +19,7 @@ export class ApplyJobResponseDto {
     example: "pending",
     description: "Application status",
   })
-  status: string;
+  status: ApplyStatusEnum;
 
   @ApiProperty({
     type: [JobAnswerDto],
@@ -55,14 +56,6 @@ export class ApplyJobResponseDto {
   matchingScore?: number | string | null;
 
   @ApiProperty({
-    description: "Rank of the application within the job",
-    required: false,
-    nullable: true,
-    example: 1,
-  })
-  matchingRank?: number | null;
-
-  @ApiProperty({
     description: "Breakdown of why the CV matches the job",
     required: false,
     nullable: true,
@@ -87,6 +80,7 @@ export class ApplyJobResponseDto {
     email: string | null;
     name: string;
     avatarUrl: string | null;
+    username: string | null;
   };
 
   @ApiProperty({
