@@ -22,6 +22,9 @@ export const feedbacks = pgTable(
     email: varchar("email", { length: 255 }),
     subject: varchar("subject", { length: 500 }).notNull(),
     message: text("message").notNull(),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
 
     images: text("images").array(),
 

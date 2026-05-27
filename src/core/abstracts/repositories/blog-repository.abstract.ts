@@ -12,7 +12,10 @@ import { IGenericRepository } from "./generic-repository.abstract";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
-  abstract getCategories(): Promise<BlogCategoryItem[]>;
+  abstract getCategories(
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<BlogCategoryItem[]>;
 
   abstract getMergedTags(filters: {
     limit: number;
@@ -22,18 +25,26 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
 
   abstract getPosts(
     filters: BlogPostFilters,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
   abstract getMyBlogs(
     authorId: string,
     filters: BlogPostFilters,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
   abstract getPostsTags(
     postIds: string[],
   ): Promise<Record<string, BlogPostTagItem[]>>;
 
-  abstract getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null>;
+  abstract getPostBaseBySlug(
+    slug: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<BlogPostDetailBase | null>;
 
   abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;
 

@@ -76,6 +76,7 @@ export class FeedbackRepository
           email: feedbacks.email,
           message: feedbacks.message,
           subject: feedbacks.subject,
+          languageCode: feedbacks.languageCode,
           images: feedbacks.images,
           status: feedbacks.status,
           assignedToUserId: feedbacks.assignedToUserId,

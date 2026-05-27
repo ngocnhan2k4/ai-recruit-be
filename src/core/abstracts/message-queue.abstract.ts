@@ -13,4 +13,9 @@ export abstract class IMessageQueueService {
    * Add an item to the email queue.
    */
   abstract addEmail(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Add an item to the translation queue.
+   */
+  abstract addTranslation(name: string, data: any, opts?: any): Promise<void>;
 }

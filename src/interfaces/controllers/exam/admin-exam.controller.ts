@@ -11,6 +11,7 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  Headers,
 } from "@nestjs/common";
 import {
   ApiOperation,
@@ -23,6 +24,7 @@ import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
 import {
   CreateQuestionDto,
   UpdateQuestionDto,
+  UpdateQuestionTranslationDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
   QuerySkillQuestionsDto,
@@ -48,11 +50,15 @@ export class AdminExamController {
   async getAvailableQuestionsForSkill(
     @Param("skillId") skillId: string,
     @Query() query: QueryAvailableQuestionsDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.getQuestions({
-      ...query,
-      excludeSkillId: skillId,
-    });
+    return this.examUseCases.getQuestions(
+      {
+        ...query,
+        excludeSkillId: skillId,
+      },
+      acceptLanguage,
+    );
   }
 
   @ApiOperation({
@@ -63,8 +69,12 @@ export class AdminExamController {
   async getSkillQuestions(
     @Param("skillId") skillId: string,
     @Query() query: QuerySkillQuestionsDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.getQuestions({ ...query, skillId });
+    return this.examUseCases.getQuestions(
+      { ...query, skillId },
+      acceptLanguage,
+    );
   }
 
   @ApiOperation({
@@ -88,8 +98,11 @@ export class AdminExamController {
       "Create a question with skillId and 1-3 difficulty levels. No area required.",
   })
   @Post("questions")
-  async createQuestion(@Body() dto: CreateQuestionDto) {
-    return this.examUseCases.createQuestion(dto);
+  async createQuestion(
+    @Body() dto: CreateQuestionDto,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.examUseCases.createQuestion(dto, acceptLanguage);
   }
 
   @ApiOperation({
@@ -100,8 +113,9 @@ export class AdminExamController {
   async updateQuestion(
     @Param("id") id: string,
     @Body() dto: UpdateQuestionDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.updateQuestion(id, dto);
+    return this.examUseCases.updateQuestion(id, dto, acceptLanguage);
   }
 
   @ApiOperation({ summary: "Delete a question" })
@@ -125,14 +139,47 @@ export class AdminExamController {
       "Filter by skillId, difficultyLevels, and active status. No area filter.",
   })
   @Get("questions")
-  async getQuestions(@Query() query: QueryQuestionsDto) {
-    return this.examUseCases.getQuestions(query);
+  async getQuestions(
+    @Query() query: QueryQuestionsDto,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.examUseCases.getQuestions(query, acceptLanguage);
   }
 
   @ApiOperation({ summary: "Get question by ID" })
   @Get("questions/:id")
-  async getQuestionById(@Param("id") id: string) {
-    return this.examUseCases.getQuestionById(id);
+  async getQuestionById(
+    @Param("id") id: string,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.examUseCases.getQuestionById(id, acceptLanguage);
+  }
+
+  @ApiOperation({
+    summary: "Get question translation by language",
+    description:
+      "Fetch only the editable translated text for a question without changing canonical answer-key mapping.",
+  })
+  @Get("questions/:id/translations/:languageCode")
+  async getQuestionTranslation(
+    @Param("id") id: string,
+    @Param("languageCode") languageCode: string,
+  ) {
+    return this.examUseCases.getQuestionTranslation(id, languageCode);
+  }
+
+  @ApiOperation({
+    summary: "Update question translation by language",
+    description:
+      "Manually edit translated question text and translated options only. Correct answer mapping stays locked to the base question key.",
+  })
+  @Put("questions/:id/translations/:languageCode")
+  async updateQuestionTranslation(
+    @Param("id") id: string,
+    @Param("languageCode") languageCode: string,
+    @Body() dto: UpdateQuestionTranslationDto,
+  ) {
+    return this.examUseCases.updateQuestionTranslation(id, languageCode, dto);
   }
 
   // ==================== QUESTION IMPORT ====================
@@ -145,13 +192,16 @@ export class AdminExamController {
   @ApiConsumes("multipart/form-data")
   @Post("questions/import/csv")
   @UseInterceptors(FileInterceptor("file"))
-  async importQuestionsCSV(@UploadedFile() file: Express.Multer.File) {
+  async importQuestionsCSV(
+    @UploadedFile() file: Express.Multer.File,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
     if (!file) {
       throw new BadRequestException("File is required");
     }
 
     const fileContent = file.buffer.toString("utf-8");
-    return this.examUseCases.importQuestionsCSV(fileContent);
+    return this.examUseCases.importQuestionsCSV(fileContent, acceptLanguage);
   }
 
   @ApiOperation({
@@ -160,7 +210,10 @@ export class AdminExamController {
       "Import questions with skillId and difficultyLevels array. No area required.",
   })
   @Post("questions/import/json")
-  async importQuestionsJSON(@Body() body: { data: any[]; fileName: string }) {
-    return this.examUseCases.importQuestionsJSON(body.data);
+  async importQuestionsJSON(
+    @Body() body: { data: any[]; fileName: string },
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.examUseCases.importQuestionsJSON(body.data, acceptLanguage);
   }
 }

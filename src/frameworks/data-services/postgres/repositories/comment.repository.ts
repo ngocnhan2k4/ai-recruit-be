@@ -57,6 +57,7 @@ export class CommentRepository
       .select({
         id: comments.id,
         content: comments.content,
+        languageCode: comments.languageCode,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
         objectId: comments.objectId,

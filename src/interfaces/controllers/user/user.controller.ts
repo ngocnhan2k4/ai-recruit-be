@@ -12,6 +12,8 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
+  Query,
   Param,
   ParseIntPipe,
   ParseEnumPipe,
@@ -190,10 +192,12 @@ export class UserController {
   async updateProfile(
     @GetUser() user: TokenPayload,
     @Body() updateUserDto: UpdateUserRequestDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<void>> {
     return await this.userUseCases.updateUserProfile(
       user.userId,
       updateUserDto,
+      acceptLanguage,
     );
   }
 
@@ -202,8 +206,13 @@ export class UserController {
   @Get("user-experiences/:username")
   async getUserExperience(
     @Param("username") username: string,
+    @Query("lang") lang?: string,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
-    return this.userUseCases.getUserExperiences(username);
+    return this.userUseCases.getUserExperiences(
+      username,
+      lang || acceptLanguage,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -214,10 +223,12 @@ export class UserController {
   async createUserExperience(
     @GetUser() user: TokenPayload,
     @Body() createUserExperienceDto: CreateUserExperienceRequestDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<number>> {
     return this.userUseCases.createUserExperience(
       user.userId,
       createUserExperienceDto,
+      acceptLanguage,
     );
   }
 
@@ -231,11 +242,13 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Param("id", ParseIntPipe) id: number,
     @Body() updateUserExperienceDto: CreateUserExperienceRequestDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<number>> {
     return this.userUseCases.updateUserExperience(
       user.userId,
       id,
       updateUserExperienceDto,
+      acceptLanguage,
     );
   }
 
@@ -344,10 +357,12 @@ export class UserController {
   async completeUserOnboarding(
     @GetUser() user: TokenPayload,
     @Body() userOnboardingDto: UserOnboardingDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<void>> {
     return await this.userUseCases.completeUserOnboarding(
       userOnboardingDto,
       user.userId,
+      acceptLanguage,
     );
   }
 
@@ -357,8 +372,13 @@ export class UserController {
   @Get("/me/education")
   async getUserEducation(
     @GetUser() user: TokenPayload,
+    @Query("lang") lang?: string,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    return this.userUseCases.getUserEducations(user.userId);
+    return this.userUseCases.getUserEducations(
+      user.userId,
+      lang || acceptLanguage,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -370,10 +390,12 @@ export class UserController {
   async createUserEducation(
     @GetUser() user: TokenPayload,
     @Body() createUserEducationDto: CreateUserEducationDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
     return this.userUseCases.createUserEducation(
       user.userId,
       createUserEducationDto,
+      acceptLanguage,
     );
   }
 
@@ -387,11 +409,13 @@ export class UserController {
     @GetUser() user: TokenPayload,
     @Param("educationId") id: string,
     @Body() updateUserEducation: UpdateUserEducationDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
     return this.userUseCases.updateUserEducation(
       user.userId,
       id,
       updateUserEducation,
+      acceptLanguage,
     );
   }
 

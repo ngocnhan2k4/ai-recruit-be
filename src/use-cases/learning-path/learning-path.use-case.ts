@@ -36,7 +36,13 @@ import {
   TaskTypeEnum,
   TaskStatusEnum,
 } from "@/core";
-import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
+import {
+  DEFAULT_LANGUAGE_CODE,
+  getCurrentWeekNumber,
+  JitterBackoff,
+  normalizeLanguageCode,
+  retry,
+} from "@/common/utils";
 import { FeatureService } from "@/services";
 
 @Injectable()
@@ -281,11 +287,16 @@ export class LearningPathUseCase {
   async getRoadmapDetails(
     roadmapId: string,
     userId: string,
+    requestLanguage?: string,
   ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
     this.logger.log(`Fetching roadmap details: ${roadmapId}`);
+    const languageCode = normalizeLanguageCode(requestLanguage);
 
-    const roadmap =
-      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
+    const roadmap = await this.roadmapRepository.getRoadmapWithDetails(
+      roadmapId,
+      languageCode,
+      DEFAULT_LANGUAGE_CODE,
+    );
 
     if (!roadmap) {
       throw new NotFoundException({

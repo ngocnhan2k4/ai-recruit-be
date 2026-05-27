@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { IQuestionRepository, ISkillRepository, Question } from "@/core";
 import { ImportResultDto } from "@/interfaces/dtos/exam";
+import {
+  TranslationJobType,
+  TRANSLATION_SUPPORTED_LANGUAGES,
+} from "@/common/constants";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { normalizeLanguageCode } from "@/common/utils";
 
 export interface ImportRow {
   skill?: string;
@@ -16,9 +22,13 @@ export class QuestionImportService {
   constructor(
     private readonly questionRepo: IQuestionRepository,
     private readonly skillRepo: ISkillRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
-  async importFromCSV(fileContent: string): Promise<ImportResultDto> {
+  async importFromCSV(
+    fileContent: string,
+    requestLanguage?: string,
+  ): Promise<ImportResultDto> {
     const lines = fileContent.split("\n").filter((line) => line.trim());
     const headers = lines[0].split(",").map((h) => h.trim());
 
@@ -32,14 +42,20 @@ export class QuestionImportService {
       rows.push(row as ImportRow);
     }
 
-    return await this.processImport(rows);
+    return await this.processImport(rows, requestLanguage);
   }
 
-  async importFromJSON(data: ImportRow[]): Promise<ImportResultDto> {
-    return await this.processImport(data);
+  async importFromJSON(
+    data: ImportRow[],
+    requestLanguage?: string,
+  ): Promise<ImportResultDto> {
+    return await this.processImport(data, requestLanguage);
   }
 
-  private async processImport(rows: ImportRow[]): Promise<ImportResultDto> {
+  private async processImport(
+    rows: ImportRow[],
+    requestLanguage?: string,
+  ): Promise<ImportResultDto> {
     const errors: string[] = [];
     const validQuestions: Partial<Question>[] = [];
     let successCount = 0;
@@ -90,6 +106,15 @@ export class QuestionImportService {
           errors.push(`Row ${rowNum}: correctAnswer not found in options`);
           continue;
         }
+        const correctAnswerIndex = options.findIndex(
+          (option) => option === row.correctAnswer,
+        );
+        if (correctAnswerIndex < 0) {
+          errors.push(`Row ${rowNum}: unable to determine correct answer key`);
+          continue;
+        }
+
+        const optionKeys = options.map((_, index) => String(index));
 
         // Parse and validate difficultyLevels
         let difficultyLevels: string[];
@@ -157,6 +182,8 @@ export class QuestionImportService {
           questionText: row.questionText,
           options,
           correctAnswer: row.correctAnswer,
+          optionKeys,
+          correctAnswerKey: String(correctAnswerIndex),
           difficultyLevels: difficultyLevels as (
             | "easy"
             | "medium"
@@ -174,7 +201,26 @@ export class QuestionImportService {
 
     // Bulk insert valid questions
     if (validQuestions.length > 0) {
-      await this.questionRepo.createMany(validQuestions);
+      const sourceLanguage = normalizeLanguageCode(requestLanguage);
+      const targetLanguages = TRANSLATION_SUPPORTED_LANGUAGES.filter(
+        (language) => language !== sourceLanguage,
+      );
+      const createdQuestions =
+        await this.questionRepo.createMany(validQuestions);
+      if (targetLanguages.length) {
+        await Promise.all(
+          createdQuestions.map((question) =>
+            this.messageQueueService.addTranslation(
+              TranslationJobType.QUESTION,
+              {
+                questionId: question.id,
+                sourceLanguage,
+                targetLanguages,
+              },
+            ),
+          ),
+        );
+      }
     }
 
     return {

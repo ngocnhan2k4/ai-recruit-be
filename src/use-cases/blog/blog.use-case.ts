@@ -9,10 +9,13 @@ import {
   CACHE_KEYS,
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
+  TranslationJobType,
+  TRANSLATION_SUPPORTED_LANGUAGES,
 } from "@/common/constants";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { IUserActionRepository } from "@/core/abstracts/repositories/user-action-repository.abstract";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogPostDto,
@@ -36,6 +39,7 @@ import {
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
+import { DEFAULT_LANGUAGE_CODE, normalizeLanguageCode } from "@/common/utils";
 
 @Injectable()
 export class BlogUseCases {
@@ -45,12 +49,39 @@ export class BlogUseCases {
     private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
     private readonly cacheService: ICacheService,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
+
+  private resolveTranslationTargets(sourceLanguage: string) {
+    return TRANSLATION_SUPPORTED_LANGUAGES.filter(
+      (language) => language !== sourceLanguage,
+    );
+  }
+
+  private async enqueueBlogPostTranslation(
+    postId: string,
+    sourceLanguage: string,
+  ) {
+    const targetLanguages = this.resolveTranslationTargets(sourceLanguage);
+    if (!targetLanguages.length) {
+      return;
+    }
+
+    await this.messageQueueService.addTranslation(
+      TranslationJobType.BLOG_POST,
+      {
+        postId,
+        sourceLanguage,
+        targetLanguages,
+      },
+    );
+  }
 
   async createComment(
     user: TokenPayload,
     postId: string,
     dto: CreateBlogCommentDto,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<Comment>> {
     const post = await this.blogRepository.get(postId);
 
@@ -67,6 +98,7 @@ export class BlogUseCases {
       objectId: post.id,
       objectType: ObjectType.BLOG,
       authorId: user.userId,
+      languageCode: normalizeLanguageCode(acceptLanguage),
     });
 
     return {
@@ -78,17 +110,23 @@ export class BlogUseCases {
 
   async getBlogs(
     query: QueryBlogsDto,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const languageCode = normalizeLanguageCode(acceptLanguage);
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
-    const { data, pagination } = await this.blogRepository.getPosts({
-      ...query,
-      limit,
-      page,
-      keyword: query.keyword,
-      category: query.category,
-      status: BlogPostStatus.PUBLISHED,
-    });
+    const { data, pagination } = await this.blogRepository.getPosts(
+      {
+        ...query,
+        limit,
+        page,
+        keyword: query.keyword,
+        category: query.category,
+        status: BlogPostStatus.PUBLISHED,
+      },
+      languageCode,
+      DEFAULT_LANGUAGE_CODE,
+    );
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
@@ -105,16 +143,23 @@ export class BlogUseCases {
   async getMyBlogs(
     userId: string,
     query: QueryBlogsDto,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const languageCode = normalizeLanguageCode(acceptLanguage);
     const limit = Math.min(query.limit ?? 10, 50);
     const page = Math.max(query.page ?? 1, 1);
-    const { data, pagination } = await this.blogRepository.getMyBlogs(userId, {
-      ...query,
-      limit,
-      page,
-      keyword: query.keyword,
-      category: query.category,
-    });
+    const { data, pagination } = await this.blogRepository.getMyBlogs(
+      userId,
+      {
+        ...query,
+        limit,
+        page,
+        keyword: query.keyword,
+        category: query.category,
+      },
+      languageCode,
+      DEFAULT_LANGUAGE_CODE,
+    );
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
@@ -161,8 +206,12 @@ export class BlogUseCases {
     };
   }
 
-  async getCategories(): Promise<ApiResponse<any>> {
-    const categories = await this.blogRepository.getCategories();
+  async getCategories(acceptLanguage?: string): Promise<ApiResponse<any>> {
+    const languageCode = normalizeLanguageCode(acceptLanguage);
+    const categories = await this.blogRepository.getCategories(
+      languageCode,
+      DEFAULT_LANGUAGE_CODE,
+    );
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -195,8 +244,14 @@ export class BlogUseCases {
   async getBlogBySlug(
     slug: string,
     userId?: string,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<any>> {
-    const post = await this.blogRepository.getPostBaseBySlug(slug);
+    const languageCode = normalizeLanguageCode(acceptLanguage);
+    const post = await this.blogRepository.getPostBaseBySlug(
+      slug,
+      languageCode,
+      DEFAULT_LANGUAGE_CODE,
+    );
 
     if (!post) {
       throw new NotFoundException({
@@ -243,11 +298,14 @@ export class BlogUseCases {
   async createPost(
     user: TokenPayload,
     dto: CreateBlogPostDto,
+    acceptLanguage?: string,
   ): Promise<
     ApiResponse<{
       slug: string;
     }>
   > {
+    const sourceLanguage = normalizeLanguageCode(acceptLanguage);
+
     if (dto.postId) {
       const existing = await this.blogRepository.get(dto.postId);
 
@@ -313,6 +371,8 @@ export class BlogUseCases {
         },
       );
 
+      await this.enqueueBlogPostTranslation(published.id, sourceLanguage);
+
       return {
         code: RESPONSE_CODE.CREATED,
         message: RESPONSE_MESSAGE.CREATED,
@@ -340,6 +400,8 @@ export class BlogUseCases {
       },
     );
 
+    await this.enqueueBlogPostTranslation(result.id, sourceLanguage);
+
     return {
       code: RESPONSE_CODE.CREATED,
       message: RESPONSE_MESSAGE.CREATED,
@@ -351,7 +413,9 @@ export class BlogUseCases {
     user: TokenPayload,
     dto: SaveDraftBlogPostDto,
     postId?: string,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
+    const sourceLanguage = normalizeLanguageCode(acceptLanguage);
     const result = await this.blogRepository.executeWithTransaction(
       async (tx) => {
         return this.blogRepository.saveDraft(
@@ -370,6 +434,8 @@ export class BlogUseCases {
       },
     );
 
+    await this.enqueueBlogPostTranslation(result.id, sourceLanguage);
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -381,7 +447,9 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
     dto: UpdateBlogPostDto,
+    acceptLanguage?: string,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
+    const sourceLanguage = normalizeLanguageCode(acceptLanguage);
     const updated = await this.blogRepository.executeWithTransaction(
       async (tx) => {
         await this.blogService.checkIsAuthor(postId, user.userId);
@@ -411,6 +479,8 @@ export class BlogUseCases {
         return rows[0];
       },
     );
+
+    await this.enqueueBlogPostTranslation(postId, sourceLanguage);
 
     return {
       code: RESPONSE_CODE.SUCCESS,

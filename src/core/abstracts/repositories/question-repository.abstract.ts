@@ -9,6 +9,17 @@ export interface QuestionFilters {
   excludeSkillId?: string;
   difficultyLevels?: string[];
   isActive?: boolean;
+  requestLanguage?: string;
+  fallbackLanguage?: string;
+}
+
+export interface QuestionTranslationRecord {
+  id: string;
+  questionId: string;
+  languageCode: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
 }
 
 export abstract class IQuestionRepository extends IGenericRepository<Question> {
@@ -19,9 +30,37 @@ export abstract class IQuestionRepository extends IGenericRepository<Question> {
   abstract getActiveQuestionsBySkills(
     skillIds: string[],
     difficultyLevels?: string[],
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<Question[]>;
 
   abstract createMany(questions: Partial<Question>[]): Promise<Question[]>;
 
   abstract toggleActive(id: string, isActive: boolean): Promise<Question>;
+
+  abstract getQuestionByIdWithLanguage(
+    id: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<Question | null>;
+
+  abstract getQuestionsByIdsWithLanguage(
+    ids: string[],
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<Question[]>;
+
+  abstract getQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+  ): Promise<QuestionTranslationRecord | null>;
+
+  abstract upsertQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+    data: Pick<
+      QuestionTranslationRecord,
+      "questionText" | "options" | "correctAnswer"
+    >,
+  ): Promise<QuestionTranslationRecord>;
 }

@@ -3,6 +3,7 @@ import { BlogPostAuthor } from "./blog.entity";
 export interface Comment {
   id: string;
   content: string;
+  languageCode: string;
   authorId: string;
   parentCommentId: string | null;
   objectId: string;
@@ -13,10 +14,12 @@ export interface Comment {
 export interface CommentWithAuthor extends Comment {
   author: BlogPostAuthor;
   childCount: number;
+  canTranslate?: boolean;
 }
 
 export interface NewComment {
   content: string;
+  languageCode?: string;
   authorId: string;
   parentCommentId?: string | null;
   objectId: string;

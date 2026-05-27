@@ -13,6 +13,8 @@ export abstract class ILearningRoadmapRepository extends IGenericRepository<Lear
 
   abstract getRoadmapWithDetails(
     roadmapId: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<LearningRoadmapWithDetails | null>;
 
   abstract getProgressStats(roadmapId: string): Promise<RoadmapProgressStats>;

@@ -20,3 +20,4 @@ export * from "./category";
 export * from "./upload";
 export * from "./subscription";
 export * from "./skill-synonym";
+export * from "./translation";

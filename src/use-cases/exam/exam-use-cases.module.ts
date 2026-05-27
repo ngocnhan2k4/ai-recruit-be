@@ -5,8 +5,10 @@ import {
   QuestionRandomizerService,
   ExamScoringService,
 } from "./services";
+import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 
 @Module({
+  imports: [MessageQueueModule],
   providers: [
     ExamUseCases,
     QuestionImportService,

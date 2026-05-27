@@ -1,4 +1,11 @@
-import { index, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { timestamps } from "./helpers";
 import { ActionTypeEnum, ObjectTypeEnum } from "./enums";
@@ -16,6 +23,9 @@ export const comments = pgTable(
     }),
     objectId: uuid("object_id").notNull(),
     objectType: ObjectTypeEnum("object_type").notNull(),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
     ...timestamps,
   },
   (table) => [

@@ -65,6 +65,7 @@ import { addDays } from "date-fns";
 import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
+import { normalizeLanguageCode, DEFAULT_LANGUAGE_CODE } from "@/common/utils";
 import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
@@ -424,6 +425,7 @@ export class UserUseCases implements OnModuleInit {
   async updateUserProfile(
     userId: string,
     updateUserDto: UpdateUserRequestDto,
+    requestLanguage?: string,
   ): Promise<ApiResponse<void>> {
     const user = await this.userRepository.get(userId);
     if (!user) {
@@ -502,6 +504,7 @@ export class UserUseCases implements OnModuleInit {
         if (skills !== undefined) {
           preferencesUpdate.skills = skills;
         }
+        preferencesUpdate.languageCode = normalizeLanguageCode(requestLanguage);
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
@@ -538,10 +541,14 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserExperiences(
     username: string,
+    requestLanguage?: string,
   ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
+    const lang = normalizeLanguageCode(requestLanguage);
     const userExperiences =
       await this.userExperienceRepository.getUserExperiencesByUsername(
         username,
+        lang,
+        DEFAULT_LANGUAGE_CODE,
       );
     if (!userExperiences) {
       throw new NotFoundException({
@@ -578,11 +585,15 @@ export class UserUseCases implements OnModuleInit {
   async createUserExperience(
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
+    requestLanguage?: string,
   ): Promise<ApiResponse<number>> {
+    const languageCode = normalizeLanguageCode(
+      createUserExperienceDto.languageCode || requestLanguage,
+    );
     const result =
       await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
         userId,
-        createUserExperienceDto,
+        { ...createUserExperienceDto, languageCode },
       );
     if (!result) {
       throw new NotFoundException({
@@ -601,12 +612,16 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
+    requestLanguage?: string,
   ): Promise<ApiResponse<number>> {
+    const languageCode = normalizeLanguageCode(
+      updateUserExperienceDto.languageCode || requestLanguage,
+    );
     const result =
       await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-        updateUserExperienceDto,
+        { ...updateUserExperienceDto, languageCode },
       );
 
     if (!result) {
@@ -823,6 +838,7 @@ export class UserUseCases implements OnModuleInit {
   async completeUserOnboarding(
     userOnboarding: UserOnboardingDto,
     userId: string,
+    requestLanguage?: string,
   ): Promise<ApiResponse<void>> {
     const onboarding: Partial<
       Omit<UserOnboardingDto, "name" | "gender" | "dob">
@@ -832,6 +848,7 @@ export class UserUseCases implements OnModuleInit {
     const newOnboarding = {
       ...onboarding,
       userId,
+      languageCode: normalizeLanguageCode(requestLanguage),
     } as Partial<UserOnboarding>;
 
     const user = await this.userRepository.get(userId);
@@ -970,10 +987,19 @@ export class UserUseCases implements OnModuleInit {
 
   async getUserEducations(
     userId: string,
+    requestLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    const userEducations = await this.userEducationRepository.getByField({
+    const lang = normalizeLanguageCode(requestLanguage);
+    let userEducations = await this.userEducationRepository.getByField({
       userId,
+      languageCode: lang,
     });
+    if (!userEducations.length && lang !== DEFAULT_LANGUAGE_CODE) {
+      userEducations = await this.userEducationRepository.getByField({
+        userId,
+        languageCode: DEFAULT_LANGUAGE_CODE,
+      });
+    }
 
     const universities =
       await this.organizationRepository.getOrganizationsByTypes([
@@ -1001,6 +1027,7 @@ export class UserUseCases implements OnModuleInit {
   async createUserEducation(
     userId: string,
     createUserEducationDto: CreateUserEducationDto,
+    requestLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
     const user = await this.userRepository.get(userId);
     if (!user) {
@@ -1024,6 +1051,9 @@ export class UserUseCases implements OnModuleInit {
     const newEducation = await this.userEducationRepository.create({
       ...createUserEducationDto,
       userId,
+      languageCode: normalizeLanguageCode(
+        createUserEducationDto.languageCode || requestLanguage,
+      ),
     });
 
     return {
@@ -1036,6 +1066,7 @@ export class UserUseCases implements OnModuleInit {
         educationLevel: newEducation.educationLevel as EducationLevelEnum,
         major: newEducation.major,
         gpa: newEducation.gpa,
+        languageCode: newEducation.languageCode,
       },
       message: "User education created successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1046,10 +1077,15 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     educationId: string,
     updateUserEducationDto: UpdateUserEducationDto,
+    requestLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const languageCode = normalizeLanguageCode(
+      updateUserEducationDto.languageCode || requestLanguage,
+    );
     const userEducation = await this.userEducationRepository.getByField({
       schoolId: educationId,
       userId,
+      languageCode,
     });
 
     if (!userEducation || userEducation.length === 0) {
@@ -1090,6 +1126,7 @@ export class UserUseCases implements OnModuleInit {
         educationLevel: result.educationLevel as EducationLevelEnum,
         major: result.major,
         gpa: result.gpa,
+        languageCode: result.languageCode,
       },
       message: "User education updated successfully",
       code: RESPONSE_CODE.SUCCESS,

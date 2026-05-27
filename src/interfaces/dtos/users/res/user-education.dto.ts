@@ -27,6 +27,9 @@ export class UserEducationResponseDto {
   @ApiProperty()
   gpa: string | null;
 
+  @ApiProperty()
+  languageCode: string;
+
   public static from(
     entity: UserEducation,
     schoolMap: Record<string, string>,
@@ -41,6 +44,7 @@ export class UserEducationResponseDto {
     dto.educationLevel = entity.educationLevel as EducationLevelEnum | null;
     dto.major = entity.major;
     dto.gpa = entity.gpa;
+    dto.languageCode = entity.languageCode;
     return dto;
   }
 }

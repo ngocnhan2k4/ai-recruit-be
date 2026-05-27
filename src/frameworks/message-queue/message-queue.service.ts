@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { EMAIL_QUEUE, JOB_INDEX_QUEUE, TASK_QUEUE } from "@/common/constants";
+import {
+  EMAIL_QUEUE,
+  JOB_INDEX_QUEUE,
+  TASK_QUEUE,
+  TRANSLATION_QUEUE,
+} from "@/common/constants";
 import { JobsOptions, Queue } from "bullmq";
 import { InjectQueue } from "@nestjs/bullmq";
 @Injectable()
@@ -9,6 +14,7 @@ export class MessageQueueService implements IMessageQueueService {
     @InjectQueue(JOB_INDEX_QUEUE) private readonly queueJob: Queue,
     @InjectQueue(TASK_QUEUE) private readonly queueTask: Queue,
     @InjectQueue(EMAIL_QUEUE) private readonly queueEmail: Queue,
+    @InjectQueue(TRANSLATION_QUEUE) private readonly queueTranslation: Queue,
   ) {}
 
   async addJob(name: string, data: any, opts?: any): Promise<void> {
@@ -41,6 +47,19 @@ export class MessageQueueService implements IMessageQueueService {
     await this.queueEmail.add(name, data, {
       removeOnComplete: true,
       removeOnFail: false,
+      ...opts,
+    } as JobsOptions);
+  }
+
+  async addTranslation(name: string, data: any, opts?: any): Promise<void> {
+    await this.queueTranslation.add(name, data, {
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
       ...opts,
     } as JobsOptions);
   }

@@ -6,6 +6,7 @@ import {
   blogPostTags,
   tags,
 } from "../models/blog.model";
+import { blogCategoriesTranslation, blogPostsTranslation } from "../models";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { type DBDrizzle, type DBDrizzleTransaction } from "../types";
 import {
@@ -39,14 +40,28 @@ export class BlogRepository
     super(db, blogPosts);
   }
 
-  async getCategories(): Promise<{ id: string; name: string }[]> {
-    return this.db
+  async getCategories(
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
+  ): Promise<{ id: string; name: string }[]> {
+    const rows = await this.db
       .select({
         id: blogCategories.id,
         name: blogCategories.name,
       })
       .from(blogCategories)
       .orderBy(asc(blogCategories.name));
+
+    const translatedMap = await this.getCategoryTranslationsMap(
+      rows.map((item) => item.id),
+      requestLanguage,
+      fallbackLanguage,
+    );
+
+    return rows.map((item) => ({
+      ...item,
+      name: translatedMap[item.id]?.name || item.name,
+    }));
   }
 
   async getMergedTags(filters: {
@@ -143,6 +158,118 @@ export class BlogRepository
     return conditions.length ? and(...conditions) : undefined;
   }
 
+  private async getPostTranslationsMap(
+    postIds: string[],
+    requestLanguage: string,
+    fallbackLanguage: string,
+  ) {
+    if (!postIds.length) {
+      return {} as Record<
+        string,
+        { title: string; summary: string; content: string }
+      >;
+    }
+
+    const languagePriority = [requestLanguage, fallbackLanguage].filter(
+      (value, index, array) => value && array.indexOf(value) === index,
+    );
+
+    if (!languagePriority.length) {
+      return {};
+    }
+
+    const rows = await this.db
+      .select({
+        postId: blogPostsTranslation.postId,
+        languageCode: blogPostsTranslation.languageCode,
+        title: blogPostsTranslation.title,
+        summary: blogPostsTranslation.summary,
+        content: blogPostsTranslation.content,
+      })
+      .from(blogPostsTranslation)
+      .where(
+        and(
+          inArray(blogPostsTranslation.postId, postIds),
+          inArray(blogPostsTranslation.languageCode, languagePriority),
+        ),
+      );
+
+    const map: Record<
+      string,
+      { title: string; summary: string; content: string }
+    > = {};
+    for (const id of postIds) {
+      const found = rows.find(
+        (row) => row.postId === id && row.languageCode === languagePriority[0],
+      );
+      const fallback = rows.find(
+        (row) => row.postId === id && row.languageCode === languagePriority[1],
+      );
+
+      map[id] = {
+        title: found?.title || fallback?.title || "",
+        summary: found?.summary || fallback?.summary || "",
+        content: found?.content || fallback?.content || "",
+      };
+    }
+
+    return map;
+  }
+
+  private async getCategoryTranslationsMap(
+    categoryIds: string[],
+    requestLanguage: string,
+    fallbackLanguage: string,
+  ) {
+    if (!categoryIds.length) {
+      return {} as Record<string, { name: string; description: string | null }>;
+    }
+
+    const languagePriority = [requestLanguage, fallbackLanguage].filter(
+      (value, index, array) => value && array.indexOf(value) === index,
+    );
+
+    if (!languagePriority.length) {
+      return {};
+    }
+
+    const rows = await this.db
+      .select({
+        categoryId: blogCategoriesTranslation.categoryId,
+        languageCode: blogCategoriesTranslation.languageCode,
+        name: blogCategoriesTranslation.name,
+        description: blogCategoriesTranslation.description,
+      })
+      .from(blogCategoriesTranslation)
+      .where(
+        and(
+          inArray(blogCategoriesTranslation.categoryId, categoryIds),
+          inArray(blogCategoriesTranslation.languageCode, languagePriority),
+        ),
+      );
+
+    const map: Record<string, { name: string; description: string | null }> =
+      {};
+
+    for (const id of categoryIds) {
+      const found = rows.find(
+        (row) =>
+          row.categoryId === id && row.languageCode === languagePriority[0],
+      );
+      const fallback = rows.find(
+        (row) =>
+          row.categoryId === id && row.languageCode === languagePriority[1],
+      );
+
+      map[id] = {
+        name: found?.name || fallback?.name || "",
+        description: found?.description || fallback?.description || null,
+      };
+    }
+
+    return map;
+  }
+
   async getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]> {
     const _tags = await this.db
       .select({
@@ -165,6 +292,8 @@ export class BlogRepository
 
   async getPosts(
     filters: BlogPostFilters,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
@@ -196,9 +325,18 @@ export class BlogRepository
     const [rows, totalRows] = await Promise.all([rowsQuery, totalQuery]);
 
     const total = Number(totalRows[0]?.total ?? 0);
+    const translatedMap = await this.getPostTranslationsMap(
+      rows.map((item) => item.id),
+      requestLanguage,
+      fallbackLanguage,
+    );
 
     return {
-      data: rows,
+      data: rows.map((item) => ({
+        ...item,
+        title: translatedMap[item.id]?.title || item.title,
+        summary: translatedMap[item.id]?.summary || item.summary,
+      })),
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -209,6 +347,8 @@ export class BlogRepository
   async getMyBlogs(
     authorId: string,
     filters: BlogPostFilters,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
@@ -252,9 +392,18 @@ export class BlogRepository
     ]);
 
     const total = Number(totalRows[0]?.total ?? 0);
+    const translatedMap = await this.getPostTranslationsMap(
+      rows.map((item) => item.id),
+      requestLanguage,
+      fallbackLanguage,
+    );
 
     return {
-      data: rows,
+      data: rows.map((item) => ({
+        ...item,
+        title: translatedMap[item.id]?.title || item.title,
+        summary: translatedMap[item.id]?.summary || item.summary,
+      })),
       pagination: {
         total,
         hasNextPage: offset + rows.length < total,
@@ -301,7 +450,11 @@ export class BlogRepository
     );
   }
 
-  async getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null> {
+  async getPostBaseBySlug(
+    slug: string,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
+  ): Promise<BlogPostDetailBase | null> {
     const [post] = await this.db
       .select({
         id: blogPosts.id,
@@ -342,13 +495,20 @@ export class BlogRepository
 
     if (!post) return null;
 
+    const translatedMap = await this.getPostTranslationsMap(
+      [post.id],
+      requestLanguage,
+      fallbackLanguage,
+    );
+    const translated = translatedMap[post.id];
+
     return {
       id: post.id,
-      title: post.title,
+      title: translated?.title || post.title,
       slug: post.slug,
-      summary: post.summary,
+      summary: translated?.summary || post.summary,
       thumbnail: post.thumbnail,
-      content: post.content,
+      content: translated?.content || post.content,
       category: post.category,
       status: post.status,
       viewCount: post.viewCount,

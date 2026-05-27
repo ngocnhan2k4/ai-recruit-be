@@ -7,7 +7,11 @@ import {
 } from "@/core/entities";
 
 export abstract class IUserExperienceRepository extends IGenericRepository<UserExperience> {
-  abstract getUserExperiencesByUsername(userName: string): Promise<
+  abstract getUserExperiencesByUsername(
+    userName: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<
     {
       experience: Omit<
         UserExperience,
