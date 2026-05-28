@@ -46,19 +46,14 @@ import { generateSlug } from "@/common/utils/string";
 import { cacheWithDedup } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 
-const sortExpr = (bp: typeof blogPosts) =>
-  sql`coalesce(${bp.updatedAt}, ${bp.createdAt})`;
-
-const resolveSortExpr = (bp: typeof blogPosts, sortBy?: string): SQL => {
+const resolveSortExpr = (sortBy?: string): SQL => {
   switch (sortBy) {
     case "createdAt":
-      return sql`${bp.createdAt}`;
-    case "updatedAt":
-      return sortExpr(bp);
+      return sql`${blogPosts.createdAt}`;
     case "viewCount":
-      return sql`${bp.viewCount}`;
+      return sql`${blogPosts.viewCount}`;
     default:
-      return sortExpr(bp);
+      return sql`coalesce(${blogPosts.updatedAt}, ${blogPosts.createdAt})`;
   }
 };
 
@@ -68,7 +63,7 @@ const resolveCursorSortBy = (sortBy?: string): "createdAt" | "updatedAt" => {
 
 const buildOrderBy = (sortBy?: string, sortDirection?: SortDirection) => {
   const direction = sortDirection === "asc" ? asc : desc;
-  const orderExpr = resolveSortExpr(blogPosts, sortBy);
+  const orderExpr = resolveSortExpr(sortBy);
   return [direction(orderExpr), direction(blogPosts.id)];
 };
 
@@ -410,7 +405,7 @@ export class BlogRepository
     const decoded = decodeCursor(filters.cursor);
     const sortBy = resolveCursorSortBy(filters.sortBy);
     const sortDirection = filters.sortDirection ?? "desc";
-    const cursorExpr = resolveSortExpr(blogPosts, sortBy);
+    const cursorExpr = resolveSortExpr(sortBy);
     const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const conditions: SQL[] = [
@@ -506,7 +501,7 @@ export class BlogRepository
     const decoded = decodeCursor(filters.cursor);
     const sortBy = resolveCursorSortBy(filters.sortBy);
     const sortDirection = filters.sortDirection ?? "desc";
-    const cursorExpr = resolveSortExpr(blogPosts, sortBy);
+    const cursorExpr = resolveSortExpr(sortBy);
     const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const finalWhere = decoded
