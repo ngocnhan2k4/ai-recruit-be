@@ -91,6 +91,8 @@ export const FeedbackStatusEnum = pgEnum("feedback_status", [
   "resolved",
 ]);
 
+export const FeedbackTypeEnum = pgEnum("feedback_type", ["feedback", "survey"]);
+
 export const OrganizationInviteStatusEnum = pgEnum(
   "organization_invite_status",
   ["pending", "accepted", "declined"],
