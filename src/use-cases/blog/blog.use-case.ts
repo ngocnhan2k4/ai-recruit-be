@@ -67,7 +67,7 @@ export class BlogUseCases {
 
     if (!post) {
       throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
         message: "Blog post not found",
       });
     }
@@ -98,6 +98,8 @@ export class BlogUseCases {
       keyword: query.keyword,
       category: query.category,
       status: BlogPostStatus.PUBLISHED,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
@@ -199,6 +201,8 @@ export class BlogUseCases {
       status: query.status,
       excludeStatus: BlogPostStatus.DRAFT,
       sourceType: query.sourceType,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
@@ -364,7 +368,7 @@ export class BlogUseCases {
 
       if (!existing) {
         throw new NotFoundException({
-          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
           message: "Blog post not found",
         });
       }
