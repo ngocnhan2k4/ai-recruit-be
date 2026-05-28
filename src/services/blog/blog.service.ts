@@ -12,7 +12,7 @@ export class BlogService {
   private readonly logger = new Logger(BlogService.name);
   constructor(private readonly blogRepository: IBlogRepository) {}
 
-  async checkValidPost(postId: string): Promise<BlogPost> {
+  async getValidPost(postId: string): Promise<BlogPost> {
     const post = await this.blogRepository.get(postId);
     if (!post) {
       throw new NotFoundException({
@@ -25,7 +25,7 @@ export class BlogService {
   }
 
   async checkIsAuthor(postId: string, userId: string): Promise<BlogPost> {
-    const post = await this.checkValidPost(postId);
+    const post = await this.getValidPost(postId);
 
     if (post.authorId !== userId) {
       throw new NotFoundException({
@@ -37,12 +37,8 @@ export class BlogService {
     return post;
   }
 
-  async checkPostExists(postId: string): Promise<void> {
-    await this.checkValidPost(postId);
-  }
-
   async checkNotDraft(postId: string): Promise<BlogPost> {
-    const post = await this.checkValidPost(postId);
+    const post = await this.getValidPost(postId);
 
     if (post.status === (BlogPostStatus.DRAFT as string)) {
       throw new BadRequestException({
@@ -55,7 +51,7 @@ export class BlogService {
   }
 
   async checkPublished(postId: string): Promise<BlogPost> {
-    const post = await this.checkValidPost(postId);
+    const post = await this.getValidPost(postId);
 
     if (post.status !== (BlogPostStatus.PUBLISHED as string)) {
       throw new BadRequestException({
