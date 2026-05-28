@@ -119,6 +119,11 @@ export enum FeedbackStatusEnum {
   RESOLVED = "resolved",
 }
 
+export enum FeedbackTypeEnum {
+  FEEDBACK = "feedback",
+  SURVEY = "survey",
+}
+
 export enum SkillLevelEnum {
   BEGINNER = "beginner",
   INTERMEDIATE = "intermediate",

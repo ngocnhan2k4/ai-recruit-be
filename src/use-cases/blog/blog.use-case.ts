@@ -564,7 +564,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkValidPost(postId);
+    await this.blogService.getValidPost(postId);
 
     await this.userActionRepository.toggleAction(
       postId,
@@ -594,14 +594,6 @@ export class BlogUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
     };
-  }
-
-  async approvePost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, BlogPostStatus.PUBLISHED);
-  }
-
-  async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, BlogPostStatus.REJECTED);
   }
 
   async updateBlogStatus(
