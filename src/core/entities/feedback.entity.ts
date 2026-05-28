@@ -1,11 +1,12 @@
 import { GeneralQuery, RelatedEntity } from "@/common/types";
-import { Feedback, FeedbackStatusEnum, User } from ".";
+import { Feedback, FeedbackStatusEnum, FeedbackTypeEnum, User } from ".";
 
 export interface FeedbackFilter extends GeneralQuery {
   assignedToUserId?: User["id"];
   startDate?: Date;
   endDate?: Date;
   status?: FeedbackStatusEnum;
+  type?: FeedbackTypeEnum;
 }
 
 export interface FeedbackTrends {
