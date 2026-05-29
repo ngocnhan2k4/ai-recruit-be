@@ -69,9 +69,19 @@ export class BlogUseCases {
       });
     }
 
+    let parentCommentId: string | null = dto.parentCommentId || null;
+    let rootCommentId: string | null = null;
+
+    if (parentCommentId) {
+      const parent = await this.commentRepository.get(parentCommentId);
+      rootCommentId = parent ? parent.rootCommentId || parent.id : null;
+      parentCommentId = parent ? parentCommentId : null;
+    }
+
     const _cmt = await this.commentRepository.create({
       content: dto.content,
-      parentCommentId: dto.parentCommentId,
+      parentCommentId,
+      rootCommentId,
       objectId: post.id,
       objectType: ObjectType.BLOG,
       authorId: user.userId,
@@ -481,27 +491,24 @@ export class BlogUseCases {
             });
           }
 
-          const slug = existing.slug || generateSlug(dto.title);
-
-          await this.blogRepository.saveDraft(
-            {
-              title: dto.title,
-              summary: dto.summary,
-              content: dto.content,
-              category: dto.category,
-              thumbnail: dto.thumbnail ?? null,
-              tags: dto.tags,
-              slug,
-            },
-            user.userId,
-            dto.postId,
-          );
+          const baseSlug = generateSlug(dto.title);
+          const existed = await this.blogRepository.getPostBySlug(baseSlug);
+          const slug =
+            existed && existed.id !== dto.postId
+              ? `${baseSlug}-${Date.now()}`
+              : baseSlug;
 
           const [updated] = await this.blogRepository.update(
             {
               id: dto.postId,
             },
             {
+              title: dto.title,
+              summary: dto.summary,
+              content: dto.content,
+              categoryId: dto.category,
+              thumbnail: dto.thumbnail ?? null,
+              slug,
               status: BlogPostStatus.PENDING,
               updatedAt: new Date(),
             },
@@ -513,6 +520,10 @@ export class BlogUseCases {
               code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
               message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
             });
+          }
+
+          if (dto.tags) {
+            await this.blogRepository.updatePostTags(existing.id, dto.tags);
           }
 
           return updated;
