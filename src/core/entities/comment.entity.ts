@@ -21,6 +21,7 @@ export interface CommentWithAuthor extends Comment {
     id: string;
     content: string;
     authorId: string;
+    authorName?: string | null;
   } | null;
   childCount: number;
 }

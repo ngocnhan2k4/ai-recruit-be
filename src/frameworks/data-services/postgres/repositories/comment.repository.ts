@@ -55,6 +55,7 @@ export class CommentRepository
       .as("child_counts");
 
     const parentComments = alias(comments, "parent_comments") as any;
+    const parentUsers = alias(users, "parent_users") as any;
 
     const rows = await this.db
       .select({
@@ -76,12 +77,14 @@ export class CommentRepository
           id: parentComments.id,
           content: parentComments.content,
           authorId: parentComments.authorId,
+          authorName: parentUsers.name,
         },
         childCount: sql<number>`COALESCE(${childCountSq.count}, 0)::int`,
       })
       .from(comments)
       .innerJoin(users, eq(users.id, comments.authorId))
       .leftJoin(parentComments, eq(parentComments.id, comments.parentCommentId))
+      .leftJoin(parentUsers, eq(parentUsers.id, parentComments.authorId))
       .leftJoin(childCountSq, eq(childCountSq.parentId, comments.id))
       .where(and(...conditions))
       .orderBy(desc(comments.createdAt))
