@@ -6,7 +6,6 @@ import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import {
   AiCvDto,
   AiCvListResponseDto,
-  AiCvRequestDto,
   GenerateCvPdfRequestDto,
   UpdateAiCvDto,
 } from "@/interfaces/dtos/ai-cv";
@@ -152,19 +151,19 @@ export class AiCvController {
     return this.aiCvUseCases.getAiCvById(aiCvId);
   }
 
-  @ApiOperation({
-    summary: "Create new AI CV",
-    description: "Save a new AI-generated CV",
-  })
-  @ApiBody({ type: AiCvRequestDto })
-  @ApiResponseDto(AiCvDto)
-  @Post()
-  async createAiCv(
-    @GetUser() user: TokenPayload,
-    @Body() createAiCvDto: AiCvRequestDto,
-  ) {
-    return this.aiCvUseCases.createAiCv(user.userId, createAiCvDto);
-  }
+  // @ApiOperation({
+  //   summary: "Create new AI CV",
+  //   description: "Save a new AI-generated CV",
+  // })
+  // @ApiBody({ type: AiCvRequestDto })
+  // @ApiResponseDto(AiCvDto)
+  // @Post()
+  // async createAiCv(
+  //   @GetUser() user: TokenPayload,
+  //   @Body() createAiCvDto: AiCvRequestDto,
+  // ) {
+  //   return this.aiCvUseCases.createAiCv(user.userId, createAiCvDto);
+  // }
 
   @ApiOperation({
     summary: "Update AI CV",

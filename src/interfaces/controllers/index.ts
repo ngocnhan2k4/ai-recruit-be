@@ -5,6 +5,7 @@ export * from "./user/admin-user.controller";
 // job controllers
 export * from "./job/job.controller";
 export * from "./job-sync/admin-job-sync.controller";
+export * from "./cv-sync/admin-cv-sync.controller";
 export * from "./job-matching/job-matching.controller";
 export * from "./auth/auth.controller";
 
@@ -50,3 +51,6 @@ export * from "./comment/comment.controller";
 export * from "./learning-path/learning-path.controller";
 export * from "./subscription/admin-subscription.controller";
 export * from "./feature/admin-feature.controller";
+
+// task controllers
+export * from "./task/task-admin.controller";

@@ -29,6 +29,12 @@ export const CACHE_KEYS = {
   user: {
     get: (userId: string) => `user:${userId}:get`,
   },
+  cv: {
+    get: (cvId: string) => `cv:${cvId}:get`,
+  },
+  aiCv: {
+    get: (aiCvId: string) => `aiCv:${aiCvId}:get`,
+  },
   blog: {
     patternDetail: (postId: string) => `blog:${postId}:*`,
     get: (postId: string) => `blog:${postId}:get`,

@@ -137,11 +137,14 @@ export const jobSkills = pgTable(
   ],
 );
 
+// [TODO]: Migrate using user action
 export const userInteractions = pgTable(
   "user_interactions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
     jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id),
@@ -178,7 +181,6 @@ export const applyJobs = pgTable(
     cvId: uuid("cv_id").references(() => cvs.id),
     answers: jsonb("answers"),
     matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
-    matchingRank: integer("matching_rank"),
     matchingCriteria: jsonb("matching_criteria"),
     scoredAt: timestamp("scored_at"),
 
@@ -206,6 +208,5 @@ export const cvs = pgTable("cvs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
-  extractedData: jsonb("extracted_data"),
   ...timestamps,
 });

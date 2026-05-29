@@ -1,3 +1,3 @@
-export const USER_FOLDER = "users";
-export const ORG_FOLDER = "organizations";
-export const CV_FOLDER = "cvs";
+export const USER_FOLDER = "u";
+export const ORG_FOLDER = "o";
+export const CV_FOLDER = "c";

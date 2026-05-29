@@ -18,6 +18,10 @@ export interface GetUserQuery extends GeneralQuery {
   subscriptionId?: string;
   statusSubscription?: UserSubscriptionStatusEnum;
   roles?: RoleEnum[];
+  fields?: string[];
+  userIds?: string[];
+  skipCount?: boolean;
+  isSeekingJob?: boolean;
 }
 
 export class CreateUserExperience {
@@ -98,6 +102,7 @@ export interface GetAllUserResponse
     | "createdAt"
     | "updatedAt"
     | "deletedAt"
+    | "avatarUrl"
   > {
   subscription?: Pick<
     Subscription,

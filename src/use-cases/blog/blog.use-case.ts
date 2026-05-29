@@ -64,7 +64,7 @@ export class BlogUseCases {
 
     if (!post) {
       throw new NotFoundException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
         message: "Blog post not found",
       });
     }
@@ -105,6 +105,8 @@ export class BlogUseCases {
       keyword: query.keyword,
       category: query.category,
       status: BlogPostStatus.PUBLISHED,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
@@ -206,6 +208,8 @@ export class BlogUseCases {
       status: query.status,
       excludeStatus: BlogPostStatus.DRAFT,
       sourceType: query.sourceType,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
@@ -470,7 +474,7 @@ export class BlogUseCases {
 
       if (!existing) {
         throw new NotFoundException({
-          code: RESPONSE_CODE.JOB_NOT_FOUND,
+          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
           message: "Blog post not found",
         });
       }
@@ -671,7 +675,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    await this.blogService.checkValidPost(postId);
+    await this.blogService.getValidPost(postId);
 
     await this.userActionRepository.toggleAction(
       postId,
@@ -701,14 +705,6 @@ export class BlogUseCases {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
     };
-  }
-
-  async approvePost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, BlogPostStatus.PUBLISHED);
-  }
-
-  async rejectPost(postId: string): Promise<ApiResponse<{ id: string }>> {
-    return this.reviewPost(postId, BlogPostStatus.REJECTED);
   }
 
   async updateBlogStatus(

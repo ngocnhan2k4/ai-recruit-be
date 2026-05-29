@@ -96,7 +96,7 @@ export class JobRepository
 
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
-    @Inject(ICacheService) private readonly cacheService: ICacheService,
+    private readonly cacheService: ICacheService,
     private readonly organizationRepository: IOrganizationRepository,
     private readonly notificationRepository: INotificationRepository,
   ) {
@@ -472,6 +472,7 @@ export class JobRepository
           salaryMax: jobs.salaryMax,
           experienceMin: jobs.experienceMin,
           experienceMax: jobs.experienceMax,
+          recruitCount: jobs.recruitCount,
           questions: jobs.questions,
           workType: jobs.workType,
           status: jobs.status,
@@ -1395,6 +1396,9 @@ export class JobRepository
         cvId: applyJobs.cvId,
         status: applyJobs.status,
         answers: applyJobs.answers,
+        matchingScore: applyJobs.matchingScore,
+        matchingCriteria: applyJobs.matchingCriteria,
+        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
       })
@@ -1423,6 +1427,9 @@ export class JobRepository
         jobId: applyJobs.jobId,
         status: applyJobs.status,
         answers: applyJobs.answers,
+        matchingScore: applyJobs.matchingScore,
+        matchingCriteria: applyJobs.matchingCriteria,
+        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
         user: {
@@ -1430,6 +1437,7 @@ export class JobRepository
           email: users.email,
           name: users.name,
           avatarUrl: users.avatarUrl,
+          username: users.username,
         },
         cv: {
           id: cvs.id,
@@ -1453,6 +1461,7 @@ export class JobRepository
       jobId: item.jobId,
       status: item.status,
       answers: item.answers,
+      matchingScore: item.matchingScore,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       user: item.user,
@@ -1669,6 +1678,7 @@ export class JobRepository
       salaryMax: job.salaryMax,
       experienceMin: job.experienceMin,
       experienceMax: job.experienceMax,
+      recruitCount: job.recruitCount ?? null,
       datePosted: job.datePosted,
       endDate: job.endDate,
       workType: job.workType,
@@ -2404,5 +2414,20 @@ export class JobRepository
       data: result,
       pagination: {},
     };
+  }
+
+  async updateMatchingScore(
+    applyId: string,
+    score: number,
+    criteria: Record<string, any>,
+  ): Promise<void> {
+    await this.getExecutor()
+      .update(applyJobs)
+      .set({
+        matchingScore: score.toFixed(2),
+        matchingCriteria: criteria,
+        scoredAt: new Date(),
+      })
+      .where(eq(applyJobs.id, applyId));
   }
 }

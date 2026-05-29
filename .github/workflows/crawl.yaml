@@ -44,6 +44,7 @@ jobs:
     strategy:
       matrix:
         env: [dev, prod]
+      max-parallel: 1
 
     environment: ${{ matrix.env }}
     runs-on: self-hosted
