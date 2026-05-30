@@ -3,6 +3,8 @@ import {
   OptimizeAtsResponse,
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  GenerateJobBlogPostRequest,
+  GenerateJobBlogPostResponse,
 } from "../entities";
 import { RoadmapGenerateRequest } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
@@ -20,4 +22,8 @@ export abstract class IAIService {
   abstract suggestCvField(
     request: CvFieldSuggestionRequest,
   ): Promise<CvFieldSuggestionResponse>;
+
+  abstract generateJobBlogPost(
+    request: GenerateJobBlogPostRequest,
+  ): Promise<GenerateJobBlogPostResponse>;
 }

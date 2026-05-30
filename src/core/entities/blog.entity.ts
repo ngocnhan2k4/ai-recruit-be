@@ -87,3 +87,22 @@ export interface BlogPostTagInput {
   tagId?: string | null;
   skillId?: string | null;
 }
+
+export interface GenerateJobBlogPostRequest {
+  rangeDays: number;
+}
+
+export interface GenerateJobBlogPostResponse {
+  title: string;
+  summary: string;
+  category: string;
+  tags?: string[];
+  tagInputs?: Array<{
+    tagId?: string | null;
+    skillId?: string | null;
+    name?: string | null;
+  }>;
+  thumbnail?: string | null;
+  content: string;
+  generatedAt?: string;
+}

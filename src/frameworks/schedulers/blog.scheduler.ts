@@ -1,38 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { HttpService } from "@nestjs/axios";
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   BlogPostStatus,
+  GenerateJobBlogPostResponse,
+  IAIService,
   IBlogRepository,
   ICacheService,
   IUserRepository,
 } from "@/core";
 import { CACHE_KEYS } from "@/common/constants";
-import { firstValueFrom, timeout } from "rxjs";
-import { AxiosError } from "axios";
-
-type GenerateJobBlogPostResponse = {
-  title: string;
-  summary: string;
-  category: string;
-  tags?: string[];
-  tagInputs?: Array<{
-    tagId?: string | null;
-    skillId?: string | null;
-    name?: string | null;
-  }>;
-  thumbnail?: string | null;
-  content: string;
-  generatedAt?: string;
-};
 
 @Injectable()
 export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
-  private readonly aiServiceUrl: string;
-  private readonly aiServiceTimeout: number;
-  private readonly aiApiKey: string;
   private readonly aiBlogAuthorId?: string;
   private readonly aiBlogRangeDays: number;
 
@@ -40,15 +21,9 @@ export class BlogScheduler {
     private readonly cacheService: ICacheService,
     private readonly blogRepository: IBlogRepository,
     private readonly userRepository: IUserRepository,
-    private readonly httpService: HttpService,
+    private readonly aiService: IAIService,
     private readonly configService: ConfigService,
   ) {
-    this.aiServiceUrl =
-      this.configService.get<string>("AI_SERVICE_URL") ||
-      "http://localhost:8001";
-    this.aiServiceTimeout =
-      this.configService.get<number>("AI_SERVICE_TIMEOUT") || 30000;
-    this.aiApiKey = this.configService.get<string>("AI_API_KEY") || "";
     this.aiBlogAuthorId =
       this.configService.get<string>("AI_BLOG_AUTHOR_ID") || undefined;
     this.aiBlogRangeDays = Math.max(
@@ -189,50 +164,9 @@ export class BlogScheduler {
   }
 
   private async requestWeeklyAiBlog(): Promise<GenerateJobBlogPostResponse> {
-    const url = `${this.aiServiceUrl}/api/v1/blog/generate-job-blog-post`;
-
-    try {
-      const response = await firstValueFrom(
-        this.httpService
-          .post<GenerateJobBlogPostResponse>(
-            url,
-            {
-              rangeDays: this.aiBlogRangeDays,
-            },
-            {
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": this.aiApiKey,
-              },
-            },
-          )
-          .pipe(timeout(this.aiServiceTimeout)),
-      );
-
-      return response.data;
-    } catch (error) {
-      throw new Error(this.extractAiServiceError(error));
-    }
-  }
-
-  private extractAiServiceError(error: unknown): string {
-    if (error instanceof AxiosError) {
-      const detail = (error.response?.data as { detail?: unknown } | undefined)
-        ?.detail;
-      if (typeof detail === "string") {
-        return detail;
-      }
-      if (detail) {
-        return JSON.stringify(detail);
-      }
-      return error.message;
-    }
-
-    if (error instanceof Error) {
-      return error.message;
-    }
-
-    return "Unknown error";
+    return this.aiService.generateJobBlogPost({
+      rangeDays: this.aiBlogRangeDays,
+    });
   }
 
   private formatVietnamDate(date: Date): string {

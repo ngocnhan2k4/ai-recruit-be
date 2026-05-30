@@ -13,11 +13,14 @@ import {
 } from "rxjs";
 import { AxiosError, AxiosResponse } from "axios";
 
-import { OptimizeAtsRequest, OptimizeAtsResponse } from "@/core";
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
-} from "@/core/entities/ai-cv.entity";
+  GenerateJobBlogPostRequest,
+  GenerateJobBlogPostResponse,
+  OptimizeAtsRequest,
+  OptimizeAtsResponse,
+} from "@/core";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -107,63 +110,11 @@ export class AIClientService implements IAIService {
   ): Promise<OptimizeAtsResponse> {
     const url = `${this.aiServiceUrl}/api/v1/cv/optimize-cv-ats`;
 
-    return firstValueFrom(
-      this.httpService
-        .post<OptimizeAtsResponse>(url, request, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
-          },
-        })
-        .pipe(
-          timeout(this.aiServiceTimeout),
-          retry({
-            count: this.maxRetries,
-            delay: (_, retryCount) => {
-              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
-              return new Promise((resolve) => setTimeout(resolve, delayMs));
-            },
-            resetOnSuccess: true,
-          }),
-          catchError((error: AxiosError) => {
-            const errorData = error.response?.data as any;
-            let errorMsg: string;
-
-            // Handle different error response formats
-            if (typeof errorData?.detail === "string") {
-              errorMsg = errorData.detail;
-            } else if (Array.isArray(errorData?.detail)) {
-              // FastAPI validation errors return array of objects
-              errorMsg = errorData.detail
-                .map((err: any) => {
-                  if (typeof err === "string") return err;
-                  if (err.msg)
-                    return `${err.loc?.join(".") || "field"}: ${err.msg}`;
-                  return JSON.stringify(err);
-                })
-                .join("; ");
-            } else if (errorData?.message) {
-              errorMsg = errorData.message;
-            } else if (typeof errorData === "string") {
-              errorMsg = errorData;
-            } else {
-              errorMsg = error.message || "Unknown error";
-            }
-
-            this.logger.error(
-              `AI Service CV optimization failed: ${errorMsg}`,
-              error.stack,
-            );
-
-            throw new Error(`AI Service CV optimization failed: ${errorMsg}`);
-          }),
-          map(
-            (
-              response: AxiosResponse<OptimizeAtsResponse>,
-            ): OptimizeAtsResponse => response.data,
-          ),
-        ),
-    );
+    return this.postWithRetry<OptimizeAtsRequest, OptimizeAtsResponse>({
+      url,
+      body: request,
+      errorContext: "AI Service CV optimization failed",
+    });
   }
 
   // Suggest CV field value
@@ -176,13 +127,42 @@ export class AIClientService implements IAIService {
       `Requesting CV field suggestion for: ${request.targetField}`,
     );
 
+    return this.postWithRetry<
+      CvFieldSuggestionRequest,
+      CvFieldSuggestionResponse
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service CV field suggestion failed",
+    });
+  }
+
+  async generateJobBlogPost(
+    request: GenerateJobBlogPostRequest,
+  ): Promise<GenerateJobBlogPostResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/blog/generate-job-blog-post`;
+
+    return this.postWithRetry<
+      GenerateJobBlogPostRequest,
+      GenerateJobBlogPostResponse
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service weekly blog generation failed",
+    });
+  }
+
+  private postWithRetry<TRequest, TResponse>(params: {
+    url: string;
+    body: TRequest;
+    errorContext: string;
+  }): Promise<TResponse> {
+    const { url, body, errorContext } = params;
+
     return firstValueFrom(
       this.httpService
-        .post<CvFieldSuggestionResponse>(url, request, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
-          },
+        .post<TResponse>(url, body, {
+          headers: this.createAiHeaders(),
         })
         .pipe(
           timeout(this.aiServiceTimeout),
@@ -195,45 +175,67 @@ export class AIClientService implements IAIService {
             resetOnSuccess: true,
           }),
           catchError((error: AxiosError) => {
-            const errorData = error.response?.data as any;
-            let errorMsg: string;
+            const errorMsg = this.extractAiServiceError(error);
 
-            // Handle different error response formats
-            if (typeof errorData?.detail === "string") {
-              errorMsg = errorData.detail;
-            } else if (Array.isArray(errorData?.detail)) {
-              // FastAPI validation errors
-              errorMsg = errorData.detail
-                .map((err: any) => {
-                  if (typeof err === "string") return err;
-                  if (err.msg)
-                    return `${err.loc?.join(".") || "field"}: ${err.msg}`;
-                  return JSON.stringify(err);
-                })
-                .join("; ");
-            } else if (errorData?.message) {
-              errorMsg = errorData.message;
-            } else if (typeof errorData === "string") {
-              errorMsg = errorData;
-            } else {
-              errorMsg = error.message || "Unknown error";
-            }
+            this.logger.error(`${errorContext}: ${errorMsg}`, error.stack);
 
-            this.logger.error(
-              `AI Service CV field suggestion failed: ${errorMsg}`,
-              error.stack,
-            );
-
-            throw new Error(
-              `AI Service CV field suggestion failed: ${errorMsg}`,
-            );
+            throw new Error(`${errorContext}: ${errorMsg}`);
           }),
-          map(
-            (
-              response: AxiosResponse<CvFieldSuggestionResponse>,
-            ): CvFieldSuggestionResponse => response.data,
-          ),
+          map((response: AxiosResponse<TResponse>): TResponse => response.data),
         ),
     );
+  }
+
+  private createAiHeaders(): Record<string, string> {
+    return {
+      "Content-Type": "application/json",
+      "X-API-Key": this.configService.get<string>("AI_API_KEY") || "",
+    };
+  }
+
+  private extractAiServiceError(error: AxiosError): string {
+    const errorData = error.response?.data as
+      | {
+          detail?: unknown;
+          message?: string;
+        }
+      | string
+      | undefined;
+
+    if (
+      typeof errorData === "object" &&
+      errorData !== null &&
+      typeof errorData.detail === "string"
+    ) {
+      return errorData.detail;
+    }
+
+    if (
+      typeof errorData === "object" &&
+      errorData !== null &&
+      Array.isArray(errorData.detail)
+    ) {
+      return errorData.detail
+        .map((err: any) => {
+          if (typeof err === "string") return err;
+          if (err?.msg) return `${err.loc?.join(".") || "field"}: ${err.msg}`;
+          return JSON.stringify(err);
+        })
+        .join("; ");
+    }
+
+    if (
+      typeof errorData === "object" &&
+      errorData !== null &&
+      errorData.message
+    ) {
+      return errorData.message;
+    }
+
+    if (typeof errorData === "string") {
+      return errorData;
+    }
+
+    return error.message || "Unknown error";
   }
 }

@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common";
-import { HttpModule } from "@nestjs/axios";
 import { ElasticsearchModule } from "../data-services/elasticsearch/elasticsearch.module";
 import { MessageQueueModule } from "../message-queue/message-queue.module";
 import { JobMatchingScheduler } from "./job.scheduler";
@@ -21,7 +20,6 @@ import { BlogScheduler } from "./blog.scheduler";
 @Module({
   imports: [
     ElasticsearchModule,
-    HttpModule,
     MessageQueueModule,
     LoggerServiceModule,
     JobMatchingUseCasesModule,
