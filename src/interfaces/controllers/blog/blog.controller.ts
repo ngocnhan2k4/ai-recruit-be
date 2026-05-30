@@ -23,13 +23,14 @@ import {
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
   QueryBlogTagsDto,
-  CreateBlogCommentDto,
   BlogPostDetailDto,
   BlogCategoryDto,
   BlogTagCursorResponseDto,
   BlogPostListItemDto,
 } from "@/interfaces/dtos/blog";
 import { ApiResponse } from "@/interfaces/dtos";
+import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
+import { Comment } from "@/core/entities";
 
 @ApiTags("Blogs")
 @Controller("blogs")
@@ -60,6 +61,20 @@ export class BlogController {
     @Query() query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     return this.blogUseCase.getMyBlogs(user.userId, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("saved")
+  @ApiOperation({
+    summary: "Get Saved Blogs",
+    description:
+      "Retrieve blogs saved by the authenticated user with cursor pagination",
+  })
+  async getSavedBlogs(
+    @GetUser() user: TokenPayload,
+    @Query() query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    return this.blogUseCase.getSavedBlogs(user.userId, query);
   }
 
   @Get("top")
@@ -104,8 +119,8 @@ export class BlogController {
   async createComment(
     @GetUser() user: TokenPayload,
     @Param("postId") postId: string,
-    @Body() dto: CreateBlogCommentDto,
-  ): Promise<ApiResponse<any>> {
+    @Body() dto: CommentDto,
+  ): Promise<ApiResponse<Comment>> {
     return this.blogUseCase.createComment(user, postId, dto);
   }
 
@@ -168,7 +183,7 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
     @Body() dto: UpdateBlogPostDto,
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<UpdateBlogPostDto>> {
     return this.blogUseCase.updatePost(user, id, dto);
   }
 
@@ -200,5 +215,20 @@ export class BlogController {
     @Param("blogId") blogId: string,
   ): Promise<ApiResponse<void>> {
     return this.blogUseCase.toggleLike(user, blogId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":blogId/saves")
+  @ApiOperation({
+    summary: "Toggle Save",
+    description:
+      "Save or unsave a blog post. Toggles the save state for the current user.",
+  })
+  @ApiParam({ name: "blogId", description: "Blog post ID" })
+  async toggleSave(
+    @GetUser() user: TokenPayload,
+    @Param("blogId") blogId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.blogUseCase.toggleSave(user, blogId);
   }
 }

@@ -15,4 +15,8 @@ export abstract class IFeedbackRepository extends IGenericRepository<Feedback> {
   abstract getFeedbackTrends(
     params: FeedbackTrendsQuery,
   ): Promise<FeedbackTrends[]>;
+  abstract findSubmittedSurveyKeys(
+    userId: string,
+    surveyKeys?: string[],
+  ): Promise<string[]>;
 }

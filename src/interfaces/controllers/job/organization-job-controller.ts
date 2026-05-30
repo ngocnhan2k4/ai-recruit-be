@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Post,
+  Get,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { GetUser } from "@/common/decorators";
@@ -17,6 +18,7 @@ import {
   CreateJobDto,
   UpdateJobDto,
   JobDto,
+  JobCandidateRecommendationDto,
 } from "@/interfaces/dtos";
 import {
   JwtAuthGuard,
@@ -72,5 +74,20 @@ export class OrganizationJobController {
     @Param("orgId") organizationId: string,
   ): Promise<ApiResponse<{ message: string }>> {
     return await this.jobUseCases.deleteJob(user, jobId, organizationId);
+  }
+
+  @ApiOperation({
+    summary: "Get recommended CVs for a job",
+    description:
+      "Query Elasticsearch directly and return top N candidate CVs ranked by matching score for this organization job.",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @ApiResponseDto(JobCandidateRecommendationDto, { isArray: true })
+  @Get("jobs/:jobId/recommended-cvs")
+  async getRecommendedCvs(
+    @Param("jobId") jobId: string,
+    @Param("orgId") orgId: string,
+  ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
+    return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
   }
 }

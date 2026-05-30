@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from "class-validator";
 import { GeneralQueryDto } from "../../common/query";
 import { ObjectType } from "@/core/entities";
 
@@ -22,26 +28,14 @@ export class QueryCommentsDto extends GeneralQueryDto {
   parentCommentId?: string;
 }
 
-export class CreateCommentDto {
-  @ApiProperty({ description: "ID of the object being commented on" })
-  @IsNotEmpty()
-  @IsString()
-  objectId: string;
-
-  @ApiProperty({ enum: ObjectType, description: "Type of the object" })
-  @IsNotEmpty()
-  @IsEnum(ObjectType)
-  objectType: ObjectType;
-
-  @ApiProperty({ description: "Comment content" })
-  @IsNotEmpty()
-  @IsString()
-  content: string;
-
-  @ApiPropertyOptional({
-    description: "ID of the parent comment (for replies)",
-  })
+export class CommentDto {
+  @ApiPropertyOptional({ nullable: true, format: "uuid" })
   @IsOptional()
+  @IsUUID("4")
+  parentCommentId?: string;
+
+  @ApiProperty()
   @IsString()
-  parentId?: string;
+  @IsNotEmpty()
+  content: string;
 }

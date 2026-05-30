@@ -1,6 +1,7 @@
 import {
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   uniqueIndex,
@@ -11,7 +12,7 @@ import { sql } from "drizzle-orm";
 import { skills } from "./skill.model";
 import { users } from "./user.model";
 import { timestamps } from "./helpers";
-import { BlogPostStatusEnum } from "./enums";
+import { BlogPostStatusEnum, BlogPostSourceTypeEnum } from "./enums";
 
 export const blogPosts = pgTable(
   "blog_posts",
@@ -23,17 +24,18 @@ export const blogPosts = pgTable(
     thumbnail: varchar("thumbnail", { length: 255 }),
     content: text("content").notNull(),
     status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
+    sourceType: BlogPostSourceTypeEnum("source_type").notNull().default("USER"),
+    source: jsonb("source"),
     categoryId: uuid("category_id")
       .notNull()
       .references(() => blogCategories.id),
-    authorId: uuid("author_id")
-      .notNull()
-      .references(() => users.id),
+    authorId: uuid("author_id").references(() => users.id),
     viewCount: integer("view_count").notNull().default(0),
     ...timestamps,
   },
   (table) => [
     index("idx_blog_posts_status").on(table.status),
+    index("idx_blog_posts_source_type").on(table.sourceType),
     index("idx_blog_posts_category").on(table.categoryId),
     index("idx_blog_posts_author").on(table.authorId),
     index("idx_blog_posts_created_at").on(table.createdAt),

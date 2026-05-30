@@ -48,6 +48,7 @@ export class JobIndexWorker extends WorkerHost {
         content: `[process] Failed to process job ${job.id}: ${error}`,
         note: error.stack,
       });
+      throw error;
     }
   }
 

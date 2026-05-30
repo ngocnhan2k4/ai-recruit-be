@@ -118,6 +118,9 @@ export const RESPONSE_CODE = {
   // --- Blog ---
   BLOG_POST_NOT_FOUND: "BLOG_POST_NOT_FOUND",
   BLOG_IS_NOT_DRAFT: "BLOG_IS_NOT_DRAFT",
+
+  // --- Task ---
+  TASK_NOT_FOUND: "TASK_NOT_FOUND",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -196,4 +199,7 @@ export const RESPONSE_MESSAGE = {
   // --- BLOG ---
   BLOG_POST_NOT_FOUND: "Blog post not found.",
   BLOG_IS_NOT_DRAFT: "Only draft blog posts can be submitted via create API.",
+
+  // --- Task ---
+  TASK_NOT_FOUND: "Task not found.",
 } as const;

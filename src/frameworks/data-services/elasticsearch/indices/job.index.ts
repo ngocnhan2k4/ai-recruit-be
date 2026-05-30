@@ -126,6 +126,9 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         experienceMax: {
           type: "integer",
         },
+        recruitCount: {
+          type: "integer",
+        },
         workType: {
           type: "keyword",
         },
@@ -183,6 +186,7 @@ export function transformJobToDocument({
     salaryMax,
     experienceMin: job.experienceMin,
     experienceMax: job.experienceMax,
+    recruitCount: job.recruitCount ?? null,
     workType: job.workType,
     questions: job.questions,
     status: job.status,

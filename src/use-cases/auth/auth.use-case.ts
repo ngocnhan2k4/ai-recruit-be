@@ -322,6 +322,7 @@ export class AuthUseCases {
     const payload: TokenPayload = {
       userId: user.id,
       roles: user.roles as RoleEnum[],
+      status: user.status as UserStatusEnum,
     };
     const accessToken = this.authService.signJwt(payload);
     const refreshToken = randomBytes(48).toString("hex");
@@ -386,7 +387,7 @@ export class AuthUseCases {
     newUser: NewUser,
     tx: DBDrizzleTransaction,
   ): Promise<User> {
-    const user = await this.userRepository.createUser(newUser, tx);
+    const user = await this.userRepository.create(newUser, tx);
 
     this.logger.log("Created user successfully with user = ", user);
 

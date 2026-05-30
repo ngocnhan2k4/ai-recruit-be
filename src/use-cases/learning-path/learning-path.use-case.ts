@@ -13,6 +13,7 @@ import {
   ITaskRepository,
   INotificationRepository,
   IWebSocketGateway,
+  IFeatureService,
   ISkillNoteRepository,
 } from "@/core/abstracts";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -37,7 +38,6 @@ import {
   TaskStatusEnum,
 } from "@/core";
 import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
-import { FeatureService } from "@/services";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -53,7 +53,7 @@ export class LearningPathUseCase {
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly messageQueueService: IMessageQueueService,
-    private readonly featureService: FeatureService,
+    private readonly featureService: IFeatureService,
     private readonly skillNoteRepository: ISkillNoteRepository,
   ) {}
 
@@ -117,6 +117,9 @@ export class LearningPathUseCase {
           {
             taskId: result.task.id,
             notificationId: result.notification.id,
+          },
+          {
+            jobId: `task-async-${result.task.id}`,
           },
         );
         this.logger.log(
