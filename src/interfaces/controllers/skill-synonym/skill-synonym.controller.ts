@@ -18,7 +18,7 @@ import {
   SkillSynonymResponseDto,
   UpdateSkillSynonymDto,
 } from "@/interfaces/dtos";
-import { SkillSynonymUseCases } from "@/use-cases/skill-synonym/skill-synonym";
+import { SkillSynonymUseCases } from "@/use-cases/skill-synonym/skill-synonym.use-case";
 import {
   JwtAuthGuard,
   SystemAuthorizeGuard,

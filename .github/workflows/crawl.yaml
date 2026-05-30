@@ -44,9 +44,10 @@ jobs:
     strategy:
       matrix:
         env: [dev, prod]
+      max-parallel: 1
 
     environment: ${{ matrix.env }}
-    runs-on: arc-runner-set
+    runs-on: self-hosted
     outputs:
       total_inserted: ${{ steps.run_crawler.outputs.total_inserted }}
       total_updated: ${{ steps.run_crawler.outputs.total_updated }}
@@ -226,7 +227,7 @@ jobs:
       matrix:
         env: [dev, prod]
     environment: ${{ matrix.env }}
-    runs-on: arc-runner-set
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository

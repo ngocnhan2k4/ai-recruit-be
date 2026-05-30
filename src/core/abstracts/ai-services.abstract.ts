@@ -5,6 +5,8 @@ import {
   CvFieldSuggestionResponse,
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
+  ExtractCvRequest,
+  ExtractCvResponse,
 } from "../entities";
 import { RoadmapGenerateRequest } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
@@ -26,4 +28,6 @@ export abstract class IAIService {
   abstract generateJobBlogPost(
     request: GenerateJobBlogPostRequest,
   ): Promise<GenerateJobBlogPostResponse>;
+
+  abstract extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse>;
 }

@@ -18,7 +18,9 @@ async function bootstrap() {
   const { AppModule } = await import("./app.module.js");
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    new FastifyAdapter({
+      maxParamLength: 256,
+    }),
   );
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
