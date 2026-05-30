@@ -121,7 +121,7 @@ export class AiCvUseCases {
       const page = await browser.newPage();
       await page.setViewport({ width: 1240, height: 1754 });
       await page.emulateMediaType("screen");
-      await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.setContent(html, { waitUntil: "load" });
 
       await page.addStyleTag({
         content: `
