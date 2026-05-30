@@ -172,6 +172,16 @@ export class GetUserQueryDto extends GeneralQueryDto {
   @IsArray()
   @IsEnum(RoleEnum, { each: true })
   roles?: RoleEnum[];
+
+  @ApiPropertyOptional({
+    description: "Filter by fields",
+    example: ["subscription", "userSubscription"],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  fields?: string[];
 }
 
 export class AdminUpdateUserRequestDto {

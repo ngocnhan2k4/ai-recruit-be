@@ -5,7 +5,8 @@ import {
   SkillFilter,
   SkillReviewStatus,
 } from "@/core";
-import { NormalizeString, convertDateToStr } from "@/common/utils";
+import { normalizeString } from "@/common/utils";
+import { convertDateToStr } from "@/common/utils";
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
@@ -136,10 +137,12 @@ export class SkillRepository
 
     const [rows, totalRow] = await Promise.all([
       baseQuery.orderBy(orderByClause).limit(limit).offset(offset),
-      this.db
-        .select({ count: count(skills.id) })
-        .from(skills)
-        .where(whereClause),
+      !query.skipCount
+        ? this.db
+            .select({ count: count(skills.id) })
+            .from(skills)
+            .where(whereClause)
+        : Promise.resolve({ count: 0 }),
     ]);
 
     const data = rows.map((r) => ({
@@ -180,6 +183,10 @@ export class SkillRepository
         SELECT 1 FROM ${questions}
         WHERE ${questions.skillId} = ${skills.id}
       )`);
+    }
+
+    if ((query.exactNames?.length || 0) > 0) {
+      whereConditions.push(inArray(skills.name, query.exactNames as string[]));
     }
 
     return whereConditions;
@@ -369,7 +376,7 @@ export class SkillRepository
         .from(skills)
         .where(inArray(skills.id, sourceIds));
 
-      const targetMasterName = NormalizeString(targetSkill.name);
+      const targetMasterName = normalizeString(targetSkill.name);
 
       await tx.execute(sql`
         DELETE FROM blog_post_tags AS src
@@ -478,7 +485,7 @@ export class SkillRepository
         .where(inArray(skillsSynonyms.masterSkillId, sourceIds));
 
       const aliasFromOldSkills = sourceSkills
-        .map((skill) => NormalizeString(skill.name))
+        .map((skill) => normalizeString(skill.name))
         .filter((name) => name.length > 0 && name !== targetMasterName);
 
       if (aliasFromOldSkills.length > 0) {

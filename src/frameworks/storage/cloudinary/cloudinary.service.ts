@@ -3,9 +3,16 @@ import { v2 as cloudinary } from "cloudinary";
 
 import { ConfigService } from "@nestjs/config";
 import { MultipartFile } from "@fastify/multipart";
+import { Environment } from "@/common/config";
 
 @Injectable()
 export class CloudinaryService {
+  private readonly mappingFolder = {
+    [Environment.Development]: "d",
+    [Environment.Production]: "p",
+    [Environment.Local]: "l",
+  };
+
   constructor(private readonly configService: ConfigService) {
     cloudinary.config({
       cloud_name: this.configService.get("CLOUDINARY_CLOUD_NAME"),
@@ -27,7 +34,7 @@ export class CloudinaryService {
         {
           resource_type: "auto",
           folder: options?.folder
-            ? `${this.configService.get<string>("NODE_ENV")}/${options?.folder}`
+            ? `${this.mappingFolder[this.configService.get<Environment>("NODE_ENV") as Environment]}/${options?.folder}`
             : "default",
         },
         (error, result) => {

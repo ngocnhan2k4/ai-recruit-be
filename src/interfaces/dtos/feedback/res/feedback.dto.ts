@@ -1,5 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
+import {
+  FeedbackStatusEnum,
+  FeedbackTypeEnum,
+} from "@/core/entities/enum.entity";
 import { RelatedEntityDto } from "../..";
 
 export class FeedbackDto {
@@ -34,6 +37,21 @@ export class FeedbackDto {
   @ApiProperty({ type: [String], nullable: true })
   images: string[] | null;
 
+  @ApiProperty({
+    enum: FeedbackTypeEnum,
+    description: "Record type (`feedback` or `survey`).",
+  })
+  type: FeedbackTypeEnum;
+
+  @ApiProperty({
+    type: Object,
+    additionalProperties: true,
+    nullable: true,
+    description:
+      "Free-form JSON payload. UX surveys store their answers and `surveyKey` here.",
+  })
+  metadata: Record<string, unknown> | null;
+
   @ApiProperty({ type: Date })
   createdAt: Date;
 
@@ -52,4 +70,13 @@ export class GetFeedbacksResponseDto extends FeedbackDto {
 
   @ApiProperty({ type: "boolean" })
   canTranslate: boolean;
+}
+
+export class GetSubmittedSurveysResponseDto {
+  @ApiProperty({
+    type: [String],
+    description:
+      "Distinct `metadata.surveyKey` values this user has submitted.",
+  })
+  surveyKeys: string[];
 }

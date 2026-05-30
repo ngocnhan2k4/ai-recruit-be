@@ -123,6 +123,9 @@ export class EnvironmentVariables {
   @IsString()
   ELASTICSEARCH_INDEX_JOBS: string;
 
+  @IsString()
+  ELASTICSEARCH_INDEX_CVS: string;
+
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))

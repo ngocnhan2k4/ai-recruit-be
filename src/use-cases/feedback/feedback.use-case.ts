@@ -2,6 +2,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   EmailJobType,
   FeedbackStatusEnum,
+  FeedbackTypeEnum,
   IFeedbackRepository,
   IUserRepository,
   NewFeedback,
@@ -46,12 +47,14 @@ export class FeedbackUseCase {
     const user = userId ? await this.userRepository.get(userId) : null;
 
     const newFeedback: NewFeedback = {
+      type: data.type ?? FeedbackTypeEnum.FEEDBACK,
       name: data.name || user?.name || "Anonymous",
       email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
       languageCode: normalizeLanguageCode(acceptLanguage),
       images: data.images,
+      metadata: data.metadata ?? null,
       userId,
     };
 
@@ -64,10 +67,27 @@ export class FeedbackUseCase {
       data: {
         feedback: {
           ...created,
+          type: created.type as FeedbackTypeEnum,
           status: created.status as FeedbackStatusEnum,
         },
       },
       message: "Feedback submitted successfully",
+    };
+  }
+
+  async getSubmittedSurveyKeys(
+    userId: string,
+    surveyKeys?: string[],
+  ): Promise<ApiResponse<{ surveyKeys: string[] }>> {
+    const keys = await this.feedbackRepository.findSubmittedSurveyKeys(
+      userId,
+      surveyKeys,
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: { surveyKeys: keys },
     };
   }
 
@@ -86,7 +106,7 @@ export class FeedbackUseCase {
         data: result.data.map((feedback) => ({
           ...feedback,
           canTranslate: feedback.languageCode !== lang,
-          can_translate: feedback.languageCode !== lang,
+          type: feedback.type as FeedbackTypeEnum,
           status: feedback.status as FeedbackStatusEnum,
           assignedToUserId: feedback.assignedToUserId ?? null,
         })),
@@ -143,18 +163,24 @@ export class FeedbackUseCase {
       }
 
       if (statusChangedToResolved && existing.email) {
-        this.messageQueueService.addEmail(
-          EmailJobType.FEEDBACK_RESOLVED,
-          {
-            to: existing.email,
-            recipientName: existing.name,
-            feedbackSubject: existing.subject,
-          } as FeedbackResolvedEmailData,
-          {
-            attempts: 3,
-            backoff: { type: "exponential", delay: 5000 },
-          },
-        );
+        this.messageQueueService
+          .addEmail(
+            EmailJobType.FEEDBACK_RESOLVED,
+            {
+              to: existing.email,
+              recipientName: existing.name,
+              feedbackSubject: existing.subject,
+            } as FeedbackResolvedEmailData,
+            {
+              attempts: 3,
+              backoff: { type: "exponential", delay: 5000 },
+            },
+          )
+          .catch((error) => {
+            this.logger.error(
+              `[updateFeedback] [addEmail] Error sending feedback resolved email to ${existing.email}: ${error}`,
+            );
+          });
       }
 
       return {
@@ -200,36 +226,48 @@ export class FeedbackUseCase {
     });
 
     if (assignee?.email && assignedByUserId !== data.assignedToUserId) {
-      this.messageQueueService.addEmail(
-        EmailJobType.FEEDBACK_ASSIGNED,
-        {
-          to: assignee.email,
-          recipientName: assignee.name ?? "bạn",
-          feedbackSubject: feedbackSubjectForEmail,
-        } as FeedbackAssignedEmailData,
-        {
-          attempts: 3,
-          backoff: {
-            type: "exponential",
-            delay: 5000,
+      this.messageQueueService
+        .addEmail(
+          EmailJobType.FEEDBACK_ASSIGNED,
+          {
+            to: assignee.email,
+            recipientName: assignee.name ?? "bạn",
+            feedbackSubject: feedbackSubjectForEmail,
+          } as FeedbackAssignedEmailData,
+          {
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 5000,
+            },
           },
-        },
-      );
+        )
+        .catch((error) => {
+          this.logger.error(
+            `[updateFeedback] [addEmail] Error sending feedback assigned email to ${assignee.email}: ${error}`,
+          );
+        });
     }
 
     if (statusChangedToResolved && existing.email) {
-      this.messageQueueService.addEmail(
-        EmailJobType.FEEDBACK_RESOLVED,
-        {
-          to: existing.email,
-          recipientName: existing.name,
-          feedbackSubject: feedbackSubjectForEmail,
-        } as FeedbackResolvedEmailData,
-        {
-          attempts: 3,
-          backoff: { type: "exponential", delay: 5000 },
-        },
-      );
+      this.messageQueueService
+        .addEmail(
+          EmailJobType.FEEDBACK_RESOLVED,
+          {
+            to: existing.email,
+            recipientName: existing.name,
+            feedbackSubject: feedbackSubjectForEmail,
+          } as FeedbackResolvedEmailData,
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+          },
+        )
+        .catch((error) => {
+          this.logger.error(
+            `[updateFeedback] [addEmail] Error sending feedback resolved email to ${existing.email}: ${error}`,
+          );
+        });
     }
 
     return {

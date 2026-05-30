@@ -1,14 +1,27 @@
 import { FeedbackUseCase } from "@/use-cases/feedback/feedback.use-case";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { Body, Controller, Headers, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import { GetUser } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
 import {
   CreateFeedbackRequestDto,
   CreateFeedbackResponseDto,
+  GetSubmittedSurveysQueryDto,
+  GetSubmittedSurveysResponseDto,
 } from "@/interfaces/dtos";
-import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  JwtAuthGuard,
+  OptionalJwtAuthGuard,
+} from "@/frameworks/auth-services/guards";
 
 @ApiTags("Feedback")
 @Controller("feedbacks")
@@ -32,6 +45,25 @@ export class FeedbackController {
       data,
       user?.userId,
       acceptLanguage,
+    );
+  }
+
+  @ApiOperation({
+    summary: "List UX surveys already submitted by the current user",
+    description:
+      "Returns the distinct `metadata.surveyKey` values previously submitted by the authenticated user. " +
+      "Used by the FE to dedupe UX-survey dialogs across devices.",
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiResponseDto(GetSubmittedSurveysResponseDto)
+  @Get("me/surveys/submitted")
+  async getSubmittedSurveys(
+    @GetUser() user: TokenPayload,
+    @Query() query: GetSubmittedSurveysQueryDto,
+  ): Promise<ApiResponse<GetSubmittedSurveysResponseDto>> {
+    return this.feedbackUseCase.getSubmittedSurveyKeys(
+      user.userId,
+      query.surveyKeys,
     );
   }
 }

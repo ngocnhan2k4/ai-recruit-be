@@ -5,12 +5,11 @@ import {
   IsArray,
   IsEnum,
   IsString,
-  IsInt,
-  Min,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApplyStatusEnum } from "@/core";
+import { GeneralQueryDto } from "../../common/query";
 
 export class JobAnswerDto {
   @ApiProperty({
@@ -125,33 +124,13 @@ export class SaveJobDto {
 //   hide?: boolean;
 // }
 
-export class ApplyJobQueryDto {
+export class ApplyJobQueryDto extends GeneralQueryDto {
   @ApiProperty({
     example: "uuid-apply-id",
     description: "Job ID",
   })
   @IsUUID()
   jobId: string;
-
-  @ApiProperty({
-    example: 10,
-    description: "Number of applications to return",
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number;
-
-  @ApiProperty({
-    example: "1743739200000",
-    description: "Cursor from previous response (createdAt timestamp)",
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  cursor?: string;
 }
 
 export class UpdateApplyJobDto {

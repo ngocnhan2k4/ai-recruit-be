@@ -21,3 +21,4 @@ export * from "./upload";
 export * from "./subscription";
 export * from "./skill-synonym";
 export * from "./translation";
+export * from "./task";

@@ -5,8 +5,6 @@ import { estypes } from "@elastic/elasticsearch";
  * This allows swapping Elasticsearch with other search engines (Algolia, MeiliSearch, etc.)
  */
 export abstract class ISearchService {
-  abstract getClient(): any;
-
   abstract healthCheck(): Promise<boolean>;
 
   /**
@@ -84,4 +82,10 @@ export abstract class ISearchService {
     query: estypes.QueryDslQueryContainer,
     script: estypes.Script,
   ): Promise<void>;
+
+  abstract countDocuments(indexName: string): Promise<number>;
+
+  abstract existsIndex(indexName: string): Promise<boolean>;
+
+  abstract existsDocument(indexName: string, id: string): Promise<boolean>;
 }

@@ -207,54 +207,12 @@ export class JobSearchService implements IJobSearchService {
 
     if (keyword) {
       shouldQueries.push(
-        {
-          match: {
-            title: {
-              query: keyword,
-              boost: 3.0,
-            },
-          },
-        },
-        {
-          match: {
-            description: {
-              query: keyword,
-              boost: 1.0,
-            },
-          },
-        },
-        {
-          match: {
-            skillNames: {
-              query: keyword,
-              boost: 2.0,
-            },
-          },
-        },
-        {
-          match: {
-            organizationName: {
-              query: keyword,
-              boost: 2.5,
-            },
-          },
-        },
-        {
-          match: {
-            categoryName: {
-              query: keyword,
-              boost: 1.8,
-            },
-          },
-        },
-        {
-          match: {
-            provinceNames: {
-              query: keyword,
-              boost: 1.3,
-            },
-          },
-        },
+        { match: { title: { query: keyword, boost: 3.0 } } },
+        { match: { description: { query: keyword, boost: 1.0 } } },
+        { match: { skillNames: { query: keyword, boost: 2.0 } } },
+        { match: { organizationName: { query: keyword, boost: 2.5 } } },
+        { match: { categoryName: { query: keyword, boost: 1.8 } } },
+        { match: { provinceNames: { query: keyword, boost: 1.3 } } },
       );
     }
 
@@ -561,54 +519,12 @@ export class JobSearchService implements IJobSearchService {
       mustQueries.push({
         bool: {
           should: [
-            {
-              match: {
-                title: {
-                  query: keyword,
-                  boost: 3.0,
-                },
-              },
-            },
-            {
-              match: {
-                description: {
-                  query: keyword,
-                  boost: 1.0,
-                },
-              },
-            },
-            {
-              match: {
-                skillNames: {
-                  query: keyword,
-                  boost: 2.0,
-                },
-              },
-            },
-            {
-              match: {
-                organizationName: {
-                  query: keyword,
-                  boost: 2.5,
-                },
-              },
-            },
-            {
-              match: {
-                categoryName: {
-                  query: keyword,
-                  boost: 1.8,
-                },
-              },
-            },
-            {
-              match: {
-                provinceNames: {
-                  query: keyword,
-                  boost: 1.3,
-                },
-              },
-            },
+            { match: { title: { query: keyword, boost: 3.0 } } },
+            { match: { description: { query: keyword, boost: 1.0 } } },
+            { match: { skillNames: { query: keyword, boost: 2.0 } } },
+            { match: { organizationName: { query: keyword, boost: 2.5 } } },
+            { match: { categoryName: { query: keyword, boost: 1.8 } } },
+            { match: { provinceNames: { query: keyword, boost: 1.3 } } },
           ],
           minimum_should_match: 1,
         },
@@ -857,5 +773,13 @@ export class JobSearchService implements IJobSearchService {
         },
       },
     };
+  }
+
+  async getJobById(jobId: string): Promise<JobSearchDocument | null> {
+    const index = this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
+    const response = await this.searchService.search(index, {
+      query: { term: { id: jobId } },
+    });
+    return response?.hits?.hits?.[0]?._source ?? null;
   }
 }

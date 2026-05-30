@@ -1,7 +1,7 @@
-import { pgTable, varchar, uuid, text } from "drizzle-orm/pg-core";
+import { pgTable, varchar, uuid, text, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { timestamps } from "./helpers";
-import { FeedbackStatusEnum } from "./enums";
+import { FeedbackStatusEnum, FeedbackTypeEnum } from "./enums";
 import { index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -10,6 +10,7 @@ export const feedbacks = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     status: FeedbackStatusEnum("status").notNull().default("pending"),
+    type: FeedbackTypeEnum("type").notNull().default("feedback"),
     userId: uuid("user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -28,6 +29,8 @@ export const feedbacks = pgTable(
 
     images: text("images").array(),
 
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+
     ...timestamps,
   },
   (table) => [
@@ -41,5 +44,10 @@ export const feedbacks = pgTable(
       .where(sql`deleted_at IS NULL`),
 
     index("idx_feedbacks_created_at").on(table.createdAt.desc()),
+
+    index("idx_feedbacks_user_survey_key").on(
+      table.userId,
+      sql`(metadata->>'surveyKey')`,
+    ),
   ],
 );
