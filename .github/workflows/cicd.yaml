@@ -109,9 +109,8 @@ jobs:
             echo "${{ secrets.REGISTRY_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             cd ${{ env.DEPLOY_DIR }}
-            docker compose -f ${{ env.COMPOSE_FILE }} down
-            docker image prune -f
             docker compose -f ${{ env.COMPOSE_FILE }} pull
+            docker compose -f ${{ env.COMPOSE_FILE }} down
             docker compose -f ${{ env.COMPOSE_FILE }} up -d
 
             docker logout ghcr.io
