@@ -32,11 +32,14 @@ import {
   UpsertSkillNoteDto,
   SkillNoteDto,
   SkillNoteForStudyGuideDto,
+  SaveQuizResultDto,
 } from "@/interfaces/dtos/learning-path";
 import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
   WeeklyProgress,
+  SubpathWithDetails,
+  SubpathModuleQuizResult,
 } from "@/core";
 
 @ApiTags("Learning Path")
@@ -280,6 +283,62 @@ export class LearningPathController {
   ): Promise<ApiResponse<SkillNoteForStudyGuideDto[]>> {
     return await this.learningPathUseCase.getStudyGuideNotes(
       roadmapId,
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/options/:optionId/subpath")
+  @ApiOperation({
+    summary: "Get or generate subpath for an option",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "optionId", description: "Skill option ID" })
+  async getOrGenerateSubPath(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("optionId") optionId: string,
+  ): Promise<ApiResponse<SubpathWithDetails>> {
+    return await this.learningPathUseCase.getOrGenerateSubPath(
+      roadmapId,
+      optionId,
+      user.userId,
+    );
+  }
+
+  @Put(":roadmapId/resources/:resourceId/toggle")
+  @ApiOperation({
+    summary: "Toggle resource completion",
+    description: "Mark a learning resource as completed or uncompleted.",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "resourceId", description: "Resource ID" })
+  async toggleResourceCompletion(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("resourceId") resourceId: string,
+  ): Promise<ApiResponse<{ completed: boolean }>> {
+    return await this.learningPathUseCase.toggleResourceCompletion(
+      roadmapId,
+      resourceId,
+      user.userId,
+    );
+  }
+
+  @Post(":roadmapId/modules/:moduleId/quiz-result")
+  @ApiOperation({ summary: "Save quiz result for a module" })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "moduleId", description: "Subpath module ID" })
+  async saveModuleQuizResult(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("moduleId") moduleId: string,
+    @Body() dto: SaveQuizResultDto,
+  ): Promise<ApiResponse<SubpathModuleQuizResult>> {
+    return await this.learningPathUseCase.saveModuleQuizResult(
+      roadmapId,
+      moduleId,
+      dto.score,
+      dto.totalQuestions,
       user.userId,
     );
   }

@@ -5,6 +5,12 @@ import {
   roadmapSkills,
   roadmapSkillOptions,
   weeklyProgress,
+  optionSubpaths,
+  subpathModules,
+  subpathResources,
+  subpathQuizQuestions,
+  optionResourceCompletions,
+  subpathModuleQuizResults,
 } from "@/frameworks/data-services/postgres/models";
 import {
   SkillLevelEnum,
@@ -138,4 +144,68 @@ export interface AILearningRoadmapResult {
   previewData: PreviewRoadmapData;
   currentSkills: SkillLevel[];
   timeCommitmentHoursPerWeek: number;
+}
+
+export type OptionSubpath = InferSelectModel<typeof optionSubpaths>;
+export type SubpathModule = InferSelectModel<typeof subpathModules>;
+export type SubpathResource = InferSelectModel<typeof subpathResources>;
+export type SubpathQuizQuestion = InferSelectModel<typeof subpathQuizQuestions>;
+export type OptionResourceCompletion = InferSelectModel<
+  typeof optionResourceCompletions
+>;
+export type SubpathModuleQuizResult = InferSelectModel<
+  typeof subpathModuleQuizResults
+>;
+
+export interface SubpathWithDetails extends OptionSubpath {
+  subNodes: Array<
+    SubpathModule & {
+      resources: SubpathResource[];
+      quizQuestions: SubpathQuizQuestion[];
+    }
+  >;
+}
+
+export interface SubpathGenerateRequest {
+  optionName: string;
+  optionReason?: string;
+  keyConcepts: string[];
+  targetRole: string;
+  currentRole?: string;
+}
+
+export interface AISubpathResult {
+  title: string;
+  description: string;
+  duration: string;
+  tags: string[];
+  subNodes: Array<{
+    title: string;
+    description: string;
+    duration: string;
+    category: string;
+    concepts: string[];
+    orderIndex: number;
+    resources: Array<{
+      title: string;
+      url: string;
+      type: string;
+      description: string;
+      isFree: boolean;
+      orderIndex: number;
+      quickCheck: Array<{
+        question: string;
+        options: string[];
+        correctAnswerIndex: number;
+        explanation: string;
+      }>;
+    }>;
+    quiz: Array<{
+      question: string;
+      options: string[];
+      correctAnswerIndex: number;
+      explanation: string;
+      orderIndex: number;
+    }>;
+  }>;
 }
