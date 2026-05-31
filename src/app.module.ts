@@ -32,6 +32,7 @@ import {
   BlogController,
   AdminBlogController,
   CommentController,
+  TaskAdminController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
 import { FeedbackController } from "./interfaces/controllers/feedback/feedback.controller";
@@ -99,6 +100,7 @@ import { AdminDeploymentController } from "@/interfaces/controllers/deployment/a
 import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv-sync.controller";
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
+import { TaskUseCasesModule } from "@/use-cases/task/task.module";
 
 @Module({
   imports: [
@@ -172,6 +174,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
     DeploymentUseCasesModule,
     BlogUseCasesModule,
     CommentUseCasesModule,
+    TaskUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -211,6 +214,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
     BlogController,
     AdminBlogController,
     CommentController,
+    TaskAdminController,
   ],
   providers: [
     JwtStrategy,
