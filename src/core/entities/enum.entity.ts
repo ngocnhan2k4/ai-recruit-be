@@ -60,6 +60,8 @@ export enum NotificationType {
   ORGANIZATION_INVITED = "organization_invited",
   SYSTEM = "system",
   FEEDBACK_ASSIGNED = "feedback_assigned",
+  BLOG_COMMENT = "blog_comment",
+  BLOG_COMMENT_REPLY = "blog_comment_reply",
 }
 export enum NotificationStatusEnum {
   READ = "read",

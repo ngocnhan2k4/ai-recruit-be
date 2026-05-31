@@ -40,10 +40,14 @@ import {
   UserActionType,
   BlogCategory,
   Tag,
+  NotificationType,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
 import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
+import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { CommentService } from "@/services/comment/comment.service";
 
 @Injectable()
 export class BlogUseCases {
@@ -53,6 +57,9 @@ export class BlogUseCases {
     private readonly commentRepository: ICommentRepository,
     private readonly blogService: BlogService,
     private readonly cacheService: ICacheService,
+    private readonly userRepository: IUserRepository,
+    private readonly notificationService: INotificationService,
+    private readonly commentService: CommentService,
   ) {}
 
   async createComment(
@@ -69,14 +76,11 @@ export class BlogUseCases {
       });
     }
 
-    let parentCommentId: string | null = dto.parentCommentId || null;
-    let rootCommentId: string | null = null;
-
-    if (parentCommentId) {
-      const parent = await this.commentRepository.get(parentCommentId);
-      rootCommentId = parent ? parent.rootCommentId || parent.id : null;
-      parentCommentId = parent ? parentCommentId : null;
-    }
+    const { parentCommentId, rootCommentId } =
+      await this.commentService.validateCommentHierarchy(
+        dto.parentCommentId || null,
+        postId,
+      );
 
     const _cmt = await this.commentRepository.create({
       content: dto.content,
@@ -86,6 +90,74 @@ export class BlogUseCases {
       objectType: ObjectType.BLOG,
       authorId: user.userId,
     });
+
+    try {
+      const commenter = await this.userRepository.get(user.userId);
+      const commenterName = commenter?.name || "Người dùng";
+      if (!parentCommentId) {
+        if (post.authorId && post.authorId !== user.userId) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Bình luận mới",
+              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
+              type: NotificationType.BLOG_COMMENT,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+              } as any,
+            },
+            { userId: post.authorId },
+          );
+        }
+      } else {
+        const parentComment = await this.commentRepository.get(parentCommentId);
+        if (
+          parentComment &&
+          parentComment.authorId &&
+          parentComment.authorId !== user.userId
+        ) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Phản hồi bình luận",
+              message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
+              type: NotificationType.BLOG_COMMENT_REPLY,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+                rootCommentId: _cmt.rootCommentId,
+              } as any,
+            },
+            { userId: parentComment.authorId },
+          );
+        }
+        if (
+          post.authorId &&
+          post.authorId !== user.userId &&
+          (!parentComment || parentComment.authorId !== post.authorId)
+        ) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Bình luận mới",
+              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
+              type: NotificationType.BLOG_COMMENT,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+              } as any,
+            },
+            { userId: post.authorId },
+          );
+        }
+      }
+    } catch (_) {
+      // ignore error, continue to return response
+    }
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -277,17 +349,7 @@ export class BlogUseCases {
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
-    const now = new Date().getTime();
-
-    const scoredPosts = dataWithTags.map((post) => {
-      const createdAtTime = new Date(post.createdAt).getTime();
-      const ageInHours = Math.max(0, (now - createdAtTime) / (1000 * 60 * 60));
-      const score = post.likes / Math.pow(ageInHours + 2, 1.5);
-      return { post, score };
-    });
-
-    scoredPosts.sort((a, b) => b.score - a.score);
-    const result = scoredPosts.slice(0, 10).map((item) => item.post);
+    const result = this.blogService.calculateTopBlogs(dataWithTags);
 
     await this.cacheService.setJson(cacheKey, result, 600000);
 
@@ -325,7 +387,6 @@ export class BlogUseCases {
     const currentTags = await this.blogRepository.getPostTagsByPostId(
       currentPost.id,
     );
-    const currentTagNames = new Set(currentTags.map((t) => t.name));
 
     const { data } = await this.blogRepository.getPosts({
       limit: 50,
@@ -336,30 +397,12 @@ export class BlogUseCases {
     const candidates = data.filter((p) => p.slug !== slug);
     const candidatesWithTags = await this.getBlogsWithTags(candidates);
 
-    const scored = candidatesWithTags.map((post) => {
-      let score = 0;
-
-      if (post.category === currentPost.category) {
-        score += 5;
-      }
-
-      if (post.tags) {
-        for (const tag of post.tags) {
-          if (currentTagNames.has(tag.name)) {
-            score += 2;
-          }
-        }
-      }
-
-      if (post.sourceType === currentPost.sourceType) {
-        score += 1;
-      }
-
-      return { post, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const result = scored.slice(0, limit).map((item) => item.post);
+    const result = this.blogService.calculateRelatedPosts(
+      currentPost,
+      candidatesWithTags,
+      currentTags,
+      limit,
+    );
 
     await this.cacheService.setJson(cacheKey, result, 1800000);
 
@@ -573,6 +616,10 @@ export class BlogUseCases {
     dto: SaveDraftBlogPostDto,
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
+    if (postId) {
+      await this.blogService.checkIsAuthor(postId, user.userId);
+    }
+
     const result = await this.blogRepository.executeWithTransaction(
       async () => {
         return this.blogRepository.saveDraft(

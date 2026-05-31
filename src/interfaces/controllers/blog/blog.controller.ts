@@ -213,7 +213,6 @@ export class BlogController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @UseGuards(JwtAuthGuard)
   @Post(":blogId/likes")
   @ApiOperation({
     summary: "Toggle Like",
