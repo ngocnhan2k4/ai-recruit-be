@@ -11,7 +11,6 @@ import {
   ICvRepository,
   IUserRepository,
   INotificationRepository,
-  ISearchService,
   ICvSearchService,
   ICvService,
 } from "@/core/abstracts";
@@ -77,9 +76,9 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
+import { ContextStorage } from "@/common/stores/context.store";
 
 @Injectable()
 export class JobUseCases {
@@ -94,10 +93,9 @@ export class JobUseCases {
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
     private readonly featureService: IFeatureService,
-    private readonly searchService: ISearchService,
     private readonly cvSearchService: ICvSearchService,
-    private readonly configService: ConfigService,
     private readonly cvService: ICvService,
+    private readonly contextStorage: ContextStorage,
   ) {}
 
   async getJobs(
@@ -165,6 +163,8 @@ export class JobUseCases {
 
     const organizationMap = keyBy(organizations, "id");
     const jobMap = keyBy(jobInfos.data, "job.id");
+
+    this.contextStorage.set("data", docs);
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -1487,6 +1487,7 @@ export class JobUseCases {
         code: RESPONSE_CODE.JOB_NOT_FOUND,
       });
     }
+    this.contextStorage.set("data", job);
 
     // Transform questions field
     const transformedJob: JobResponseDto = {

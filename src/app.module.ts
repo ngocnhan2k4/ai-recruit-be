@@ -101,6 +101,10 @@ import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
+import { ContextModule } from "./common/stores/context.module";
+import { ContextMiddleware } from "./common/middlewares/context.middleware";
+import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 
 @Module({
   imports: [
@@ -116,6 +120,8 @@ import { TaskUseCasesModule } from "@/use-cases/task/task.module";
       // load: [envConfig],
       validate: validateConfig,
     }),
+    ContextModule,
+    MessageQueueModule,
     ScheduleModule.forRoot(),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -245,6 +251,11 @@ import { TaskUseCasesModule } from "@/use-cases/task/task.module";
       provide: APP_INTERCEPTOR,
       useClass: PrometheusMetricsInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+    ContextMiddleware,
   ],
 })
 export class AppModule implements NestModule {
@@ -253,5 +264,6 @@ export class AppModule implements NestModule {
       .apply(RateLimitMiddleware)
       .exclude("/health", "users/me", "auth/refresh")
       .forRoutes("*");
+    consumer.apply(ContextMiddleware).forRoutes("*");
   }
 }

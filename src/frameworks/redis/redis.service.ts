@@ -36,7 +36,7 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     }
 
     if (options?.ttlSeconds) {
-      await this.redis.setex(key, value, options.ttlSeconds);
+      await this.redis.setex(key, options.ttlSeconds, value);
       return true;
     }
 

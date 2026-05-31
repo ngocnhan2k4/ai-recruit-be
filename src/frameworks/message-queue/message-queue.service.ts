@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import {
+  ACTIVITY_LOG_QUEUE,
   CV_INDEX_QUEUE,
   EMAIL_QUEUE,
   JOB_INDEX_QUEUE,
@@ -20,6 +21,7 @@ export class MessageQueueService implements IMessageQueueService {
     @InjectQueue(EMAIL_QUEUE) private readonly queueEmail: Queue,
     @InjectQueue(CV_INDEX_QUEUE) private readonly queueCv: Queue,
     @InjectQueue(SCORE_CV_QUEUE) private readonly queueScoreCv: Queue,
+    @InjectQueue(ACTIVITY_LOG_QUEUE) private readonly queueActivityLog: Queue,
     @InjectFlowProducer("cv_score_flow")
     private readonly flowProducer: FlowProducer,
   ) {}
@@ -112,5 +114,18 @@ export class MessageQueueService implements IMessageQueueService {
         },
       ],
     });
+  }
+
+  async addActivityLog(name: string, data: any, opts?: any): Promise<void> {
+    await this.queueActivityLog.add(name, data, {
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+      ...opts,
+    } as JobsOptions);
   }
 }

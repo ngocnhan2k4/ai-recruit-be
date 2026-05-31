@@ -3,6 +3,7 @@ import { MessageQueueService } from "./message-queue.service";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { BullModule } from "@nestjs/bullmq";
 import {
+  ACTIVITY_LOG_QUEUE,
   CV_INDEX_QUEUE,
   EMAIL_QUEUE,
   JOB_INDEX_QUEUE,
@@ -42,6 +43,9 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     }),
     BullModule.registerFlowProducer({
       name: "cv_score_flow",
+    }),
+    BullModule.registerQueue({
+      name: ACTIVITY_LOG_QUEUE,
     }),
   ],
   providers: [

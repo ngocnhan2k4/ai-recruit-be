@@ -66,3 +66,5 @@ checkpoints/
 multi_class_model/
 artifacts/
 crawl_jobs/skills/
+
+.cursor

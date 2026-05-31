@@ -7,7 +7,6 @@ import { FeatureModule } from "@/services";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { ConfigModule } from "@nestjs/config";
 import { CvModule } from "@/services/cv/cv.module";
-
 @Module({
   imports: [
     WebSocketModule,

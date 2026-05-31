@@ -19,6 +19,7 @@ import { UserScheduler } from "./user.scheduler";
 import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
+import { ActivityLogWorker } from "./activity-log.worker";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { BlogScheduler } from "./blog.scheduler";
     EmailWorker,
     UserScheduler,
     BlogScheduler,
+    ActivityLogWorker,
   ],
 })
 export class JobMatchingSchedulerModule {}

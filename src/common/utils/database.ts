@@ -4,16 +4,17 @@ const TIME_SLOW_QUERY_MS = 2000;
 
 const formatSql = (sql: string, values: any[]) => {
   let formatted = sql;
-  values.forEach((val, idx) => {
+  for (let idx = values.length - 1; idx >= 0; idx--) {
     const placeholder = `$${idx + 1}`;
+    const val = values[idx];
     const formattedVal =
       typeof val === "string"
         ? `'${val.replace(/'/g, "''")}'`
         : val instanceof Date
           ? `'${val.toISOString()}'`
           : val;
-    formatted = formatted.replaceAll(placeholder, formattedVal);
-  });
+    formatted = formatted.replaceAll(placeholder, String(formattedVal));
+  }
   return formatted;
 };
 
