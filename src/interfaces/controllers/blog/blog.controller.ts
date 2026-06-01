@@ -154,13 +154,30 @@ export class BlogController {
   @Post()
   @ApiOperation({
     summary: "Create Blog",
-    description: "Create a new published blog post",
+    description:
+      "Create a new blog post directly (submitted for review as PENDING). Does not require a draft.",
   })
   async createBlog(
     @GetUser() user: TokenPayload,
     @Body() dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ slug: string }>> {
     return this.blogUseCase.createPost(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":postId/submit")
+  @ApiOperation({
+    summary: "Submit Draft for Review",
+    description:
+      "Submit an existing draft blog post for review. Updates content and changes status from DRAFT to PENDING.",
+  })
+  @ApiParam({ name: "postId", description: "ID of the draft blog post" })
+  async submitDraft(
+    @GetUser() user: TokenPayload,
+    @Param("postId") postId: string,
+    @Body() dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ slug: string }>> {
+    return this.blogUseCase.submitDraft(user, postId, dto);
   }
 
   @UseGuards(JwtAuthGuard)

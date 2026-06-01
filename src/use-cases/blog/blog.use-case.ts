@@ -507,86 +507,84 @@ export class BlogUseCases {
     };
   }
 
+  async submitDraft(
+    user: TokenPayload,
+    postId: string,
+    dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ slug: string }>> {
+    const existing = await this.blogRepository.get(postId);
+
+    if (!existing) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const submitted = await this.blogRepository.executeWithTransaction(
+      async (tx) => {
+        if (existing.authorId !== user.userId) {
+          throw new ForbiddenException({
+            code: RESPONSE_CODE.FORBIDDEN,
+            message: RESPONSE_MESSAGE.FORBIDDEN,
+          });
+        }
+
+        if (existing.status !== (BlogPostStatus.DRAFT as string)) {
+          throw new BadRequestException({
+            code: RESPONSE_CODE.BLOG_IS_NOT_DRAFT,
+            message: RESPONSE_MESSAGE.BLOG_IS_NOT_DRAFT,
+          });
+        }
+
+        const baseSlug = generateSlug(dto.title);
+        const existed = await this.blogRepository.getPostBySlug(baseSlug);
+        const slug =
+          existed && existed.id !== postId
+            ? `${baseSlug}-${Date.now()}`
+            : baseSlug;
+
+        const [updated] = await this.blogRepository.update(
+          { id: postId },
+          {
+            title: dto.title,
+            summary: dto.summary,
+            content: dto.content,
+            categoryId: dto.category,
+            thumbnail: dto.thumbnail ?? null,
+            slug,
+            status: BlogPostStatus.PENDING,
+            updatedAt: new Date(),
+          },
+          tx,
+        );
+
+        if (!updated) {
+          throw new NotFoundException({
+            code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+            message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+          });
+        }
+
+        if (dto.tags) {
+          await this.blogRepository.updatePostTags(postId, dto.tags);
+        }
+
+        return updated;
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.CREATED,
+      message: RESPONSE_MESSAGE.CREATED,
+      data: { slug: submitted.slug },
+    };
+  }
+
   async createPost(
     user: TokenPayload,
     dto: CreateBlogPostDto,
-  ): Promise<
-    ApiResponse<{
-      slug: string;
-    }>
-  > {
-    if (dto.postId) {
-      const existing = await this.blogRepository.get(dto.postId);
-
-      if (!existing) {
-        throw new NotFoundException({
-          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-          message: "Blog post not found",
-        });
-      }
-
-      const published = await this.blogRepository.executeWithTransaction(
-        async (tx) => {
-          if (existing.authorId !== user.userId) {
-            throw new ForbiddenException({
-              code: RESPONSE_CODE.FORBIDDEN,
-              message: RESPONSE_MESSAGE.FORBIDDEN,
-            });
-          }
-
-          if (existing.status !== (BlogPostStatus.DRAFT as string)) {
-            throw new BadRequestException({
-              code: RESPONSE_CODE.BLOG_IS_NOT_DRAFT,
-              message: RESPONSE_MESSAGE.BLOG_IS_NOT_DRAFT,
-            });
-          }
-
-          const baseSlug = generateSlug(dto.title);
-          const existed = await this.blogRepository.getPostBySlug(baseSlug);
-          const slug =
-            existed && existed.id !== dto.postId
-              ? `${baseSlug}-${Date.now()}`
-              : baseSlug;
-
-          const [updated] = await this.blogRepository.update(
-            {
-              id: dto.postId,
-            },
-            {
-              title: dto.title,
-              summary: dto.summary,
-              content: dto.content,
-              categoryId: dto.category,
-              thumbnail: dto.thumbnail ?? null,
-              slug,
-              status: BlogPostStatus.PENDING,
-              updatedAt: new Date(),
-            },
-            tx,
-          );
-
-          if (!updated) {
-            throw new NotFoundException({
-              code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-              message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-            });
-          }
-
-          if (dto.tags) {
-            await this.blogRepository.updatePostTags(existing.id, dto.tags);
-          }
-
-          return updated;
-        },
-      );
-
-      return {
-        code: RESPONSE_CODE.CREATED,
-        message: RESPONSE_MESSAGE.CREATED,
-        data: { slug: published.slug },
-      };
-    }
-
+  ): Promise<ApiResponse<{ slug: string }>> {
     const result = await this.blogRepository.executeWithTransaction(
       async () => {
         const baseSlug = generateSlug(dto.title);
