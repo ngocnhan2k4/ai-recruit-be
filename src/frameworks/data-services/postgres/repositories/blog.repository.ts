@@ -122,6 +122,50 @@ export class BlogRepository
     super(db, blogPosts);
   }
 
+  private mapToPostDetailBase(post: {
+    id: string;
+    title: string;
+    slug: string;
+    summary: string | null;
+    thumbnail: string | null;
+    content: string | null;
+    category: string | null;
+    status: BlogPostStatus;
+    viewCount: number | null;
+    sourceType: string | null;
+    source: unknown;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    authorId: string | null;
+    authorUsername: string | null;
+    authorName: string | null;
+    authorAvatarUrl: string | null;
+  }): BlogPostDetailBase {
+    return {
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      summary: post.summary ?? "",
+      thumbnail: post.thumbnail,
+      content: post.content ?? "",
+      category: post.category ?? "",
+      status: post.status,
+      viewCount: post.viewCount ?? 0,
+      sourceType: post.sourceType as BlogSourceType,
+      source: post.source as BlogPostSource | null,
+      createdAt: post.createdAt ?? new Date(),
+      updatedAt: post.updatedAt,
+      author: post.authorId
+        ? {
+            id: post.authorId,
+            username: post.authorUsername!,
+            name: post.authorName!,
+            avatarUrl: post.authorAvatarUrl,
+          }
+        : null,
+    };
+  }
+
   private async invalidateBlogCache(postId: string, slug?: string) {
     const pattern = CACHE_KEYS.blog.patternDetail(postId);
 
@@ -827,29 +871,12 @@ export class BlogRepository
         );
         const translated = translatedMap[post.id];
 
-        return {
-          id: post.id,
+        return this.mapToPostDetailBase({
+          ...post,
           title: translated?.title || post.title,
-          slug: post.slug,
           summary: translated?.summary || post.summary,
-          thumbnail: post.thumbnail,
           content: translated?.content || post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        });
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -911,29 +938,7 @@ export class BlogRepository
 
         if (!post) return null;
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          summary: post.summary,
-          thumbnail: post.thumbnail,
-          content: post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        return this.mapToPostDetailBase(post);
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -1091,7 +1096,7 @@ export class BlogRepository
 
     const normalizedTags = tags.filter((item) => item.tagId || item.skillId);
     if (normalizedTags.length > 0) {
-      const tagRows: any[] = normalizedTags.map((item) => ({
+      const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
         postId,
         tagId: item.tagId ?? null,
         skillId: item.skillId ?? null,

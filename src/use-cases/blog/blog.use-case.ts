@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -46,14 +47,20 @@ import {
   UserActionType,
   BlogCategory,
   Tag,
+  NotificationType,
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
 import { DEFAULT_LANGUAGE_CODE, normalizeLanguageCode } from "@/common/utils";
 import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
+import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { CommentService } from "@/services/comment/comment.service";
 
 @Injectable()
 export class BlogUseCases {
+  private readonly logger = new Logger(BlogUseCases.name);
+
   constructor(
     private readonly blogRepository: IBlogRepository,
     private readonly userActionRepository: IUserActionRepository,
@@ -61,6 +68,9 @@ export class BlogUseCases {
     private readonly blogService: BlogService,
     private readonly cacheService: ICacheService,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly userRepository: IUserRepository,
+    private readonly notificationService: INotificationService,
+    private readonly commentService: CommentService,
   ) {}
 
   private resolveTranslationTargets(sourceLanguage: string) {
@@ -103,14 +113,89 @@ export class BlogUseCases {
       });
     }
 
+    const { parentCommentId, rootCommentId } =
+      await this.commentService.validateCommentHierarchy(
+        dto.parentCommentId || null,
+        postId,
+      );
+
     const _cmt = await this.commentRepository.create({
       content: dto.content,
-      parentCommentId: dto.parentCommentId,
+      parentCommentId,
+      rootCommentId,
       objectId: post.id,
       objectType: ObjectType.BLOG,
       authorId: user.userId,
       languageCode: normalizeLanguageCode(acceptLanguage),
     });
+
+    try {
+      const commenter = await this.userRepository.get(user.userId);
+      const commenterName = commenter?.name || "Người dùng";
+      if (!parentCommentId) {
+        if (post.authorId && post.authorId !== user.userId) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Bình luận mới",
+              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
+              type: NotificationType.BLOG_COMMENT,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+              },
+            },
+            { userId: post.authorId },
+          );
+        }
+      } else {
+        const parentComment = await this.commentRepository.get(parentCommentId);
+        if (
+          parentComment &&
+          parentComment.authorId &&
+          parentComment.authorId !== user.userId
+        ) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Phản hồi bình luận",
+              message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
+              type: NotificationType.BLOG_COMMENT_REPLY,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+                rootCommentId: _cmt.rootCommentId,
+              },
+            },
+            { userId: parentComment.authorId },
+          );
+        }
+        if (
+          post.authorId &&
+          post.authorId !== user.userId &&
+          (!parentComment || parentComment.authorId !== post.authorId)
+        ) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Bình luận mới",
+              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
+              type: NotificationType.BLOG_COMMENT,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+              },
+            },
+            { userId: post.authorId },
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn("Failed to send comment notification", err);
+    }
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -299,11 +384,81 @@ export class BlogUseCases {
     };
   }
 
-  async getTopBlogs(): Promise<
-    ApiResponse<PaginatedResult<BlogPostListItemDto>>
-  > {
-    await Promise.resolve();
-    const result = [] as any;
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    const cacheKey = CACHE_KEYS.blog.topBlogs();
+    const cached =
+      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
+    if (cached) {
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        data: cached,
+      };
+    }
+
+    const { data } = await this.blogRepository.getPosts({
+      limit: 100,
+      page: 1,
+      status: BlogPostStatus.PUBLISHED,
+    });
+
+    const dataWithTags = await this.getBlogsWithTags(data);
+    const result = this.blogService.calculateTopBlogs(dataWithTags);
+
+    await this.cacheService.setJson(cacheKey, result, 600000);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
+    };
+  }
+
+  async getRelatedPosts(
+    slug: string,
+    limit = 4,
+  ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    const cacheKey = CACHE_KEYS.blog.relatedPosts(slug);
+    const cached =
+      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
+    if (cached) {
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        data: cached,
+      };
+    }
+
+    const currentPost = await this.blogRepository.getPostBaseBySlug(slug);
+
+    if (!currentPost) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const currentTags = await this.blogRepository.getPostTagsByPostId(
+      currentPost.id,
+    );
+
+    const { data } = await this.blogRepository.getPosts({
+      limit: 50,
+      page: 1,
+      status: BlogPostStatus.PUBLISHED,
+    });
+
+    const candidates = data.filter((p) => p.slug !== slug);
+    const candidatesWithTags = await this.getBlogsWithTags(candidates);
+
+    const result = this.blogService.calculateRelatedPosts(
+      currentPost,
+      candidatesWithTags,
+      currentTags,
+      limit,
+    );
+
+    await this.cacheService.setJson(cacheKey, result, 1800000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -415,90 +570,86 @@ export class BlogUseCases {
     };
   }
 
+  async submitDraft(
+    user: TokenPayload,
+    postId: string,
+    dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ slug: string }>> {
+    const existing = await this.blogRepository.get(postId);
+
+    if (!existing) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    const submitted = await this.blogRepository.executeWithTransaction(
+      async (tx) => {
+        if (existing.authorId !== user.userId) {
+          throw new ForbiddenException({
+            code: RESPONSE_CODE.FORBIDDEN,
+            message: RESPONSE_MESSAGE.FORBIDDEN,
+          });
+        }
+
+        if (existing.status !== (BlogPostStatus.DRAFT as string)) {
+          throw new BadRequestException({
+            code: RESPONSE_CODE.BLOG_IS_NOT_DRAFT,
+            message: RESPONSE_MESSAGE.BLOG_IS_NOT_DRAFT,
+          });
+        }
+
+        const baseSlug = generateSlug(dto.title);
+        const existed = await this.blogRepository.getPostBySlug(baseSlug);
+        const slug =
+          existed && existed.id !== postId
+            ? `${baseSlug}-${Date.now()}`
+            : baseSlug;
+
+        const [updated] = await this.blogRepository.update(
+          { id: postId },
+          {
+            title: dto.title,
+            summary: dto.summary,
+            content: dto.content,
+            categoryId: dto.category,
+            thumbnail: dto.thumbnail ?? null,
+            slug,
+            status: BlogPostStatus.PENDING,
+            updatedAt: new Date(),
+          },
+          tx,
+        );
+
+        if (!updated) {
+          throw new NotFoundException({
+            code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+            message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+          });
+        }
+
+        if (dto.tags) {
+          await this.blogRepository.updatePostTags(postId, dto.tags);
+        }
+
+        return updated;
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.CREATED,
+      message: RESPONSE_MESSAGE.CREATED,
+      data: { slug: submitted.slug },
+    };
+  }
+
   async createPost(
     user: TokenPayload,
     dto: CreateBlogPostDto,
     acceptLanguage?: string,
-  ): Promise<
-    ApiResponse<{
-      slug: string;
-    }>
-  > {
+  ): Promise<ApiResponse<{ slug: string }>> {
     const sourceLanguage = normalizeLanguageCode(acceptLanguage);
-
-    if (dto.postId) {
-      const existing = await this.blogRepository.get(dto.postId);
-
-      if (!existing) {
-        throw new NotFoundException({
-          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-          message: "Blog post not found",
-        });
-      }
-
-      const published = await this.blogRepository.executeWithTransaction(
-        async (tx) => {
-          if (existing.authorId !== user.userId) {
-            throw new ForbiddenException({
-              code: RESPONSE_CODE.FORBIDDEN,
-              message: RESPONSE_MESSAGE.FORBIDDEN,
-            });
-          }
-
-          if (existing.status !== (BlogPostStatus.DRAFT as string)) {
-            throw new BadRequestException({
-              code: RESPONSE_CODE.BLOG_IS_NOT_DRAFT,
-              message: RESPONSE_MESSAGE.BLOG_IS_NOT_DRAFT,
-            });
-          }
-
-          const slug = existing.slug || generateSlug(dto.title);
-
-          await this.blogRepository.saveDraft(
-            {
-              title: dto.title,
-              summary: dto.summary,
-              content: dto.content,
-              category: dto.category,
-              thumbnail: dto.thumbnail ?? null,
-              tags: dto.tags,
-              slug,
-            },
-            user.userId,
-            dto.postId,
-          );
-
-          const [updated] = await this.blogRepository.update(
-            {
-              id: dto.postId,
-            },
-            {
-              status: BlogPostStatus.PENDING,
-              updatedAt: new Date(),
-            },
-            tx,
-          );
-
-          if (!updated) {
-            throw new NotFoundException({
-              code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-              message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-            });
-          }
-
-          return updated;
-        },
-      );
-
-      await this.enqueueBlogPostTranslation(published.id, sourceLanguage);
-
-      return {
-        code: RESPONSE_CODE.CREATED,
-        message: RESPONSE_MESSAGE.CREATED,
-        data: { slug: published.slug },
-      };
-    }
-
     const result = await this.blogRepository.executeWithTransaction(
       async () => {
         const baseSlug = generateSlug(dto.title);
@@ -535,6 +686,9 @@ export class BlogUseCases {
     acceptLanguage?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     const sourceLanguage = normalizeLanguageCode(acceptLanguage);
+    if (postId) {
+      await this.blogService.checkIsAuthor(postId, user.userId);
+    }
     const result = await this.blogRepository.executeWithTransaction(
       async () => {
         return this.blogRepository.saveDraft(

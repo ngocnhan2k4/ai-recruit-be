@@ -23,7 +23,7 @@ export class SkillsSynonymsRepository
   ) {
     super(db, skillsSynonyms);
   }
-  ss;
+
   async getSynonymsSkills(skillNames: string[]): Promise<SynonymSkillResponse> {
     const synonymKey = CACHE_KEYS.skillSynonym.getAll();
     const skillsKey = CACHE_KEYS.skill.getAll();
