@@ -15,7 +15,7 @@ import {
   FeedbackStatusEnum,
   FeedbackTypeEnum,
 } from "@/core/entities/enum.entity";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 
 export class CreateFeedbackRequestDto {
   @ApiProperty({ description: "Name of the user submitting feedback" })
@@ -80,6 +80,7 @@ export class GetSubmittedSurveysQueryDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => (typeof value === "string" ? [value] : value))
   surveyKeys?: string[];
 }
 
