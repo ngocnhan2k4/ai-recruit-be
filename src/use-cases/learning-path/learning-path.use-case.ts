@@ -15,7 +15,7 @@ import {
   IWebSocketGateway,
   IFeatureService,
   ISkillNoteRepository,
-  IOptionSubpathRepository,
+  ISubpathRepository,
   IOptionResourceCompletionRepository,
   ISubpathModuleQuizResultRepository,
 } from "@/core/abstracts";
@@ -61,7 +61,7 @@ export class LearningPathUseCase {
     private readonly messageQueueService: IMessageQueueService,
     private readonly featureService: IFeatureService,
     private readonly skillNoteRepository: ISkillNoteRepository,
-    private readonly subpathRepository: IOptionSubpathRepository,
+    private readonly subpathRepository: ISubpathRepository,
     private readonly resourceCompletionRepository: IOptionResourceCompletionRepository,
     private readonly quizResultRepository: ISubpathModuleQuizResultRepository,
     private readonly aiService: IAIService,
@@ -78,15 +78,6 @@ export class LearningPathUseCase {
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
       });
-    }
-
-    let subpath = await this.subpathRepository.getByOptionId(optionId);
-    if (subpath) {
-      return {
-        data: subpath,
-        message: "Subpath fetched successfully",
-        code: RESPONSE_CODE.SUCCESS,
-      };
     }
 
     const roadmapDetails =
@@ -121,24 +112,34 @@ export class LearningPathUseCase {
       });
     }
 
-    this.logger.log(`Generating subpath for option ${optionId}`);
+    const optionName = targetOption.optionName as string;
+    const targetRole = roadmapDetails.targetRole ?? "";
+    const currentRole = roadmapDetails.currentRole ?? "";
 
-    const aiResult = await this.aiService.generateSubPath({
-      optionName: targetOption.optionName,
-      optionReason: targetOption.reason,
-      keyConcepts: targetOption.keyConcepts ?? [],
-      targetRole: targetOption.targetRole,
-      currentRole: targetOption.currentRole,
-    });
-
-    subpath = await this.subpathRepository.createFromAIResult(
-      { optionId },
-      aiResult,
+    let subpath = await this.subpathRepository.findByKey(
+      optionName,
+      targetRole,
+      currentRole,
     );
+
+    if (!subpath) {
+      this.logger.log(`Generating subpath for option ${optionName}`);
+      const aiResult = await this.aiService.generateSubPath({
+        optionName: targetOption.optionName,
+        optionReason: targetOption.reason,
+        keyConcepts: targetOption.keyConcepts ?? [],
+        targetRole,
+        currentRole,
+      });
+      subpath = await this.subpathRepository.createFromAIResult(
+        { optionName, targetRole, currentRole },
+        aiResult,
+      );
+    }
 
     return {
       data: subpath,
-      message: "Subpath generated successfully",
+      message: "Subpath fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }

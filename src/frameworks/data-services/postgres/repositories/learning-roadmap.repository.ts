@@ -122,7 +122,7 @@ export class LearningRoadmapRepository
           )
           .orderBy(roadmapSkills.orderIndex);
 
-        // Fetch options for each skill
+        // Fetch options for each skill, enrich with optionName from skills table
         const skillsWithOptions = await Promise.all(
           phaseSkills.map(async (skill) => {
             const options = await this.db
@@ -135,23 +135,14 @@ export class LearningRoadmapRepository
                 ),
               );
 
-            // Enrich each option with optionName and proficiencyLevels from skills table
             const enrichedOptions = await Promise.all(
               options.map(async (option) => {
-                const skillResult = await this.db
-                  .select({
-                    name: skills.name,
-                    proficiencyLevels: skills.proficiencyLevels,
-                  })
+                const [skillRow] = await this.db
+                  .select({ name: skills.name })
                   .from(skills)
                   .where(eq(skills.id, option.optionId))
                   .limit(1);
-
-                return {
-                  ...option,
-                  optionName: skillResult[0]?.name || "",
-                  proficiencyLevels: skillResult[0]?.proficiencyLevels || null,
-                };
+                return { ...option, optionName: skillRow?.name ?? "" };
               }),
             );
 

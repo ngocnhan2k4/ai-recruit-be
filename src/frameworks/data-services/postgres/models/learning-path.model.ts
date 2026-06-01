@@ -290,18 +290,13 @@ export const skillNotesRelations = relations(skillNotes, ({ one }) => ({
   }),
 }));
 
-export const optionSubpaths = pgTable(
-  "option_subpaths",
+export const subpaths = pgTable(
+  "subpaths",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    /** FK to roadmap_skill_options.id — null when the subpath belongs to a skill directly */
-    optionId: uuid("option_id").references(() => roadmapSkillOptions.id, {
-      onDelete: "cascade",
-    }),
-    /** FK to roadmap_skills.id — used when skill has no options */
-    skillId: uuid("skill_id").references(() => roadmapSkills.id, {
-      onDelete: "cascade",
-    }),
+    optionName: varchar("option_name", { length: 500 }).notNull(),
+    targetRole: varchar("target_role", { length: 255 }).notNull(),
+    currentRole: varchar("current_role", { length: 255 }).notNull(),
     title: varchar("title", { length: 500 }).notNull(),
     description: text("description").notNull().default(""),
     duration: varchar("duration", { length: 100 }).notNull().default(""),
@@ -309,8 +304,11 @@ export const optionSubpaths = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_option_subpaths_option").on(table.optionId, table.deletedAt),
-    index("idx_option_subpaths_skill").on(table.skillId, table.deletedAt),
+    uniqueIndex("idx_subpaths_key").on(
+      table.optionName,
+      table.targetRole,
+      table.currentRole,
+    ),
   ],
 );
 
@@ -321,7 +319,7 @@ export const subpathModules = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     subpathId: uuid("subpath_id")
       .notNull()
-      .references(() => optionSubpaths.id, { onDelete: "cascade" }),
+      .references(() => subpaths.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 500 }).notNull(),
     description: text("description").notNull().default(""),
     duration: varchar("duration", { length: 100 }).notNull().default(""),
@@ -441,27 +439,16 @@ export const subpathModuleQuizResults = pgTable(
   ],
 );
 
-export const optionSubpathsRelations = relations(
-  optionSubpaths,
-  ({ one, many }) => ({
-    option: one(roadmapSkillOptions, {
-      fields: [optionSubpaths.optionId],
-      references: [roadmapSkillOptions.id],
-    }),
-    skill: one(roadmapSkills, {
-      fields: [optionSubpaths.skillId],
-      references: [roadmapSkills.id],
-    }),
-    modules: many(subpathModules),
-  }),
-);
+export const subpathsRelations = relations(subpaths, ({ many }) => ({
+  modules: many(subpathModules),
+}));
 
 export const subpathModulesRelations = relations(
   subpathModules,
   ({ one, many }) => ({
-    subpath: one(optionSubpaths, {
+    subpath: one(subpaths, {
       fields: [subpathModules.subpathId],
-      references: [optionSubpaths.id],
+      references: [subpaths.id],
     }),
     resources: many(subpathResources),
     quizQuestions: many(subpathQuizQuestions),

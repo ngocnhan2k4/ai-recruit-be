@@ -1,5 +1,5 @@
 import {
-  OptionSubpath,
+  Subpath,
   SubpathWithDetails,
   OptionResourceCompletion,
   SubpathModuleQuizResult,
@@ -7,11 +7,15 @@ import {
 } from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
 
-export abstract class IOptionSubpathRepository extends IGenericRepository<OptionSubpath> {
-  abstract getByOptionId(optionId: string): Promise<SubpathWithDetails | null>;
+export abstract class ISubpathRepository extends IGenericRepository<Subpath> {
+  abstract findByKey(
+    optionName: string,
+    targetRole: string,
+    currentRole: string,
+  ): Promise<SubpathWithDetails | null>;
 
   abstract createFromAIResult(
-    payload: { optionId?: string; skillId?: string },
+    payload: { optionName: string; targetRole: string; currentRole: string },
     aiResult: AISubpathResult,
     tx?: any,
   ): Promise<SubpathWithDetails>;

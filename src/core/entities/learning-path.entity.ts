@@ -5,7 +5,7 @@ import {
   roadmapSkills,
   roadmapSkillOptions,
   weeklyProgress,
-  optionSubpaths,
+  subpaths,
   subpathModules,
   subpathResources,
   subpathQuizQuestions,
@@ -37,20 +37,6 @@ export type WeeklyProgress = InferSelectModel<typeof weeklyProgress>;
 
 export interface RoadmapSkillOptionWithName extends RoadmapSkillOption {
   optionName: string;
-  proficiencyLevels: {
-    beginner?: {
-      summary: string;
-      criteria: string[];
-    };
-    intermediate?: {
-      summary: string;
-      criteria: string[];
-    };
-    advanced?: {
-      summary: string;
-      criteria: string[];
-    };
-  } | null;
 }
 
 export interface SkillLevel {
@@ -146,7 +132,7 @@ export interface AILearningRoadmapResult {
   timeCommitmentHoursPerWeek: number;
 }
 
-export type OptionSubpath = InferSelectModel<typeof optionSubpaths>;
+export type Subpath = InferSelectModel<typeof subpaths>;
 export type SubpathModule = InferSelectModel<typeof subpathModules>;
 export type SubpathResource = InferSelectModel<typeof subpathResources>;
 export type SubpathQuizQuestion = InferSelectModel<typeof subpathQuizQuestions>;
@@ -157,7 +143,7 @@ export type SubpathModuleQuizResult = InferSelectModel<
   typeof subpathModuleQuizResults
 >;
 
-export interface SubpathWithDetails extends OptionSubpath {
+export interface SubpathWithDetails extends Subpath {
   subNodes: Array<
     SubpathModule & {
       resources: SubpathResource[];

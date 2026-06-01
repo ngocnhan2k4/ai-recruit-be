@@ -264,7 +264,6 @@ export class TaskWorker extends WorkerHost {
                 return (skill.options || []).map((option: SkillOption) => ({
                   roadmapSkillId: matchedSkill.id,
                   optionId: option.optionId,
-                  optionName: option.optionName,
                   resources: option.resources || [],
                   keyConcepts: option.keyConcepts || [],
                 }));

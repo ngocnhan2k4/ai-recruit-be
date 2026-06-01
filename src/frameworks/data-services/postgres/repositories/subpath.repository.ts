@@ -1,12 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { eq, and, isNull } from "drizzle-orm";
 import {
-  IOptionSubpathRepository,
+  ISubpathRepository,
   IOptionResourceCompletionRepository,
   ISubpathModuleQuizResultRepository,
 } from "@/core/abstracts";
 import {
-  OptionSubpath,
+  Subpath,
   SubpathWithDetails,
   OptionResourceCompletion,
   SubpathModuleQuizResult,
@@ -14,7 +14,7 @@ import {
   ResourceTypeEnum,
 } from "@/core";
 import {
-  optionSubpaths,
+  subpaths,
   subpathModules,
   subpathResources,
   subpathQuizQuestions,
@@ -25,35 +25,42 @@ import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 
 @Injectable()
-export class OptionSubpathRepository
-  extends GenericRepository<OptionSubpath, typeof optionSubpaths>
-  implements IOptionSubpathRepository
+export class SubpathRepository
+  extends GenericRepository<Subpath, typeof subpaths>
+  implements ISubpathRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
-    super(db, optionSubpaths);
+    super(db, subpaths);
   }
 
-  async getByOptionId(optionId: string): Promise<SubpathWithDetails | null> {
+  async findByKey(
+    optionName: string,
+    targetRole: string,
+    currentRole: string,
+  ): Promise<SubpathWithDetails | null> {
     return this._loadSubpath(
       and(
-        eq(optionSubpaths.optionId, optionId),
-        isNull(optionSubpaths.deletedAt),
+        eq(subpaths.optionName, optionName),
+        eq(subpaths.targetRole, targetRole),
+        eq(subpaths.currentRole, currentRole),
+        isNull(subpaths.deletedAt),
       ),
     );
   }
 
   async createFromAIResult(
-    payload: { optionId?: string; skillId?: string },
+    payload: { optionName: string; targetRole: string; currentRole: string },
     ai: AISubpathResult,
     tx?: DBDrizzleTransaction,
   ): Promise<SubpathWithDetails> {
     const db = tx || this.db;
 
     const [subpath] = await db
-      .insert(optionSubpaths)
+      .insert(subpaths)
       .values({
-        optionId: payload.optionId ?? null,
-        skillId: payload.skillId ?? null,
+        optionName: payload.optionName,
+        targetRole: payload.targetRole,
+        currentRole: payload.currentRole,
         title: ai.title,
         description: ai.description,
         duration: ai.duration,
@@ -124,7 +131,7 @@ export class OptionSubpathRepository
   ): Promise<SubpathWithDetails | null> {
     const [subpath] = await this.db
       .select()
-      .from(optionSubpaths)
+      .from(subpaths)
       .where(condition)
       .limit(1);
 

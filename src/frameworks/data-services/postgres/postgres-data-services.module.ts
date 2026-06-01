@@ -88,12 +88,12 @@ import { CommentRepository } from "./repositories/comment.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
 import {
-  IOptionSubpathRepository,
+  ISubpathRepository,
   IOptionResourceCompletionRepository,
   ISubpathModuleQuizResultRepository,
 } from "@/core/abstracts";
 import {
-  OptionSubpathRepository,
+  SubpathRepository,
   OptionResourceCompletionRepository,
   SubpathModuleQuizResultRepository,
 } from "./repositories/subpath.repository";
@@ -325,8 +325,8 @@ import { createLoggerQuery } from "@/common/utils";
       useClass: SkillNoteRepository,
     },
     {
-      provide: IOptionSubpathRepository,
-      useClass: OptionSubpathRepository,
+      provide: ISubpathRepository,
+      useClass: SubpathRepository,
     },
     {
       provide: IOptionResourceCompletionRepository,
@@ -380,7 +380,7 @@ import { createLoggerQuery } from "@/common/utils";
     IUserActionRepository,
     ICommentRepository,
     ISkillNoteRepository,
-    IOptionSubpathRepository,
+    ISubpathRepository,
     IOptionResourceCompletionRepository,
     ISubpathModuleQuizResultRepository,
   ],
