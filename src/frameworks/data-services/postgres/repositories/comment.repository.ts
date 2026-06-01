@@ -109,17 +109,15 @@ export class CommentRepository
 
     const data = rawData.map((row) => ({
       ...row,
-      replyToComment: (row.replyToComment as any)?.id
-        ? row.replyToComment
-        : null,
+      replyToComment: row.replyToComment?.id ? row.replyToComment : null,
     }));
 
     return {
       data: data as CommentWithAuthor[],
       pagination: {
         nextCursor:
-          hasNextPage && lastItem
-            ? (lastItem as any).createdAt.toISOString()
+          hasNextPage && lastItem?.createdAt
+            ? lastItem.createdAt.toISOString()
             : null,
         hasNextPage,
         total: totalCount,

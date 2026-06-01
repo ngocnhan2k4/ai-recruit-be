@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -51,6 +52,8 @@ import { CommentService } from "@/services/comment/comment.service";
 
 @Injectable()
 export class BlogUseCases {
+  private readonly logger = new Logger(BlogUseCases.name);
+
   constructor(
     private readonly blogRepository: IBlogRepository,
     private readonly userActionRepository: IUserActionRepository,
@@ -106,7 +109,7 @@ export class BlogUseCases {
                 blogId: post.id,
                 blogSlug: post.slug,
                 commentId: _cmt.id,
-              } as any,
+              },
             },
             { userId: post.authorId },
           );
@@ -129,7 +132,7 @@ export class BlogUseCases {
                 blogSlug: post.slug,
                 commentId: _cmt.id,
                 rootCommentId: _cmt.rootCommentId,
-              } as any,
+              },
             },
             { userId: parentComment.authorId },
           );
@@ -149,14 +152,14 @@ export class BlogUseCases {
                 blogId: post.id,
                 blogSlug: post.slug,
                 commentId: _cmt.id,
-              } as any,
+              },
             },
             { userId: post.authorId },
           );
         }
       }
-    } catch (_) {
-      // ignore error, continue to return response
+    } catch (err) {
+      this.logger.warn("Failed to send comment notification", err);
     }
 
     return {
