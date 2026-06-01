@@ -42,13 +42,19 @@ function parseAcceptLanguage(input: string): Array<{
 }
 
 export function normalizeLanguageCode(input?: string | null): string {
+  return parseSupportedLanguageCode(input) ?? DEFAULT_LANGUAGE_CODE;
+}
+
+export function parseSupportedLanguageCode(
+  input?: string | null,
+): string | null {
   if (!input) {
-    return DEFAULT_LANGUAGE_CODE;
+    return null;
   }
 
   const normalized = input.trim().toLowerCase();
   if (!normalized) {
-    return DEFAULT_LANGUAGE_CODE;
+    return null;
   }
 
   for (const candidate of parseAcceptLanguage(normalized)) {
@@ -57,5 +63,5 @@ export function normalizeLanguageCode(input?: string | null): string {
     }
   }
 
-  return DEFAULT_LANGUAGE_CODE;
+  return null;
 }

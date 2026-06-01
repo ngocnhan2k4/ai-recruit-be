@@ -1,4 +1,9 @@
-import { Inject, Injectable, ForbiddenException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  ForbiddenException,
+} from "@nestjs/common";
 import { and, eq, isNull } from "drizzle-orm";
 import type { TokenPayload } from "@/common/types";
 import {
@@ -7,7 +12,10 @@ import {
   RESPONSE_MESSAGE,
   RoleEnum,
 } from "@/common/constants";
-import { normalizeLanguageCode } from "@/common/utils";
+import {
+  normalizeLanguageCode,
+  parseSupportedLanguageCode,
+} from "@/common/utils";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
@@ -35,9 +43,19 @@ export class TranslationUseCase {
     acceptLanguage?: string,
     user?: TokenPayload,
   ): Promise<ApiResponse<TranslateContentResponseDto>> {
-    const targetLanguage = normalizeLanguageCode(
-      dto.targetLanguage || acceptLanguage,
-    );
+    const explicitTargetLanguage = dto.targetLanguage?.trim();
+    const parsedExplicitTargetLanguage = explicitTargetLanguage
+      ? parseSupportedLanguageCode(explicitTargetLanguage)
+      : null;
+
+    if (explicitTargetLanguage && !parsedExplicitTargetLanguage) {
+      throw new BadRequestException(
+        `Unsupported target language: ${dto.targetLanguage}`,
+      );
+    }
+
+    const targetLanguage =
+      parsedExplicitTargetLanguage || normalizeLanguageCode(acceptLanguage);
 
     const source = await this.getSourceText(dto, user);
     const sourceLanguage = normalizeLanguageCode(source.languageCode);

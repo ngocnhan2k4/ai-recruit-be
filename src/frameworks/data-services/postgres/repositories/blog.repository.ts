@@ -6,7 +6,7 @@ import {
   blogPostTags,
   tags,
 } from "../models/blog.model";
-import { blogCategoriesTranslation, blogPostsTranslation } from "../models";
+import { blogPostsTranslation } from "../models";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { type DBDrizzle } from "../types";
 import {
@@ -168,27 +168,16 @@ export class BlogRepository
   }
 
   async getCategories(
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    _requestLanguage = "vi",
+    _fallbackLanguage = "vi",
   ): Promise<{ id: string; name: string }[]> {
-    const rows = await this.db
+    return await this.db
       .select({
         id: blogCategories.id,
         name: blogCategories.name,
       })
       .from(blogCategories)
       .orderBy(asc(blogCategories.name));
-
-    const translatedMap = await this.getCategoryTranslationsMap(
-      rows.map((item) => item.id),
-      requestLanguage,
-      fallbackLanguage,
-    );
-
-    return rows.map((item) => ({
-      ...item,
-      name: translatedMap[item.id]?.name || item.name,
-    }));
   }
 
   async getMergedTags(filters: {
@@ -350,60 +339,6 @@ export class BlogRepository
         title: found?.title || fallback?.title || "",
         summary: found?.summary || fallback?.summary || "",
         content: found?.content || fallback?.content || "",
-      };
-    }
-
-    return map;
-  }
-
-  private async getCategoryTranslationsMap(
-    categoryIds: string[],
-    requestLanguage: string,
-    fallbackLanguage: string,
-  ) {
-    if (!categoryIds.length) {
-      return {} as Record<string, { name: string; description: string | null }>;
-    }
-
-    const languagePriority = [requestLanguage, fallbackLanguage].filter(
-      (value, index, array) => value && array.indexOf(value) === index,
-    );
-
-    if (!languagePriority.length) {
-      return {};
-    }
-
-    const rows = await this.db
-      .select({
-        categoryId: blogCategoriesTranslation.categoryId,
-        languageCode: blogCategoriesTranslation.languageCode,
-        name: blogCategoriesTranslation.name,
-        description: blogCategoriesTranslation.description,
-      })
-      .from(blogCategoriesTranslation)
-      .where(
-        and(
-          inArray(blogCategoriesTranslation.categoryId, categoryIds),
-          inArray(blogCategoriesTranslation.languageCode, languagePriority),
-        ),
-      );
-
-    const map: Record<string, { name: string; description: string | null }> =
-      {};
-
-    for (const id of categoryIds) {
-      const found = rows.find(
-        (row) =>
-          row.categoryId === id && row.languageCode === languagePriority[0],
-      );
-      const fallback = rows.find(
-        (row) =>
-          row.categoryId === id && row.languageCode === languagePriority[1],
-      );
-
-      map[id] = {
-        name: found?.name || fallback?.name || "",
-        description: found?.description || fallback?.description || null,
       };
     }
 

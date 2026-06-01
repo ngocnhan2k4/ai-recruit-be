@@ -1,5 +1,4 @@
 import {
-  bigint,
   index,
   jsonb,
   pgTable,
@@ -8,32 +7,10 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { blogCategories, blogPosts } from "./blog.model";
-import { features } from "./subscription.model";
+import { blogPosts } from "./blog.model";
 import { questions } from "./question.model";
 import { roadmapPhases, roadmapSkills } from "./learning-path.model";
 import { timestamps } from "./helpers";
-
-export const blogCategoriesTranslation = pgTable(
-  "blog_categories_translation",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    categoryId: uuid("category_id")
-      .notNull()
-      .references(() => blogCategories.id, { onDelete: "cascade" }),
-    languageCode: varchar("language_code", { length: 5 }).notNull(),
-    name: varchar("name", { length: 50 }).notNull(),
-    description: text("description"),
-    ...timestamps,
-  },
-  (table) => [
-    uniqueIndex("idx_blog_cat_trans_unique").on(
-      table.categoryId,
-      table.languageCode,
-    ),
-    index("idx_blog_cat_trans_lookup").on(table.categoryId, table.languageCode),
-  ],
-);
 
 export const blogPostsTranslation = pgTable(
   "blog_posts_translation",
@@ -54,27 +31,6 @@ export const blogPostsTranslation = pgTable(
       table.languageCode,
     ),
     index("idx_blog_post_trans_lookup").on(table.postId, table.languageCode),
-  ],
-);
-
-export const featureTranslation = pgTable(
-  "features_translation",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    featureId: bigint("feature_id", { mode: "number" })
-      .notNull()
-      .references(() => features.id, { onDelete: "cascade" }),
-    languageCode: varchar("language_code", { length: 5 }).notNull(),
-    name: varchar("name", { length: 255 }).notNull(),
-    description: text("description"),
-    ...timestamps,
-  },
-  (table) => [
-    uniqueIndex("idx_feature_trans_unique").on(
-      table.featureId,
-      table.languageCode,
-    ),
-    index("idx_feature_trans_lookup").on(table.featureId, table.languageCode),
   ],
 );
 

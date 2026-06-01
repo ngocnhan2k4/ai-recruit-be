@@ -11,12 +11,8 @@ import {
 } from "@/common/constants";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
-  blogCategories,
-  blogCategoriesTranslation,
   blogPosts,
   blogPostsTranslation,
-  features,
-  featureTranslation,
   questions,
   questionTranslation,
   roadmapPhases,
@@ -46,21 +42,9 @@ export class TranslationWorker extends WorkerHost {
     const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
 
     switch (type) {
-      case TranslationJobType.BLOG_CATEGORY:
-        return this.processBlogCategory(
-          data as TranslationJobDataMap[TranslationJobType.BLOG_CATEGORY],
-          sourceLanguage,
-          targetLanguages,
-        );
       case TranslationJobType.BLOG_POST:
         return this.processBlogPost(
           data as TranslationJobDataMap[TranslationJobType.BLOG_POST],
-          sourceLanguage,
-          targetLanguages,
-        );
-      case TranslationJobType.FEATURE:
-        return this.processFeature(
-          data as TranslationJobDataMap[TranslationJobType.FEATURE],
           sourceLanguage,
           targetLanguages,
         );
@@ -96,65 +80,6 @@ export class TranslationWorker extends WorkerHost {
     );
 
     return { sourceLanguage, targetLanguages };
-  }
-
-  private async processBlogCategory(
-    data: TranslationJobDataMap[TranslationJobType.BLOG_CATEGORY],
-    sourceLanguage: string,
-    targetLanguages: string[],
-  ) {
-    const [category] = await this.db
-      .select({
-        id: blogCategories.id,
-        name: blogCategories.name,
-        description: blogCategories.description,
-      })
-      .from(blogCategories)
-      .where(
-        and(
-          eq(blogCategories.id, data.categoryId),
-          isNull(blogCategories.deletedAt),
-        ),
-      )
-      .limit(1);
-
-    if (!category) {
-      this.logger.warn(
-        `[translation.worker] blog category not found: ${data.categoryId}`,
-      );
-      return;
-    }
-
-    for (const languageCode of targetLanguages) {
-      const [translatedName, translatedDescription] = await Promise.all([
-        this.translateField(category.name, sourceLanguage, languageCode),
-        this.translateNullableField(
-          category.description,
-          sourceLanguage,
-          languageCode,
-        ),
-      ]);
-
-      await this.db
-        .insert(blogCategoriesTranslation)
-        .values({
-          categoryId: category.id,
-          languageCode,
-          name: translatedName,
-          description: translatedDescription,
-        })
-        .onConflictDoUpdate({
-          target: [
-            blogCategoriesTranslation.categoryId,
-            blogCategoriesTranslation.languageCode,
-          ],
-          set: {
-            name: translatedName,
-            description: translatedDescription,
-            updatedAt: sql`NOW()`,
-          },
-        });
-    }
   }
 
   private async processBlogPost(
@@ -205,60 +130,6 @@ export class TranslationWorker extends WorkerHost {
             title,
             summary,
             content,
-            updatedAt: sql`NOW()`,
-          },
-        });
-    }
-  }
-
-  private async processFeature(
-    data: TranslationJobDataMap[TranslationJobType.FEATURE],
-    sourceLanguage: string,
-    targetLanguages: string[],
-  ) {
-    const [feature] = await this.db
-      .select({
-        id: features.id,
-        name: features.name,
-        description: features.description,
-      })
-      .from(features)
-      .where(and(eq(features.id, data.featureId), isNull(features.deletedAt)))
-      .limit(1);
-
-    if (!feature) {
-      this.logger.warn(
-        `[translation.worker] feature not found: ${data.featureId}`,
-      );
-      return;
-    }
-
-    for (const languageCode of targetLanguages) {
-      const [name, description] = await Promise.all([
-        this.translateField(feature.name, sourceLanguage, languageCode),
-        this.translateNullableField(
-          feature.description,
-          sourceLanguage,
-          languageCode,
-        ),
-      ]);
-
-      await this.db
-        .insert(featureTranslation)
-        .values({
-          featureId: feature.id,
-          languageCode,
-          name,
-          description,
-        })
-        .onConflictDoUpdate({
-          target: [
-            featureTranslation.featureId,
-            featureTranslation.languageCode,
-          ],
-          set: {
-            name,
-            description,
             updatedAt: sql`NOW()`,
           },
         });

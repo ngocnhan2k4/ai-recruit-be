@@ -1,4 +1,8 @@
-import { DEFAULT_LANGUAGE_CODE, normalizeLanguageCode } from "./language";
+import {
+  DEFAULT_LANGUAGE_CODE,
+  normalizeLanguageCode,
+  parseSupportedLanguageCode,
+} from "./language";
 
 describe("normalizeLanguageCode", () => {
   it("falls back to Vietnamese when input is missing or empty", () => {
@@ -20,5 +24,19 @@ describe("normalizeLanguageCode", () => {
   it("falls back to Vietnamese for unsupported languages", () => {
     expect(normalizeLanguageCode("fr-FR")).toBe(DEFAULT_LANGUAGE_CODE);
     expect(normalizeLanguageCode("ja-JP,ko-KR")).toBe(DEFAULT_LANGUAGE_CODE);
+  });
+});
+
+describe("parseSupportedLanguageCode", () => {
+  it("returns null for missing or unsupported languages", () => {
+    expect(parseSupportedLanguageCode()).toBeNull();
+    expect(parseSupportedLanguageCode("   ")).toBeNull();
+    expect(parseSupportedLanguageCode("fr-FR")).toBeNull();
+  });
+
+  it("returns a supported base language when present", () => {
+    expect(parseSupportedLanguageCode("en-US")).toBe("en");
+    expect(parseSupportedLanguageCode("vi-VN")).toBe("vi");
+    expect(parseSupportedLanguageCode("fr-FR,en;q=0.9")).toBe("en");
   });
 });
