@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { GenericRepository } from "./generic-repository";
 import {
   blogCategories,
@@ -8,7 +8,7 @@ import {
 } from "../models/blog.model";
 import { blogCategoriesTranslation, blogPostsTranslation } from "../models";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { type DBDrizzle } from "../types";
 import {
   and,
   asc,
@@ -41,11 +41,8 @@ import {
   NewBlogPostTag,
   BlogCategory,
   Tag,
-  ICacheService,
 } from "@/core";
 import { generateSlug } from "@/common/utils/string";
-import { cacheWithDedup } from "@/common/utils";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 
 const resolveSortExpr = (sortBy?: string): SQL => {
   switch (sortBy) {
@@ -113,12 +110,7 @@ export class BlogRepository
   extends GenericRepository<BlogPost, typeof blogPosts>
   implements IBlogRepository
 {
-  private readonly logger = new Logger(BlogRepository.name);
-
-  constructor(
-    @Inject("DRIZZLE") protected db: DBDrizzle,
-    @Inject(ICacheService) private readonly cacheService: ICacheService,
-  ) {
+  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, blogPosts);
   }
 
@@ -166,70 +158,13 @@ export class BlogRepository
     };
   }
 
-  private async invalidateBlogCache(postId: string, slug?: string) {
-    const pattern = CACHE_KEYS.blog.patternDetail(postId);
-
-    try {
-      const matchedKeys = await this.cacheService.getKeysByPattern(pattern);
-      const keysToDelete = [...matchedKeys];
-      if (slug) {
-        keysToDelete.push(CACHE_KEYS.blog.getPostBaseBySlug(slug));
-      }
-      if (keysToDelete.length > 0) {
-        await this.cacheService.deleteMultipleKeys(keysToDelete);
-      }
-    } catch (err) {
-      this.logger.warn(
-        `[cache] Failed to invalidate blog cache for ${postId} (pattern ${pattern})`,
-        err,
-      );
-    }
-  }
-
-  async update(
-    where: Partial<BlogPost>,
-    item: Partial<BlogPost>,
-    tx?: DBDrizzleTransaction,
-  ): Promise<BlogPost[]> {
-    const data = await super.update(where, item, tx);
-
-    await Promise.all(
-      data.map((blog) => this.invalidateBlogCache(blog.id, blog.slug)),
-    );
-    return data;
-  }
-
-  async delete(
-    where: Partial<BlogPost>,
-    tx?: DBDrizzleTransaction,
-  ): Promise<BlogPost[]> {
-    const data = await super.delete(where, tx);
-
-    await Promise.all(
-      data.map((blog) => this.invalidateBlogCache(blog.id, blog.slug)),
-    );
-    return data;
-  }
-
   async get(id: string): Promise<BlogPost | null> {
-    const key = CACHE_KEYS.blog.get(id);
-    return cacheWithDedup<BlogPost | null>(
-      key,
-      () => this.cacheService.getJson<BlogPost | null>(key),
-      async () => {
-        const [post] = await this.db
-          .select()
-          .from(blogPosts)
-          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .limit(1);
-        return (post as BlogPost) ?? null;
-      },
-      (data: BlogPost | null) =>
-        this.cacheService.setJson(key, data, SHORT_TTL),
-      {
-        logger: this.logger,
-      },
-    );
+    const [post] = await this.db
+      .select()
+      .from(blogPosts)
+      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+      .limit(1);
+    return (post as BlogPost) ?? null;
   }
 
   async getCategories(
@@ -813,139 +748,115 @@ export class BlogRepository
     requestLanguage = "vi",
     fallbackLanguage = "vi",
   ): Promise<BlogPostDetailBase | null> {
-    const key = `${CACHE_KEYS.blog.getPostBaseBySlug(slug)}:${requestLanguage}:${fallbackLanguage}`;
-    return cacheWithDedup<BlogPostDetailBase | null>(
-      key,
-      () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
-      async () => {
-        const [post] = await this.db
-          .select({
-            id: blogPosts.id,
-            title: blogPosts.title,
-            slug: blogPosts.slug,
-            summary: blogPosts.summary,
-            thumbnail: blogPosts.thumbnail,
-            content: blogPosts.content,
-            category: blogPosts.categoryId,
-            status: sql<BlogPostStatus>`${blogPosts.status}`,
-            viewCount: blogPosts.viewCount,
-            sourceType: blogPosts.sourceType,
-            source: blogPosts.source,
-            createdAt: blogPosts.createdAt,
-            updatedAt: blogPosts.updatedAt,
-            authorId: users.id,
-            authorUsername: users.username,
-            authorName: users.name,
-            authorAvatarUrl: users.avatarUrl,
-          })
-          .from(blogPosts)
-          .leftJoin(users, eq(users.id, blogPosts.authorId))
-          .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
-          .limit(1);
+    const [post] = await this.db
+      .select({
+        id: blogPosts.id,
+        title: blogPosts.title,
+        slug: blogPosts.slug,
+        summary: blogPosts.summary,
+        thumbnail: blogPosts.thumbnail,
+        content: blogPosts.content,
+        category: blogPosts.categoryId,
+        status: sql<BlogPostStatus>`${blogPosts.status}`,
+        viewCount: blogPosts.viewCount,
+        sourceType: blogPosts.sourceType,
+        source: blogPosts.source,
+        createdAt: blogPosts.createdAt,
+        updatedAt: blogPosts.updatedAt,
+        authorId: users.id,
+        authorUsername: users.username,
+        authorName: users.name,
+        authorAvatarUrl: users.avatarUrl,
+      })
+      .from(blogPosts)
+      .leftJoin(users, eq(users.id, blogPosts.authorId))
+      .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
+      .groupBy(
+        blogPosts.id,
+        blogPosts.title,
+        blogPosts.slug,
+        blogPosts.summary,
+        blogPosts.thumbnail,
+        blogPosts.content,
+        blogPosts.categoryId,
+        blogPosts.status,
+        blogPosts.viewCount,
+        blogPosts.sourceType,
+        blogPosts.source,
+        blogPosts.createdAt,
+        users.id,
+        users.username,
+        users.name,
+        users.avatarUrl,
+        blogPosts.updatedAt,
+      )
+      .limit(1);
 
-        if (!post) return null;
+    if (!post) return null;
 
-        const translatedMap = await this.getPostTranslationsMap(
-          [post.id],
-          requestLanguage,
-          fallbackLanguage,
-        );
-        const translated = translatedMap[post.id];
-
-        return this.mapToPostDetailBase({
-          ...post,
-          title: translated?.title || post.title,
-          summary: translated?.summary || post.summary,
-          content: translated?.content || post.content,
-        });
-      },
-      (data: BlogPostDetailBase | null) =>
-        this.cacheService.setJson(key, data, SHORT_TTL),
-      {
-        logger: this.logger,
-      },
+    const translatedMap = await this.getPostTranslationsMap(
+      [post.id],
+      requestLanguage,
+      fallbackLanguage,
     );
+    const translated = translatedMap[post.id];
+
+    return this.mapToPostDetailBase({
+      ...post,
+      title: translated?.title || post.title,
+      summary: translated?.summary || post.summary,
+      content: translated?.content || post.content,
+    });
   }
 
   async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
-    const key = CACHE_KEYS.blog.getPostBaseById(id);
-    return cacheWithDedup<BlogPostDetailBase | null>(
-      key,
-      () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
-      async () => {
-        const [post] = await this.db
-          .select({
-            id: blogPosts.id,
-            title: blogPosts.title,
-            slug: blogPosts.slug,
-            summary: blogPosts.summary,
-            thumbnail: blogPosts.thumbnail,
-            content: blogPosts.content,
-            category: blogPosts.categoryId,
-            status: sql<BlogPostStatus>`${blogPosts.status}`,
-            viewCount: blogPosts.viewCount,
-            sourceType: blogPosts.sourceType,
-            source: blogPosts.source,
-            createdAt: blogPosts.createdAt,
-            updatedAt: blogPosts.updatedAt,
-            authorId: users.id,
-            authorUsername: users.username,
-            authorName: users.name,
-            authorAvatarUrl: users.avatarUrl,
-          })
-          .from(blogPosts)
-          .leftJoin(users, eq(users.id, blogPosts.authorId))
-          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
-          .limit(1);
+    const [post] = await this.db
+      .select({
+        id: blogPosts.id,
+        title: blogPosts.title,
+        slug: blogPosts.slug,
+        summary: blogPosts.summary,
+        thumbnail: blogPosts.thumbnail,
+        content: blogPosts.content,
+        category: blogPosts.categoryId,
+        status: sql<BlogPostStatus>`${blogPosts.status}`,
+        viewCount: blogPosts.viewCount,
+        sourceType: blogPosts.sourceType,
+        source: blogPosts.source,
+        createdAt: blogPosts.createdAt,
+        updatedAt: blogPosts.updatedAt,
+        authorId: users.id,
+        authorUsername: users.username,
+        authorName: users.name,
+        authorAvatarUrl: users.avatarUrl,
+      })
+      .from(blogPosts)
+      .leftJoin(users, eq(users.id, blogPosts.authorId))
+      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+      .groupBy(
+        blogPosts.id,
+        blogPosts.title,
+        blogPosts.slug,
+        blogPosts.summary,
+        blogPosts.thumbnail,
+        blogPosts.content,
+        blogPosts.categoryId,
+        blogPosts.status,
+        blogPosts.viewCount,
+        blogPosts.sourceType,
+        blogPosts.source,
+        blogPosts.createdAt,
+        users.id,
+        users.username,
+        users.name,
+        users.avatarUrl,
+        blogPosts.updatedAt,
+      )
+      .limit(1);
 
-        if (!post) return null;
+    if (!post) return null;
 
-        return this.mapToPostDetailBase(post);
-      },
-      (data: BlogPostDetailBase | null) =>
-        this.cacheService.setJson(key, data, SHORT_TTL),
-      {
-        logger: this.logger,
-      },
-    );
+    return this.mapToPostDetailBase(post);
   }
 
   async getPostBySlug(slug: string): Promise<BlogPost | null> {
@@ -1008,14 +919,10 @@ export class BlogRepository
         if (data.tags) {
           await this.updatePostTags(postId, data.tags);
         }
-
         const [updated] = await tx
           .select()
           .from(blogPosts)
           .where(eq(blogPosts.id, postId));
-        if (updated) {
-          await this.invalidateBlogCache(updated.id, updated.slug);
-        }
         return updated as BlogPost;
       } else {
         const categoryId = await this.resolveDraftCategoryId(data.category);

@@ -385,17 +385,6 @@ export class BlogUseCases {
   }
 
   async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    const cacheKey = CACHE_KEYS.blog.topBlogs();
-    const cached =
-      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
-    if (cached) {
-      return {
-        code: RESPONSE_CODE.SUCCESS,
-        message: RESPONSE_MESSAGE.SUCCESS,
-        data: cached,
-      };
-    }
-
     const { data } = await this.blogRepository.getPosts({
       limit: 100,
       page: 1,
@@ -404,8 +393,6 @@ export class BlogUseCases {
 
     const dataWithTags = await this.getBlogsWithTags(data);
     const result = this.blogService.calculateTopBlogs(dataWithTags);
-
-    await this.cacheService.setJson(cacheKey, result, 600000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -418,17 +405,6 @@ export class BlogUseCases {
     slug: string,
     limit = 4,
   ): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    const cacheKey = CACHE_KEYS.blog.relatedPosts(slug);
-    const cached =
-      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
-    if (cached) {
-      return {
-        code: RESPONSE_CODE.SUCCESS,
-        message: RESPONSE_MESSAGE.SUCCESS,
-        data: cached,
-      };
-    }
-
     const currentPost = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!currentPost) {
@@ -457,8 +433,6 @@ export class BlogUseCases {
       currentTags,
       limit,
     );
-
-    await this.cacheService.setJson(cacheKey, result, 1800000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
