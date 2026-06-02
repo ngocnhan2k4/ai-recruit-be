@@ -70,7 +70,6 @@ export interface ApplyJobResponse {
   answers?: JobAnswer[];
   matchingScore?: string | number | null;
   matchingCriteria?: Record<string, any> | null;
-  scoredAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl" | "username">;

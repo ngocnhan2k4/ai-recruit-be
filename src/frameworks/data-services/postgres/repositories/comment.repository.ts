@@ -2,7 +2,12 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { comments, users } from "../models";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
-import { Comment, CommentWithAuthor, ObjectType } from "@/core/entities";
+import {
+  Comment,
+  CommentWithAuthor,
+  ObjectType,
+  UserStatusEnum,
+} from "@/core/entities";
 import { and, count, desc, eq, lt, sql } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types";
 import { GenericRepository } from "./generic-repository";
@@ -71,7 +76,13 @@ export class CommentRepository
         childCount: sql<number>`COALESCE(${childCountSq.count}, 0)::int`,
       })
       .from(comments)
-      .innerJoin(users, eq(users.id, comments.authorId))
+      .innerJoin(
+        users,
+        and(
+          eq(comments.authorId, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
+      )
       .leftJoin(childCountSq, eq(childCountSq.parentId, comments.id))
       .where(and(...conditions))
       .orderBy(desc(comments.createdAt))

@@ -54,6 +54,7 @@ import {
   UserInteractionEnum,
   ApplyJob,
   JobDetailFilter,
+  UserStatusEnum,
 } from "@/core";
 import {
   Job,
@@ -1398,7 +1399,6 @@ export class JobRepository
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
         matchingCriteria: applyJobs.matchingCriteria,
-        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
       })
@@ -1429,7 +1429,6 @@ export class JobRepository
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
         matchingCriteria: applyJobs.matchingCriteria,
-        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
         user: {
@@ -1448,7 +1447,10 @@ export class JobRepository
       })
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-      .innerJoin(users, eq(cvs.userId, users.id))
+      .innerJoin(
+        users,
+        and(eq(cvs.userId, users.id), eq(users.status, UserStatusEnum.ACTIVE)),
+      )
       .where(and(...whereConditions))
       .orderBy(desc(applyJobs.createdAt))
       .limit(limit + 1);
@@ -1462,6 +1464,7 @@ export class JobRepository
       status: item.status,
       answers: item.answers,
       matchingScore: item.matchingScore,
+      matchingCriteria: item.matchingCriteria,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       user: item.user,
@@ -2123,7 +2126,10 @@ export class JobRepository
       })
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-      .innerJoin(users, eq(cvs.userId, users.id))
+      .innerJoin(
+        users,
+        and(eq(cvs.userId, users.id), eq(users.status, UserStatusEnum.ACTIVE)),
+      )
       .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
       .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .where(and(isNotNull(users.email), isNull(users.deletedAt)));

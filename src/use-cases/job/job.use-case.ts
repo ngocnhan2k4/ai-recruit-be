@@ -1572,6 +1572,12 @@ export class JobUseCases {
     const recommendations: JobCandidateRecommendationDto[] = [];
     for (const cv of cvDocs) {
       const user = userMap.get(cv.userId);
+      if (!user) {
+        this.logger.warn(
+          `User ${cv.userId} not found for CV ${cv.id} in job recommendation for job ${jobId}`,
+        );
+        continue;
+      }
       const criteria = this.cvService.calculateMatchingScore(
         cv,
         jobForMatching,
@@ -1585,11 +1591,11 @@ export class JobUseCases {
         score: cv.score ?? 0,
         criteria: criteria.criteria,
         user: {
-          id: user?.id ?? "",
-          email: user?.email ?? "",
-          name: user?.name ?? "",
-          avatarUrl: user?.avatarUrl ?? "",
-          username: user?.username ?? "",
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          username: user.username,
         },
       });
     }
