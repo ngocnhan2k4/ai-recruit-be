@@ -1,8 +1,8 @@
 import { NestFactory } from "@nestjs/core";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { AppModule } from "../src/app.module";
-import { getAppConfigs } from "../src/common/config/app.config";
-import { generateDocumentBuilder } from "../src/common/config/swagger.config";
+import { AppModule } from "../../src/app.module";
+import { getAppConfigs } from "../../src/common/config/app.config";
+import { generateDocumentBuilder } from "../../src/common/config/swagger.config";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import * as fs from "fs";
 import * as path from "path";
