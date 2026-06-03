@@ -127,10 +127,8 @@ export class TranslationUseCase {
       case LazyTranslationEntityType.COMMENT:
         return this.getCommentText(dto.entityId, dto.field);
       case LazyTranslationEntityType.FEEDBACK:
-        return this.getFeedbackText(dto.entityId, dto.field, user);
       default:
-        throw new ForbiddenException("Unsupported translation entity type");
-    }
+        throw new BadRequestException("Unsupported translation entity type");
   }
 
   private async getCommentText(entityId: string, field: string) {
