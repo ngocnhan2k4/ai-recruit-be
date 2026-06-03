@@ -160,7 +160,7 @@ export class TranslationUseCase {
     user?: TokenPayload,
   ) {
     if (!user) {
-      throw new ForbiddenException("Unauthorized");
+      throw new UnauthorizedException("Unauthorized");
     }
 
     const [feedback] = await this.db
