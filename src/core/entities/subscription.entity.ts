@@ -6,6 +6,7 @@ export interface SubscriptionFilter extends GeneralQuery {
   exactName?: SubscriptionEnum;
   skipCount?: boolean;
   fields?: string[];
+  isActive?: boolean;
 }
 
 export interface GetListSubscriptionResponse extends Subscription {
@@ -39,3 +40,8 @@ export type UpdateUserSubscriptionInput = {
   status?: UserSubscriptionStatusEnum;
   expiredAt?: Date;
 };
+
+export interface GetUserSubscriptionFilter {
+  statuses?: UserSubscriptionStatusEnum[];
+  fromDate?: Date;
+}

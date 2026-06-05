@@ -198,7 +198,7 @@ export enum BillingCycleSubscriptionEnum {
   YEARLY = "yearly",
 }
 export enum UserSubscriptionStatusEnum {
-  INCOMPLETE = "incomplete",
+  PENDING_ACTIVATION = "pending_activation", // waiting to pay
   ACTIVE = "active",
   CANCELED = "canceled",
   // EXPIRED = "expired",
@@ -253,4 +253,13 @@ export enum BlogSourceType {
   USER = "USER",
   AI = "AI",
   CRAWLED = "CRAWLED",
+}
+
+export enum CurrencyEnum {
+  VND = "VND",
+  USD = "USD",
+}
+
+export enum PaymentProviderEnum {
+  STRIPE = "stripe",
 }

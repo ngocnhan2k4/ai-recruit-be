@@ -7,8 +7,11 @@ import {
   IUserSubscriptionRepository,
 } from "@/core";
 import { userSubscriptions } from "../models";
-import { and, eq, isNull, sql } from "drizzle-orm";
-import { UserSubscriptionStatusEnum } from "@/core/entities";
+import { and, eq, gte, inArray, isNull, SQL, sql } from "drizzle-orm";
+import {
+  GetUserSubscriptionFilter,
+  UserSubscriptionStatusEnum,
+} from "@/core/entities";
 
 @Injectable()
 export class UserSubscriptionRepository
@@ -56,5 +59,24 @@ export class UserSubscriptionRepository
 
       return (updated as UserSubscription) ?? null;
     });
+  }
+
+  async getListUserSubscriptions(
+    filter: GetUserSubscriptionFilter,
+  ): Promise<UserSubscription[]> {
+    const whereConditions: SQL[] = [isNull(userSubscriptions.deletedAt)];
+
+    if (filter.statuses && filter.statuses.length > 0) {
+      whereConditions.push(inArray(userSubscriptions.status, filter.statuses));
+    }
+
+    if (filter.fromDate) {
+      whereConditions.push(gte(userSubscriptions.createdAt, filter.fromDate));
+    }
+
+    return this.db
+      .select()
+      .from(userSubscriptions)
+      .where(and(...whereConditions));
   }
 }

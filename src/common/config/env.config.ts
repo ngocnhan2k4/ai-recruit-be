@@ -211,6 +211,32 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
   TIME_TO_DELETE_ACCOUNT_DAYS: number = 30;
+
+  @IsString()
+  PAYMENT_SERVICE_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  PAYMENT_SERVICE_TIMEOUT: number = 10000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseFloat(value))
+  PAYMENT_SERVICE_MAX_RETRIES: number = 3;
+
+  @IsOptional()
+  @IsString()
+  PAYMENT_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  EXCHANGE_RATE_API_URL: string = "https://open.er-api.com/v6/latest/USD";
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  EXCHANGE_RATE_TIMEOUT_MS: number = 5000;
 }
 
 export const validateConfig = (

@@ -62,6 +62,7 @@ export * from "./cv.entity";
 export * from "./comment.entity";
 export * from "./blog.entity";
 export * from "./task.entity";
+export * from "./payment.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema

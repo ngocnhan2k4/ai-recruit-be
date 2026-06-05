@@ -1,4 +1,8 @@
-import { UpdateUserSubscriptionInput, UserSubscription } from "@/core";
+import {
+  GetUserSubscriptionFilter,
+  UpdateUserSubscriptionInput,
+  UserSubscription,
+} from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
 
 export abstract class IUserSubscriptionRepository extends IGenericRepository<UserSubscription> {
@@ -6,4 +10,8 @@ export abstract class IUserSubscriptionRepository extends IGenericRepository<Use
     id: string,
     data: UpdateUserSubscriptionInput,
   ): Promise<UserSubscription | null>;
+
+  abstract getListUserSubscriptions(
+    filter: GetUserSubscriptionFilter,
+  ): Promise<UserSubscription[]>;
 }

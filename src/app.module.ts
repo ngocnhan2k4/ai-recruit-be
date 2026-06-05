@@ -101,6 +101,7 @@ import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { SubscriptionController } from "./interfaces/controllers/subscription/subscription.controller";
 
 @Module({
   imports: [
@@ -208,6 +209,7 @@ import { TaskUseCasesModule } from "@/use-cases/task/task.module";
     ExamController,
     AiCvController,
     AdminSubscriptionController,
+    SubscriptionController,
     AdminFeatureController,
     SkillSynonymController,
     AdminDeploymentController,
