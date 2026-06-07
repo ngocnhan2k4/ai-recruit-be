@@ -47,7 +47,7 @@ jobs:
       max-parallel: 1
 
     environment: ${{ matrix.env }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       total_inserted: ${{ steps.run_crawler.outputs.total_inserted }}
       total_updated: ${{ steps.run_crawler.outputs.total_updated }}
@@ -227,7 +227,7 @@ jobs:
       matrix:
         env: [dev, prod]
     environment: ${{ matrix.env }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
