@@ -250,7 +250,7 @@ export enum BlogPostStatus {
 }
 
 export enum BlogSourceType {
-  USER = "USER",
+  ADMIN = "ADMIN",
   AI = "AI",
   CRAWLED = "CRAWLED",
 }

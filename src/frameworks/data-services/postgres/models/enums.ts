@@ -185,7 +185,8 @@ export const BlogPostStatusEnum = pgEnum("blog_post_status", [
 ]);
 
 export const BlogPostSourceTypeEnum = pgEnum("blog_post_source_type", [
-  "USER",
+  "ADMIN",
+  "USER", // @deprecated — kept for backward compat; migrate rows then remove
   "AI",
   "CRAWLED",
 ]);

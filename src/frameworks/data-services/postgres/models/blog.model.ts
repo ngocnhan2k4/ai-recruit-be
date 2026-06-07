@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -8,11 +9,10 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { BlogPostSourceTypeEnum, BlogPostStatusEnum } from "./enums";
+import { timestamps } from "./helpers";
 import { skills } from "./skill.model";
 import { users } from "./user.model";
-import { timestamps } from "./helpers";
-import { BlogPostStatusEnum, BlogPostSourceTypeEnum } from "./enums";
 
 export const blogPosts = pgTable(
   "blog_posts",
@@ -24,7 +24,9 @@ export const blogPosts = pgTable(
     thumbnail: varchar("thumbnail", { length: 255 }),
     content: text("content").notNull(),
     status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
-    sourceType: BlogPostSourceTypeEnum("source_type").notNull().default("USER"),
+    sourceType: BlogPostSourceTypeEnum("source_type")
+      .notNull()
+      .default("ADMIN"),
     source: jsonb("source"),
     categoryId: uuid("category_id")
       .notNull()

@@ -1,5 +1,5 @@
 export interface CommentDto {
   content: string;
-  parentCommentId?: string | null;
+  parentId?: string | null;
   authorId: string;
 }

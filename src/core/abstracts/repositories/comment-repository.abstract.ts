@@ -7,7 +7,7 @@ export abstract class ICommentRepository extends IGenericRepository<Comment> {
   abstract getComments(params: {
     objectId: string;
     objectType: ObjectType;
-    parentCommentId?: string | null;
+    parentId?: string | null;
     limit: number;
     cursor?: string;
   }): Promise<PaginatedResult<CommentWithAuthor>>;

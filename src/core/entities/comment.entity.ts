@@ -6,6 +6,7 @@ export interface Comment {
   rootCommentId: string | null;
   objectId: string;
   objectType: string;
+  depth: number;
   createdAt: Date;
 }
 
@@ -17,12 +18,6 @@ export interface CommentAuthor {
 
 export interface CommentWithAuthor extends Comment {
   author: CommentAuthor;
-  replyToComment?: {
-    id: string;
-    content: string;
-    authorId: string;
-    authorName?: string | null;
-  } | null;
   childCount: number;
 }
 
@@ -33,5 +28,6 @@ export interface NewComment {
   rootCommentId?: string | null;
   objectId: string;
   objectType: string;
+  depth?: number;
   createdAt: Date;
 }
