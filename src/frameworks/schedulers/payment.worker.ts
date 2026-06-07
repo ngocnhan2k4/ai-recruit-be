@@ -60,11 +60,16 @@ export class PaymentWorker extends WorkerHost {
       return;
     }
 
+    const stauts =
+      data.status === TransactionStatus.Paid
+        ? UserSubscriptionStatusEnum.ACTIVE
+        : UserSubscriptionStatusEnum.CANCELED;
+
     await this.userSubscriptionRepository.updateUserSubscription(
       data.orderCode,
       {
         userId: data.userId,
-        status: UserSubscriptionStatusEnum.ACTIVE,
+        status: stauts,
       },
     );
   }

@@ -49,6 +49,7 @@ export class UserFeatureUsageRepository
       .where(
         and(
           eq(userSubscriptions.userId, userId),
+          eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE), // [TODO] recheck
           eq(subscriptions.isActive, true),
         ),
       )
