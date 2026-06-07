@@ -14,6 +14,14 @@ import { users } from "./user.model";
 import { timestamps } from "./helpers";
 import { BlogPostStatusEnum, BlogPostSourceTypeEnum } from "./enums";
 
+export type BlogLocalizedContent = Partial<{
+  title: string;
+  summary: string;
+  content: string;
+}>;
+
+export type BlogLocaleMap = Partial<Record<string, BlogLocalizedContent>>;
+
 export const blogPosts = pgTable(
   "blog_posts",
   {
@@ -23,6 +31,10 @@ export const blogPosts = pgTable(
     summary: text("summary").notNull(),
     thumbnail: varchar("thumbnail", { length: 255 }),
     content: text("content").notNull(),
+    locales: jsonb("locales")
+      .$type<BlogLocaleMap>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
     sourceType: BlogPostSourceTypeEnum("source_type").notNull().default("USER"),
     source: jsonb("source"),

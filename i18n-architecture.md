@@ -71,7 +71,7 @@ Hệ thống áp dụng mô hình **Asynchronous Translation** (Dịch bất đ�
    │  SELECT COALESCE(trans.title, base.title) AS title
    │  FROM base_table base
    │  LEFT JOIN base_table_translations trans
-   │    ON base.id = trans.entity_id 
+   │    ON base.id = trans.entity_id
    │    AND trans.language_code = $1
    │  WHERE base.id = $2
    └─ Fallback logic (nếu không có dịch → dùng bản gốc)
@@ -245,7 +245,7 @@ CREATE INDEX idx_job_trans_lookup ON job_translations(job_id, language_code);
 CREATE INDEX idx_job_trans_search ON job_translations USING GIN(to_tsvector('english', description));
 
 -- Query chuẩn: Lấy Job với đúng ngôn ngữ + Fallback
-SELECT 
+SELECT
     j.id,
     j.organization_id,
     j.salary_min,
@@ -258,8 +258,8 @@ SELECT
     COALESCE(jt.title, j.title) AS title,
     COALESCE(jt.description, j.description) AS description
 FROM jobs j
-LEFT JOIN job_translations jt 
-    ON j.id = jt.job_id 
+LEFT JOIN job_translations jt
+    ON j.id = jt.job_id
     AND jt.language_code = $1  -- $1 là language_code từ Request (vd: 'en', 'vi')
 WHERE j.id = $2
     AND j.deleted_at IS NULL;
@@ -354,8 +354,8 @@ CREATE TABLE roadmap_skill_translations (
 ALTER TABLE ai_cvs ADD COLUMN language_code VARCHAR(5) DEFAULT 'vi';
 
 -- Ví dụ Query:
-SELECT * FROM ai_cvs 
-WHERE user_id = $1 
+SELECT * FROM ai_cvs
+WHERE user_id = $1
     AND language_code = $2  -- $2 là ngôn ngữ đã chọn
     AND deleted_at IS NULL;
 
@@ -491,20 +491,20 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
    from google.cloud import translate_v2
    import csv
    import json
-   
+
    client = translate_v2.Client()
-   
+
    # Language Detection + Translation
    for row in read_csv('jobs.csv'):
        title = row['title']
        description = row['description']
-       
+
        # Detect source language
        source_lang = detect_language(title)  # Returns 'vi' or 'en'
-       
+
        # Translate if not already in target languages
        translations = {source_lang: {'title': title, 'description': description}}
-       
+
        target_langs = ['en', 'vi']
        for target_lang in target_langs:
            if target_lang != source_lang:
@@ -517,7 +517,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
                        description, target_language=target_lang
                    )['translatedText']
                }
-       
+
        export_to_csv(row['id'], translations)
    ```
 
@@ -548,29 +548,29 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
    ```typescript
    // src/workers/translation.worker.ts
    import { KafkaConsumer } from '@nestjs/microservices';
-   
+
    @Injectable()
    export class TranslationWorker {
      constructor(
        private translateService: TranslateService,
        private jobsRepository: JobsRepository,
      ) {}
-   
+
      @MessagePattern('job.created')
      async handleJobCreated(event: JobCreatedEvent) {
        try {
          const { jobId, title, description, sourceLanguage } = event;
-         
+
          // Call Translation Service
          const translations = await this.translateService.translate(
            { title, description },
            sourceLanguage,
            ['en', 'vi']
          );
-         
+
          // Bulk INSERT into job_translations
          await this.jobsRepository.saveTranslations(jobId, translations);
-         
+
          // Invalidate Cache
          await this.cacheService.invalidate(`job:${jobId}:*`);
        } catch (error) {
@@ -590,7 +590,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
        private jobsRepository: JobsRepository,
        private eventPublisher: EventPublisher,
      ) {}
-   
+
      async createJob(createJobDto: CreateJobDto): Promise<JobResponse> {
        // 1. Write to main table
        const job = await this.jobsRepository.create({
@@ -598,7 +598,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
          description: createJobDto.description,
          // ... other fields
        });
-   
+
        // 2. Publish event for async translation
        await this.eventPublisher.publish({
          event: 'job.created',
@@ -609,7 +609,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
            sourceLanguage: 'vi' // hoặc từ request context
          }
        });
-   
+
        // 3. Return immediately (< 100ms)
        return { id: job.id, status: 'created' };
      }
@@ -633,7 +633,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
        private prisma: PrismaService,
        private cache: CacheService,
      ) {}
-   
+
      async findByIdWithTranslation(
        jobId: string,
        languageCode: string = 'vi',
@@ -642,10 +642,10 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
        const cacheKey = `job:${jobId}:${languageCode}`;
        const cached = await this.cache.get(cacheKey);
        if (cached) return cached;
-   
+
        // 2. Query with LEFT JOIN
        const result = await this.prisma.$queryRaw`
-         SELECT 
+         SELECT
            j.id,
            j.organization_id,
            j.salary_min,
@@ -658,19 +658,19 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
            COALESCE(jt.title, j.title) AS title,
            COALESCE(jt.description, j.description) AS description
          FROM jobs j
-         LEFT JOIN job_translations jt 
-           ON j.id = jt.job_id 
+         LEFT JOIN job_translations jt
+           ON j.id = jt.job_id
            AND jt.language_code = ${languageCode}
          WHERE j.id = ${jobId}
            AND j.deleted_at IS NULL
        `;
-   
+
        // 3. Cache result (TTL: 24 hours)
        await this.cache.set(cacheKey, result[0], 24 * 60 * 60);
-   
+
        return result[0];
      }
-   
+
      async findManyWithTranslation(
        filters: JobFilters,
        languageCode: string = 'vi',
@@ -678,9 +678,9 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
        const cacheKey = `jobs:${JSON.stringify(filters)}:${languageCode}`;
        const cached = await this.cache.get(cacheKey);
        if (cached) return cached;
-   
+
        const results = await this.prisma.$queryRaw`
-         SELECT 
+         SELECT
            j.id,
            j.organization_id,
            COALESCE(jt.title, j.title) AS title,
@@ -690,8 +690,8 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
            j.experience_min,
            j.experience_max
          FROM jobs j
-         LEFT JOIN job_translations jt 
-           ON j.id = jt.job_id 
+         LEFT JOIN job_translations jt
+           ON j.id = jt.job_id
            AND jt.language_code = ${languageCode}
          WHERE j.deleted_at IS NULL
            ${filters.organizationId ? `AND j.organization_id = ${filters.organizationId}` : ''}
@@ -699,7 +699,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
          LIMIT ${filters.limit}
          OFFSET ${filters.offset}
        `;
-   
+
        await this.cache.set(cacheKey, results, 12 * 60 * 60);
        return results;
      }
@@ -712,22 +712,22 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
    @Injectable()
    export class JobsService {
      constructor(private jobsRepository: JobsRepository) {}
-   
+
      async getJobDetail(
        jobId: string,
        req: Request,
      ): Promise<JobDetailResponse> {
        // Extract language từ Accept-Language header
        const languageCode = this.extractLanguageCode(req);
-   
+
        // Query với translation
        const job = await this.jobsRepository.findByIdWithTranslation(
          jobId,
          languageCode,
        );
-   
+
        if (!job) throw new NotFoundException('Job not found');
-   
+
        return {
          id: job.id,
          title: job.title,  // Đã là dịch hoặc fallback
@@ -735,7 +735,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
          // ... other fields
        };
      }
-   
+
      private extractLanguageCode(req: Request): string {
        const acceptLanguage = req.headers['accept-language'] || 'vi';
        // Parse Accept-Language: en-US,en;q=0.9 → 'en'
@@ -752,14 +752,14 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
      use(req: Request, res: Response, next: NextFunction) {
        const acceptLanguage = req.headers['accept-language'] || 'vi';
        const languageCode = acceptLanguage.split('-')[0].toLowerCase();
-   
+
        // Store in RequestContext
        req['languageCode'] = languageCode;
-   
+
        next();
      }
    }
-   
+
    // app.module.ts
    export class AppModule implements NestModule {
      configure(consumer: MiddlewareConsumer) {
@@ -792,25 +792,25 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
    ```sql
    -- ⚠️ BACKUP trước khi chạy
    BEGIN;
-   
+
    -- Verify toàn bộ dữ liệu đã được dịch
-   SELECT COUNT(*) FROM jobs 
+   SELECT COUNT(*) FROM jobs
    WHERE id NOT IN (SELECT job_id FROM job_translations);
    -- Kết quả phải là 0
-   
+
    -- Drop cột gốc
    ALTER TABLE jobs DROP COLUMN title;
    ALTER TABLE jobs DROP COLUMN description;
-   
+
    ALTER TABLE organizations DROP COLUMN name;
    ALTER TABLE organizations DROP COLUMN description;
    ALTER TABLE organizations DROP COLUMN about;
-   
+
    ALTER TABLE blog_posts DROP COLUMN title;
    ALTER TABLE blog_posts DROP COLUMN slug;
    ALTER TABLE blog_posts DROP COLUMN summary;
    ALTER TABLE blog_posts DROP COLUMN content;
-   
+
    COMMIT;
    ```
 
@@ -818,10 +818,10 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
    ```typescript
    // Cũ: COALESCE(jt.title, j.title)
    // Mới: jt.title (bắt buộc phải có translation)
-   
+
    async findByIdWithTranslation(jobId: string, languageCode: string) {
      return this.prisma.$queryRaw`
-       SELECT 
+       SELECT
          j.id,
          jt.title,  -- Không cần COALESCE nữa
          jt.description,
@@ -829,7 +829,7 @@ function renderNotification(userId: string, template: NotificationTemplate, lang
          j.salary_max
        FROM jobs j
        INNER JOIN job_translations jt  -- INNER JOIN thay vì LEFT JOIN
-         ON j.id = jt.job_id 
+         ON j.id = jt.job_id
          AND jt.language_code = ${languageCode}
        WHERE j.id = ${jobId}
      `;
@@ -987,7 +987,7 @@ Ví dụ:
 async invalidateCaches(entityType: string, entityId: string) {
   const pattern = `${entityType}:${entityId}:*`;
   const keys = await this.redis.keys(pattern);
-  
+
   if (keys.length > 0) {
     await this.redis.del(...keys);
   }
@@ -996,7 +996,7 @@ async invalidateCaches(entityType: string, entityId: string) {
 // Usage
 async updateJob(jobId: string, updateDto: UpdateJobDto) {
   await this.jobsRepository.update(jobId, updateDto);
-  
+
   // Invalidate cache for all languages
   await this.invalidateCaches('job', jobId);
 }
@@ -1034,9 +1034,9 @@ describe('JobsService - i18n', () => {
   it('should cache translation results', async () => {
     const job1 = await jobsService.getJobDetail(jobId, 'en');
     const cacheHit = jest.spyOn(cacheService, 'get');
-    
+
     const job2 = await jobsService.getJobDetail(jobId, 'en');
-    
+
     expect(cacheHit).toHaveBeenCalled();
     expect(job1).toEqual(job2);
   });
@@ -1214,6 +1214,6 @@ CACHE_DEFAULT_TTL=3600
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** May 2026  
+**Document Version:** 1.0
+**Last Updated:** May 2026
 **Status:** Ready for Implementation

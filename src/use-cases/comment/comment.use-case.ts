@@ -5,7 +5,7 @@ import { PaginatedResult } from "@/common/types";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CommentWithAuthor } from "@/core/entities";
 import { QueryCommentsDto } from "@/interfaces/dtos/comment/req/comment.dto";
-import { normalizeLanguageCode } from "@/common/utils";
+import { resolveLanguageContext } from "@/common/utils";
 
 @Injectable()
 export class CommentUseCases {
@@ -13,9 +13,8 @@ export class CommentUseCases {
 
   async getComments(
     query: QueryCommentsDto,
-    requestLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<CommentWithAuthor>>> {
-    const lang = normalizeLanguageCode(requestLanguage);
+    const { requestLanguage: lang } = resolveLanguageContext();
     const limit = Math.min(query.limit ?? 10, 50);
     const result = await this.commentRepository.getComments({
       objectId: query.objectId,

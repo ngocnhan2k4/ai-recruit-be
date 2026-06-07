@@ -1,8 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   BlogPostStatus,
+  BlogSourceType,
+  BlogGeneratedLocaleMap,
   GenerateJobBlogPostResponse,
   IAIService,
   IBlogRepository,
@@ -12,7 +14,7 @@ import {
 import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
-export class BlogScheduler {
+export class BlogScheduler implements OnModuleInit {
   private readonly logger = new Logger(BlogScheduler.name);
   private readonly aiBlogAuthorId?: string;
   private readonly aiBlogRangeDays: number;
@@ -30,6 +32,12 @@ export class BlogScheduler {
       1,
       this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
     );
+  }
+
+  onModuleInit(): void {
+    setTimeout(() => {
+      void this.generateAiBlogOnce("bootstrap");
+    }, 3000);
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -99,13 +107,37 @@ export class BlogScheduler {
     }
   }
 
+  private buildGeneratedBlogLocales(
+    payload: GenerateJobBlogPostResponse,
+  ): BlogGeneratedLocaleMap {
+    const locales: BlogGeneratedLocaleMap = {};
+
+    for (const languageCode of ["vi", "en"] as const) {
+      locales[languageCode] = {
+        title: payload.locales?.[languageCode]?.title ?? payload.title,
+        summary: payload.locales?.[languageCode]?.summary ?? payload.summary,
+        content: payload.locales?.[languageCode]?.content ?? payload.content,
+      };
+    }
+
+    return locales;
+  }
+
   @Cron("0 0 0 * * 0", {
     timeZone: "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
+    await this.generateAiBlogOnce("cron");
+  }
+
+  private async generateAiBlogOnce(
+    trigger: "bootstrap" | "cron",
+  ): Promise<void> {
     try {
       this.logger.log(
-        "Running scheduled weekly AI blog generation cron job...",
+        trigger === "bootstrap"
+          ? "Running AI blog generation on worker bootstrap..."
+          : "Running scheduled weekly AI blog generation cron job...",
       );
 
       if (!this.aiBlogAuthorId) {
@@ -140,6 +172,14 @@ export class BlogScheduler {
           tagId: item.tagId ?? null,
           skillId: item.skillId ?? null,
         }));
+      const categoryId = payload.categoryId ?? payload.category;
+
+      if (!categoryId) {
+        this.logger.warn(
+          "Skipping AI blog generation because the AI payload did not include a categoryId.",
+        );
+        return;
+      }
 
       await this.blogRepository.createPost({
         title: payload.title,
@@ -147,17 +187,21 @@ export class BlogScheduler {
         summary: payload.summary,
         thumbnail: payload.thumbnail ?? null,
         content: payload.content,
-        categoryId: payload.category,
+        locales: this.buildGeneratedBlogLocales(payload),
+        categoryId,
         authorId: author.id,
         status: BlogPostStatus.PENDING,
+        sourceType: BlogSourceType.AI,
         tags: normalizedTags,
       });
 
-      this.logger.log(`Created weekly AI blog successfully with slug ${slug}.`);
+      this.logger.log(
+        `Created AI blog successfully with slug ${slug} via ${trigger}.`,
+      );
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to generate weekly AI blog: ${err.message}`,
+        `Failed to generate AI blog via ${trigger}: ${err.message}`,
         err.stack,
       );
     }

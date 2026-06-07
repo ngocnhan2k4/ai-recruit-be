@@ -19,7 +19,7 @@ import {
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
-import { getCurrentWeekNumber } from "@/common/utils";
+import { getCurrentWeekNumber, resolveLanguageContext } from "@/common/utils";
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -84,9 +84,13 @@ export class LearningRoadmapRepository
 
   async getRoadmapWithDetails(
     roadmapId: string,
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<LearningRoadmapWithDetails | null> {
+    const resolvedLanguages = resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
     const roadmap = await this.db
       .select()
       .from(learningRoadmaps)
@@ -115,8 +119,8 @@ export class LearningRoadmapRepository
 
     const phaseTranslationMap = await this.getRoadmapPhaseTranslationsMap(
       phases.map((phase) => phase.id),
-      requestLanguage,
-      fallbackLanguage,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
     );
 
     const phasesWithSkills = await Promise.all(
@@ -134,8 +138,8 @@ export class LearningRoadmapRepository
 
         const skillTranslationMap = await this.getRoadmapSkillTranslationsMap(
           phaseSkills.map((skill) => skill.id),
-          requestLanguage,
-          fallbackLanguage,
+          resolvedLanguages.requestLanguage,
+          resolvedLanguages.fallbackLanguage,
         );
 
         // Fetch options for each skill
@@ -232,7 +236,7 @@ export class LearningRoadmapRepository
     const totalSkills = allSkills.length;
 
     // For each skill, check if any option has been completed
-    const completedSkillsCount = await Promise.all(
+    const completedSkillsCount: number[] = await Promise.all(
       allSkills.map(async (skillRow) => {
         const skill = skillRow.roadmap_skills;
         const completedOptions = await this.db
@@ -250,7 +254,10 @@ export class LearningRoadmapRepository
       }),
     );
 
-    const completedSkills = completedSkillsCount.reduce((a, b) => a + b, 0);
+    const completedSkills = completedSkillsCount.reduce<number>(
+      (sum, count) => sum + count,
+      0,
+    );
 
     const overallProgress =
       totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;

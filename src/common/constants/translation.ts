@@ -1,5 +1,4 @@
 export enum TranslationJobType {
-  BLOG_POST = "translate_blog_post",
   QUESTION = "translate_question",
   ROADMAP_PHASE = "translate_roadmap_phase",
   ROADMAP_SKILL = "translate_roadmap_skill",
@@ -13,9 +12,6 @@ export type TranslationPayloadBase = {
 };
 
 export type TranslationJobDataMap = {
-  [TranslationJobType.BLOG_POST]: TranslationPayloadBase & {
-    postId: string;
-  };
   [TranslationJobType.QUESTION]: TranslationPayloadBase & {
     questionId: string;
   };

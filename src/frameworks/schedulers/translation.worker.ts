@@ -11,8 +11,6 @@ import {
 } from "@/common/constants";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
 import {
-  blogPosts,
-  blogPostsTranslation,
   questions,
   questionTranslation,
   roadmapPhases,
@@ -42,12 +40,6 @@ export class TranslationWorker extends WorkerHost {
     const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
 
     switch (type) {
-      case TranslationJobType.BLOG_POST:
-        return this.processBlogPost(
-          data as TranslationJobDataMap[TranslationJobType.BLOG_POST],
-          sourceLanguage,
-          targetLanguages,
-        );
       case TranslationJobType.QUESTION:
         return this.processQuestion(
           data as TranslationJobDataMap[TranslationJobType.QUESTION],
@@ -80,60 +72,6 @@ export class TranslationWorker extends WorkerHost {
     );
 
     return { sourceLanguage, targetLanguages };
-  }
-
-  private async processBlogPost(
-    data: TranslationJobDataMap[TranslationJobType.BLOG_POST],
-    sourceLanguage: string,
-    targetLanguages: string[],
-  ) {
-    const [post] = await this.db
-      .select({
-        id: blogPosts.id,
-        title: blogPosts.title,
-        summary: blogPosts.summary,
-        content: blogPosts.content,
-      })
-      .from(blogPosts)
-      .where(and(eq(blogPosts.id, data.postId), isNull(blogPosts.deletedAt)))
-      .limit(1);
-
-    if (!post) {
-      this.logger.warn(
-        `[translation.worker] blog post not found: ${data.postId}`,
-      );
-      return;
-    }
-
-    for (const languageCode of targetLanguages) {
-      const [title, summary, content] = await Promise.all([
-        this.translateField(post.title, sourceLanguage, languageCode),
-        this.translateField(post.summary, sourceLanguage, languageCode),
-        this.translateField(post.content, sourceLanguage, languageCode),
-      ]);
-
-      await this.db
-        .insert(blogPostsTranslation)
-        .values({
-          postId: post.id,
-          languageCode,
-          title,
-          summary,
-          content,
-        })
-        .onConflictDoUpdate({
-          target: [
-            blogPostsTranslation.postId,
-            blogPostsTranslation.languageCode,
-          ],
-          set: {
-            title,
-            summary,
-            content,
-            updatedAt: sql`NOW()`,
-          },
-        });
-    }
   }
 
   private async processQuestion(

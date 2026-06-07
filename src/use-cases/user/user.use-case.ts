@@ -65,7 +65,7 @@ import { addDays } from "date-fns";
 import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
-import { normalizeLanguageCode, DEFAULT_LANGUAGE_CODE } from "@/common/utils";
+import { normalizeLanguageCode } from "@/common/utils";
 import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
@@ -543,12 +543,10 @@ export class UserUseCases implements OnModuleInit {
     username: string,
     requestLanguage?: string,
   ): Promise<ApiResponse<UserExperiencesResponseDto[]>> {
-    const lang = normalizeLanguageCode(requestLanguage);
     const userExperiences =
       await this.userExperienceRepository.getUserExperiencesByUsername(
         username,
-        lang,
-        DEFAULT_LANGUAGE_CODE,
+        requestLanguage,
       );
     if (!userExperiences) {
       throw new NotFoundException({
@@ -989,17 +987,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     requestLanguage?: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    const lang = normalizeLanguageCode(requestLanguage);
-    let userEducations = await this.userEducationRepository.getByField({
-      userId,
-      languageCode: lang,
-    });
-    if (!userEducations.length && lang !== DEFAULT_LANGUAGE_CODE) {
-      userEducations = await this.userEducationRepository.getByField({
+    const userEducations =
+      await this.userEducationRepository.getUserEducationsByUserId(
         userId,
-        languageCode: DEFAULT_LANGUAGE_CODE,
-      });
-    }
+        requestLanguage,
+      );
 
     const universities =
       await this.organizationRepository.getOrganizationsByTypes([

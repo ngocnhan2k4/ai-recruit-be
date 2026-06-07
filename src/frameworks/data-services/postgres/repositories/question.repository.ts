@@ -11,6 +11,7 @@ import { type DBDrizzle } from "../types";
 import { questionTranslation, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { count, ilike, and, SQL, eq, ne, inArray, sql } from "drizzle-orm";
+import { resolveLanguageContext } from "@/common/utils";
 
 @Injectable()
 export class QuestionRepository
@@ -76,8 +77,10 @@ export class QuestionRepository
       .from(questions)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
     const total = Number(totalRow[0]?.count ?? 0);
-    const requestLanguage = query.requestLanguage || "vi";
-    const fallbackLanguage = query.fallbackLanguage || "vi";
+    const { requestLanguage, fallbackLanguage } = resolveLanguageContext({
+      requestLanguage: query.requestLanguage,
+      fallbackLanguage: query.fallbackLanguage,
+    });
     const translatedItems = await this.applyQuestionTranslations(
       items,
       requestLanguage,
@@ -98,9 +101,13 @@ export class QuestionRepository
   async getActiveQuestionsBySkills(
     skillIds: string[],
     difficultyLevels?: string[],
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<Question[]> {
+    const resolvedLanguages = resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
     const whereConditions: SQL[] = [
       eq(questions.isActive, true),
       inArray(questions.skillId, skillIds),
@@ -125,8 +132,8 @@ export class QuestionRepository
 
     return this.applyQuestionTranslations(
       items,
-      requestLanguage,
-      fallbackLanguage,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
     );
   }
 
@@ -151,9 +158,13 @@ export class QuestionRepository
 
   async getQuestionByIdWithLanguage(
     id: string,
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<Question | null> {
+    const resolvedLanguages = resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
     const [question] = await this.db
       .select()
       .from(questions)
@@ -166,8 +177,8 @@ export class QuestionRepository
 
     const [translated] = await this.applyQuestionTranslations(
       [question],
-      requestLanguage,
-      fallbackLanguage,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
     );
 
     return translated || null;
@@ -175,9 +186,13 @@ export class QuestionRepository
 
   async getQuestionsByIdsWithLanguage(
     ids: string[],
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<Question[]> {
+    const resolvedLanguages = resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
     if (!ids.length) {
       return [];
     }
@@ -189,8 +204,8 @@ export class QuestionRepository
 
     const translatedRows = await this.applyQuestionTranslations(
       rows,
-      requestLanguage,
-      fallbackLanguage,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
     );
 
     const byId = new Map(translatedRows.map((item) => [item.id, item]));

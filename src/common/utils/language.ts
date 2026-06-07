@@ -1,3 +1,5 @@
+import { getFallbackLanguage, getRequestLanguage } from "./context";
+
 export const DEFAULT_LANGUAGE_CODE = "vi";
 export const SUPPORTED_LANGUAGE_CODES = ["vi", "en"] as const;
 
@@ -43,6 +45,23 @@ function parseAcceptLanguage(input: string): Array<{
 
 export function normalizeLanguageCode(input?: string | null): string {
   return parseSupportedLanguageCode(input) ?? DEFAULT_LANGUAGE_CODE;
+}
+
+export function resolveLanguageContext(input?: {
+  requestLanguage?: string | null;
+  fallbackLanguage?: string | null;
+}): {
+  requestLanguage: string;
+  fallbackLanguage: string;
+} {
+  return {
+    requestLanguage: normalizeLanguageCode(
+      input?.requestLanguage ?? getRequestLanguage(),
+    ),
+    fallbackLanguage: normalizeLanguageCode(
+      input?.fallbackLanguage ?? getFallbackLanguage(),
+    ),
+  };
 }
 
 export function parseSupportedLanguageCode(

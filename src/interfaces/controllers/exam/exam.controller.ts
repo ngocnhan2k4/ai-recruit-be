@@ -6,7 +6,6 @@ import {
   Param,
   UseGuards,
   Query,
-  Headers,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
@@ -34,12 +33,8 @@ export class ExamController {
   })
   @Post("start")
   @ApiBearerAuth()
-  async startExam(
-    @GetUser() user: TokenPayload,
-    @Body() dto: StartExamDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.examUseCases.startExam(user.userId, dto, acceptLanguage);
+  async startExam(@GetUser() user: TokenPayload, @Body() dto: StartExamDto) {
+    return this.examUseCases.startExam(user.userId, dto);
   }
 
   @ApiOperation({
@@ -101,13 +96,8 @@ export class ExamController {
   async getIncompleteExamQuestions(
     @GetUser() user: TokenPayload,
     @Param("testId") testId: string,
-    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.getIncompleteExamQuestions(
-      user.userId,
-      testId,
-      acceptLanguage,
-    );
+    return this.examUseCases.getIncompleteExamQuestions(user.userId, testId);
   }
 
   @ApiOperation({

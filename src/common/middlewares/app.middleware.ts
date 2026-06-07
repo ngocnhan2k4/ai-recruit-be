@@ -1,5 +1,10 @@
 import { ValidationPipe } from "@nestjs/common";
 import { getAppConfigs } from "@/common/config";
+import {
+  DEFAULT_LANGUAGE_CODE,
+  normalizeLanguageCode,
+  runWithContext,
+} from "@/common/utils";
 import fastifyCompress from "@fastify/compress";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
@@ -38,7 +43,17 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
   // Add logger middleware
   const loggerMiddleware = new LoggerMiddleware(new ConfigService());
   app.use((req: FastifyRequest, res: FastifyReply, next: () => void) => {
-    loggerMiddleware.use(req, res, next);
+    const rawAcceptLanguage = Array.isArray(req.headers["accept-language"])
+      ? req.headers["accept-language"].join(",")
+      : req.headers["accept-language"];
+
+    runWithContext(
+      {
+        requestLanguage: normalizeLanguageCode(rawAcceptLanguage),
+        fallbackLanguage: DEFAULT_LANGUAGE_CODE,
+      },
+      () => loggerMiddleware.use(req, res, next),
+    );
   });
 
   app.useGlobalPipes(

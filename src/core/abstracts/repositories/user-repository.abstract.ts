@@ -18,8 +18,16 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     query: GetUserQuery,
   ): Promise<PaginatedResult<GetAllUserResponse>>;
 
-  abstract getUserProfile(userId: string): Promise<UserProfile | null>;
-  abstract getUserCvData(userId: string): Promise<UserCvData | null>;
+  abstract getUserProfile(
+    userId: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<UserProfile | null>;
+  abstract getUserCvData(
+    userId: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<UserCvData | null>;
   abstract getUserTrends(params: UserTrendsQuery): Promise<UserTrends[]>;
 
   abstract addUserIdentity(

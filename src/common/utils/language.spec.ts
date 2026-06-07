@@ -2,7 +2,9 @@ import {
   DEFAULT_LANGUAGE_CODE,
   normalizeLanguageCode,
   parseSupportedLanguageCode,
+  resolveLanguageContext,
 } from "./language";
+import { runWithContext } from "./context";
 
 describe("normalizeLanguageCode", () => {
   it("falls back to Vietnamese when input is missing or empty", () => {
@@ -38,5 +40,34 @@ describe("parseSupportedLanguageCode", () => {
     expect(parseSupportedLanguageCode("en-US")).toBe("en");
     expect(parseSupportedLanguageCode("vi-VN")).toBe("vi");
     expect(parseSupportedLanguageCode("fr-FR,en;q=0.9")).toBe("en");
+  });
+});
+
+describe("resolveLanguageContext", () => {
+  it("uses explicit values when provided", () => {
+    expect(
+      resolveLanguageContext({
+        requestLanguage: "en-US",
+        fallbackLanguage: "vi-VN",
+      }),
+    ).toEqual({
+      requestLanguage: "en",
+      fallbackLanguage: "vi",
+    });
+  });
+
+  it("falls back to async local storage values", () => {
+    runWithContext(
+      {
+        requestLanguage: "en",
+        fallbackLanguage: "vi",
+      },
+      () => {
+        expect(resolveLanguageContext()).toEqual({
+          requestLanguage: "en",
+          fallbackLanguage: "vi",
+        });
+      },
+    );
   });
 });

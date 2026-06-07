@@ -3,6 +3,7 @@ import {
   BlogCategoryItem,
   BlogPostDetailBase,
   BlogPostFilters,
+  BlogLocaleMap,
   BlogPostListItem,
   BlogPostTagItem,
   BlogTagCursorItem,
@@ -38,6 +39,8 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract getSavedBlogs(
     userId: string,
     filters: BlogPostFilters,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
   abstract getPostsTags(
@@ -62,6 +65,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
       title?: string;
       summary?: string;
       content?: string;
+      locales?: BlogLocaleMap;
       category?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;

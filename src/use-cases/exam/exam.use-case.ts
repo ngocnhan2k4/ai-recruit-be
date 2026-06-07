@@ -318,7 +318,7 @@ export class ExamUseCases {
     };
   }
 
-  async getQuestions(query: QueryQuestionsDto, requestLanguage?: string) {
+  async getQuestions(query: QueryQuestionsDto) {
     const rawKeyword = query.keyword ?? "";
     const keyword =
       typeof rawKeyword === "string" &&
@@ -326,13 +326,10 @@ export class ExamUseCases {
         ? ""
         : rawKeyword;
 
-    const languageCode = normalizeLanguageCode(requestLanguage);
     const result = await this.questionRepo.getPaginatedQuestions({
       ...query,
       keyword,
       limit: query.limit ?? 20,
-      requestLanguage: languageCode,
-      fallbackLanguage: DEFAULT_LANGUAGE_CODE,
     });
     return {
       success: true,
@@ -380,13 +377,8 @@ export class ExamUseCases {
     };
   }
 
-  async getQuestionById(id: string, requestLanguage?: string) {
-    const languageCode = normalizeLanguageCode(requestLanguage);
-    const question = await this.questionRepo.getQuestionByIdWithLanguage(
-      id,
-      languageCode,
-      DEFAULT_LANGUAGE_CODE,
-    );
+  async getQuestionById(id: string) {
+    const question = await this.questionRepo.getQuestionByIdWithLanguage(id);
     if (!question) {
       throw new NotFoundException("Question not found");
     }
@@ -526,14 +518,11 @@ export class ExamUseCases {
 
   // ==================== EXAM FLOW ====================
 
-  async startExam(userId: string, dto: StartExamDto, requestLanguage?: string) {
-    const languageCode = normalizeLanguageCode(requestLanguage);
+  async startExam(userId: string, dto: StartExamDto) {
     // Fetch all active questions for single skill and optional difficulty levels
     const allQuestions = await this.questionRepo.getActiveQuestionsBySkills(
       [dto.skillId],
       dto.difficultyLevels,
-      languageCode,
-      DEFAULT_LANGUAGE_CODE,
     );
     const allQuestionsWithKeys = allQuestions.map((question) =>
       this.addAnswerKeys(question),
@@ -774,12 +763,7 @@ export class ExamUseCases {
     };
   }
 
-  async getIncompleteExamQuestions(
-    userId: string,
-    testId: string,
-    requestLanguage?: string,
-  ) {
-    const languageCode = normalizeLanguageCode(requestLanguage);
+  async getIncompleteExamQuestions(userId: string, testId: string) {
     const userTest = await this.userTestRepo.get(testId);
     if (!userTest) {
       throw new NotFoundException("Test not found");
@@ -801,8 +785,6 @@ export class ExamUseCases {
     const validQuestions = (
       await this.questionRepo.getQuestionsByIdsWithLanguage(
         userTest.questionIds,
-        languageCode,
-        DEFAULT_LANGUAGE_CODE,
       )
     ).map((question) => this.addAnswerKeys(question));
 

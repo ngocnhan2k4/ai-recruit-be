@@ -50,15 +50,11 @@ export class AdminExamController {
   async getAvailableQuestionsForSkill(
     @Param("skillId") skillId: string,
     @Query() query: QueryAvailableQuestionsDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.getQuestions(
-      {
-        ...query,
-        excludeSkillId: skillId,
-      },
-      acceptLanguage,
-    );
+    return this.examUseCases.getQuestions({
+      ...query,
+      excludeSkillId: skillId,
+    });
   }
 
   @ApiOperation({
@@ -69,12 +65,8 @@ export class AdminExamController {
   async getSkillQuestions(
     @Param("skillId") skillId: string,
     @Query() query: QuerySkillQuestionsDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.getQuestions(
-      { ...query, skillId },
-      acceptLanguage,
-    );
+    return this.examUseCases.getQuestions({ ...query, skillId });
   }
 
   @ApiOperation({
@@ -139,20 +131,14 @@ export class AdminExamController {
       "Filter by skillId, difficultyLevels, and active status. No area filter.",
   })
   @Get("questions")
-  async getQuestions(
-    @Query() query: QueryQuestionsDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.examUseCases.getQuestions(query, acceptLanguage);
+  async getQuestions(@Query() query: QueryQuestionsDto) {
+    return this.examUseCases.getQuestions(query);
   }
 
   @ApiOperation({ summary: "Get question by ID" })
   @Get("questions/:id")
-  async getQuestionById(
-    @Param("id") id: string,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.examUseCases.getQuestionById(id, acceptLanguage);
+  async getQuestionById(@Param("id") id: string) {
+    return this.examUseCases.getQuestionById(id);
   }
 
   @ApiOperation({

@@ -46,9 +46,8 @@ export class BlogController {
   })
   async getBlogs(
     @Query() query: QueryBlogsDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    return this.blogUseCase.getBlogs(query, acceptLanguage);
+    return this.blogUseCase.getBlogs(query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -61,9 +60,8 @@ export class BlogController {
   async getMyBlogs(
     @GetUser() user: TokenPayload,
     @Query() query: QueryBlogsDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    return this.blogUseCase.getMyBlogs(user.userId, query, acceptLanguage);
+    return this.blogUseCase.getMyBlogs(user.userId, query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -95,10 +93,8 @@ export class BlogController {
     summary: "Get Blog Categories",
     description: "Retrieve all available blog categories",
   })
-  async getCategories(
-    @Headers("accept-language") acceptLanguage?: string,
-  ): Promise<ApiResponse<BlogCategoryDto[]>> {
-    return this.blogUseCase.getCategories(acceptLanguage);
+  async getCategories(): Promise<ApiResponse<BlogCategoryDto[]>> {
+    return this.blogUseCase.getCategories();
   }
 
   @Get("tags")
@@ -138,7 +134,7 @@ export class BlogController {
   async getRelatedPosts(
     @Param("slug") slug: string,
   ): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    return this.blogUseCase.getRelatedPosts(slug);
+    return this.blogUseCase.getRelatedPosts(slug, 4);
   }
 
   @UseGuards(OptionalJwtAuthGuard)
@@ -152,9 +148,8 @@ export class BlogController {
   async getBlogBySlug(
     @Param("slug") slug: string,
     @GetUser() user?: TokenPayload,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<BlogPostDetailDto>> {
-    return this.blogUseCase.getBlogBySlug(slug, user?.userId, acceptLanguage);
+    return this.blogUseCase.getBlogBySlug(slug, user?.userId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -184,8 +179,9 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("postId") postId: string,
     @Body() dto: CreateBlogPostDto,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ slug: string }>> {
-    return this.blogUseCase.submitDraft(user, postId, dto);
+    return this.blogUseCase.submitDraft(user, postId, dto, acceptLanguage);
   }
 
   @UseGuards(JwtAuthGuard)

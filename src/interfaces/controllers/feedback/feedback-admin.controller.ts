@@ -5,7 +5,6 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   Param,
   Patch,
   Query,
@@ -44,9 +43,8 @@ export class FeedbackAdminController {
   @Get()
   async getFeedbacks(
     @Query() query: GetFeedbacksRequestDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResultDto<GetFeedbacksResponseDto>>> {
-    return this.feedbackUseCase.getFeedbacks(query, acceptLanguage);
+    return this.feedbackUseCase.getFeedbacks(query);
   }
 
   @ApiOperation({

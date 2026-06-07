@@ -12,8 +12,11 @@ import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
 import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
-import { convertDateToStr } from "@/common/utils";
-import { slugify } from "@/common/utils";
+import {
+  convertDateToStr,
+  resolveLanguageContext,
+  slugify,
+} from "@/common/utils";
 
 @Injectable()
 export class UserExperienceRepository
@@ -29,8 +32,8 @@ export class UserExperienceRepository
 
   async getUserExperiencesByUsername(
     username: string,
-    requestLanguage = "vi",
-    fallbackLanguage = "vi",
+    requestLanguage?: string,
+    fallbackLanguage?: string,
   ): Promise<
     {
       experience: Omit<
@@ -44,6 +47,10 @@ export class UserExperienceRepository
       skills: Pick<Skill, "id" | "name">[];
     }[]
   > {
+    const resolvedLanguages = resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
     const getRowsByLanguage = async (languageCode: string) =>
       this.db
         .select({
@@ -72,9 +79,12 @@ export class UserExperienceRepository
           ),
         );
 
-    let rows = await getRowsByLanguage(requestLanguage);
-    if (!rows.length && requestLanguage !== fallbackLanguage) {
-      rows = await getRowsByLanguage(fallbackLanguage);
+    let rows = await getRowsByLanguage(resolvedLanguages.requestLanguage);
+    if (
+      !rows.length &&
+      resolvedLanguages.requestLanguage !== resolvedLanguages.fallbackLanguage
+    ) {
+      rows = await getRowsByLanguage(resolvedLanguages.fallbackLanguage);
     }
 
     if (!rows.length) {

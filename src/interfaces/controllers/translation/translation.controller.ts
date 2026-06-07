@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { GetUser } from "@/common/decorators";
@@ -23,9 +23,8 @@ export class TranslationController {
   })
   async translate(
     @Body() dto: TranslateContentRequestDto,
-    @Headers("accept-language") acceptLanguage: string | undefined,
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<TranslateContentResponseDto>> {
-    return this.translationUseCase.translate(dto, acceptLanguage, user);
+    return this.translationUseCase.translate(dto, user);
   }
 }

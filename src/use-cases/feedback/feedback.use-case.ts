@@ -26,7 +26,7 @@ import {
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
 import { PaginatedResult } from "@/common/types";
-import { normalizeLanguageCode } from "@/common/utils";
+import { normalizeLanguageCode, resolveLanguageContext } from "@/common/utils";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -93,9 +93,8 @@ export class FeedbackUseCase {
 
   async getFeedbacks(
     filter: FeedbackFilter,
-    requestLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
-    const lang = normalizeLanguageCode(requestLanguage);
+    const { requestLanguage: lang } = resolveLanguageContext();
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);

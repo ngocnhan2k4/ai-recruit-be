@@ -113,12 +113,10 @@ export class LearningPathController {
   async getRoadmapDetails(
     @GetUser() user: TokenPayload,
     @Param("roadmapId") roadmapId: string,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<LearningRoadmapWithDetails>> {
     return await this.learningPathUseCase.getRoadmapDetails(
       roadmapId,
       user.userId,
-      acceptLanguage,
     );
   }
 

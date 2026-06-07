@@ -7,32 +7,9 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { blogPosts } from "./blog.model";
 import { questions } from "./question.model";
 import { roadmapPhases, roadmapSkills } from "./learning-path.model";
 import { timestamps } from "./helpers";
-
-export const blogPostsTranslation = pgTable(
-  "blog_posts_translation",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    postId: uuid("post_id")
-      .notNull()
-      .references(() => blogPosts.id, { onDelete: "cascade" }),
-    languageCode: varchar("language_code", { length: 5 }).notNull(),
-    title: varchar("title", { length: 255 }).notNull(),
-    summary: text("summary").notNull(),
-    content: text("content").notNull(),
-    ...timestamps,
-  },
-  (table) => [
-    uniqueIndex("idx_blog_post_trans_unique").on(
-      table.postId,
-      table.languageCode,
-    ),
-    index("idx_blog_post_trans_lookup").on(table.postId, table.languageCode),
-  ],
-);
 
 export const questionTranslation = pgTable(
   "questions_translation",

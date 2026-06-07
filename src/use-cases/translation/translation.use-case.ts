@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   ForbiddenException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { and, eq, isNull } from "drizzle-orm";
 import type { TokenPayload } from "@/common/types";
@@ -15,6 +16,7 @@ import {
 import {
   normalizeLanguageCode,
   parseSupportedLanguageCode,
+  resolveLanguageContext,
 } from "@/common/utils";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
@@ -40,7 +42,6 @@ export class TranslationUseCase {
 
   async translate(
     dto: TranslateContentRequestDto,
-    acceptLanguage?: string,
     user?: TokenPayload,
   ): Promise<ApiResponse<TranslateContentResponseDto>> {
     const explicitTargetLanguage = dto.targetLanguage?.trim();
@@ -55,7 +56,7 @@ export class TranslationUseCase {
     }
 
     const targetLanguage =
-      parsedExplicitTargetLanguage || normalizeLanguageCode(acceptLanguage);
+      parsedExplicitTargetLanguage || resolveLanguageContext().requestLanguage;
 
     const source = await this.getSourceText(dto, user);
     const sourceLanguage = normalizeLanguageCode(source.languageCode);
@@ -127,8 +128,10 @@ export class TranslationUseCase {
       case LazyTranslationEntityType.COMMENT:
         return this.getCommentText(dto.entityId, dto.field);
       case LazyTranslationEntityType.FEEDBACK:
+        return this.getFeedbackText(dto.entityId, dto.field, user);
       default:
         throw new BadRequestException("Unsupported translation entity type");
+    }
   }
 
   private async getCommentText(entityId: string, field: string) {
