@@ -24,7 +24,7 @@ import {
 } from "drizzle-orm";
 import { skills, users, userActions } from "../models";
 import { ObjectType, UserActionType } from "@/core/entities";
-import { PaginatedResult } from "@/common/types";
+import { PaginatedResult, SortDirection } from "@/common/types";
 import {
   BlogPostDetailBase,
   BlogPostFilters,
@@ -46,8 +46,41 @@ import { generateSlug } from "@/common/utils/string";
 import { cacheWithDedup } from "@/common/utils";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 
-const sortExpr = (bp: typeof blogPosts) =>
-  sql`coalesce(${bp.updatedAt}, ${bp.createdAt})`;
+const resolveSortExpr = (sortBy?: string): SQL => {
+  switch (sortBy) {
+    case "createdAt":
+      return sql`${blogPosts.createdAt}`;
+    case "viewCount":
+      return sql`${blogPosts.viewCount}`;
+    default:
+      return sql`coalesce(${blogPosts.updatedAt}, ${blogPosts.createdAt})`;
+  }
+};
+
+const resolveCursorSortBy = (sortBy?: string): "createdAt" | "updatedAt" => {
+  return sortBy === "createdAt" ? "createdAt" : "updatedAt";
+};
+
+const buildOrderBy = (sortBy?: string, sortDirection?: SortDirection) => {
+  const direction = sortDirection === "asc" ? asc : desc;
+  const orderExpr = resolveSortExpr(sortBy);
+  return [direction(orderExpr), direction(blogPosts.id)];
+};
+
+const buildCursorWhere = (
+  cursorExpr: SQL,
+  cursorTime: Date,
+  cursorId: string,
+  sortDirection?: SortDirection,
+) => {
+  const operator = sortDirection === "asc" ? ">" : "<";
+  const sortTimeSql = sql`${cursorTime.toISOString()}::timestamptz AT TIME ZONE 'UTC'`;
+
+  return sql`(
+    ${cursorExpr} ${sql.raw(operator)} (${sortTimeSql})
+    OR (${cursorExpr} = (${sortTimeSql}) AND ${blogPosts.id} ${sql.raw(operator)} ${cursorId}::uuid)
+  )`;
+};
 
 function encodeCursor(
   sortTime: Date | string | null | undefined,
@@ -86,6 +119,50 @@ export class BlogRepository
     @Inject(ICacheService) private readonly cacheService: ICacheService,
   ) {
     super(db, blogPosts);
+  }
+
+  private mapToPostDetailBase(post: {
+    id: string;
+    title: string;
+    slug: string;
+    summary: string | null;
+    thumbnail: string | null;
+    content: string | null;
+    category: string | null;
+    status: BlogPostStatus;
+    viewCount: number | null;
+    sourceType: string | null;
+    source: unknown;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    authorId: string | null;
+    authorUsername: string | null;
+    authorName: string | null;
+    authorAvatarUrl: string | null;
+  }): BlogPostDetailBase {
+    return {
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      summary: post.summary ?? "",
+      thumbnail: post.thumbnail,
+      content: post.content ?? "",
+      category: post.category ?? "",
+      status: post.status,
+      viewCount: post.viewCount ?? 0,
+      sourceType: post.sourceType as BlogSourceType,
+      source: post.source as BlogPostSource | null,
+      createdAt: post.createdAt ?? new Date(),
+      updatedAt: post.updatedAt,
+      author: post.authorId
+        ? {
+            id: post.authorId,
+            username: post.authorUsername!,
+            name: post.authorName!,
+            avatarUrl: post.authorAvatarUrl,
+          }
+        : null,
+    };
   }
 
   private async invalidateBlogCache(postId: string, slug?: string) {
@@ -305,6 +382,7 @@ export class BlogRepository
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
     const offset = (page - 1) * limit;
+    const orderBy = buildOrderBy(filters.sortBy, filters.sortDirection);
 
     const [rows, totalRows] = await Promise.all([
       this.db
@@ -323,7 +401,7 @@ export class BlogRepository
         })
         .from(blogPosts)
         .where(baseWhere)
-        .orderBy(desc(blogPosts.createdAt), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit)
         .offset(offset),
 
@@ -369,6 +447,10 @@ export class BlogRepository
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
+    const sortBy = resolveCursorSortBy(filters.sortBy);
+    const sortDirection = filters.sortDirection ?? "desc";
+    const cursorExpr = resolveSortExpr(sortBy);
+    const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const conditions: SQL[] = [
       eq(userActions.userId, userId),
@@ -389,10 +471,12 @@ export class BlogRepository
     const finalWhere = decoded
       ? and(
           baseWhere,
-          sql`(
-            ${sortExpr(blogPosts)} < ${decoded.sortTime}
-            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id}::uuid)
-          )`,
+          buildCursorWhere(
+            cursorExpr,
+            decoded.sortTime,
+            decoded.id,
+            sortDirection,
+          ),
         )
       : baseWhere;
 
@@ -414,7 +498,7 @@ export class BlogRepository
         .from(userActions)
         .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
         .where(finalWhere)
-        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit + 1),
 
       this.db
@@ -435,6 +519,10 @@ export class BlogRepository
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
     const last = data[data.length - 1];
+    const cursorTime =
+      sortBy === "createdAt"
+        ? last?.createdAt
+        : (last?.updatedAt ?? last?.createdAt);
 
     return {
       data: data as BlogPostListItem[],
@@ -442,8 +530,8 @@ export class BlogRepository
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
         nextCursor:
-          hasNextPage && last
-            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+          hasNextPage && last && cursorTime
+            ? encodeCursor(cursorTime, last.id)
             : null,
       },
     };
@@ -455,14 +543,20 @@ export class BlogRepository
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
+    const sortBy = resolveCursorSortBy(filters.sortBy);
+    const sortDirection = filters.sortDirection ?? "desc";
+    const cursorExpr = resolveSortExpr(sortBy);
+    const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const finalWhere = decoded
       ? and(
           baseWhere,
-          sql`(
-            ${sortExpr(blogPosts)} < (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC')
-            OR (${sortExpr(blogPosts)} = (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC') AND ${blogPosts.id} < ${decoded.id}::uuid)
-          )`,
+          buildCursorWhere(
+            cursorExpr,
+            decoded.sortTime,
+            decoded.id,
+            sortDirection,
+          ),
         )
       : baseWhere;
 
@@ -483,7 +577,7 @@ export class BlogRepository
         })
         .from(blogPosts)
         .where(finalWhere)
-        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit + 1),
 
       this.db
@@ -495,6 +589,10 @@ export class BlogRepository
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
     const last = data[data.length - 1];
+    const cursorTime =
+      sortBy === "createdAt"
+        ? last?.createdAt
+        : (last?.updatedAt ?? last?.createdAt);
 
     return {
       data: data as BlogPostListItem[],
@@ -502,8 +600,8 @@ export class BlogRepository
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
         nextCursor:
-          hasNextPage && last
-            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+          hasNextPage && last && cursorTime
+            ? encodeCursor(cursorTime, last.id)
             : null,
       },
     };
@@ -596,29 +694,7 @@ export class BlogRepository
 
         if (!post) return null;
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          summary: post.summary,
-          thumbnail: post.thumbnail,
-          content: post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        return this.mapToPostDetailBase(post);
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -680,29 +756,7 @@ export class BlogRepository
 
         if (!post) return null;
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          summary: post.summary,
-          thumbnail: post.thumbnail,
-          content: post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        return this.mapToPostDetailBase(post);
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -860,7 +914,7 @@ export class BlogRepository
 
     const normalizedTags = tags.filter((item) => item.tagId || item.skillId);
     if (normalizedTags.length > 0) {
-      const tagRows: any[] = normalizedTags.map((item) => ({
+      const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
         postId,
         tagId: item.tagId ?? null,
         skillId: item.skillId ?? null,

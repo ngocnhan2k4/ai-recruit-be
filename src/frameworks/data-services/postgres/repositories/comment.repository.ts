@@ -2,15 +2,11 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { comments, users } from "../models";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
-import {
-  Comment,
-  CommentWithAuthor,
-  ObjectType,
-  UserStatusEnum,
-} from "@/core/entities";
-import { and, count, desc, eq, lt, sql } from "drizzle-orm";
+import { Comment, CommentWithAuthor, ObjectType } from "@/core/entities";
+import { and, count, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import { PaginatedResult } from "@/common/types";
 import { GenericRepository } from "./generic-repository";
+import { alias } from "drizzle-orm/pg-core";
 
 @Injectable()
 export class CommentRepository
@@ -34,8 +30,8 @@ export class CommentRepository
       eq(comments.objectId, objectId),
       eq(comments.objectType, objectType),
       parentCommentId
-        ? eq(comments.parentCommentId, parentCommentId)
-        : sql`${comments.parentCommentId} IS NULL`,
+        ? eq(comments.rootCommentId, parentCommentId)
+        : isNull(comments.rootCommentId),
     ];
 
     if (cursor) {
@@ -45,7 +41,7 @@ export class CommentRepository
     // Subquery to count children
     const childCountSq = this.db
       .select({
-        parentId: comments.parentCommentId,
+        parentId: comments.rootCommentId,
         count: count(comments.id).as("count"),
       })
       .from(comments)
@@ -55,8 +51,11 @@ export class CommentRepository
           eq(comments.objectType, objectType),
         ),
       )
-      .groupBy(comments.parentCommentId)
+      .groupBy(comments.rootCommentId)
       .as("child_counts");
+
+    const parentComments = alias(comments, "parent_comments") as any;
+    const parentUsers = alias(users, "parent_users") as any;
 
     const rows = await this.db
       .select({
@@ -64,6 +63,7 @@ export class CommentRepository
         content: comments.content,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
+        rootCommentId: comments.rootCommentId,
         objectId: comments.objectId,
         objectType: comments.objectType,
         createdAt: comments.createdAt,
@@ -73,16 +73,18 @@ export class CommentRepository
           name: users.name,
           avatarUrl: users.avatarUrl,
         },
+        replyToComment: {
+          id: parentComments.id,
+          content: parentComments.content,
+          authorId: parentComments.authorId,
+          authorName: parentUsers.name,
+        },
         childCount: sql<number>`COALESCE(${childCountSq.count}, 0)::int`,
       })
       .from(comments)
-      .innerJoin(
-        users,
-        and(
-          eq(comments.authorId, users.id),
-          eq(users.status, UserStatusEnum.ACTIVE),
-        ),
-      )
+      .innerJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(parentComments, eq(parentComments.id, comments.parentCommentId))
+      .leftJoin(parentUsers, eq(parentUsers.id, parentComments.authorId))
       .leftJoin(childCountSq, eq(childCountSq.parentId, comments.id))
       .where(and(...conditions))
       .orderBy(desc(comments.createdAt))
@@ -96,20 +98,27 @@ export class CommentRepository
           eq(comments.objectId, objectId),
           eq(comments.objectType, objectType),
           parentCommentId
-            ? eq(comments.parentCommentId, parentCommentId)
-            : sql`${comments.parentCommentId} IS NULL`,
+            ? eq(comments.rootCommentId, parentCommentId)
+            : isNull(comments.rootCommentId),
         ),
       );
 
     const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const lastItem = data[data.length - 1];
+    const rawData = hasNextPage ? rows.slice(0, limit) : rows;
+    const lastItem = rawData[rawData.length - 1];
+
+    const data = rawData.map((row) => ({
+      ...row,
+      replyToComment: row.replyToComment?.id ? row.replyToComment : null,
+    }));
 
     return {
       data: data as CommentWithAuthor[],
       pagination: {
         nextCursor:
-          hasNextPage && lastItem ? lastItem.createdAt.toISOString() : null,
+          hasNextPage && lastItem?.createdAt
+            ? lastItem.createdAt.toISOString()
+            : null,
         hasNextPage,
         total: totalCount,
       },

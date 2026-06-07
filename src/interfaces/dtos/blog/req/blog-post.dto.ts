@@ -55,11 +55,6 @@ export class QueryBlogsDto extends GeneralQueryDto {
 }
 
 export class CreateBlogPostDto {
-  @ApiPropertyOptional({ format: "uuid" })
-  @IsOptional()
-  @IsUUID("4")
-  postId?: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
