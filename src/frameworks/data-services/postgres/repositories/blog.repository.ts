@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { GenericRepository } from "./generic-repository";
 import {
   blogCategories,
@@ -7,7 +7,7 @@ import {
   tags,
 } from "../models/blog.model";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
-import { type DBDrizzle } from "../types";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import {
   and,
   asc,
@@ -41,9 +41,11 @@ import {
   NewBlogPostTag,
   BlogCategory,
   Tag,
+  ICacheService,
 } from "@/core";
-import { resolveLanguageContext } from "@/common/utils";
+import { cacheWithDedup, resolveLanguageContext } from "@/common/utils";
 import { generateSlug } from "@/common/utils/string";
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
 
 const resolveSortExpr = (sortBy?: string): SQL => {
   switch (sortBy) {
@@ -111,8 +113,36 @@ export class BlogRepository
   extends GenericRepository<BlogPost, typeof blogPosts>
   implements IBlogRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  private readonly logger = new Logger(BlogRepository.name);
+
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(ICacheService) private readonly cacheService: ICacheService,
+  ) {
     super(db, blogPosts);
+  }
+
+  private async invalidateBlogCache(postId: string, slug?: string) {
+    const patterns = [CACHE_KEYS.blog.patternDetail(postId)];
+    if (slug) {
+      patterns.push(CACHE_KEYS.blog.patternSlugDetail(slug));
+    }
+
+    try {
+      const matchedGroups = await Promise.all(
+        patterns.map((pattern) => this.cacheService.getKeysByPattern(pattern)),
+      );
+      const keysToDelete = [...new Set(matchedGroups.flat())];
+
+      if (keysToDelete.length > 0) {
+        await this.cacheService.deleteMultipleKeys(keysToDelete);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[cache] Failed to invalidate blog cache for ${postId}`,
+        err,
+      );
+    }
   }
 
   private getLanguagePriority(
@@ -187,6 +217,16 @@ export class BlogRepository
     return params.baseValue ?? "";
   }
 
+  private buildResolvedLanguageContext(
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ) {
+    return resolveLanguageContext({
+      requestLanguage,
+      fallbackLanguage,
+    });
+  }
+
   private mapToPostDetailBase(post: {
     id: string;
     title: string;
@@ -234,12 +274,49 @@ export class BlogRepository
   }
 
   async get(id: string): Promise<BlogPost | null> {
-    const [post] = await this.db
-      .select()
-      .from(blogPosts)
-      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-      .limit(1);
-    return (post as BlogPost) ?? null;
+    const key = CACHE_KEYS.blog.get(id);
+    return cacheWithDedup<BlogPost | null>(
+      key,
+      () => this.cacheService.getJson<BlogPost | null>(key),
+      async () => {
+        const [post] = await this.db
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+          .limit(1);
+        return (post as BlogPost) ?? null;
+      },
+      (data: BlogPost | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
+  }
+
+  async update(
+    where: Partial<BlogPost>,
+    item: Partial<BlogPost>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<BlogPost[]> {
+    const data = await super.update(where, item, tx);
+
+    await Promise.all(
+      data.map((blog) => this.invalidateBlogCache(blog.id, blog.slug)),
+    );
+    return data;
+  }
+
+  async delete(
+    where: Partial<BlogPost>,
+    tx?: DBDrizzleTransaction,
+  ): Promise<BlogPost[]> {
+    const data = await super.delete(where, tx);
+
+    await Promise.all(
+      data.map((blog) => this.invalidateBlogCache(blog.id, blog.slug)),
+    );
+    return data;
   }
 
   async getCategories(
@@ -749,140 +826,205 @@ export class BlogRepository
     requestLanguage?: string,
     fallbackLanguage?: string,
   ): Promise<BlogPostDetailBase | null> {
-    const resolvedLanguages = resolveLanguageContext({
+    const resolvedLanguages = this.buildResolvedLanguageContext(
       requestLanguage,
       fallbackLanguage,
-    });
-    const [post] = await this.db
-      .select({
-        id: blogPosts.id,
-        title: blogPosts.title,
-        locales: blogPosts.locales,
-        slug: blogPosts.slug,
-        summary: blogPosts.summary,
-        thumbnail: blogPosts.thumbnail,
-        content: blogPosts.content,
-        category: blogPosts.categoryId,
-        status: sql<BlogPostStatus>`${blogPosts.status}`,
-        viewCount: blogPosts.viewCount,
-        sourceType: blogPosts.sourceType,
-        source: blogPosts.source,
-        createdAt: blogPosts.createdAt,
-        updatedAt: blogPosts.updatedAt,
-        authorId: users.id,
-        authorUsername: users.username,
-        authorName: users.name,
-        authorAvatarUrl: users.avatarUrl,
-      })
-      .from(blogPosts)
-      .leftJoin(users, eq(users.id, blogPosts.authorId))
-      .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
-      .groupBy(
-        blogPosts.id,
-        blogPosts.title,
-        blogPosts.locales,
-        blogPosts.slug,
-        blogPosts.summary,
-        blogPosts.thumbnail,
-        blogPosts.content,
-        blogPosts.categoryId,
-        blogPosts.status,
-        blogPosts.viewCount,
-        blogPosts.sourceType,
-        blogPosts.source,
-        blogPosts.createdAt,
-        users.id,
-        users.username,
-        users.name,
-        users.avatarUrl,
-        blogPosts.updatedAt,
-      )
-      .limit(1);
+    );
+    const key = CACHE_KEYS.blog.getPostBaseBySlug(
+      slug,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
+    );
 
-    if (!post) return null;
+    return cacheWithDedup<BlogPostDetailBase | null>(
+      key,
+      () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
+      async () => {
+        const [post] = await this.db
+          .select({
+            id: blogPosts.id,
+            title: blogPosts.title,
+            locales: blogPosts.locales,
+            slug: blogPosts.slug,
+            summary: blogPosts.summary,
+            thumbnail: blogPosts.thumbnail,
+            content: blogPosts.content,
+            category: blogPosts.categoryId,
+            status: sql<BlogPostStatus>`${blogPosts.status}`,
+            viewCount: blogPosts.viewCount,
+            sourceType: blogPosts.sourceType,
+            source: blogPosts.source,
+            createdAt: blogPosts.createdAt,
+            updatedAt: blogPosts.updatedAt,
+            authorId: users.id,
+            authorUsername: users.username,
+            authorName: users.name,
+            authorAvatarUrl: users.avatarUrl,
+          })
+          .from(blogPosts)
+          .leftJoin(users, eq(users.id, blogPosts.authorId))
+          .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
+          .groupBy(
+            blogPosts.id,
+            blogPosts.title,
+            blogPosts.locales,
+            blogPosts.slug,
+            blogPosts.summary,
+            blogPosts.thumbnail,
+            blogPosts.content,
+            blogPosts.categoryId,
+            blogPosts.status,
+            blogPosts.viewCount,
+            blogPosts.sourceType,
+            blogPosts.source,
+            blogPosts.createdAt,
+            users.id,
+            users.username,
+            users.name,
+            users.avatarUrl,
+            blogPosts.updatedAt,
+          )
+          .limit(1);
 
-    const locales = this.normalizeLocaleMap(post.locales);
+        if (!post) return null;
 
-    return this.mapToPostDetailBase({
-      ...post,
-      title: this.resolveLocalizedValue({
-        locales,
-        field: "title",
-        requestLanguage: resolvedLanguages.requestLanguage,
-        fallbackLanguage: resolvedLanguages.fallbackLanguage,
-        baseValue: post.title,
-      }),
-      summary: this.resolveLocalizedValue({
-        locales,
-        field: "summary",
-        requestLanguage: resolvedLanguages.requestLanguage,
-        fallbackLanguage: resolvedLanguages.fallbackLanguage,
-        baseValue: post.summary,
-      }),
-      content: this.resolveLocalizedValue({
-        locales,
-        field: "content",
-        requestLanguage: resolvedLanguages.requestLanguage,
-        fallbackLanguage: resolvedLanguages.fallbackLanguage,
-        baseValue: post.content,
-      }),
-      locales,
-    });
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
+      },
+      (data: BlogPostDetailBase | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
-  async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
-    const [post] = await this.db
-      .select({
-        id: blogPosts.id,
-        title: blogPosts.title,
-        locales: blogPosts.locales,
-        slug: blogPosts.slug,
-        summary: blogPosts.summary,
-        thumbnail: blogPosts.thumbnail,
-        content: blogPosts.content,
-        category: blogPosts.categoryId,
-        status: sql<BlogPostStatus>`${blogPosts.status}`,
-        viewCount: blogPosts.viewCount,
-        sourceType: blogPosts.sourceType,
-        source: blogPosts.source,
-        createdAt: blogPosts.createdAt,
-        updatedAt: blogPosts.updatedAt,
-        authorId: users.id,
-        authorUsername: users.username,
-        authorName: users.name,
-        authorAvatarUrl: users.avatarUrl,
-      })
-      .from(blogPosts)
-      .leftJoin(users, eq(users.id, blogPosts.authorId))
-      .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-      .groupBy(
-        blogPosts.id,
-        blogPosts.title,
-        blogPosts.locales,
-        blogPosts.slug,
-        blogPosts.summary,
-        blogPosts.thumbnail,
-        blogPosts.content,
-        blogPosts.categoryId,
-        blogPosts.status,
-        blogPosts.viewCount,
-        blogPosts.sourceType,
-        blogPosts.source,
-        blogPosts.createdAt,
-        users.id,
-        users.username,
-        users.name,
-        users.avatarUrl,
-        blogPosts.updatedAt,
-      )
-      .limit(1);
+  async getPostBaseById(
+    id: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<BlogPostDetailBase | null> {
+    const resolvedLanguages = this.buildResolvedLanguageContext(
+      requestLanguage,
+      fallbackLanguage,
+    );
+    const key = CACHE_KEYS.blog.getPostBaseById(
+      id,
+      resolvedLanguages.requestLanguage,
+      resolvedLanguages.fallbackLanguage,
+    );
 
-    if (!post) return null;
+    return cacheWithDedup<BlogPostDetailBase | null>(
+      key,
+      () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
+      async () => {
+        const [post] = await this.db
+          .select({
+            id: blogPosts.id,
+            title: blogPosts.title,
+            locales: blogPosts.locales,
+            slug: blogPosts.slug,
+            summary: blogPosts.summary,
+            thumbnail: blogPosts.thumbnail,
+            content: blogPosts.content,
+            category: blogPosts.categoryId,
+            status: sql<BlogPostStatus>`${blogPosts.status}`,
+            viewCount: blogPosts.viewCount,
+            sourceType: blogPosts.sourceType,
+            source: blogPosts.source,
+            createdAt: blogPosts.createdAt,
+            updatedAt: blogPosts.updatedAt,
+            authorId: users.id,
+            authorUsername: users.username,
+            authorName: users.name,
+            authorAvatarUrl: users.avatarUrl,
+          })
+          .from(blogPosts)
+          .leftJoin(users, eq(users.id, blogPosts.authorId))
+          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+          .groupBy(
+            blogPosts.id,
+            blogPosts.title,
+            blogPosts.locales,
+            blogPosts.slug,
+            blogPosts.summary,
+            blogPosts.thumbnail,
+            blogPosts.content,
+            blogPosts.categoryId,
+            blogPosts.status,
+            blogPosts.viewCount,
+            blogPosts.sourceType,
+            blogPosts.source,
+            blogPosts.createdAt,
+            users.id,
+            users.username,
+            users.name,
+            users.avatarUrl,
+            blogPosts.updatedAt,
+          )
+          .limit(1);
 
-    return this.mapToPostDetailBase({
-      ...post,
-      locales: this.normalizeLocaleMap(post.locales),
-    });
+        if (!post) return null;
+
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage: resolvedLanguages.requestLanguage,
+            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
+      },
+      (data: BlogPostDetailBase | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   async getPostBySlug(slug: string): Promise<BlogPost | null> {
@@ -908,6 +1050,7 @@ export class BlogRepository
         await this.updatePostTags(created.id, normalizedTags);
       }
 
+      await this.invalidateBlogCache(created.id, created.slug);
       return created as BlogPost;
     });
   }
@@ -951,6 +1094,9 @@ export class BlogRepository
           .select()
           .from(blogPosts)
           .where(eq(blogPosts.id, postId));
+        if (updated) {
+          await this.invalidateBlogCache(updated.id, updated.slug);
+        }
         return updated as BlogPost;
       } else {
         const categoryId = await this.resolveDraftCategoryId(data.category);
@@ -983,6 +1129,7 @@ export class BlogRepository
           await tx.insert(blogPostTags).values(tagRows);
         }
 
+        await this.invalidateBlogCache(created.id, created.slug);
         return created as BlogPost;
       }
     });

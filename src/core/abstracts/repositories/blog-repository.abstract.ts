@@ -52,7 +52,11 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     requestLanguage?: string,
     fallbackLanguage?: string,
   ): Promise<BlogPostDetailBase | null>;
-  abstract getPostBaseById(id: string): Promise<BlogPostDetailBase | null>;
+  abstract getPostBaseById(
+    id: string,
+    requestLanguage?: string,
+    fallbackLanguage?: string,
+  ): Promise<BlogPostDetailBase | null>;
 
   abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;
 
