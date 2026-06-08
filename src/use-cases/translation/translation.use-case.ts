@@ -150,7 +150,7 @@ export class TranslationUseCase {
       .limit(1);
 
     if (!comment) {
-      throw new ForbiddenException("Comment not found");
+      throw new NotFoundException("Comment not found");
     }
 
     return { text: comment.content, languageCode: comment.languageCode };
