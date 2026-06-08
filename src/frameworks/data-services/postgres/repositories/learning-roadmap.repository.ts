@@ -407,6 +407,7 @@ export class LearningRoadmapRepository
         and(
           inArray(roadmapSkillTranslation.skillId, skillIds),
           inArray(roadmapSkillTranslation.languageCode, languagePriority),
+          isNull(roadmapSkillTranslation.deletedAt),
         ),
       );
 
