@@ -358,6 +358,7 @@ export class LearningRoadmapRepository
         and(
           inArray(roadmapPhaseTranslation.phaseId, phaseIds),
           inArray(roadmapPhaseTranslation.languageCode, languagePriority),
+          isNull(roadmapPhaseTranslation.deletedAt),
         ),
       );
 
