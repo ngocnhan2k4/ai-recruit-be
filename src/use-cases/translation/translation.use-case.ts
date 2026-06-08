@@ -67,12 +67,8 @@ export class TranslationUseCase {
         data: {
           entityType: dto.entityType,
           entityId: dto.entityId,
-          field: dto.field,
-          sourceLanguage,
-          targetLanguage,
           translatedText: source.text,
-          fromCache: true,
-        },
+          fromCache: false,
       };
     }
 
