@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
@@ -14,7 +14,7 @@ import {
 import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
-export class BlogScheduler implements OnModuleInit {
+export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
   private readonly aiBlogAuthorId?: string;
   private readonly aiBlogRangeDays: number;
@@ -32,12 +32,6 @@ export class BlogScheduler implements OnModuleInit {
       1,
       this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
     );
-  }
-
-  onModuleInit(): void {
-    setTimeout(() => {
-      void this.generateAiBlogOnce("bootstrap");
-    }, 3000);
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -127,17 +121,13 @@ export class BlogScheduler implements OnModuleInit {
     timeZone: "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
-    await this.generateAiBlogOnce("cron");
+    await this.generateAiBlogOnce();
   }
 
-  private async generateAiBlogOnce(
-    trigger: "bootstrap" | "cron",
-  ): Promise<void> {
+  private async generateAiBlogOnce(): Promise<void> {
     try {
       this.logger.log(
-        trigger === "bootstrap"
-          ? "Running AI blog generation on worker bootstrap..."
-          : "Running scheduled weekly AI blog generation cron job...",
+        "Running scheduled weekly AI blog generation cron job...",
       );
 
       if (!this.aiBlogAuthorId) {
@@ -195,13 +185,11 @@ export class BlogScheduler implements OnModuleInit {
         tags: normalizedTags,
       });
 
-      this.logger.log(
-        `Created AI blog successfully with slug ${slug} via ${trigger}.`,
-      );
+      this.logger.log(`Created AI blog successfully with slug ${slug}.`);
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to generate AI blog via ${trigger}: ${err.message}`,
+        `Failed to generate AI blog: ${err.message}`,
         err.stack,
       );
     }
