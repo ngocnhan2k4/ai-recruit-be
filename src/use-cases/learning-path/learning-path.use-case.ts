@@ -37,7 +37,12 @@ import {
   TaskTypeEnum,
   TaskStatusEnum,
 } from "@/core";
-import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
+import {
+  getCurrentWeekNumber,
+  JitterBackoff,
+  normalizeLanguageCode,
+  retry,
+} from "@/common/utils";
 
 @Injectable()
 export class LearningPathUseCase {
@@ -60,10 +65,12 @@ export class LearningPathUseCase {
   async createRoadmap(
     request: PreviewRoadmapDto,
     userId: string,
+    requestLanguage?: string,
   ): Promise<ApiResponse<{ taskId: string }>> {
     this.logger.log(
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
+    const sourceLanguage = normalizeLanguageCode(requestLanguage);
 
     const result = await this.taskRepository.executeWithTransaction(
       async (tx) => {
@@ -80,6 +87,7 @@ export class LearningPathUseCase {
             userId,
             input: {
               request,
+              sourceLanguage,
             },
           },
           tx,

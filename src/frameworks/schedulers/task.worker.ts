@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import {
+  DEFAULT_LANGUAGE_CODE,
   TASK_QUEUE,
   TranslationJobType,
   TRANSLATION_SUPPORTED_LANGUAGES,
@@ -173,8 +174,9 @@ export class TaskWorker extends WorkerHost {
     userId: string;
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
+    sourceLanguage: string;
   }) {
-    const { userId, request, result } = data;
+    const { userId, request, result, sourceLanguage } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
@@ -364,7 +366,7 @@ export class TaskWorker extends WorkerHost {
     await this.enqueueRoadmapTranslationJobs({
       phaseIds: persisted.phaseIds,
       skillIds: persisted.skillIds,
-      sourceLanguage: "vi",
+      sourceLanguage,
     });
 
     return persisted.roadmap;
@@ -468,6 +470,8 @@ export class TaskWorker extends WorkerHost {
       },
       async (task, request: PreviewRoadmapDto) => {
         let resultData: AILearningRoadmapResult | null = null;
+        const sourceLanguage =
+          (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
 
         const roadmapRequest = {
           currentRole: request.currentRole,
@@ -513,6 +517,7 @@ export class TaskWorker extends WorkerHost {
           userId: task.userId,
           request,
           result: resultData,
+          sourceLanguage,
         });
 
         return { roadmapId: roadmap.id, data: resultData };

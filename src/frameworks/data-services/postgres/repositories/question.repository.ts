@@ -257,7 +257,6 @@ export class QuestionRepository
           options: data.options,
           correctAnswer: data.correctAnswer,
           updatedAt: new Date(),
-          deletedAt: null,
         },
       })
       .returning({
