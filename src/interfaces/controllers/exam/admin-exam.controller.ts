@@ -11,7 +11,6 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
-  Headers,
 } from "@nestjs/common";
 import {
   ApiOperation,
@@ -90,11 +89,8 @@ export class AdminExamController {
       "Create a question with skillId and 1-3 difficulty levels. No area required.",
   })
   @Post("questions")
-  async createQuestion(
-    @Body() dto: CreateQuestionDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.examUseCases.createQuestion(dto, acceptLanguage);
+  async createQuestion(@Body() dto: CreateQuestionDto) {
+    return this.examUseCases.createQuestion(dto);
   }
 
   @ApiOperation({
@@ -105,9 +101,8 @@ export class AdminExamController {
   async updateQuestion(
     @Param("id") id: string,
     @Body() dto: UpdateQuestionDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ) {
-    return this.examUseCases.updateQuestion(id, dto, acceptLanguage);
+    return this.examUseCases.updateQuestion(id, dto);
   }
 
   @ApiOperation({ summary: "Delete a question" })
@@ -178,16 +173,13 @@ export class AdminExamController {
   @ApiConsumes("multipart/form-data")
   @Post("questions/import/csv")
   @UseInterceptors(FileInterceptor("file"))
-  async importQuestionsCSV(
-    @UploadedFile() file: Express.Multer.File,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
+  async importQuestionsCSV(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException("File is required");
     }
 
     const fileContent = file.buffer.toString("utf-8");
-    return this.examUseCases.importQuestionsCSV(fileContent, acceptLanguage);
+    return this.examUseCases.importQuestionsCSV(fileContent);
   }
 
   @ApiOperation({
@@ -196,10 +188,7 @@ export class AdminExamController {
       "Import questions with skillId and difficultyLevels array. No area required.",
   })
   @Post("questions/import/json")
-  async importQuestionsJSON(
-    @Body() body: { data: any[]; fileName: string },
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.examUseCases.importQuestionsJSON(body.data, acceptLanguage);
+  async importQuestionsJSON(@Body() body: { data: any[]; fileName: string }) {
+    return this.examUseCases.importQuestionsJSON(body.data);
   }
 }

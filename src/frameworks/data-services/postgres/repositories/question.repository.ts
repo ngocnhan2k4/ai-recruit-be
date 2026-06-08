@@ -11,7 +11,11 @@ import { type DBDrizzle } from "../types";
 import { questionTranslation, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { count, ilike, and, SQL, eq, ne, inArray, sql } from "drizzle-orm";
-import { resolveLanguageContext } from "@/common/utils";
+import {
+  buildLanguagePriority,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 
 @Injectable()
 export class QuestionRepository
@@ -77,10 +81,8 @@ export class QuestionRepository
       .from(questions)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
     const total = Number(totalRow[0]?.count ?? 0);
-    const { requestLanguage, fallbackLanguage } = resolveLanguageContext({
-      requestLanguage: query.requestLanguage,
-      fallbackLanguage: query.fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const translatedItems = await this.applyQuestionTranslations(
       items,
       requestLanguage,
@@ -101,13 +103,9 @@ export class QuestionRepository
   async getActiveQuestionsBySkills(
     skillIds: string[],
     difficultyLevels?: string[],
-    requestLanguage?: string,
-    fallbackLanguage?: string,
   ): Promise<Question[]> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const whereConditions: SQL[] = [
       eq(questions.isActive, true),
       inArray(questions.skillId, skillIds),
@@ -132,8 +130,8 @@ export class QuestionRepository
 
     return this.applyQuestionTranslations(
       items,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
   }
 
@@ -156,15 +154,9 @@ export class QuestionRepository
     return result[0];
   }
 
-  async getQuestionByIdWithLanguage(
-    id: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<Question | null> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+  async getQuestionByIdWithLanguage(id: string): Promise<Question | null> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const [question] = await this.db
       .select()
       .from(questions)
@@ -177,22 +169,16 @@ export class QuestionRepository
 
     const [translated] = await this.applyQuestionTranslations(
       [question],
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
 
     return translated || null;
   }
 
-  async getQuestionsByIdsWithLanguage(
-    ids: string[],
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<Question[]> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+  async getQuestionsByIdsWithLanguage(ids: string[]): Promise<Question[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     if (!ids.length) {
       return [];
     }
@@ -204,8 +190,8 @@ export class QuestionRepository
 
     const translatedRows = await this.applyQuestionTranslations(
       rows,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
 
     const byId = new Map(translatedRows.map((item) => [item.id, item]));
@@ -299,8 +285,9 @@ export class QuestionRepository
     }
 
     const questionIds = questionRows.map((item) => item.id);
-    const languagePriority = [requestLanguage, fallbackLanguage].filter(
-      (value, index, array) => value && array.indexOf(value) === index,
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
     );
     if (!languagePriority.length) {
       return questionRows;

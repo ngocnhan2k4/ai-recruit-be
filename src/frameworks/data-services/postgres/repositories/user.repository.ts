@@ -45,7 +45,8 @@ import { differenceInYears, endOfDay, startOfDay } from "date-fns";
 import {
   cacheWithDedup,
   convertDateToStr,
-  resolveLanguageContext,
+  getFallbackLanguage,
+  getRequestLanguage,
 } from "@/common/utils";
 import { ProviderEnum, UserStatusEnum } from "@/core";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -81,24 +82,15 @@ export class UserRepository
   }
 
   private async getLocalizedRows<T>(params: {
-    requestLanguage?: string;
-    fallbackLanguage?: string;
     getRowsByLanguage: (languageCode: string) => Promise<T[]>;
     getFallbackRows: () => Promise<T[]>;
   }): Promise<T[]> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage: params.requestLanguage,
-      fallbackLanguage: params.fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
 
-    let rows = await params.getRowsByLanguage(
-      resolvedLanguages.requestLanguage,
-    );
-    if (
-      !rows.length &&
-      resolvedLanguages.requestLanguage !== resolvedLanguages.fallbackLanguage
-    ) {
-      rows = await params.getRowsByLanguage(resolvedLanguages.fallbackLanguage);
+    let rows = await params.getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await params.getRowsByLanguage(fallbackLanguage);
     }
 
     if (!rows.length) {
@@ -507,11 +499,7 @@ export class UserRepository
     return conditions;
   }
 
-  async getUserProfile(
-    userId: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<UserProfile | null> {
+  async getUserProfile(userId: string): Promise<UserProfile | null> {
     const user = await this.get(userId);
     if (!user) {
       return null;
@@ -527,8 +515,6 @@ export class UserRepository
 
         // Get user experiences for calculating years
         this.getLocalizedRows({
-          requestLanguage,
-          fallbackLanguage,
           getRowsByLanguage: (languageCode) =>
             this.db
               .select({
@@ -598,11 +584,7 @@ export class UserRepository
   }
 
   // [TODO] split to 3 function to usecase call(code respository can reuse after)
-  async getUserCvData(
-    userId: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<UserCvData | null> {
+  async getUserCvData(userId: string): Promise<UserCvData | null> {
     const user = await this.get(userId);
     if (!user) {
       return null;
@@ -619,8 +601,6 @@ export class UserRepository
 
         // Get user experiences with organization names
         this.getLocalizedRows({
-          requestLanguage,
-          fallbackLanguage,
           getRowsByLanguage: (languageCode) =>
             this.db
               .select({
@@ -662,8 +642,6 @@ export class UserRepository
 
         // Get user educations with school names
         this.getLocalizedRows({
-          requestLanguage,
-          fallbackLanguage,
           getRowsByLanguage: (languageCode) =>
             this.db
               .select({

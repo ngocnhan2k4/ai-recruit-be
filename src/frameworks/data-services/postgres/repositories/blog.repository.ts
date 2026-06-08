@@ -43,7 +43,12 @@ import {
   Tag,
   ICacheService,
 } from "@/core";
-import { cacheWithDedup, resolveLanguageContext } from "@/common/utils";
+import {
+  buildLanguagePriority,
+  cacheWithDedup,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 import { generateSlug } from "@/common/utils/string";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
 
@@ -145,15 +150,6 @@ export class BlogRepository
     }
   }
 
-  private getLanguagePriority(
-    requestLanguage: string,
-    fallbackLanguage: string,
-  ) {
-    return [requestLanguage, fallbackLanguage].filter(
-      (value, index, array) => value && array.indexOf(value) === index,
-    );
-  }
-
   private normalizeLocaleMap(value: unknown): BlogLocaleMap {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return {};
@@ -204,7 +200,7 @@ export class BlogRepository
     baseValue: string | null;
   }) {
     const locales = params.locales ?? {};
-    for (const languageCode of this.getLanguagePriority(
+    for (const languageCode of buildLanguagePriority(
       params.requestLanguage,
       params.fallbackLanguage,
     )) {
@@ -215,16 +211,6 @@ export class BlogRepository
     }
 
     return params.baseValue ?? "";
-  }
-
-  private buildResolvedLanguageContext(
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ) {
-    return resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
   }
 
   private mapToPostDetailBase(post: {
@@ -319,10 +305,7 @@ export class BlogRepository
     return data;
   }
 
-  async getCategories(
-    _requestLanguage?: string,
-    _fallbackLanguage?: string,
-  ): Promise<{ id: string; name: string }[]> {
+  async getCategories(): Promise<{ id: string; name: string }[]> {
     return await this.db
       .select({
         id: blogCategories.id,
@@ -461,19 +444,13 @@ export class BlogRepository
 
   async getPosts(
     filters: BlogPostFilters,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
     const baseWhere = this.buildPostWhere(filters);
     return this.queryPostsWithOffset(
       filters,
       baseWhere,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      getRequestLanguage(),
+      getFallbackLanguage(),
     );
   }
 
@@ -551,13 +528,7 @@ export class BlogRepository
   async getMyBlogs(
     authorId: string,
     filters: BlogPostFilters,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
     const conditions: SQL[] = [
       eq(blogPosts.authorId, authorId),
       isNull(blogPosts.deletedAt),
@@ -571,21 +542,17 @@ export class BlogRepository
     return this.queryPostsWithCursor(
       filters,
       baseWhere,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      getRequestLanguage(),
+      getFallbackLanguage(),
     );
   }
 
   async getSavedBlogs(
     userId: string,
     filters: BlogPostFilters,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
   ): Promise<PaginatedResult<BlogPostListItem>> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
     const sortBy = resolveCursorSortBy(filters.sortBy);
@@ -672,15 +639,15 @@ export class BlogRepository
         title: this.resolveLocalizedValue({
           locales: this.normalizeLocaleMap(item.locales),
           field: "title",
-          requestLanguage: resolvedLanguages.requestLanguage,
-          fallbackLanguage: resolvedLanguages.fallbackLanguage,
+          requestLanguage,
+          fallbackLanguage,
           baseValue: item.title,
         }),
         summary: this.resolveLocalizedValue({
           locales: this.normalizeLocaleMap(item.locales),
           field: "summary",
-          requestLanguage: resolvedLanguages.requestLanguage,
-          fallbackLanguage: resolvedLanguages.fallbackLanguage,
+          requestLanguage,
+          fallbackLanguage,
           baseValue: item.summary,
         }),
         locales: this.normalizeLocaleMap(item.locales),
@@ -821,19 +788,13 @@ export class BlogRepository
     );
   }
 
-  async getPostBaseBySlug(
-    slug: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<BlogPostDetailBase | null> {
-    const resolvedLanguages = this.buildResolvedLanguageContext(
-      requestLanguage,
-      fallbackLanguage,
-    );
+  async getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const key = CACHE_KEYS.blog.getPostBaseBySlug(
       slug,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
 
     return cacheWithDedup<BlogPostDetailBase | null>(
@@ -895,22 +856,22 @@ export class BlogRepository
           title: this.resolveLocalizedValue({
             locales,
             field: "title",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.title,
           }),
           summary: this.resolveLocalizedValue({
             locales,
             field: "summary",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.summary,
           }),
           content: this.resolveLocalizedValue({
             locales,
             field: "content",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.content,
           }),
           locales,
@@ -924,19 +885,13 @@ export class BlogRepository
     );
   }
 
-  async getPostBaseById(
-    id: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<BlogPostDetailBase | null> {
-    const resolvedLanguages = this.buildResolvedLanguageContext(
-      requestLanguage,
-      fallbackLanguage,
-    );
+  async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const key = CACHE_KEYS.blog.getPostBaseById(
       id,
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
 
     return cacheWithDedup<BlogPostDetailBase | null>(
@@ -998,22 +953,22 @@ export class BlogRepository
           title: this.resolveLocalizedValue({
             locales,
             field: "title",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.title,
           }),
           summary: this.resolveLocalizedValue({
             locales,
             field: "summary",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.summary,
           }),
           content: this.resolveLocalizedValue({
             locales,
             field: "content",
-            requestLanguage: resolvedLanguages.requestLanguage,
-            fallbackLanguage: resolvedLanguages.fallbackLanguage,
+            requestLanguage,
+            fallbackLanguage,
             baseValue: post.content,
           }),
           locales,

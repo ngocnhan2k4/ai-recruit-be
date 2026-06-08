@@ -34,12 +34,9 @@ import {
   EXAM_MAX_QUESTIONS,
   TranslationJobType,
   TRANSLATION_SUPPORTED_LANGUAGES,
-} from "@/common/constants";
-import {
-  DEFAULT_LANGUAGE_CODE,
-  normalizeLanguageCode,
   SUPPORTED_LANGUAGE_CODES,
-} from "@/common/utils";
+} from "@/common/constants";
+import { getRequestLanguage } from "@/common/utils";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { UpdateQuestionTranslationDto } from "@/interfaces/dtos/exam";
 
@@ -248,8 +245,8 @@ export class ExamUseCases {
 
   // ==================== QUESTION MANAGEMENT ====================
 
-  async createQuestion(dto: CreateQuestionDto, requestLanguage?: string) {
-    const sourceLanguage = normalizeLanguageCode(requestLanguage);
+  async createQuestion(dto: CreateQuestionDto) {
+    const sourceLanguage = getRequestLanguage();
     const question = await this.questionRepo.create(
       this.buildQuestionCreatePayload(dto),
     );
@@ -262,12 +259,8 @@ export class ExamUseCases {
     };
   }
 
-  async updateQuestion(
-    id: string,
-    dto: UpdateQuestionDto,
-    requestLanguage?: string,
-  ) {
-    const sourceLanguage = normalizeLanguageCode(requestLanguage);
+  async updateQuestion(id: string, dto: UpdateQuestionDto) {
+    const sourceLanguage = getRequestLanguage();
     const existing = await this.questionRepo.get(id);
     if (!existing) {
       throw new NotFoundException("Question not found");
@@ -480,12 +473,8 @@ export class ExamUseCases {
 
   async importQuestionsCSV(
     fileContent: string,
-    requestLanguage?: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromCSV(
-      fileContent,
-      requestLanguage,
-    );
+    const result = await this.importService.importFromCSV(fileContent);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from CSV`,
     );
@@ -498,12 +487,8 @@ export class ExamUseCases {
 
   async importQuestionsJSON(
     data: ImportRow[],
-    requestLanguage?: string,
   ): Promise<{ success: boolean; message: string; data: ImportResultDto }> {
-    const result = await this.importService.importFromJSON(
-      data,
-      requestLanguage,
-    );
+    const result = await this.importService.importFromJSON(data);
     this.logger.log(
       `Imported ${result.successRows}/${result.totalRows} questions from JSON`,
     );
@@ -637,8 +622,6 @@ export class ExamUseCases {
     const validQuestions = (
       await this.questionRepo.getQuestionsByIdsWithLanguage(
         userTest.questionIds,
-        DEFAULT_LANGUAGE_CODE,
-        DEFAULT_LANGUAGE_CODE,
       )
     ).map((question) => this.addAnswerKeys(question));
 
@@ -727,8 +710,6 @@ export class ExamUseCases {
     const questions = (
       await this.questionRepo.getQuestionsByIdsWithLanguage(
         test.questionIds ?? [],
-        DEFAULT_LANGUAGE_CODE,
-        DEFAULT_LANGUAGE_CODE,
       )
     ).map((question) => this.addAnswerKeys(question));
 

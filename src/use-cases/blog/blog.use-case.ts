@@ -51,7 +51,7 @@ import {
 } from "@/core/entities";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
-import { normalizeLanguageCode } from "@/common/utils";
+import { getRequestLanguage } from "@/common/utils";
 import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
@@ -177,7 +177,6 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
     dto: CommentDto,
-    acceptLanguage?: string,
   ): Promise<ApiResponse<Comment>> {
     const post = await this.blogRepository.get(postId);
 
@@ -201,7 +200,7 @@ export class BlogUseCases {
       objectId: post.id,
       objectType: ObjectType.BLOG,
       authorId: user.userId,
-      languageCode: normalizeLanguageCode(acceptLanguage),
+      languageCode: getRequestLanguage(),
     });
 
     try {
@@ -598,7 +597,6 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
     dto: CreateBlogPostDto,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<{ slug: string }>> {
     const existing = await this.blogRepository.get(postId);
 
@@ -680,7 +678,6 @@ export class BlogUseCases {
   async createPost(
     user: TokenPayload,
     dto: CreateBlogPostDto,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<{ slug: string }>> {
     const localizedPayload = this.buildLocalizedBlogPayload({
       title: dto.title,
@@ -720,7 +717,6 @@ export class BlogUseCases {
     user: TokenPayload,
     dto: SaveDraftBlogPostDto,
     postId?: string,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     let existingPost: BlogPost | null = null;
     if (postId) {
@@ -762,7 +758,6 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
     dto: UpdateBlogPostDto,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
     const updated = await this.blogRepository.executeWithTransaction(
       async (tx) => {

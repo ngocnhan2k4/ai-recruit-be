@@ -6,7 +6,7 @@ import {
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
 import { ID } from "@/common/types";
-import { getTx, runWithContext } from "@/common/utils";
+import { getTx, txStorage } from "@/common/utils";
 
 export class GenericRepository<T, TTable extends object>
   implements IGenericRepository<T>
@@ -183,7 +183,7 @@ export class GenericRepository<T, TTable extends object>
     }
 
     return this.db.transaction(async (tx) => {
-      return runWithContext({ tx }, async () => {
+      return txStorage.run({ tx }, async () => {
         return fn(tx);
       });
     });

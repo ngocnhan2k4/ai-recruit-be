@@ -8,7 +8,6 @@ import {
   Body,
   Param,
   Query,
-  Headers,
   UseGuards,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from "@nestjs/swagger";
@@ -119,9 +118,8 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("postId") postId: string,
     @Body() dto: CommentDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<Comment>> {
-    return this.blogUseCase.createComment(user, postId, dto, acceptLanguage);
+    return this.blogUseCase.createComment(user, postId, dto);
   }
 
   @Get(":slug/related")
@@ -162,9 +160,8 @@ export class BlogController {
   async createBlog(
     @GetUser() user: TokenPayload,
     @Body() dto: CreateBlogPostDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ slug: string }>> {
-    return this.blogUseCase.createPost(user, dto, acceptLanguage);
+    return this.blogUseCase.createPost(user, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -179,9 +176,8 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("postId") postId: string,
     @Body() dto: CreateBlogPostDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ slug: string }>> {
-    return this.blogUseCase.submitDraft(user, postId, dto, acceptLanguage);
+    return this.blogUseCase.submitDraft(user, postId, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -200,9 +196,8 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Body() dto: SaveDraftBlogPostDto,
     @Query("postId") postId?: string,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
-    return this.blogUseCase.saveDraft(user, dto, postId, acceptLanguage);
+    return this.blogUseCase.saveDraft(user, dto, postId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -216,9 +211,8 @@ export class BlogController {
     @GetUser() user: TokenPayload,
     @Param("id") id: string,
     @Body() dto: UpdateBlogPostDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<UpdateBlogPostDto>> {
-    return this.blogUseCase.updatePost(user, id, dto, acceptLanguage);
+    return this.blogUseCase.updatePost(user, id, dto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -14,9 +14,9 @@ import {
   RoleEnum,
 } from "@/common/constants";
 import {
+  getRequestLanguage,
   normalizeLanguageCode,
   parseSupportedLanguageCode,
-  resolveLanguageContext,
 } from "@/common/utils";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
 import type { DBDrizzle } from "@/frameworks/data-services/postgres/types";
@@ -55,8 +55,7 @@ export class TranslationUseCase {
       );
     }
 
-    const targetLanguage =
-      parsedExplicitTargetLanguage || resolveLanguageContext().requestLanguage;
+    const targetLanguage = parsedExplicitTargetLanguage || getRequestLanguage();
 
     const source = await this.getSourceText(dto, user);
     const sourceLanguage = normalizeLanguageCode(source.languageCode);

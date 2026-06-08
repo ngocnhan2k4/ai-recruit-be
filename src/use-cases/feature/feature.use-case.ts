@@ -18,7 +18,6 @@ export class FeatureUseCases {
 
   async createFeature(
     dto: CreateFeatureRequestDto,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<Feature>> {
     const created = await this.featureRepo.create({
       code: dto.code,
@@ -36,7 +35,6 @@ export class FeatureUseCases {
   async updateFeature(
     id: number,
     dto: UpdateFeatureRequestDto,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<Feature>> {
     const [updated] = await this.featureRepo.update({ id }, dto);
 
@@ -73,7 +71,6 @@ export class FeatureUseCases {
 
   async getFeatures(
     query: GeneralQuery,
-    _acceptLanguage?: string,
   ): Promise<ApiResponse<PaginatedResult<Feature>>> {
     const result = await this.featureRepo.getListFeatures(query);
 
@@ -84,10 +81,7 @@ export class FeatureUseCases {
     };
   }
 
-  async getFeatureById(
-    id: number,
-    _acceptLanguage?: string,
-  ): Promise<ApiResponse<Feature>> {
+  async getFeatureById(id: number): Promise<ApiResponse<Feature>> {
     const existing = await this.featureRepo.getFeatureById(id);
     if (!existing) {
       throw new NotFoundException({

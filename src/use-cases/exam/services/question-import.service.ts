@@ -6,7 +6,7 @@ import {
   TRANSLATION_SUPPORTED_LANGUAGES,
 } from "@/common/constants";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { normalizeLanguageCode } from "@/common/utils";
+import { getRequestLanguage } from "@/common/utils";
 
 export interface ImportRow {
   skill?: string;
@@ -25,10 +25,7 @@ export class QuestionImportService {
     private readonly messageQueueService: IMessageQueueService,
   ) {}
 
-  async importFromCSV(
-    fileContent: string,
-    requestLanguage?: string,
-  ): Promise<ImportResultDto> {
+  async importFromCSV(fileContent: string): Promise<ImportResultDto> {
     const lines = fileContent.split("\n").filter((line) => line.trim());
     const headers = lines[0].split(",").map((h) => h.trim());
 
@@ -42,20 +39,14 @@ export class QuestionImportService {
       rows.push(row as ImportRow);
     }
 
-    return await this.processImport(rows, requestLanguage);
+    return await this.processImport(rows);
   }
 
-  async importFromJSON(
-    data: ImportRow[],
-    requestLanguage?: string,
-  ): Promise<ImportResultDto> {
-    return await this.processImport(data, requestLanguage);
+  async importFromJSON(data: ImportRow[]): Promise<ImportResultDto> {
+    return await this.processImport(data);
   }
 
-  private async processImport(
-    rows: ImportRow[],
-    requestLanguage?: string,
-  ): Promise<ImportResultDto> {
+  private async processImport(rows: ImportRow[]): Promise<ImportResultDto> {
     const errors: string[] = [];
     const validQuestions: Partial<Question>[] = [];
     let successCount = 0;
@@ -201,7 +192,7 @@ export class QuestionImportService {
 
     // Bulk insert valid questions
     if (validQuestions.length > 0) {
-      const sourceLanguage = normalizeLanguageCode(requestLanguage);
+      const sourceLanguage = getRequestLanguage();
       const targetLanguages = TRANSLATION_SUPPORTED_LANGUAGES.filter(
         (language) => language !== sourceLanguage,
       );

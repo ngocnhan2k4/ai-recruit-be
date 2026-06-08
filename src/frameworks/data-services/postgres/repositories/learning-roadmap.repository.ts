@@ -19,7 +19,12 @@ import {
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
 import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
-import { getCurrentWeekNumber, resolveLanguageContext } from "@/common/utils";
+import {
+  buildLanguagePriority,
+  getCurrentWeekNumber,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -84,13 +89,9 @@ export class LearningRoadmapRepository
 
   async getRoadmapWithDetails(
     roadmapId: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
   ): Promise<LearningRoadmapWithDetails | null> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const roadmap = await this.db
       .select()
       .from(learningRoadmaps)
@@ -119,8 +120,8 @@ export class LearningRoadmapRepository
 
     const phaseTranslationMap = await this.getRoadmapPhaseTranslationsMap(
       phases.map((phase) => phase.id),
-      resolvedLanguages.requestLanguage,
-      resolvedLanguages.fallbackLanguage,
+      requestLanguage,
+      fallbackLanguage,
     );
 
     const phasesWithSkills = await Promise.all(
@@ -138,8 +139,8 @@ export class LearningRoadmapRepository
 
         const skillTranslationMap = await this.getRoadmapSkillTranslationsMap(
           phaseSkills.map((skill) => skill.id),
-          resolvedLanguages.requestLanguage,
-          resolvedLanguages.fallbackLanguage,
+          requestLanguage,
+          fallbackLanguage,
         );
 
         // Fetch options for each skill
@@ -337,8 +338,9 @@ export class LearningRoadmapRepository
       return {} as Record<string, { name: string; description: string }>;
     }
 
-    const languagePriority = [requestLanguage, fallbackLanguage].filter(
-      (value, index, array) => value && array.indexOf(value) === index,
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
     );
     if (!languagePriority.length) {
       return {};
@@ -385,8 +387,9 @@ export class LearningRoadmapRepository
       return {} as Record<string, { skill: string; description: string }>;
     }
 
-    const languagePriority = [requestLanguage, fallbackLanguage].filter(
-      (value, index, array) => value && array.indexOf(value) === index,
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
     );
     if (!languagePriority.length) {
       return {};

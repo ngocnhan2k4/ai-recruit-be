@@ -104,6 +104,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
 import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { TranslationUseCasesModule } from "@/use-cases/translation/translation-use-cases.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { ContextMiddleware } from "./common/middlewares/context.middleware";
 
 @Module({
   imports: [
@@ -259,5 +260,6 @@ export class AppModule implements NestModule {
       .apply(RateLimitMiddleware)
       .exclude("/health", "users/me", "auth/refresh")
       .forRoutes("*");
+    consumer.apply(ContextMiddleware).forRoutes("*");
   }
 }

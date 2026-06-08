@@ -1,10 +1,12 @@
 import {
-  DEFAULT_LANGUAGE_CODE,
+  buildLanguagePriority,
   normalizeLanguageCode,
   parseSupportedLanguageCode,
-  resolveLanguageContext,
+  resolveRequestLanguage,
 } from "./language";
-import { runWithContext } from "./context";
+import { CONTEXT_KEYS, runContext, setContext } from "../stores/context.store";
+import { getFallbackLanguage, getRequestLanguage } from "./context";
+import { DEFAULT_LANGUAGE_CODE } from "../constants/translation";
 
 describe("normalizeLanguageCode", () => {
   it("falls back to Vietnamese when input is missing or empty", () => {
@@ -43,31 +45,57 @@ describe("parseSupportedLanguageCode", () => {
   });
 });
 
-describe("resolveLanguageContext", () => {
-  it("uses explicit values when provided", () => {
+describe("buildLanguagePriority", () => {
+  it("returns request language before fallback", () => {
+    expect(buildLanguagePriority("en", "vi")).toEqual(["en", "vi"]);
+  });
+
+  it("deduplicates when request and fallback are the same", () => {
+    expect(buildLanguagePriority("vi", "vi")).toEqual(["vi"]);
+  });
+
+  it("filters out empty language codes", () => {
+    expect(buildLanguagePriority("", "vi")).toEqual(["vi"]);
+    expect(buildLanguagePriority("en", "")).toEqual(["en"]);
+  });
+});
+
+describe("resolveRequestLanguage", () => {
+  it("prioritizes query lang over accept-language header", () => {
     expect(
-      resolveLanguageContext({
-        requestLanguage: "en-US",
-        fallbackLanguage: "vi-VN",
+      resolveRequestLanguage({
+        queryLang: "en-US",
+        acceptLanguage: "vi-VN",
       }),
-    ).toEqual({
-      requestLanguage: "en",
-      fallbackLanguage: "vi",
+    ).toBe("en");
+  });
+
+  it("falls back to accept-language header when query lang is missing", () => {
+    expect(
+      resolveRequestLanguage({
+        acceptLanguage: "en-US,vi;q=0.9",
+      }),
+    ).toBe("en");
+  });
+
+  it("falls back to Vietnamese when no language source is provided", () => {
+    expect(resolveRequestLanguage()).toBe(DEFAULT_LANGUAGE_CODE);
+  });
+});
+
+describe("request language context", () => {
+  it("reads normalized values from async local storage", () => {
+    runContext(() => {
+      setContext(CONTEXT_KEYS.REQUEST_LANGUAGE, "en");
+      setContext(CONTEXT_KEYS.FALLBACK_LANGUAGE, "vi");
+
+      expect(getRequestLanguage()).toBe("en");
+      expect(getFallbackLanguage()).toBe("vi");
     });
   });
 
-  it("falls back to async local storage values", () => {
-    runWithContext(
-      {
-        requestLanguage: "en",
-        fallbackLanguage: "vi",
-      },
-      () => {
-        expect(resolveLanguageContext()).toEqual({
-          requestLanguage: "en",
-          fallbackLanguage: "vi",
-        });
-      },
-    );
+  it("falls back to default language outside request context", () => {
+    expect(getRequestLanguage()).toBe(DEFAULT_LANGUAGE_CODE);
+    expect(getFallbackLanguage()).toBe(DEFAULT_LANGUAGE_CODE);
   });
 });

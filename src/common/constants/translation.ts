@@ -25,3 +25,7 @@ export type TranslationJobDataMap = {
 
 export type TranslationJobData =
   TranslationJobDataMap[keyof TranslationJobDataMap];
+
+export const DEFAULT_LANGUAGE_CODE = "vi";
+export const SUPPORTED_LANGUAGE_CODES = ["vi", "en"] as const;
+export const SUPPORTED_LANGUAGE_SET = new Set<string>(SUPPORTED_LANGUAGE_CODES);

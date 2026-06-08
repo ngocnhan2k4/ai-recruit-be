@@ -14,7 +14,8 @@ import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
 import {
   convertDateToStr,
-  resolveLanguageContext,
+  getFallbackLanguage,
+  getRequestLanguage,
   slugify,
 } from "@/common/utils";
 
@@ -30,11 +31,7 @@ export class UserExperienceRepository
     super(db, userExperiences);
   }
 
-  async getUserExperiencesByUsername(
-    username: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<
+  async getUserExperiencesByUsername(username: string): Promise<
     {
       experience: Omit<
         UserExperience,
@@ -47,10 +44,8 @@ export class UserExperienceRepository
       skills: Pick<Skill, "id" | "name">[];
     }[]
   > {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const getRowsByLanguage = async (languageCode: string) =>
       this.db
         .select({
@@ -79,12 +74,9 @@ export class UserExperienceRepository
           ),
         );
 
-    let rows = await getRowsByLanguage(resolvedLanguages.requestLanguage);
-    if (
-      !rows.length &&
-      resolvedLanguages.requestLanguage !== resolvedLanguages.fallbackLanguage
-    ) {
-      rows = await getRowsByLanguage(resolvedLanguages.fallbackLanguage);
+    let rows = await getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await getRowsByLanguage(fallbackLanguage);
     }
 
     if (!rows.length) {

@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
@@ -29,39 +28,26 @@ export class AdminFeatureController {
 
   @ApiOperation({ summary: "List features" })
   @Get()
-  getFeatures(
-    @Query() query: GeneralQueryDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.featureUseCases.getFeatures(query, acceptLanguage);
+  getFeatures(@Query() query: GeneralQueryDto) {
+    return this.featureUseCases.getFeatures(query);
   }
 
   @ApiOperation({ summary: "Get feature by id" })
   @Get(":id")
-  getFeature(
-    @Param("id") id: string,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.featureUseCases.getFeatureById(Number(id), acceptLanguage);
+  getFeature(@Param("id") id: string) {
+    return this.featureUseCases.getFeatureById(Number(id));
   }
 
   @ApiOperation({ summary: "Create feature" })
   @Post()
-  createFeature(
-    @Body() dto: CreateFeatureRequestDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.featureUseCases.createFeature(dto, acceptLanguage);
+  createFeature(@Body() dto: CreateFeatureRequestDto) {
+    return this.featureUseCases.createFeature(dto);
   }
 
   @ApiOperation({ summary: "Update feature" })
   @Patch(":id")
-  updateFeature(
-    @Param("id") id: string,
-    @Body() dto: UpdateFeatureRequestDto,
-    @Headers("accept-language") acceptLanguage?: string,
-  ) {
-    return this.featureUseCases.updateFeature(Number(id), dto, acceptLanguage);
+  updateFeature(@Param("id") id: string, @Body() dto: UpdateFeatureRequestDto) {
+    return this.featureUseCases.updateFeature(Number(id), dto);
   }
 
   @ApiOperation({ summary: "Delete feature" })

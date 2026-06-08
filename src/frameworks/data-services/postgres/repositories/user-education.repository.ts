@@ -5,7 +5,7 @@ import { type DBDrizzle } from "../types";
 import { Inject, Injectable } from "@nestjs/common";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { eq } from "drizzle-orm";
-import { resolveLanguageContext } from "@/common/utils";
+import { getFallbackLanguage, getRequestLanguage } from "@/common/utils";
 
 @Injectable()
 export class UserEducationRepository
@@ -16,15 +16,9 @@ export class UserEducationRepository
     super(db, userEducations);
   }
 
-  async getUserEducationsByUserId(
-    userId: string,
-    requestLanguage?: string,
-    fallbackLanguage?: string,
-  ): Promise<UserEducation[]> {
-    const resolvedLanguages = resolveLanguageContext({
-      requestLanguage,
-      fallbackLanguage,
-    });
+  async getUserEducationsByUserId(userId: string): Promise<UserEducation[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
 
     const getRowsByLanguage = async (languageCode: string) =>
       this.getByField({
@@ -32,12 +26,9 @@ export class UserEducationRepository
         languageCode,
       });
 
-    let rows = await getRowsByLanguage(resolvedLanguages.requestLanguage);
-    if (
-      !rows.length &&
-      resolvedLanguages.requestLanguage !== resolvedLanguages.fallbackLanguage
-    ) {
-      rows = await getRowsByLanguage(resolvedLanguages.fallbackLanguage);
+    let rows = await getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await getRowsByLanguage(fallbackLanguage);
     }
 
     if (!rows.length) {
