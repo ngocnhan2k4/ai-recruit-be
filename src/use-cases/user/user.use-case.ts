@@ -1043,7 +1043,6 @@ export class UserUseCases implements OnModuleInit {
         educationLevel: newEducation.educationLevel as EducationLevelEnum,
         major: newEducation.major,
         gpa: newEducation.gpa,
-        languageCode: newEducation.languageCode,
       },
       message: "User education created successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1055,9 +1054,7 @@ export class UserUseCases implements OnModuleInit {
     educationId: string,
     updateUserEducationDto: UpdateUserEducationDto,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
-    const languageCode = updateUserEducationDto.languageCode
-      ? normalizeLanguageCode(updateUserEducationDto.languageCode)
-      : getRequestLanguage();
+    const languageCode = getRequestLanguage();
     const userEducation = await this.userEducationRepository.getByField({
       schoolId: educationId,
       userId,
@@ -1102,7 +1099,6 @@ export class UserUseCases implements OnModuleInit {
         educationLevel: result.educationLevel as EducationLevelEnum,
         major: result.major,
         gpa: result.gpa,
-        languageCode: result.languageCode,
       },
       message: "User education updated successfully",
       code: RESPONSE_CODE.SUCCESS,

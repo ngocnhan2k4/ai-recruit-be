@@ -21,9 +21,6 @@ export class UserExperienceDto {
   @ApiProperty({ type: String, nullable: true })
   description: string | null;
 
-  @ApiProperty()
-  languageCode: string;
-
   @ApiProperty({ type: Date })
   createdAt: Date;
 
