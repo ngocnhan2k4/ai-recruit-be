@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   ForbiddenException,
+  NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { and, eq, isNull } from "drizzle-orm";
@@ -67,8 +68,12 @@ export class TranslationUseCase {
         data: {
           entityType: dto.entityType,
           entityId: dto.entityId,
+          field: dto.field,
+          sourceLanguage,
+          targetLanguage,
           translatedText: source.text,
           fromCache: false,
+        },
       };
     }
 

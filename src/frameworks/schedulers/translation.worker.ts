@@ -68,7 +68,7 @@ export class TranslationWorker extends WorkerHost {
   private resolveLanguages(data: TranslationPayloadBase) {
     const sourceLanguage = data.sourceLanguage || "vi";
     const targetLanguages = [...new Set(data.targetLanguages || ["en"])].filter(
-      (lang) => lang && lang !== sourceLanguage,
+      (lang) => Boolean(lang),
     );
 
     return { sourceLanguage, targetLanguages };

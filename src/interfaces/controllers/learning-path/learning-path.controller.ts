@@ -12,6 +12,7 @@ import {
   Get,
   Delete,
   Put,
+  Headers,
   Param,
   Query,
   UseGuards,

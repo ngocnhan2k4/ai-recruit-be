@@ -56,17 +56,15 @@ export class ExamUseCases {
     private readonly messageQueueService: IMessageQueueService,
   ) {}
 
-  private resolveTranslationTargets(sourceLanguage: string) {
-    return TRANSLATION_SUPPORTED_LANGUAGES.filter(
-      (language) => language !== sourceLanguage,
-    );
+  private resolveTranslationTargets() {
+    return [...TRANSLATION_SUPPORTED_LANGUAGES];
   }
 
   private async enqueueQuestionTranslation(
     questionId: string,
     sourceLanguage: string,
   ) {
-    const targetLanguages = this.resolveTranslationTargets(sourceLanguage);
+    const targetLanguages = this.resolveTranslationTargets();
     if (!targetLanguages.length) {
       return;
     }

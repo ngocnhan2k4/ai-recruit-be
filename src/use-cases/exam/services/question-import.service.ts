@@ -193,9 +193,7 @@ export class QuestionImportService {
     // Bulk insert valid questions
     if (validQuestions.length > 0) {
       const sourceLanguage = getRequestLanguage();
-      const targetLanguages = TRANSLATION_SUPPORTED_LANGUAGES.filter(
-        (language) => language !== sourceLanguage,
-      );
+      const targetLanguages = [...TRANSLATION_SUPPORTED_LANGUAGES];
       const createdQuestions =
         await this.questionRepo.createMany(validQuestions);
       if (targetLanguages.length) {

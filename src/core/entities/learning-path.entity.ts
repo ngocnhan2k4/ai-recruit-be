@@ -71,6 +71,7 @@ export interface RoadmapGenerateRequest {
   targetRole: string;
   timeCommitmentHoursPerWeek: number;
   currentSkills?: SkillLevel[];
+  language?: "vi" | "en";
 }
 
 export interface SkillOption {

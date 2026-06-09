@@ -128,10 +128,8 @@ export class TaskWorker extends WorkerHost {
     return args.join(":");
   }
 
-  private resolveTranslationTargets(sourceLanguage: string) {
-    return TRANSLATION_SUPPORTED_LANGUAGES.filter(
-      (language) => language !== sourceLanguage,
-    );
+  private resolveTranslationTargets() {
+    return [...TRANSLATION_SUPPORTED_LANGUAGES];
   }
 
   private async enqueueRoadmapTranslationJobs(params: {
@@ -139,9 +137,7 @@ export class TaskWorker extends WorkerHost {
     skillIds: string[];
     sourceLanguage: string;
   }) {
-    const targetLanguages = this.resolveTranslationTargets(
-      params.sourceLanguage,
-    );
+    const targetLanguages = this.resolveTranslationTargets();
     if (!targetLanguages.length) {
       return;
     }
@@ -478,6 +474,7 @@ export class TaskWorker extends WorkerHost {
           targetRole: request.targetRole,
           timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
           currentSkills: request.currentSkills,
+          language: sourceLanguage as "vi" | "en",
         };
 
         await new Promise<void>((resolve, reject) => {
