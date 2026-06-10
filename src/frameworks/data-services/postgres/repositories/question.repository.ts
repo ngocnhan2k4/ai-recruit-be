@@ -305,7 +305,9 @@ export class QuestionRepository
         and(
           inArray(questionTranslation.questionId, questionIds),
           inArray(questionTranslation.languageCode, languagePriority),
+          isNull(questionTranslation.deletedAt),
         ),
+      );
       );
 
     return questionRows.map((item) => {
