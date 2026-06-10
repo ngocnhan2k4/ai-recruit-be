@@ -13,6 +13,8 @@ import {
   gte,
   lte,
   isNull,
+  isNotNull,
+  inArray,
   countDistinct,
   asc,
   sql,
@@ -57,6 +59,10 @@ export class FeedbackRepository
       whereConditions.push(lte(feedbacks.createdAt, filter.endDate));
     }
 
+    if (filter.type) {
+      whereConditions.push(eq(feedbacks.type, filter.type));
+    }
+
     if (filter.keyword) {
       const keyword = `%${filter.keyword}%`;
 
@@ -77,6 +83,8 @@ export class FeedbackRepository
           message: feedbacks.message,
           subject: feedbacks.subject,
           images: feedbacks.images,
+          type: feedbacks.type,
+          metadata: feedbacks.metadata,
           status: feedbacks.status,
           assignedToUserId: feedbacks.assignedToUserId,
           createdAt: feedbacks.createdAt,
@@ -143,5 +151,32 @@ export class FeedbackRepository
       date: convertDateToStr(r.date as string),
       count: Number(r.count),
     }));
+  }
+
+  async findSubmittedSurveyKeys(
+    userId: string,
+    surveyKeys?: string[],
+  ): Promise<string[]> {
+    const surveyKeyExpr = sql<string>`${feedbacks.metadata}->>'surveyKey'`;
+    const whereConditions: SQL[] = [
+      isNull(feedbacks.deletedAt),
+      eq(feedbacks.userId, userId),
+      isNotNull(surveyKeyExpr),
+    ];
+
+    if (surveyKeys && surveyKeys.length > 0) {
+      whereConditions.push(inArray(surveyKeyExpr, surveyKeys));
+    }
+
+    const result = await this.db
+      .selectDistinct({ surveyKey: surveyKeyExpr })
+      .from(feedbacks)
+      .where(and(...whereConditions));
+
+    return result
+      .map((r) => r.surveyKey)
+      .filter(
+        (key): key is string => typeof key === "string" && key.length > 0,
+      );
   }
 }

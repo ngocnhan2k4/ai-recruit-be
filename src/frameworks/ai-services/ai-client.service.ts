@@ -22,7 +22,9 @@ import {
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
-} from "@/core/entities/ai-cv.entity";
+  GenerateJobBlogPostRequest,
+  GenerateJobBlogPostResponse,
+} from "@/core";
 import {
   SubpathGenerateRequest,
   AISubpathResult,
@@ -189,41 +191,11 @@ export class AIClientService implements IAIService {
   ): Promise<OptimizeAtsResponse> {
     const url = `${this.aiServiceUrl}/api/v1/cv/optimize-cv-ats`;
 
-    return firstValueFrom(
-      this.httpService
-        .post<OptimizeAtsResponse>(url, request, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.apiKey,
-          },
-        })
-        .pipe(
-          timeout(this.aiServiceTimeout),
-          retry({
-            count: this.maxRetries,
-            delay: (_, retryCount) => {
-              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
-              return new Promise((resolve) => setTimeout(resolve, delayMs));
-            },
-            resetOnSuccess: true,
-          }),
-          catchError((error: AxiosError) => {
-            const errorMsg = this.formatAxiosErrorMessage(error);
-
-            this.logger.error(
-              `AI Service CV optimization failed: ${errorMsg}`,
-              error.stack,
-            );
-
-            throw new Error(`AI Service CV optimization failed: ${errorMsg}`);
-          }),
-          map(
-            (
-              response: AxiosResponse<OptimizeAtsResponse>,
-            ): OptimizeAtsResponse => response.data,
-          ),
-        ),
-    );
+    return this.postWithRetry<OptimizeAtsRequest, OptimizeAtsResponse>({
+      url,
+      body: request,
+      errorContext: "AI Service CV optimization failed",
+    });
   }
 
   // Suggest CV field value
@@ -236,9 +208,41 @@ export class AIClientService implements IAIService {
       `Requesting CV field suggestion for: ${request.targetField}`,
     );
 
+    return this.postWithRetry<
+      CvFieldSuggestionRequest,
+      CvFieldSuggestionResponse
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service CV field suggestion failed",
+    });
+  }
+
+  async generateJobBlogPost(
+    request: GenerateJobBlogPostRequest,
+  ): Promise<GenerateJobBlogPostResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/blog/generate-job-blog-post`;
+
+    return this.postWithRetry<
+      GenerateJobBlogPostRequest,
+      GenerateJobBlogPostResponse
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service weekly blog generation failed",
+    });
+  }
+
+  private postWithRetry<TRequest, TResponse>(params: {
+    url: string;
+    body: TRequest;
+    errorContext: string;
+  }): Promise<TResponse> {
+    const { url, body, errorContext } = params;
+
     return firstValueFrom(
       this.httpService
-        .post<CvFieldSuggestionResponse>(url, request, {
+        .post<TResponse>(url, body, {
           headers: {
             "Content-Type": "application/json",
             "X-API-Key": this.apiKey,
@@ -257,20 +261,11 @@ export class AIClientService implements IAIService {
           catchError((error: AxiosError) => {
             const errorMsg = this.formatAxiosErrorMessage(error);
 
-            this.logger.error(
-              `AI Service CV field suggestion failed: ${errorMsg}`,
-              error.stack,
-            );
+            this.logger.error(`${errorContext}: ${errorMsg}`, error.stack);
 
-            throw new Error(
-              `AI Service CV field suggestion failed: ${errorMsg}`,
-            );
+            throw new Error(`${errorContext}: ${errorMsg}`);
           }),
-          map(
-            (
-              response: AxiosResponse<CvFieldSuggestionResponse>,
-            ): CvFieldSuggestionResponse => response.data,
-          ),
+          map((response: AxiosResponse<TResponse>): TResponse => response.data),
         ),
     );
   }
@@ -278,42 +273,10 @@ export class AIClientService implements IAIService {
   async extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse> {
     const url = `${this.aiServiceUrl}/api/v1/cv/extract`;
 
-    return firstValueFrom(
-      this.httpService
-        .post<ExtractCvResponse>(url, request, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.apiKey,
-          },
-        })
-        .pipe(
-          timeout(this.aiServiceTimeout),
-
-          retry({
-            count: this.maxRetries,
-            delay: (_, retryCount) => {
-              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
-              return new Promise((resolve) => setTimeout(resolve, delayMs));
-            },
-            resetOnSuccess: true,
-          }),
-
-          catchError((error: AxiosError) => {
-            const errorMsg = this.formatAxiosErrorMessage(error);
-
-            this.logger.error(
-              `AI Service CV extraction failed: ${errorMsg}`,
-              error.stack,
-            );
-
-            throw new Error(`AI Service CV extraction failed: ${errorMsg}`);
-          }),
-
-          map(
-            (response: AxiosResponse<ExtractCvResponse>): ExtractCvResponse =>
-              response.data,
-          ),
-        ),
-    );
+    return this.postWithRetry<ExtractCvRequest, ExtractCvResponse>({
+      url,
+      body: request,
+      errorContext: "AI Service CV extraction failed",
+    });
   }
 }

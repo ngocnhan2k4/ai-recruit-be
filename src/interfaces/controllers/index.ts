@@ -51,3 +51,6 @@ export * from "./comment/comment.controller";
 export * from "./learning-path/learning-path.controller";
 export * from "./subscription/admin-subscription.controller";
 export * from "./feature/admin-feature.controller";
+
+// task controllers
+export * from "./task/task-admin.controller";

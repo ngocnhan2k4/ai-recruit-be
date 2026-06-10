@@ -83,9 +83,7 @@ export class BlogController {
     description:
       "Retrieve trending/top blogs, typically sorted by likes or view count",
   })
-  async getTopBlogs(): Promise<
-    ApiResponse<PaginatedResult<BlogPostListItemDto>>
-  > {
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
     return this.blogUseCase.getTopBlogs();
   }
 
@@ -124,6 +122,19 @@ export class BlogController {
     return this.blogUseCase.createComment(user, postId, dto);
   }
 
+  @Get(":slug/related")
+  @ApiOperation({
+    summary: "Get Related Blog Posts",
+    description:
+      "Retrieve related blog posts for a given slug using Content-Based Similarity Scoring (same category +5, common tags +2 each, same source type +1)",
+  })
+  @ApiParam({ name: "slug", description: "URL-friendly slug of the blog post" })
+  async getRelatedPosts(
+    @Param("slug") slug: string,
+  ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    return this.blogUseCase.getRelatedPosts(slug);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(":slug")
   @ApiOperation({
@@ -143,13 +154,30 @@ export class BlogController {
   @Post()
   @ApiOperation({
     summary: "Create Blog",
-    description: "Create a new published blog post",
+    description:
+      "Create a new blog post directly (submitted for review as PENDING). Does not require a draft.",
   })
   async createBlog(
     @GetUser() user: TokenPayload,
     @Body() dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ slug: string }>> {
     return this.blogUseCase.createPost(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":postId/submit")
+  @ApiOperation({
+    summary: "Submit Draft for Review",
+    description:
+      "Submit an existing draft blog post for review. Updates content and changes status from DRAFT to PENDING.",
+  })
+  @ApiParam({ name: "postId", description: "ID of the draft blog post" })
+  async submitDraft(
+    @GetUser() user: TokenPayload,
+    @Param("postId") postId: string,
+    @Body() dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ slug: string }>> {
+    return this.blogUseCase.submitDraft(user, postId, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -201,7 +229,6 @@ export class BlogController {
     return this.blogUseCase.deletePost(user, id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @UseGuards(JwtAuthGuard)
   @Post(":blogId/likes")
   @ApiOperation({

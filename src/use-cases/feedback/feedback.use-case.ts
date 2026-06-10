@@ -2,6 +2,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import {
   EmailJobType,
   FeedbackStatusEnum,
+  FeedbackTypeEnum,
   IFeedbackRepository,
   IUserRepository,
   NewFeedback,
@@ -44,11 +45,13 @@ export class FeedbackUseCase {
     const user = userId ? await this.userRepository.get(userId) : null;
 
     const newFeedback: NewFeedback = {
+      type: data.type ?? FeedbackTypeEnum.FEEDBACK,
       name: data.name || user?.name || "Anonymous",
       email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
       images: data.images,
+      metadata: data.metadata ?? null,
       userId,
     };
 
@@ -61,10 +64,27 @@ export class FeedbackUseCase {
       data: {
         feedback: {
           ...created,
+          type: created.type as FeedbackTypeEnum,
           status: created.status as FeedbackStatusEnum,
         },
       },
       message: "Feedback submitted successfully",
+    };
+  }
+
+  async getSubmittedSurveyKeys(
+    userId: string,
+    surveyKeys?: string[],
+  ): Promise<ApiResponse<{ surveyKeys: string[] }>> {
+    const keys = await this.feedbackRepository.findSubmittedSurveyKeys(
+      userId,
+      surveyKeys,
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: { surveyKeys: keys },
     };
   }
 
@@ -80,6 +100,7 @@ export class FeedbackUseCase {
       data: {
         data: result.data.map((feedback) => ({
           ...feedback,
+          type: feedback.type as FeedbackTypeEnum,
           status: feedback.status as FeedbackStatusEnum,
           assignedToUserId: feedback.assignedToUserId ?? null,
         })),

@@ -1,4 +1,9 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Task } from "@/core/entities";
+import { ListTaskResponse, Task, TaskFilter } from "@/core/entities";
+import { PaginatedResult } from "@/common/types";
 
-export abstract class ITaskRepository extends IGenericRepository<Task> {}
+export abstract class ITaskRepository extends IGenericRepository<Task> {
+  abstract getTasks(
+    filter: TaskFilter,
+  ): Promise<PaginatedResult<ListTaskResponse>>;
+}
