@@ -37,6 +37,7 @@ export type WeeklyProgress = InferSelectModel<typeof weeklyProgress>;
 
 export interface RoadmapSkillOptionWithName extends RoadmapSkillOption {
   optionName: string;
+  hasSubpath: boolean;
 }
 
 export interface SkillLevel {

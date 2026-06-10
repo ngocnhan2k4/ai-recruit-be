@@ -53,77 +53,91 @@ export class SubpathRepository
     ai: AISubpathResult,
     tx?: DBDrizzleTransaction,
   ): Promise<SubpathWithDetails> {
-    const db = tx || this.db;
-
-    const [subpath] = await db
-      .insert(subpaths)
-      .values({
-        optionName: payload.optionName,
-        targetRole: payload.targetRole,
-        currentRole: payload.currentRole,
-        title: ai.title,
-        description: ai.description,
-        duration: ai.duration,
-        tags: ai.tags,
-      })
-      .returning();
-
-    const subNodesWithChildren: SubpathWithDetails["subNodes"] = [];
-
-    for (const mod of ai.subNodes) {
-      const [createdModule] = await db
-        .insert(subpathModules)
+    const run = async (db) => {
+      const [subpath] = await db
+        .insert(subpaths)
         .values({
-          subpathId: subpath.id,
-          title: mod.title,
-          description: mod.description,
-          duration: mod.duration,
-          category: mod.category,
-          concepts: mod.concepts,
-          orderIndex: mod.orderIndex,
+          optionName: payload.optionName,
+          targetRole: payload.targetRole,
+          currentRole: payload.currentRole,
+          title: ai.title,
+          description: ai.description,
+          duration: ai.duration,
+          tags: ai.tags,
         })
+        .onConflictDoNothing()
         .returning();
 
-      const createdResources = await db
-        .insert(subpathResources)
-        .values(
-          mod.resources.map((r) => ({
-            moduleId: createdModule.id,
-            title: r.title,
-            url: r.url,
-            type: r.type as ResourceTypeEnum,
-            description: r.description,
-            orderIndex: r.orderIndex,
-            quickCheck: r.quickCheck?.length ? r.quickCheck : [],
-          })),
-        )
-        .returning();
+      if (!subpath) {
+        // Another concurrent writer won — return existing
+        return this.findByKey(
+          payload.optionName,
+          payload.targetRole,
+          payload.currentRole,
+        ) as Promise<SubpathWithDetails>;
+      }
 
-      const createdQuiz =
-        mod.quiz.length > 0
-          ? await db
-              .insert(subpathQuizQuestions)
-              .values(
-                mod.quiz.map((q) => ({
-                  moduleId: createdModule.id,
-                  question: q.question,
-                  options: q.options,
-                  correctAnswerIndex: q.correctAnswerIndex,
-                  explanation: q.explanation,
-                  orderIndex: q.orderIndex,
-                })),
-              )
-              .returning()
-          : [];
+      const subNodesWithChildren: SubpathWithDetails["subNodes"] = [];
 
-      subNodesWithChildren.push({
-        ...createdModule,
-        resources: createdResources,
-        quizQuestions: createdQuiz,
-      });
-    }
+      for (const mod of ai.subNodes) {
+        const [createdModule] = await db
+          .insert(subpathModules)
+          .values({
+            subpathId: subpath.id,
+            title: mod.title,
+            description: mod.description,
+            duration: mod.duration,
+            category: mod.category,
+            concepts: mod.concepts,
+            orderIndex: mod.orderIndex,
+          })
+          .returning();
 
-    return { ...subpath, subNodes: subNodesWithChildren };
+        const createdResources = await db
+          .insert(subpathResources)
+          .values(
+            mod.resources.map((r) => ({
+              moduleId: createdModule.id,
+              title: r.title,
+              url: r.url,
+              type: r.type as ResourceTypeEnum,
+              description: r.description,
+              isFree: r.isFree ?? true,
+              orderIndex: r.orderIndex,
+              quickCheck: r.quickCheck?.length ? r.quickCheck : [],
+            })),
+          )
+          .returning();
+
+        const createdQuiz =
+          mod.quiz.length > 0
+            ? await db
+                .insert(subpathQuizQuestions)
+                .values(
+                  mod.quiz.map((q) => ({
+                    moduleId: createdModule.id,
+                    question: q.question,
+                    options: q.options,
+                    correctAnswerIndex: q.correctAnswerIndex,
+                    explanation: q.explanation,
+                    orderIndex: q.orderIndex,
+                  })),
+                )
+                .returning()
+            : [];
+
+        subNodesWithChildren.push({
+          ...createdModule,
+          resources: createdResources,
+          quizQuestions: createdQuiz,
+        });
+      }
+
+      return { ...subpath, subNodes: subNodesWithChildren };
+    };
+
+    if (tx) return run(tx);
+    return this.db.transaction((innerTx) => run(innerTx));
   }
 
   private async _loadSubpath(
@@ -297,24 +311,7 @@ export class SubpathModuleQuizResultRepository
         passed,
         attemptedAt: new Date(),
       })
-      .onConflictDoNothing()
       .returning();
-
-    if (!row) {
-      // Already exists — insert a new attempt row (no unique constraint per attempt)
-      const [newRow] = await this.db
-        .insert(subpathModuleQuizResults)
-        .values({
-          userId,
-          moduleId,
-          score,
-          totalQuestions,
-          passed,
-          attemptedAt: new Date(),
-        })
-        .returning();
-      return newRow;
-    }
     return row;
   }
 }

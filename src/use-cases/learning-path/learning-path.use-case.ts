@@ -72,17 +72,9 @@ export class LearningPathUseCase {
     optionId: string,
     userId: string,
   ): Promise<ApiResponse<SubpathWithDetails>> {
-    const roadmap = await this.roadmapRepository.get(roadmapId);
-    if (!roadmap || roadmap.userId !== userId) {
-      throw new NotFoundException({
-        message: "Roadmap not found",
-        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
-      });
-    }
-
     const roadmapDetails =
       await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
-    if (!roadmapDetails) {
+    if (!roadmapDetails || roadmapDetails.userId !== userId) {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,

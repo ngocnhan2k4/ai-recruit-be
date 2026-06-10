@@ -14,9 +14,10 @@ import {
   roadmapSkills,
   roadmapSkillOptions,
   skills,
+  subpaths,
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
+import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
 import { getCurrentWeekNumber } from "@/common/utils";
 
 @Injectable()
@@ -122,36 +123,78 @@ export class LearningRoadmapRepository
           )
           .orderBy(roadmapSkills.orderIndex);
 
-        // Fetch options for each skill, enrich with optionName from skills table
-        const skillsWithOptions = await Promise.all(
-          phaseSkills.map(async (skill) => {
-            const options = await this.db
-              .select()
-              .from(roadmapSkillOptions)
-              .where(
-                and(
-                  eq(roadmapSkillOptions.roadmapSkillId, skill.id),
-                  isNull(roadmapSkillOptions.deletedAt),
-                ),
-              );
+        // Batch fetch all options for all skills in this phase
+        const skillIds = phaseSkills.map((s) => s.id);
+        const allOptions =
+          skillIds.length > 0
+            ? await this.db
+                .select()
+                .from(roadmapSkillOptions)
+                .where(
+                  and(
+                    inArray(roadmapSkillOptions.roadmapSkillId, skillIds),
+                    isNull(roadmapSkillOptions.deletedAt),
+                  ),
+                )
+            : [];
 
-            const enrichedOptions = await Promise.all(
-              options.map(async (option) => {
-                const [skillRow] = await this.db
-                  .select({ name: skills.name })
-                  .from(skills)
-                  .where(eq(skills.id, option.optionId))
-                  .limit(1);
-                return { ...option, optionName: skillRow?.name ?? "" };
-              }),
+        // Batch fetch skill names for all optionIds
+        const optionIds = [...new Set(allOptions.map((o) => o.optionId))];
+        const skillNameMap = new Map<string, string>();
+        if (optionIds.length > 0) {
+          const skillRows = await this.db
+            .select({ id: skills.id, name: skills.name })
+            .from(skills)
+            .where(inArray(skills.id, optionIds));
+          for (const row of skillRows) skillNameMap.set(row.id, row.name);
+        }
+
+        // Batch check which (optionName, targetRole, currentRole) tuples have subpaths
+        const targetRole = roadmap[0].targetRole;
+        const currentRole = roadmap[0].currentRole ?? "";
+        const allOptionNames = [
+          ...new Set(
+            allOptions.map((o) => skillNameMap.get(o.optionId) ?? o.optionId),
+          ),
+        ];
+        const existingSubpathNames = new Set<string>();
+        if (allOptionNames.length > 0) {
+          const subpathRows = await this.db
+            .select({ optionName: subpaths.optionName })
+            .from(subpaths)
+            .where(
+              and(
+                inArray(subpaths.optionName, allOptionNames),
+                eq(subpaths.targetRole, targetRole),
+                eq(subpaths.currentRole, currentRole),
+                isNull(subpaths.deletedAt),
+              ),
             );
+          for (const row of subpathRows)
+            existingSubpathNames.add(row.optionName);
+        }
 
+        // Group options by skill and attach enriched data
+        const optionsBySkill = new Map<string, typeof allOptions>();
+        for (const opt of allOptions) {
+          const list = optionsBySkill.get(opt.roadmapSkillId) ?? [];
+          list.push(opt);
+          optionsBySkill.set(opt.roadmapSkillId, list);
+        }
+
+        const skillsWithOptions = phaseSkills.map((skill) => {
+          const options = optionsBySkill.get(skill.id) ?? [];
+          const enrichedOptions = options.map((option) => {
+            const optionName =
+              skillNameMap.get(option.optionId) ?? option.optionId;
             return {
-              ...skill,
-              options: enrichedOptions,
+              ...option,
+              optionName,
+              hasSubpath: existingSubpathNames.has(optionName),
             };
-          }),
-        );
+          });
+          return { ...skill, options: enrichedOptions };
+        });
 
         return {
           ...phase,
