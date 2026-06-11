@@ -24,9 +24,7 @@ export const blogPosts = pgTable(
     thumbnail: varchar("thumbnail", { length: 255 }),
     content: text("content").notNull(),
     status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
-    sourceType: BlogPostSourceTypeEnum("source_type")
-      .notNull()
-      .default("ADMIN"),
+    sourceType: BlogPostSourceTypeEnum("source_type").notNull().default("USER"),
     source: jsonb("source"),
     categoryId: uuid("category_id")
       .notNull()

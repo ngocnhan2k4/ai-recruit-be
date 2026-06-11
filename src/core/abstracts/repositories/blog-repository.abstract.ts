@@ -52,6 +52,19 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
 
   abstract createPost(data: NewBlogPost): Promise<BlogPost>;
 
+  abstract saveDraft(
+    authorId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+    },
+    postId?: string,
+  ): Promise<BlogPost>;
+
   abstract resolveCategoryId(categoryId?: string): Promise<string>;
 
   abstract updatePost(

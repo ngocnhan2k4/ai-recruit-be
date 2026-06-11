@@ -3,10 +3,9 @@ export interface Comment {
   content: string;
   authorId: string;
   parentCommentId: string | null;
-  rootCommentId: string | null;
+  depth: number;
   objectId: string;
   objectType: string;
-  depth: number;
   createdAt: Date;
 }
 
@@ -25,9 +24,8 @@ export interface NewComment {
   content: string;
   authorId: string;
   parentCommentId?: string | null;
-  rootCommentId?: string | null;
+  depth: number;
   objectId: string;
   objectType: string;
-  depth?: number;
   createdAt: Date;
 }

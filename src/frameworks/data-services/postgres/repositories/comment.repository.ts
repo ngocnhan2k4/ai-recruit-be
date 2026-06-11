@@ -19,17 +19,17 @@ export class CommentRepository
   async getComments(params: {
     objectId: string;
     objectType: ObjectType;
-    parentId?: string | null;
+    parentCommentId?: string | null;
     limit: number;
     cursor?: string;
   }): Promise<PaginatedResult<CommentWithAuthor>> {
-    const { objectId, objectType, parentId, limit, cursor } = params;
+    const { objectId, objectType, parentCommentId, limit, cursor } = params;
 
     const conditions = [
       eq(comments.objectId, objectId),
       eq(comments.objectType, objectType),
-      parentId
-        ? eq(comments.parentCommentId, parentId)
+      parentCommentId
+        ? eq(comments.parentCommentId, parentCommentId)
         : isNull(comments.parentCommentId),
     ];
 
@@ -37,7 +37,6 @@ export class CommentRepository
       conditions.push(lt(comments.createdAt, new Date(cursor)));
     }
 
-    // Subquery to count children
     const childCountSq = this.db
       .select({
         parentId: comments.parentCommentId,
@@ -59,7 +58,6 @@ export class CommentRepository
         content: comments.content,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
-        rootCommentId: comments.rootCommentId,
         depth: comments.depth,
         objectId: comments.objectId,
         objectType: comments.objectType,
@@ -86,8 +84,8 @@ export class CommentRepository
         and(
           eq(comments.objectId, objectId),
           eq(comments.objectType, objectType),
-          parentId
-            ? eq(comments.parentCommentId, parentId)
+          parentCommentId
+            ? eq(comments.parentCommentId, parentCommentId)
             : isNull(comments.parentCommentId),
         ),
       );
@@ -107,5 +105,41 @@ export class CommentRepository
         total: totalCount,
       },
     };
+  }
+
+  async getComment(id: string): Promise<CommentWithAuthor | null> {
+    const childCountSq = this.db
+      .select({
+        parentId: comments.parentCommentId,
+        count: count(comments.id).as("count"),
+      })
+      .from(comments)
+      .groupBy(comments.parentCommentId)
+      .as("child_counts");
+
+    const rows = await this.db
+      .select({
+        id: comments.id,
+        content: comments.content,
+        authorId: comments.authorId,
+        parentCommentId: comments.parentCommentId,
+        depth: comments.depth,
+        objectId: comments.objectId,
+        objectType: comments.objectType,
+        createdAt: comments.createdAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+        childCount: sql<number>`COALESCE(${childCountSq.count}, 0)::int`,
+      })
+      .from(comments)
+      .innerJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(childCountSq, eq(childCountSq.parentId, comments.id))
+      .where(eq(comments.id, id));
+
+    return rows[0] || null;
   }
 }

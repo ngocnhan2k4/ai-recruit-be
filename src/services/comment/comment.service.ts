@@ -2,29 +2,22 @@ import { RESPONSE_CODE } from "@/common/constants";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { BadRequestException, Injectable } from "@nestjs/common";
 
-export const MAX_COMMENT_DEPTH = 2;
+const MAX_COMMENT_DEPTH = 2;
 
 @Injectable()
 export class CommentService {
   constructor(private readonly commentRepository: ICommentRepository) {}
 
-  async resolveCommentPlacement(
-    parentCommentId: string | null,
+  async resolveCommentParent(
+    targetCommentId: string | null,
     objectId: string,
-  ): Promise<{
-    actualParentId: string | null;
-    rootCommentId: string | null;
-    depth: number;
-  }> {
-    if (!parentCommentId) {
-      return {
-        actualParentId: null,
-        rootCommentId: null,
-        depth: 0,
-      };
+  ): Promise<{ parentCommentId: string | null; depth: number }> {
+    if (!targetCommentId) {
+      return { parentCommentId: null, depth: 0 };
     }
 
-    const parent = await this.commentRepository.get(parentCommentId);
+    const parent = await this.commentRepository.get(targetCommentId);
+
     if (parent?.objectId !== objectId) {
       throw new BadRequestException({
         code: RESPONSE_CODE.INVALID_REQUEST,
@@ -32,29 +25,13 @@ export class CommentService {
       });
     }
 
-    let actualParentId = parent.id;
-    let depth = (parent.depth ?? 0) + 1;
-    const rootCommentId = parent.rootCommentId || parent.id;
-
-    if (depth > MAX_COMMENT_DEPTH) {
-      actualParentId = parent.parentCommentId!;
-      depth = MAX_COMMENT_DEPTH;
-    }
-
-    if (rootCommentId) {
-      const root = await this.commentRepository.get(rootCommentId);
-      if (root?.objectId !== objectId) {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.INVALID_REQUEST,
-          message: "Root comment does not belong to this object",
-        });
-      }
+    if (parent.depth < MAX_COMMENT_DEPTH) {
+      return { parentCommentId: parent.id, depth: parent.depth + 1 };
     }
 
     return {
-      actualParentId,
-      rootCommentId,
-      depth,
+      parentCommentId: parent.parentCommentId,
+      depth: MAX_COMMENT_DEPTH,
     };
   }
 }

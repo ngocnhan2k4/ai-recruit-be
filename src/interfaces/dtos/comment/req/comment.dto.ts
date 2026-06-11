@@ -25,14 +25,14 @@ export class QueryCommentsDto extends GeneralQueryDto {
   })
   @IsOptional()
   @IsString()
-  parentId?: string;
+  parentCommentId?: string;
 }
 
 export class CommentDto {
   @ApiPropertyOptional({ nullable: true, format: "uuid" })
   @IsOptional()
   @IsUUID("4")
-  parentId?: string;
+  parentCommentId?: string;
 
   @ApiProperty()
   @IsString()

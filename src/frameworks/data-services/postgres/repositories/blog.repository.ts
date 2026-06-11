@@ -792,6 +792,97 @@ export class BlogRepository
     });
   }
 
+  async saveDraft(
+    authorId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+    },
+    postId?: string,
+  ): Promise<BlogPost> {
+    return this.executeWithTransaction(async () => {
+      const tx = this.getExecutor();
+      const finalCategoryId = await this.resolveCategoryId(data.categoryId);
+
+      if (postId) {
+        const [existing] = await tx
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+          .limit(1);
+
+        if (!existing) {
+          throw new Error(`Draft blog post ${postId} not found`);
+        }
+
+        const updateData: Record<string, unknown> = {
+          title: data.title ?? existing.title ?? "Bản nháp không có tiêu đề",
+          summary: data.summary ?? existing.summary ?? "",
+          content: data.content ?? existing.content ?? "",
+          thumbnail:
+            data.thumbnail !== undefined ? data.thumbnail : existing.thumbnail,
+          categoryId: finalCategoryId,
+          status: "DRAFT",
+          updatedAt: new Date(),
+        };
+
+        const [updated] = await tx
+          .update(blogPosts)
+          .set(updateData)
+          .where(eq(blogPosts.id, postId))
+          .returning();
+
+        if (data.tags !== undefined) {
+          await this.updatePostTags(postId, data.tags);
+        }
+
+        await this.invalidateBlogCache(updated.id, updated.slug);
+        return updated as BlogPost;
+      } else {
+        // Create new draft
+        const timestampValue = new Date().getTime();
+        const baseSlug = data.title
+          ? data.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, "")
+          : "draft";
+        const slug = `${baseSlug}-${timestampValue}`;
+
+        const insertData: any = {
+          title: data.title ?? "Bản nháp không có tiêu đề",
+          slug,
+          summary: data.summary ?? "",
+          content: data.content ?? "",
+          thumbnail: data.thumbnail ?? null,
+          status: "DRAFT",
+          sourceType: "USER",
+          categoryId: finalCategoryId,
+          authorId,
+        };
+
+        const [created] = await tx
+          .insert(blogPosts)
+          .values(insertData)
+          .returning();
+
+        const normalizedTags = (data.tags ?? []).filter(
+          (item) => item.tagId || item.skillId,
+        );
+
+        if (normalizedTags.length > 0) {
+          await this.updatePostTags(created.id, normalizedTags);
+        }
+
+        return created as BlogPost;
+      }
+    });
+  }
+
   async resolveCategoryId(categoryId?: string): Promise<string> {
     const tx = this.getExecutor();
     if (categoryId) return categoryId;

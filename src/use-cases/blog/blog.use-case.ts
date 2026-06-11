@@ -79,16 +79,15 @@ export class BlogUseCases {
       });
     }
 
-    const { actualParentId, rootCommentId, depth } =
-      await this.commentService.resolveCommentPlacement(
-        dto.parentId || null,
+    const { parentCommentId, depth } =
+      await this.commentService.resolveCommentParent(
+        dto.parentCommentId || null,
         postId,
       );
 
     const _cmt = await this.commentRepository.create({
       content: dto.content,
-      parentCommentId: actualParentId,
-      rootCommentId,
+      parentCommentId,
       depth,
       objectId: post.id,
       objectType: ObjectType.BLOG,
@@ -98,30 +97,8 @@ export class BlogUseCases {
     try {
       const commenter = await this.userRepository.get(user.userId);
       const commenterName = commenter?.name || "Người dùng";
-      if (actualParentId) {
-        const parentComment = await this.commentRepository.get(actualParentId);
-        if (parentComment?.authorId && parentComment.authorId !== user.userId) {
-          await this.notificationService.createAndSendToUser(
-            {
-              title: "Phản hồi bình luận",
-              message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
-              type: NotificationType.BLOG_COMMENT_REPLY,
-              senderId: user.userId,
-              payload: {
-                blogId: post.id,
-                blogSlug: post.slug,
-                commentId: _cmt.id,
-                rootCommentId: _cmt.rootCommentId,
-              },
-            },
-            { userId: parentComment.authorId },
-          );
-        }
-        if (
-          post.authorId &&
-          post.authorId !== user.userId &&
-          parentComment?.authorId !== post.authorId
-        ) {
+      if (!parentCommentId) {
+        if (post.authorId && post.authorId !== user.userId) {
           await this.notificationService.createAndSendToUser(
             {
               title: "Bình luận mới",
@@ -138,7 +115,33 @@ export class BlogUseCases {
           );
         }
       } else {
-        if (post.authorId && post.authorId !== user.userId) {
+        const parentComment = await this.commentRepository.get(parentCommentId);
+        if (
+          parentComment &&
+          parentComment.authorId &&
+          parentComment.authorId !== user.userId
+        ) {
+          await this.notificationService.createAndSendToUser(
+            {
+              title: "Phản hồi bình luận",
+              message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
+              type: NotificationType.BLOG_COMMENT_REPLY,
+              senderId: user.userId,
+              payload: {
+                blogId: post.id,
+                blogSlug: post.slug,
+                commentId: _cmt.id,
+                commentParentId: _cmt.parentCommentId,
+              },
+            },
+            { userId: parentComment.authorId },
+          );
+        }
+        if (
+          post.authorId &&
+          post.authorId !== user.userId &&
+          parentComment?.authorId !== post.authorId
+        ) {
           await this.notificationService.createAndSendToUser(
             {
               title: "Bình luận mới",
@@ -503,8 +506,8 @@ export class BlogUseCases {
     };
   }
 
-  async adminCreatePost(
-    adminId: string,
+  async createPost(
+    user: TokenPayload,
     dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ slug: string }>> {
     const result = await this.blogRepository.executeWithTransaction(
@@ -520,9 +523,9 @@ export class BlogUseCases {
           thumbnail: dto.thumbnail ?? null,
           content: dto.content,
           categoryId: dto.category,
-          authorId: adminId,
-          status: BlogPostStatus.PUBLISHED,
-          sourceType: BlogSourceType.ADMIN,
+          authorId: user.userId,
+          status: BlogPostStatus.PENDING,
+          sourceType: BlogSourceType.USER,
           tags: dto.tags ?? [],
         });
       },
@@ -535,52 +538,37 @@ export class BlogUseCases {
     };
   }
 
-  async adminSaveDraft(
-    adminId: string,
+  async saveDraft(
+    user: TokenPayload,
     dto: SaveDraftBlogPostDto,
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
-    const result = await this.blogRepository.executeWithTransaction(
-      async () => {
-        if (postId) {
-          const existing = await this.blogRepository.get(postId);
-          if (!existing) {
-            throw new NotFoundException({
-              code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-              message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-            });
-          }
-          return this.blogRepository.updatePost(postId, {
-            title: dto.title,
-            summary: dto.summary,
-            content: dto.content,
-            categoryId: dto.category,
-            thumbnail: dto.thumbnail,
-            tags: dto.tags,
-            status: BlogPostStatus.DRAFT,
-          });
-        } else {
-          const categoryId = await this.blogRepository.resolveCategoryId(
-            dto.category,
-          );
-          const baseSlug = generateSlug(dto.title || "draft");
-          const existed = await this.blogRepository.getPostBySlug(baseSlug);
-          const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
+    if (postId) {
+      const existing = await this.blogRepository.get(postId);
+      if (!existing) {
+        throw new NotFoundException({
+          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+          message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+        });
+      }
+      if (existing.authorId !== user.userId) {
+        throw new BadRequestException(
+          "You are not the author of this blog post",
+        );
+      }
+    }
 
-          return this.blogRepository.createPost({
-            title: dto.title ?? "",
-            slug,
-            summary: dto.summary ?? "",
-            content: dto.content ?? "",
-            categoryId,
-            thumbnail: dto.thumbnail ?? null,
-            authorId: adminId,
-            status: BlogPostStatus.DRAFT,
-            sourceType: BlogSourceType.ADMIN,
-            tags: dto.tags ?? [],
-          });
-        }
+    const result = await this.blogRepository.saveDraft(
+      user.userId,
+      {
+        title: dto.title,
+        summary: dto.summary,
+        content: dto.content,
+        categoryId: dto.category,
+        thumbnail: dto.thumbnail,
+        tags: dto.tags,
       },
+      postId,
     );
 
     return {
@@ -590,7 +578,42 @@ export class BlogUseCases {
     };
   }
 
-  async adminUpdatePost(
+  async submitDraft(
+    user: TokenPayload,
+    postId: string,
+    dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ id: string }>> {
+    const existing = await this.blogRepository.get(postId);
+    if (!existing) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
+
+    if (existing.authorId !== user.userId) {
+      throw new BadRequestException("You are not the author of this blog post");
+    }
+
+    await this.blogRepository.updatePost(postId, {
+      title: dto.title,
+      summary: dto.summary,
+      content: dto.content,
+      categoryId: dto.category,
+      thumbnail: dto.thumbnail,
+      tags: dto.tags,
+      status: BlogPostStatus.PENDING,
+    });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: { id: postId },
+    };
+  }
+
+  async updatePost(
+    user: TokenPayload,
     postId: string,
     dto: UpdateBlogPostDto,
   ): Promise<ApiResponse<{ id: string }>> {
@@ -602,6 +625,15 @@ export class BlogUseCases {
       });
     }
 
+    if (existing.authorId !== user.userId) {
+      throw new BadRequestException("You are not the author of this blog post");
+    }
+
+    const status =
+      (existing.status as any) === BlogPostStatus.DRAFT
+        ? BlogPostStatus.DRAFT
+        : BlogPostStatus.PENDING;
+
     await this.blogRepository.updatePost(postId, {
       title: dto.title,
       summary: dto.summary,
@@ -609,6 +641,7 @@ export class BlogUseCases {
       categoryId: dto.category,
       thumbnail: dto.thumbnail,
       tags: dto.tags,
+      status,
     });
 
     return {
@@ -618,13 +651,20 @@ export class BlogUseCases {
     };
   }
 
-  async adminDeletePost(postId: string): Promise<ApiResponse<void>> {
+  async deletePost(
+    user: TokenPayload,
+    postId: string,
+  ): Promise<ApiResponse<void>> {
     const existing = await this.blogRepository.get(postId);
     if (!existing) {
       throw new NotFoundException({
         code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
         message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
       });
+    }
+
+    if (existing.authorId !== user.userId) {
+      throw new BadRequestException("You are not the author of this blog post");
     }
 
     await this.blogRepository.deletePost(postId);

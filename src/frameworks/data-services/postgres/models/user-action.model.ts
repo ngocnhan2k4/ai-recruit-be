@@ -21,9 +21,6 @@ export const comments = pgTable(
     parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
       onDelete: "cascade",
     }),
-    rootCommentId: uuid("root_comment_id").references(() => comments.id, {
-      onDelete: "cascade",
-    }),
     objectId: uuid("object_id").notNull(),
     objectType: ObjectTypeEnum("object_type").notNull(),
     depth: integer("depth").notNull().default(0),
