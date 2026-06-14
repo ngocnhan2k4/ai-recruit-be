@@ -48,7 +48,6 @@ import {
   JobStatusEnum,
   WorkTypeEnum,
   Notification,
-  NotificationType,
   Category,
   User,
   UserInteractionEnum,
@@ -82,7 +81,6 @@ import {
   StatisticsJobFilter,
 } from "@/core";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
-import { exists } from "drizzle-orm";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
 import { RESPONSE_CODE } from "@/common/constants";
@@ -1171,47 +1169,26 @@ export class JobRepository
     };
   }
 
-  // [TODO]: Refactor here - move logic to usecase layer, this method is doing too many things
-  /**
-   * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
-   * this will create notifications for the job's organization members.
-   */
   async applyJob({
     jobId,
     userCvId,
-    sendNotifications = false,
     senderUserId,
     answers,
   }: {
     jobId: string;
     userCvId: string;
-    sendNotifications?: boolean;
     senderUserId: string;
     answers?: JobAnswer[];
-  }): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notifications: Notification[];
-        jobTitle?: string;
-      }
-  > {
-    const newApplication = await this.db.transaction(async (tx) => {
-      const [existingApplication] = await tx
-        .select({
-          exists: exists(
-            tx
-              .select({ id: applyJobs.id })
-              .from(applyJobs)
-              .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-              .where(
-                and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)),
-              ),
-          ),
-        })
-        .from(applyJobs);
+  }): Promise<ApplyJobResponse> {
+    const newApplication = await this.executeWithTransaction(async (tx) => {
+      const existingApplication = await tx
+        .select({ id: applyJobs.id })
+        .from(applyJobs)
+        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)))
+        .limit(1);
 
-      if (existingApplication.exists) {
+      if (existingApplication.length > 0) {
         throw new BadRequestException({
           code: RESPONSE_CODE.ALREADY_APPLIED,
           message: "User has already applied for this job",
@@ -1231,162 +1208,23 @@ export class JobRepository
       return inserted as ApplyJobResponse;
     });
 
-    this.db
-      .update(cvs)
-      .set({ lastUsed: new Date() })
-      .where(eq(cvs.id, userCvId))
-      .catch(() => {});
-
-    // Notifications outside transaction to avoid holding locks on applyJobs and related tables
-    if (!sendNotifications || !senderUserId) {
-      return newApplication;
-    }
-
-    const jobInfo = await this.db
-      .select({ title: jobs.title, organizationId: jobs.organizationId })
-      .from(jobs)
-      .where(eq(jobs.id, jobId))
-      .limit(1);
-
-    if (jobInfo.length === 0) {
-      throw new BadRequestException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Job not found",
-      });
-    }
-
-    const { title: jobTitle, organizationId } = jobInfo[0];
-
-    const adminUsers =
-      await this.organizationRepository.getMemberIdsOfOrganization(
-        organizationId,
-      );
-
-    const recipients = adminUsers.map((m) => ({
-      receiverId: m.id,
-      organizationId,
-    }));
-
-    const notifications =
-      await this.notificationRepository.createNotificationWithRecipients(
-        {
-          title: "Đơn ứng tuyển mới",
-          message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
-          type: NotificationType.JOB_APPLIED,
-          senderId: senderUserId,
-          payload: {
-            jobId,
-            applyId: newApplication.id,
-            orgId: organizationId,
-          },
-        },
-        recipients,
-      );
-
-    return {
-      application: newApplication,
-      notifications,
-      jobTitle,
-    };
+    return newApplication;
   }
 
   async updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum | undefined,
-    sendNotifications = false,
-    senderUserId?: string,
-    userCvId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notification: Notification;
-        jobTitle: string;
-      }
-  > {
-    const result = await this.db.transaction(async (tx) => {
-      // Get existing application with job info
-      const existingApp = await tx
-        .select({
-          application: applyJobs,
-          userId: cvs.userId,
-          jobTitle: jobs.title,
-          jobId: jobs.id,
-          organizationId: jobs.organizationId,
-        })
-        .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-        .where(eq(applyJobs.id, applyId))
-        .limit(1);
+    data: Record<string, any>,
+  ): Promise<ApplyJobResponse> {
+    const [updatedApplication] = await this.getExecutor()
+      .update(applyJobs)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(applyJobs.id, applyId))
+      .returning();
 
-      if (existingApp.length === 0) {
-        throw new Error("Application not found");
-      }
-
-      const { userId, jobTitle, jobId, organizationId } = existingApp[0];
-
-      // Update the application
-      const [updatedApplication] = await tx
-        .update(applyJobs)
-        .set({
-          status: status || existingApp[0].application.status,
-          cvId: userCvId || existingApp[0].application.cvId,
-          answers: answers || existingApp[0].application.answers,
-          updatedAt: new Date(),
-        })
-        .where(eq(applyJobs.id, applyId))
-        .returning();
-
-      let notification: Notification | null = null;
-
-      if (
-        status &&
-        status !== existingApp[0].application.status &&
-        sendNotifications &&
-        senderUserId
-      ) {
-        const notificationTitle =
-          status == ApplyStatusEnum.ACCEPTED
-            ? "Đơn ứng tuyển được chấp nhận"
-            : "Đơn ứng tuyển bị từ chối";
-        const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${jobTitle}" đã được ${status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
-
-        const notifications =
-          await this.notificationRepository.createNotificationWithRecipients(
-            {
-              title: notificationTitle,
-              message: notificationMessage,
-              type:
-                status == ApplyStatusEnum.ACCEPTED
-                  ? NotificationType.CV_APPROVED
-                  : NotificationType.CV_REJECTED,
-              senderId: senderUserId,
-              payload: {
-                jobId: jobId,
-                applyId: applyId,
-                orgId: organizationId,
-              },
-            },
-            [{ receiverId: userId, organizationId }],
-          );
-
-        notification = notifications[0] || null;
-      }
-
-      if (notification) {
-        return {
-          application: updatedApplication as ApplyJobResponse,
-          notification,
-          jobTitle,
-        };
-      } else {
-        return updatedApplication as ApplyJobResponse;
-      }
-    });
-
-    return result;
+    return updatedApplication as ApplyJobResponse;
   }
 
   async getApplyJobById(applyId: string): Promise<ApplyJobResponse | null> {
@@ -1412,13 +1250,19 @@ export class JobRepository
   async getApplyJobs(
     filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>> {
-    const { jobId } = filters;
+    const { jobId, ids = [] } = filters;
     const limit = Math.max(filters?.limit ?? 10, 1);
     const cursor = filters?.cursor;
 
-    const whereConditions: SQL[] = [eq(applyJobs.jobId, jobId)];
+    const whereConditions: SQL[] = [];
+    if (jobId) {
+      whereConditions.push(eq(applyJobs.jobId, jobId));
+    }
     if (cursor && !isNaN(Number(cursor))) {
       whereConditions.push(lt(applyJobs.createdAt, new Date(Number(cursor))));
+    }
+    if (ids.length > 0) {
+      whereConditions.push(inArray(applyJobs.id, ids));
     }
 
     const data = await this.db

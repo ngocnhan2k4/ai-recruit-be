@@ -32,7 +32,8 @@ export interface JobFilters extends GeneralQuery {
 }
 
 export interface ApplyJobFilters extends GeneralQuery {
-  jobId: string;
+  jobId?: string;
+  ids?: string[];
 }
 
 export interface StatisticsJobFilter {
