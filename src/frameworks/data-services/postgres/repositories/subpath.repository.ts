@@ -21,7 +21,7 @@ import {
   optionResourceCompletions,
   subpathModuleQuizResults,
 } from "../models";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 
 @Injectable()
@@ -51,7 +51,6 @@ export class SubpathRepository
   async createFromAIResult(
     payload: { optionName: string; targetRole: string; currentRole: string },
     ai: AISubpathResult,
-    tx?: DBDrizzleTransaction,
   ): Promise<SubpathWithDetails> {
     const run = async (db) => {
       const [subpath] = await db
@@ -77,12 +76,10 @@ export class SubpathRepository
         ) as Promise<SubpathWithDetails>;
       }
 
-      const subNodesWithChildren: SubpathWithDetails["subNodes"] = [];
-
-      for (const mod of ai.subNodes) {
-        const [createdModule] = await db
-          .insert(subpathModules)
-          .values({
+      const createdModules = await db
+        .insert(subpathModules)
+        .values(
+          ai.subNodes.map((mod) => ({
             subpathId: subpath.id,
             title: mod.title,
             description: mod.description,
@@ -90,14 +87,16 @@ export class SubpathRepository
             category: mod.category,
             concepts: mod.concepts,
             orderIndex: mod.orderIndex,
-          })
-          .returning();
+          })),
+        )
+        .returning();
 
-        const createdResources = await db
-          .insert(subpathResources)
-          .values(
+      const allResources = await db
+        .insert(subpathResources)
+        .values(
+          ai.subNodes.flatMap((mod, i) =>
             mod.resources.map((r) => ({
-              moduleId: createdModule.id,
+              moduleId: createdModules[i].id,
               title: r.title,
               url: r.url,
               type: r.type as ResourceTypeEnum,
@@ -106,38 +105,49 @@ export class SubpathRepository
               orderIndex: r.orderIndex,
               quickCheck: r.quickCheck?.length ? r.quickCheck : [],
             })),
-          )
-          .returning();
+          ),
+        )
+        .returning();
 
-        const createdQuiz =
-          mod.quiz.length > 0
-            ? await db
-                .insert(subpathQuizQuestions)
-                .values(
-                  mod.quiz.map((q) => ({
-                    moduleId: createdModule.id,
-                    question: q.question,
-                    options: q.options,
-                    correctAnswerIndex: q.correctAnswerIndex,
-                    explanation: q.explanation,
-                    orderIndex: q.orderIndex,
-                  })),
-                )
-                .returning()
-            : [];
+      const quizRows = ai.subNodes.flatMap((mod, i) =>
+        mod.quiz.map((q) => ({
+          moduleId: createdModules[i].id,
+          question: q.question,
+          options: q.options,
+          correctAnswerIndex: q.correctAnswerIndex,
+          explanation: q.explanation,
+          orderIndex: q.orderIndex,
+        })),
+      );
+      const allQuiz =
+        quizRows.length > 0
+          ? await db.insert(subpathQuizQuestions).values(quizRows).returning()
+          : [];
 
-        subNodesWithChildren.push({
-          ...createdModule,
-          resources: createdResources,
-          quizQuestions: createdQuiz,
-        });
+      // Group resources and quiz back by moduleId
+      const resourcesByModule = new Map<string, typeof allResources>();
+      for (const r of allResources) {
+        const list = resourcesByModule.get(r.moduleId) ?? [];
+        list.push(r);
+        resourcesByModule.set(r.moduleId, list);
       }
+      const quizByModule = new Map<string, typeof allQuiz>();
+      for (const q of allQuiz) {
+        const list = quizByModule.get(q.moduleId) ?? [];
+        list.push(q);
+        quizByModule.set(q.moduleId, list);
+      }
+
+      const subNodesWithChildren = createdModules.map((mod) => ({
+        ...mod,
+        resources: resourcesByModule.get(mod.id) ?? [],
+        quizQuestions: quizByModule.get(mod.id) ?? [],
+      }));
 
       return { ...subpath, subNodes: subNodesWithChildren };
     };
 
-    if (tx) return run(tx);
-    return this.db.transaction((innerTx) => run(innerTx));
+    return this.executeWithTransaction(run);
   }
 
   private async _loadSubpath(

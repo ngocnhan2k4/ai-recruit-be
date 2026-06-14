@@ -17,7 +17,6 @@ export abstract class ISubpathRepository extends IGenericRepository<Subpath> {
   abstract createFromAIResult(
     payload: { optionName: string; targetRole: string; currentRole: string },
     aiResult: AISubpathResult,
-    tx?: any,
   ): Promise<SubpathWithDetails>;
 }
 
