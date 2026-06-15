@@ -670,25 +670,6 @@ export class BlogRepository
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
           .limit(1);
 
         if (!post) return null;
@@ -732,25 +713,6 @@ export class BlogRepository
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
           .limit(1);
 
         if (!post) return null;

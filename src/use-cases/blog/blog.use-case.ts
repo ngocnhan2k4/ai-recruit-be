@@ -97,30 +97,9 @@ export class BlogUseCases {
     try {
       const commenter = await this.userRepository.get(user.userId);
       const commenterName = commenter?.name || "Người dùng";
-      if (!parentCommentId) {
-        if (post.authorId && post.authorId !== user.userId) {
-          await this.notificationService.createAndSendToUser(
-            {
-              title: "Bình luận mới",
-              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
-              type: NotificationType.BLOG_COMMENT,
-              senderId: user.userId,
-              payload: {
-                blogId: post.id,
-                blogSlug: post.slug,
-                commentId: _cmt.id,
-              },
-            },
-            { userId: post.authorId },
-          );
-        }
-      } else {
+      if (parentCommentId) {
         const parentComment = await this.commentRepository.get(parentCommentId);
-        if (
-          parentComment &&
-          parentComment.authorId &&
-          parentComment.authorId !== user.userId
-        ) {
+        if (parentComment?.authorId && parentComment.authorId !== user.userId) {
           await this.notificationService.createAndSendToUser(
             {
               title: "Phản hồi bình luận",
@@ -157,6 +136,21 @@ export class BlogUseCases {
             { userId: post.authorId },
           );
         }
+      } else if (post.authorId && post.authorId !== user.userId) {
+        await this.notificationService.createAndSendToUser(
+          {
+            title: "Bình luận mới",
+            message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
+            type: NotificationType.BLOG_COMMENT,
+            senderId: user.userId,
+            payload: {
+              blogId: post.id,
+              blogSlug: post.slug,
+              commentId: _cmt.id,
+            },
+          },
+          { userId: post.authorId },
+        );
       }
     } catch (err) {
       this.logger.warn("Failed to send comment notification", err);
@@ -441,7 +435,7 @@ export class BlogUseCases {
       data: {
         items: result.data,
         pagination: {
-          nextCursor: (result.pagination.nextCursor as string) || null,
+          nextCursor: result.pagination.nextCursor as string,
           hasNextPage: !!result.pagination.hasNextPage,
         },
       },
@@ -489,10 +483,22 @@ export class BlogUseCases {
       ),
     ]);
 
-    // [TODO] Should tracking view count from IP address to prevent duplicate view count
-    // Update view count into cache
-    await this.cacheService.increment(CACHE_KEYS.blog.viewCount(post.id), 1);
-    await this.cacheService.addToSet(CACHE_KEYS.blog.viewDirty(), post.id);
+    // [TODO] Should track view count from IP address to prevent duplicate view count
+    // Update view count and mark as dirty in the cache asynchronously to avoid blocking the main response
+    this.cacheService
+      .increment(CACHE_KEYS.blog.viewCount(post.id), 1)
+      .catch((err) =>
+        this.logger.warn(
+          `Failed to increment view count for blog ${post.id}: ${err.message}`,
+        ),
+      );
+    this.cacheService
+      .addToSet(CACHE_KEYS.blog.viewDirty(), post.id)
+      .catch((err) =>
+        this.logger.warn(
+          `Failed to add to dirty set for blog ${post.id}: ${err.message}`,
+        ),
+      );
 
     return {
       code: RESPONSE_CODE.SUCCESS,
