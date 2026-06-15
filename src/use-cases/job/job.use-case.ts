@@ -14,6 +14,7 @@ import {
   ISearchService,
   ICvSearchService,
   ICvService,
+  IBloomFilterService,
 } from "@/core/abstracts";
 import {
   ApiResponse,
@@ -80,6 +81,7 @@ import { ROOM_NOTIFICATIONS } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
+import { EventTrackingService } from "../event-tracking/event-tracking.service";
 
 @Injectable()
 export class JobUseCases {
@@ -98,6 +100,8 @@ export class JobUseCases {
     private readonly cvSearchService: ICvSearchService,
     private readonly configService: ConfigService,
     private readonly cvService: ICvService,
+    private readonly eventTrackingService: EventTrackingService,
+    private readonly bloomFilterService: IBloomFilterService,
   ) {}
 
   async getJobs(
@@ -126,10 +130,85 @@ export class JobUseCases {
       ];
     }
 
+    // Lấy hồ sơ sở thích từ Redis (Soft boost)
+    if (filters?.user?.userId) {
+      const [prefs, recentJobs] = await Promise.all([
+        this.eventTrackingService.getUserPreference(filters.user.userId),
+        this.eventTrackingService.getUserRecentInteractedJobs(
+          filters.user.userId,
+        ),
+      ]);
+
+      if (prefs) {
+        filters.userPreference = prefs;
+      }
+      if (recentJobs && recentJobs.length > 0) {
+        filters.recentInteractions = recentJobs;
+        // Explicitly exclude these from recommendations to avoid recommending jobs the user already interacted with.
+        // We only exclude if they aren't explicitly searching/filtering for something specific.
+        const hasSearchOrFiltersLocal = !!(
+          filters.keyword ||
+          filters.categoryId ||
+          filters.provinceId ||
+          (filters.skillIds && filters.skillIds.length > 0)
+        );
+        if (!hasSearchOrFiltersLocal) {
+          filters.excludeJobIds = recentJobs.map((r: any) => r.jobId);
+        }
+      }
+    }
+    // Load user's bloom filter to avoid duplicate jobs if user is logged in
+    const bloomKey = filters?.user?.userId
+      ? `user_seen_jobs:${filters.user.userId}`
+      : null;
+
+    // Determine if we are filtering or just browsing the feed
+    const hasSearchOrFilters = !!(
+      filters.keyword ||
+      filters.categoryId ||
+      filters.provinceId ||
+      (filters.skillIds && filters.skillIds.length > 0)
+    );
+    const shouldApplyBloomFilter = bloomKey && !hasSearchOrFilters;
+
+    if (shouldApplyBloomFilter) {
+      if (!filters.cursor) {
+        // Initial page load: reset bloom filter so seen jobs are not hidden on refresh
+        this.bloomFilterService.clear(bloomKey);
+      } else {
+        await this.bloomFilterService.loadFromRedis(bloomKey);
+      }
+    }
+    console.log(filters);
     const {
-      data: docs,
+      data: rawDocs,
       pagination: { nextCursor, hasNextPage: hasMore },
     } = await this.jobSearchService.searchJobs(filters);
+
+    // Filter out jobs the user has already seen
+    const docs = rawDocs.filter((doc) => {
+      if (!doc?.id) return false;
+      if (
+        shouldApplyBloomFilter &&
+        this.bloomFilterService.mightContain(bloomKey, doc.id)
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // Add newly seen jobs to bloom filter
+    if (shouldApplyBloomFilter) {
+      for (const doc of docs) {
+        if (doc?.id) {
+          this.bloomFilterService.add(bloomKey, doc.id);
+        }
+      }
+      // Khắc phục Race Condition: Lưu liền tay xuống Redis nhưng không dùng await để tránh block API
+      this.bloomFilterService.syncKeyToRedis(bloomKey).catch((err) => {
+        console.error("Failed to sync bloom filter to Redis instantly", err);
+      });
+    }
 
     const jobIds: string[] = [];
     const orgIds: string[] = [];
@@ -259,6 +338,7 @@ export class JobUseCases {
           : new Date(),
         deletedAt: null,
         questions,
+        embedding: null,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -1723,6 +1803,90 @@ export class JobUseCases {
       data: {
         data: transformedJobData,
         pagination: result.pagination,
+      },
+    };
+  }
+
+  async getJobsLegacy(
+    filters: JobFilters,
+    isOrg?: boolean,
+  ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    if (filters.cursor) {
+      // return empty array if user not logged in
+      if (!filters?.user?.userId)
+        return {
+          message: RESPONSE_MESSAGE.SUCCESS,
+          code: RESPONSE_CODE.SUCCESS,
+          data: {
+            data: [],
+            pagination: { nextCursor: undefined, hasNextPage: false },
+          },
+        };
+    }
+
+    // If it's role user, only get status active, close and paused
+    if (!isOrg) {
+      filters.statuses = [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.CLOSED,
+        JobStatusEnum.PAUSED,
+      ];
+    }
+
+    const {
+      data: docs,
+      pagination: { nextCursor, hasNextPage: hasMore },
+    } = await this.jobSearchService.searchJobsLegacy(filters);
+
+    const jobIds: string[] = [];
+    const orgIds: string[] = [];
+
+    for (const doc of docs) {
+      if (!doc?.id) continue;
+      jobIds.push(doc.id);
+      const orgId = doc.organizationId;
+      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
+    }
+
+    const uniqueOrgIds = [...new Set<string>(orgIds)];
+
+    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+      jobIds.length > 0 && filters.user?.userId
+        ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
+        : Promise.resolve(new Map()),
+      this.organizationRepository.getByIds(uniqueOrgIds, [
+        "id",
+        "name",
+        "description",
+        "websiteUrl",
+        "employeesMin",
+        "employeesMax",
+        "logoUrl",
+      ]),
+      this.jobRepository.getJobsV2({
+        ids: jobIds,
+        fields: ["jobRaw"],
+        limit: 0, // No need
+      }),
+    ]);
+
+    const organizationMap = keyBy(organizations, "id");
+    const jobMap = keyBy(jobInfos.data, "job.id");
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        data: this.convertHitToDto(
+          docs,
+          organizationMap,
+          userJobStatusMap,
+          jobMap,
+        ),
+        pagination: {
+          nextCursor,
+          hasNextPage: hasMore,
+        },
       },
     };
   }

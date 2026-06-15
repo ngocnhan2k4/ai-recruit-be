@@ -23,12 +23,16 @@ export interface JobFilters extends GeneralQuery {
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
+  userPreference?: any; // Dữ liệu sở thích (Soft boost)
+  recentInteractions?: any[]; // Lịch sử tương tác
+
   fromDate?: string;
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
   fields?: string[];
   ids?: string[];
+  excludeJobIds?: string[];
 }
 
 export interface ApplyJobFilters extends GeneralQuery {

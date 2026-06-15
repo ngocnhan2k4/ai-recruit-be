@@ -36,7 +36,7 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     }
 
     if (options?.ttlSeconds) {
-      await this.redis.setex(key, value, options.ttlSeconds);
+      await this.redis.setex(key, options.ttlSeconds, value);
       return true;
     }
 
@@ -138,6 +138,14 @@ export class RedisService implements ICacheService, OnModuleDestroy {
 
   async removeFromSortedSet(key: string, member: string): Promise<void> {
     await this.redis.zrem(key, member);
+  }
+
+  async removeSortedSetRangeByRank(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<void> {
+    await this.redis.zremrangebyrank(key, start, stop);
   }
 
   async getSortedSetRange(

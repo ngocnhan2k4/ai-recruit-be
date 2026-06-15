@@ -24,4 +24,7 @@ export abstract class IAIService {
   ): Promise<CvFieldSuggestionResponse>;
 
   abstract extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse>;
+
+  abstract generateEmbedding(text: string): Promise<number[]>;
+  abstract generateEmbeddings(texts: string[]): Promise<number[][]>;
 }
