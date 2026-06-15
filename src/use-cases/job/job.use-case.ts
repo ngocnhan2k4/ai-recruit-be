@@ -1439,7 +1439,7 @@ export class JobUseCases {
             await this.notificationRepository.createNotificationWithRecipients(
               {
                 title: "Cập nhật trạng thái công việc",
-                message: `Công việc "${updateJobDto.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
+                message: `Công việc "${updatedJob?.title ?? currentJob.job.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
                 type:
                   updateJobDto.status === JobStatusEnum.ACTIVE
                     ? NotificationType.ADMIN_JOB_APPROVED
@@ -1550,6 +1550,7 @@ export class JobUseCases {
     };
   }
 
+  // [TODO]: fix for admin
   async getJobById(
     jobId: string,
     userId?: string,
@@ -1623,14 +1624,21 @@ export class JobUseCases {
 
     const targetLimit = jobDetail.job.recruitCount ?? 10;
 
-    const { data: seekingUser } = await this.userRepository.getAllWithOffset({
-      isSeekingJob: true,
-      limit: targetLimit,
-      isActive: true,
-      isDeleted: false,
-      fields: ["onboarding"],
-    });
-    const seekingUserIds = seekingUser.map((user) => user.id);
+    const [appliedUserIdList, { data: seekingUser }] = await Promise.all([
+      this.jobRepository.getAppliedUserIdsByJobId(jobId),
+      this.userRepository.getAllWithOffset({
+        isSeekingJob: true,
+        limit: targetLimit,
+        isActive: true,
+        isDeleted: false,
+        fields: ["onboarding"],
+      }),
+    ]);
+    const appliedUserIds = new Set(appliedUserIdList);
+    const eligibleSeekingUsers = seekingUser.filter(
+      (user) => !appliedUserIds.has(user.id),
+    );
+    const seekingUserIds = eligibleSeekingUsers.map((user) => user.id);
     if (seekingUserIds.length === 0) {
       return {
         message: RESPONSE_MESSAGE.SUCCESS,
@@ -1661,7 +1669,7 @@ export class JobUseCases {
     });
 
     const userMap = new Map<string, GetAllUserResponse>(
-      seekingUser.map((user) => [user.id, user]),
+      eligibleSeekingUsers.map((user) => [user.id, user]),
     );
 
     const recommendations: JobCandidateRecommendationDto[] = [];

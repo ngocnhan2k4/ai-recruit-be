@@ -1328,75 +1328,15 @@ export class JobRepository
     };
   }
 
-  // async saveJob(
-  //   userId: string,
-  //   jobId: string,
-  //   save: boolean,
-  // ): Promise<UserInteractionResponse | null> {
-  //   const dbClient = this.getExecutor();
-  //   // Check if user already has a save interaction for this job
-  //   const existingInteraction = await dbClient
-  //     .select()
-  //     .from(userInteractions)
-  //     .where(
-  //       and(
-  //         eq(userInteractions.userId, userId),
-  //         eq(userInteractions.jobId, jobId),
-  //         eq(userInteractions.type, "save"),
-  //       ),
-  //     )
-  //     .limit(1);
+  async getAppliedUserIdsByJobId(jobId: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ userId: cvs.userId })
+      .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .where(eq(applyJobs.jobId, jobId));
 
-  //   if (save) {
-  //     // User wants to save the job
-  //     if (existingInteraction.length > 0) {
-  //       // Job already saved, return existing interaction
-  //       return existingInteraction[0] as UserInteractionResponse;
-  //     }
-
-  //     // Create new save interaction
-  //     const [newInteraction] = await dbClient
-  //       .insert(userInteractions)
-  //       .values({
-  //         userId,
-  //         jobId,
-  //         type: "save",
-  //       })
-  //       .onConflictDoNothing()
-  //       .returning();
-
-  //     if (newInteraction) return newInteraction as UserInteractionResponse;
-
-  //     // In case of race (insert no-op), fetch existing
-  //     const [row] = await dbClient
-  //       .select()
-  //       .from(userInteractions)
-  //       .where(
-  //         and(
-  //           eq(userInteractions.userId, userId),
-  //           eq(userInteractions.jobId, jobId),
-  //           eq(userInteractions.type, "save"),
-  //         ),
-  //       )
-  //       .limit(1);
-  //     return (row as UserInteractionResponse) ?? null;
-  //   } else {
-  //     // User wants to unsave the job
-  //     if (existingInteraction.length > 0) {
-  //       // Delete the existing interaction
-  //       await dbClient
-  //         .delete(userInteractions)
-  //         .where(
-  //           and(
-  //             eq(userInteractions.userId, userId),
-  //             eq(userInteractions.jobId, jobId),
-  //             eq(userInteractions.type, "save"),
-  //           ),
-  //         );
-  //     }
-  //     return null; // No interaction exists after unsaving
-  //   }
-  // }
+    return rows.map((row) => row.userId);
+  }
 
   async toggleSaveJob(
     userId: string,

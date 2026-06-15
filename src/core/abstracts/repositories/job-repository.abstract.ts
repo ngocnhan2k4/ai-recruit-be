@@ -173,6 +173,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>>;
 
+  abstract getAppliedUserIdsByJobId(jobId: string): Promise<string[]>;
+
   abstract getJobCounts(): Promise<JobCounts>;
 
   abstract getAllSavedJobs(
