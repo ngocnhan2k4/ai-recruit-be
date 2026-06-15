@@ -97,8 +97,11 @@ export class BlogUseCases {
     try {
       const commenter = await this.userRepository.get(user.userId);
       const commenterName = commenter?.name || "Người dùng";
+
       if (parentCommentId) {
         const parentComment = await this.commentRepository.get(parentCommentId);
+
+        // Thông báo reply → không gộp, tạo riêng từng cái
         if (parentComment?.authorId && parentComment.authorId !== user.userId) {
           await this.notificationService.createAndSendToUser(
             {
@@ -116,41 +119,56 @@ export class BlogUseCases {
             { userId: parentComment.authorId },
           );
         }
+
+        // Thông báo cho tác giả bài viết → gộp
         if (
           post.authorId &&
           post.authorId !== user.userId &&
           parentComment?.authorId !== post.authorId
         ) {
-          await this.notificationService.createAndSendToUser(
-            {
-              title: "Bình luận mới",
-              message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
-              type: NotificationType.BLOG_COMMENT,
-              senderId: user.userId,
-              payload: {
-                blogId: post.id,
-                blogSlug: post.slug,
-                commentId: _cmt.id,
-              },
-            },
-            { userId: post.authorId },
-          );
-        }
-      } else if (post.authorId && post.authorId !== user.userId) {
-        await this.notificationService.createAndSendToUser(
-          {
-            title: "Bình luận mới",
-            message: `${commenterName} đã bình luận về bài viết ${post.title} của bạn.`,
-            type: NotificationType.BLOG_COMMENT,
+          await this.notificationService.upsertAggregatedAndSendToUser({
+            recipientId: post.authorId,
             senderId: user.userId,
+            objectId: post.id,
+            type: NotificationType.BLOG_COMMENT,
+            title: "Bình luận mới",
+            buildMessage: (actorNames, actorCount) => {
+              const others = actorCount - actorNames.length;
+              if (actorCount === 1)
+                return `${actorNames[0]} đã bình luận bài viết "${post.title}" của bạn.`;
+              if (actorCount === 2)
+                return `${actorNames[0]} và ${actorNames[1]} đã bình luận bài viết "${post.title}" của bạn.`;
+              return `${actorNames.slice(0, 2).join(", ")} và ${others} người khác đã bình luận bài viết "${post.title}" của bạn.`;
+            },
             payload: {
               blogId: post.id,
               blogSlug: post.slug,
               commentId: _cmt.id,
             },
+          });
+        }
+      } else if (post.authorId && post.authorId !== user.userId) {
+        // Bình luận gốc → gộp
+        await this.notificationService.upsertAggregatedAndSendToUser({
+          recipientId: post.authorId,
+          senderId: user.userId,
+          objectId: post.id,
+          type: NotificationType.BLOG_COMMENT,
+          title: "Bình luận mới",
+          buildMessage: (actorNames, actorCount) => {
+            const others = actorCount - actorNames.length;
+            if (actorCount === 1)
+              return `${actorNames[0]} đã bình luận bài viết "${post.title}" của bạn.`;
+            if (actorCount === 2)
+              return `${actorNames[0]} và ${actorNames[1]} đã bình luận bài viết "${post.title}" của bạn.`;
+            return `${actorNames.slice(0, 2).join(", ")} và ${others} người khác đã bình luận bài viết "${post.title}" của bạn.`;
           },
-          { userId: post.authorId },
-        );
+          payload: {
+            blogId: post.id,
+            blogSlug: post.slug,
+            commentId: _cmt.id,
+          },
+        });
       }
     } catch (err) {
       this.logger.warn("Failed to send comment notification", err);

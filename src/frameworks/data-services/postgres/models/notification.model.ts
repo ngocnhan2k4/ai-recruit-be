@@ -4,6 +4,7 @@ import {
   varchar,
   uuid,
   jsonb,
+  integer,
   index,
 } from "drizzle-orm/pg-core";
 
@@ -36,6 +37,10 @@ export const notifications = pgTable("notifications", {
     commentId?: string;
     commentParentId?: string | null;
   }>(),
+
+  // Aggregation fields: track who performed the action (for "A, B and N others" style)
+  actorIds: jsonb("actor_ids").$type<string[]>().default([]),
+  actorCount: integer("actor_count").notNull().default(1),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at"),

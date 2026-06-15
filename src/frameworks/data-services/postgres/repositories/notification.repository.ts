@@ -1,33 +1,33 @@
-import { GenericRepository } from "./generic-repository";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable } from "@nestjs/common";
-import { notifications, userNotifications } from "../models/notification.model";
-import {
-  NotiGroupTypeEnum,
-  Notification,
-  NewNotification,
-  NewUserNotification,
-} from "@/core/entities";
+import { PaginatedResult } from "@/common/types";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import {
-  eq,
+  NewNotification,
+  NewUserNotification,
+  NotiGroupTypeEnum,
+  Notification,
+} from "@/core/entities";
+import { NotificationFilter } from "@/core/entities/notification.entity";
+import { Inject, Injectable } from "@nestjs/common";
+import {
   and,
-  isNull,
-  desc,
   count,
-  lt,
+  desc,
+  eq,
   inArray,
+  isNull,
+  lt,
   notInArray,
   sql,
 } from "drizzle-orm";
-import { NotificationFilter } from "@/core/entities/notification.entity";
-import { PaginatedResult } from "@/common/types";
 import {
   organizationInvitations,
   organizations,
   tasks,
   users,
 } from "../models";
+import { notifications, userNotifications } from "../models/notification.model";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class NotificationRepository
@@ -152,6 +152,126 @@ export class NotificationRepository
     });
   }
 
+  async upsertAggregatedNotification(params: {
+    recipientId: string;
+    senderId: string;
+    objectId: string;
+    type: string;
+    title: string;
+    buildMessage: (actorNames: string[], actorCount: number) => string;
+    payload: Record<string, any>;
+  }): Promise<Notification | null> {
+    const {
+      recipientId,
+      senderId,
+      objectId,
+      type,
+      title,
+      buildMessage,
+      payload,
+    } = params;
+
+    return this.executeWithTransaction(async (tx) => {
+      // Tìm notification chưa đọc cùng (người nhận, loại, bài viết)
+      const existingRows = await tx
+        .select({
+          userNotification: userNotifications,
+          notification: notifications,
+        })
+        .from(userNotifications)
+        .innerJoin(
+          notifications,
+          eq(userNotifications.notificationId, notifications.id),
+        )
+        .where(
+          and(
+            eq(userNotifications.receiverId, recipientId),
+            isNull(userNotifications.readAt),
+            isNull(userNotifications.deletedAt),
+            eq(
+              notifications.type,
+              type as (typeof notifications.$inferSelect)["type"],
+            ),
+            sql`(${notifications.payload} ->> 'blogId') = ${objectId}`,
+          ),
+        )
+        .limit(1);
+
+      const existing = existingRows[0];
+
+      const currentActorIds =
+        (existing?.notification.actorIds as string[]) ?? [];
+      const updatedActorIds = currentActorIds.includes(senderId)
+        ? currentActorIds
+        : [...currentActorIds, senderId];
+      const actorCount = updatedActorIds.length;
+
+      const topActorIds = updatedActorIds.slice(-2).reverse();
+      const actorUsers = topActorIds.length
+        ? await tx
+            .select({ id: users.id, name: users.name })
+            .from(users)
+            .where(inArray(users.id, topActorIds))
+        : [];
+
+      const actorNames = topActorIds.map(
+        (id) => actorUsers.find((u) => u.id === id)?.name ?? "Người dùng",
+      );
+      const message = buildMessage(actorNames, actorCount);
+
+      if (existing) {
+        // Cập nhật notification đã có
+        const [updated] = await tx
+          .update(notifications)
+          .set({
+            actorIds: updatedActorIds,
+            actorCount,
+            message,
+            updatedAt: new Date(),
+          })
+          .where(eq(notifications.id, existing.notification.id))
+          .returning();
+
+        return {
+          ...existing.userNotification,
+          ...updated,
+          sender: null,
+          organization: null,
+          orgInvitation: null,
+          task: null,
+        };
+      }
+
+      // Tạo notification mới
+      const [created] = await tx
+        .insert(notifications)
+        .values({
+          senderId,
+          title,
+          message,
+          type: type as (typeof notifications.$inferSelect)["type"],
+          payload: payload as (typeof notifications.$inferSelect)["payload"],
+          actorIds: updatedActorIds,
+          actorCount,
+        })
+        .returning();
+
+      const [userNotif] = await tx
+        .insert(userNotifications)
+        .values({ notificationId: created.id, receiverId: recipientId })
+        .returning();
+
+      return {
+        ...userNotif,
+        ...created,
+        sender: null,
+        organization: null,
+        orgInvitation: null,
+        task: null,
+      };
+    });
+  }
+
   async getNotificationsByUser(
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>> {
@@ -246,9 +366,7 @@ export class NotificationRepository
       : notificationsResult;
 
     const nextCursor = hasNextPage
-      ? slicedResults[
-          slicedResults.length - 1
-        ].notification.createdAt.toISOString()
+      ? slicedResults.at(-1)!.notification.createdAt.toISOString()
       : null;
 
     return {
