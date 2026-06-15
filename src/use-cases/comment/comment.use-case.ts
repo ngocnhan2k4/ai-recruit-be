@@ -28,4 +28,13 @@ export class CommentUseCases {
       data: result,
     };
   }
+
+  async getComment(id: string): Promise<ApiResponse<CommentWithAuthor | null>> {
+    const result = await this.commentRepository.getComment(id);
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
+    };
+  }
 }

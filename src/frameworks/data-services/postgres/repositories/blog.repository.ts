@@ -1,13 +1,26 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { GenericRepository } from "./generic-repository";
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { PaginatedResult, SortDirection } from "@/common/types";
+import { cacheWithDedup } from "@/common/utils";
 import {
-  blogCategories,
-  blogPosts,
-  blogPostTags,
-  tags,
-} from "../models/blog.model";
+  BlogCategory,
+  BlogPost,
+  BlogPostStatus,
+  ICacheService,
+  NewBlogPost,
+  NewBlogPostTag,
+  Tag,
+} from "@/core";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { ObjectType, UserActionType } from "@/core/entities";
+import {
+  BlogPostDetailBase,
+  BlogPostFilters,
+  BlogPostListItem,
+  BlogPostSource,
+  BlogPostTagItem,
+  BlogSourceType,
+} from "@/core/entities/blog.entity";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   and,
   asc,
@@ -16,35 +29,21 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
+  ne,
+  or,
   sql,
   SQL,
-  ne,
-  isNull,
-  or,
 } from "drizzle-orm";
-import { skills, users, userActions } from "../models";
-import { ObjectType, UserActionType } from "@/core/entities";
-import { PaginatedResult, SortDirection } from "@/common/types";
+import { skills, userActions, users } from "../models";
 import {
-  BlogPostDetailBase,
-  BlogPostFilters,
-  BlogPostListItem,
-  BlogPostSource,
-  BlogSourceType,
-  BlogPostTagItem,
-} from "@/core/entities/blog.entity";
-import {
-  BlogPost,
-  BlogPostStatus,
-  NewBlogPost,
-  NewBlogPostTag,
-  BlogCategory,
-  Tag,
-  ICacheService,
-} from "@/core";
-import { generateSlug } from "@/common/utils/string";
-import { cacheWithDedup } from "@/common/utils";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+  blogCategories,
+  blogPosts,
+  blogPostTags,
+  tags,
+} from "../models/blog.model";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
 const resolveSortExpr = (sortBy?: string): SQL => {
   switch (sortBy) {
@@ -101,7 +100,7 @@ function decodeCursor(
     const parts = decoded.split("|");
     if (parts.length !== 2) return null;
     const d = new Date(parts[0]);
-    if (isNaN(d.getTime())) return null;
+    if (Number.isNaN(d.getTime())) return null;
     return { sortTime: d, id: parts[1] };
   } catch {
     return null;
@@ -794,75 +793,89 @@ export class BlogRepository
   }
 
   async saveDraft(
+    authorId: string,
     data: {
       title?: string;
       summary?: string;
       content?: string;
-      category?: string;
+      categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
-      slug?: string;
     },
-    authorId: string,
     postId?: string,
   ): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
       const tx = this.getExecutor();
+      const finalCategoryId = await this.resolveCategoryId(data.categoryId);
+
       if (postId) {
-        const updateData: Record<string, unknown> = { status: "DRAFT" };
+        const [existing] = await tx
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+          .limit(1);
 
-        if (data.title !== undefined) updateData.title = data.title;
-        if (data.summary !== undefined) updateData.summary = data.summary;
-        if (data.content !== undefined) updateData.content = data.content;
-        if (data.category !== undefined) updateData.categoryId = data.category;
-        if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
-        if (data.slug !== undefined) updateData.slug = data.slug;
+        if (!existing) {
+          throw new Error(`Draft blog post ${postId} not found`);
+        }
 
-        await tx
+        const updateData: Record<string, unknown> = {
+          title: data.title ?? existing.title ?? "Bản nháp không có tiêu đề",
+          summary: data.summary ?? existing.summary ?? "",
+          content: data.content ?? existing.content ?? "",
+          thumbnail:
+            data.thumbnail !== undefined ? data.thumbnail : existing.thumbnail,
+          categoryId: finalCategoryId,
+          status: "DRAFT",
+          updatedAt: new Date(),
+        };
+
+        const [updated] = await tx
           .update(blogPosts)
           .set(updateData)
-          .where(eq(blogPosts.id, postId));
+          .where(eq(blogPosts.id, postId))
+          .returning();
 
-        if (data.tags) {
+        if (data.tags !== undefined) {
           await this.updatePostTags(postId, data.tags);
         }
 
-        const [updated] = await tx
-          .select()
-          .from(blogPosts)
-          .where(eq(blogPosts.id, postId));
-        if (updated) {
-          await this.invalidateBlogCache(updated.id, updated.slug);
-        }
+        await this.invalidateBlogCache(updated.id, updated.slug);
         return updated as BlogPost;
       } else {
-        const categoryId = await this.resolveDraftCategoryId(data.category);
-        const slug2 = data.slug ?? generateSlug(data.title || "draft");
+        // Create new draft
+        const timestampValue = new Date().getTime();
+        const baseSlug = data.title
+          ? data.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, "")
+          : "draft";
+        const slug = `${baseSlug}-${timestampValue}`;
+
+        const insertData: any = {
+          title: data.title ?? "Bản nháp không có tiêu đề",
+          slug,
+          summary: data.summary ?? "",
+          content: data.content ?? "",
+          thumbnail: data.thumbnail ?? null,
+          status: "DRAFT",
+          sourceType: "USER",
+          categoryId: finalCategoryId,
+          authorId,
+        };
 
         const [created] = await tx
           .insert(blogPosts)
-          .values({
-            title: data.title ?? "",
-            slug: slug2,
-            summary: data.summary ?? "",
-            content: data.content ?? "",
-            categoryId,
-            thumbnail: data.thumbnail ?? null,
-            authorId,
-            status: "DRAFT",
-          })
+          .values(insertData)
           .returning();
 
         const normalizedTags = (data.tags ?? []).filter(
           (item) => item.tagId || item.skillId,
         );
+
         if (normalizedTags.length > 0) {
-          const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
-            postId: created.id,
-            tagId: item.tagId ?? null,
-            skillId: item.skillId ?? null,
-          }));
-          await tx.insert(blogPostTags).values(tagRows);
+          await this.updatePostTags(created.id, normalizedTags);
         }
 
         return created as BlogPost;
@@ -870,7 +883,7 @@ export class BlogRepository
     });
   }
 
-  private async resolveDraftCategoryId(categoryId?: string): Promise<string> {
+  async resolveCategoryId(categoryId?: string): Promise<string> {
     const tx = this.getExecutor();
     if (categoryId) return categoryId;
 
@@ -1050,5 +1063,60 @@ export class BlogRepository
       )
       .limit(1);
     return row ?? null;
+  }
+
+  async updatePost(
+    postId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+      status?: BlogPostStatus;
+    },
+  ): Promise<BlogPost> {
+    return this.executeWithTransaction(async () => {
+      const tx = this.getExecutor();
+      const updateData: Record<string, unknown> = { updatedAt: new Date() };
+
+      if (data.title !== undefined) updateData.title = data.title;
+      if (data.summary !== undefined) updateData.summary = data.summary;
+      if (data.content !== undefined) updateData.content = data.content;
+      if (data.categoryId !== undefined)
+        updateData.categoryId = data.categoryId;
+      if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
+      if (data.status !== undefined) updateData.status = data.status;
+
+      const [updated] = await tx
+        .update(blogPosts)
+        .set(updateData)
+        .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+        .returning();
+
+      if (!updated) {
+        throw new Error(`Blog post ${postId} not found`);
+      }
+
+      if (data.tags !== undefined) {
+        await this.updatePostTags(postId, data.tags);
+      }
+
+      await this.invalidateBlogCache(updated.id, updated.slug);
+      return updated as BlogPost;
+    });
+  }
+
+  async deletePost(postId: string): Promise<void> {
+    const [deleted] = await this.db
+      .update(blogPosts)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+      .returning();
+
+    if (deleted) {
+      await this.invalidateBlogCache(deleted.id, deleted.slug);
+    }
   }
 }

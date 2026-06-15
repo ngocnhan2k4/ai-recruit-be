@@ -15,8 +15,12 @@ import {
   IWebSocketGateway,
   IFeatureService,
   ISkillNoteRepository,
+  ISubpathRepository,
+  IOptionResourceCompletionRepository,
+  ISubpathModuleQuizResultRepository,
 } from "@/core/abstracts";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { IAIService } from "@/core/abstracts/ai-services.abstract";
 import {
   PreviewRoadmapDto,
   GetRoadmapsQueryDto,
@@ -36,6 +40,8 @@ import {
   NotificationType,
   TaskTypeEnum,
   TaskStatusEnum,
+  SubpathWithDetails,
+  SubpathModuleQuizResult,
 } from "@/core";
 import { getCurrentWeekNumber, JitterBackoff, retry } from "@/common/utils";
 
@@ -55,7 +61,138 @@ export class LearningPathUseCase {
     private readonly messageQueueService: IMessageQueueService,
     private readonly featureService: IFeatureService,
     private readonly skillNoteRepository: ISkillNoteRepository,
+    private readonly subpathRepository: ISubpathRepository,
+    private readonly resourceCompletionRepository: IOptionResourceCompletionRepository,
+    private readonly quizResultRepository: ISubpathModuleQuizResultRepository,
+    private readonly aiService: IAIService,
   ) {}
+
+  async getOrGenerateSubPath(
+    roadmapId: string,
+    optionId: string,
+    userId: string,
+  ): Promise<ApiResponse<SubpathWithDetails>> {
+    const roadmapDetails =
+      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
+    if (!roadmapDetails || roadmapDetails.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    let targetOption: any = null;
+    for (const phase of roadmapDetails.phases) {
+      for (const skill of phase.skills) {
+        const opt = skill.options?.find((o) => o.id === optionId);
+        if (opt) {
+          targetOption = {
+            ...opt,
+            targetRole: roadmapDetails.targetRole,
+            currentRole: roadmapDetails.currentRole,
+          };
+          break;
+        }
+      }
+      if (targetOption) break;
+    }
+
+    if (!targetOption) {
+      throw new NotFoundException({
+        message: "Option not found in this roadmap",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
+      });
+    }
+
+    const optionName = targetOption.optionName as string;
+    const targetRole = roadmapDetails.targetRole ?? "";
+    const currentRole = roadmapDetails.currentRole ?? "";
+
+    let subpath = await this.subpathRepository.findByKey(
+      optionName,
+      targetRole,
+      currentRole,
+    );
+
+    if (!subpath) {
+      this.logger.log(`Generating subpath for option ${optionName}`);
+      const aiResult = await this.aiService.generateSubPath({
+        optionName: targetOption.optionName,
+        optionReason: targetOption.reason,
+        keyConcepts: targetOption.keyConcepts ?? [],
+        targetRole,
+        currentRole,
+      });
+      subpath = await this.subpathRepository.createFromAIResult(
+        { optionName, targetRole, currentRole },
+        aiResult,
+      );
+    }
+
+    return {
+      data: subpath,
+      message: "Subpath fetched successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  /** Toggle a resource as completed/uncompleted for the current user */
+  async toggleResourceCompletion(
+    roadmapId: string,
+    resourceId: string,
+    userId: string,
+  ): Promise<ApiResponse<{ completed: boolean }>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const result = await this.resourceCompletionRepository.toggleCompletion(
+      userId,
+      resourceId,
+    );
+
+    return {
+      data: result,
+      message: result.completed
+        ? "Resource marked as completed"
+        : "Resource marked as incomplete",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  /** Save quiz result for a module */
+  async saveModuleQuizResult(
+    roadmapId: string,
+    moduleId: string,
+    score: number,
+    totalQuestions: number,
+    userId: string,
+  ): Promise<ApiResponse<SubpathModuleQuizResult>> {
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    const result = await this.quizResultRepository.upsert(
+      userId,
+      moduleId,
+      score,
+      totalQuestions,
+    );
+
+    return {
+      data: result,
+      message: "Quiz result saved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
 
   async createRoadmap(
     request: PreviewRoadmapDto,

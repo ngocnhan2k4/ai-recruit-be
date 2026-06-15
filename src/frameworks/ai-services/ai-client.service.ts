@@ -25,6 +25,10 @@ import {
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
 } from "@/core";
+import {
+  SubpathGenerateRequest,
+  AISubpathResult,
+} from "@/core/entities/learning-path.entity";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -137,6 +141,48 @@ export class AIClientService implements IAIService {
 
       makeRequest();
     });
+  }
+
+  async generateSubPath(
+    request: SubpathGenerateRequest,
+  ): Promise<AISubpathResult> {
+    const url = `${this.aiServiceUrl}/api/v1/generate-subpath`;
+
+    return firstValueFrom(
+      this.httpService
+        .post<AISubpathResult>(url, request, {
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": this.apiKey,
+          },
+        })
+        .pipe(
+          timeout(this.aiServiceTimeout * 2),
+          retry({
+            count: this.maxRetries,
+            delay: (_, retryCount) => {
+              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
+              return new Promise((resolve) => setTimeout(resolve, delayMs));
+            },
+            resetOnSuccess: true,
+          }),
+          catchError((error: AxiosError) => {
+            const errorMsg = this.formatAxiosErrorMessage(error);
+            this.logger.error(
+              `AI Service subpath generation failed: ${errorMsg}`,
+              error.stack,
+            );
+
+            throw new Error(
+              `AI Service subpath generation failed: ${errorMsg}`,
+            );
+          }),
+          map(
+            (response: AxiosResponse<AISubpathResult>): AISubpathResult =>
+              response.data,
+          ),
+        ),
+    );
   }
 
   // Optimize CV for ATS compatibility

@@ -1,3 +1,4 @@
+import { ObjectType } from "@/core/entities";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEnum,
@@ -7,7 +8,6 @@ import {
   IsUUID,
 } from "class-validator";
 import { GeneralQueryDto } from "../../common/query";
-import { ObjectType } from "@/core/entities";
 
 export class QueryCommentsDto extends GeneralQueryDto {
   @ApiProperty({ description: "ID of the object being commented on" })
