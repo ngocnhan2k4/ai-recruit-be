@@ -10,7 +10,17 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { questionTranslation, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { count, ilike, and, SQL, eq, ne, inArray, sql } from "drizzle-orm";
+import {
+  count,
+  ilike,
+  and,
+  SQL,
+  eq,
+  ne,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import {
   buildLanguagePriority,
   getFallbackLanguage,
@@ -307,7 +317,6 @@ export class QuestionRepository
           inArray(questionTranslation.languageCode, languagePriority),
           isNull(questionTranslation.deletedAt),
         ),
-      );
       );
 
     return questionRows.map((item) => {

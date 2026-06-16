@@ -29,7 +29,7 @@ import {
   JobMatchResultDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { Dictionary, keyBy, omit } from "lodash";
+import { Dictionary, isEqual, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
   CompareStatisticsFilterRequestDto,
@@ -54,6 +54,8 @@ import {
   NotificationType,
   FeatureCodeEnum,
   GetAllUserResponse,
+  JobAnswer,
+  ApplyStatusEnum,
 } from "@/core";
 import { BadRequestException } from "@nestjs/common";
 import {
@@ -623,79 +625,134 @@ export class JobUseCases {
       applyJobDto.cvId = newCv.id;
     }
 
-    const repoResult:
-      | ApplyJobResponse
-      | {
-          application: ApplyJobResponse;
-          notifications: Notification[];
-          jobTitle?: string;
-        } = await this.jobRepository.applyJob({
+    const repoResult = await this.jobRepository.applyJob({
       jobId: applyJobDto.jobId,
       userCvId: applyJobDto.cvId!,
-      sendNotifications: true,
       senderUserId: userId,
       answers: applyJobDto.answers,
     });
 
-    let application: ApplyJobResponse;
-    if ("application" in repoResult) {
-      application = repoResult.application;
-      const notifications = repoResult.notifications;
-      const jobTitle = repoResult.jobTitle;
-
-      this.webSocketGateway.sendToRoom(
-        ROOM_NOTIFICATIONS.org({ orgId: job.organizationId }),
-        notifications[0],
-      );
-      this.logger.log(
-        `Sent new-application notification to room ${ROOM_NOTIFICATIONS.org({ orgId: job.organizationId })} for job "${jobTitle}"`,
-      );
-    } else {
-      application = repoResult;
-    }
-
-    const phoneFromAnswers = this.extractPhoneFromApplyAnswers(
-      applyJobDto.answers,
-    );
-    if (phoneFromAnswers) {
-      this.userRepository
-        .get(userId)
-        .then((user) => {
-          if (user?.phone && user.phone.trim().length > 0) return;
-          return this.userRepository.update(
-            { id: userId },
-            { phone: phoneFromAnswers },
-          );
-        })
-        .then(() => {
-          this.logger.log(
-            `Updated missing phone for user ${userId} from apply answers`,
-          );
-        })
-        .catch((error: any) => {
-          this.logger.warn(
-            `Could not update phone for user ${userId}: ${error?.message || "unknown error"}`,
-          );
-        });
-    }
-
-    this.logger.log(`User ${userId} applied for job ${applyJobDto.jobId}`);
-    if (applyJobDto.cvId) {
-      await this.messageQueueService.addCvThenScore(
-        { cvId: applyJobDto.cvId },
-        {
-          applyId: application.id,
-          jobId: applyJobDto.jobId,
-          cvId: applyJobDto.cvId,
-        },
-      );
-    }
+    this.handleAfterApplyJob({
+      cvId: applyJobDto.cvId,
+      userId: userId,
+      jobId: applyJobDto.jobId,
+      applicationId: repoResult.id,
+      answers: applyJobDto.answers,
+    });
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: application,
+      data: repoResult,
     };
+  }
+
+  private async handleAfterApplyJob({
+    cvId,
+    userId,
+    jobId,
+    answers,
+    applicationId,
+  }: {
+    cvId?: string;
+    userId: string;
+    jobId: string;
+    applicationId: string;
+    answers?: JobAnswer[];
+  }) {
+    try {
+      // Publish event to queue
+      if (cvId) {
+        await this.messageQueueService.addCvThenScore(
+          { cvId: cvId },
+          {
+            applyId: applicationId,
+            jobId: jobId,
+            cvId: cvId,
+          },
+        );
+      }
+
+      // Send notification
+      const job = await this.jobRepository.get(jobId);
+      const orgId = job?.organizationId || ""; // Ensured exist job here
+      const adminOrgUsers =
+        await this.organizationRepository.getMemberIdsOfOrganization(orgId);
+
+      const recipients = adminOrgUsers.map((m) => ({
+        receiverId: m.id,
+        orgId,
+      }));
+
+      const notifications =
+        await this.notificationRepository.createNotificationWithRecipients(
+          {
+            title: "Đơn ứng tuyển mới",
+            message: `Có một đơn ứng tuyển mới cho vị trí "${job?.title}"`,
+            type: NotificationType.JOB_APPLIED,
+            senderId: userId,
+            payload: {
+              jobId,
+              applyId: applicationId,
+              orgId: orgId,
+            },
+          },
+          recipients,
+        );
+      this.webSocketGateway.sendToRoom(
+        ROOM_NOTIFICATIONS.org({ orgId: orgId }),
+        notifications[0],
+      );
+      this.logger.log(
+        `Sent new-application notification to room ${ROOM_NOTIFICATIONS.org({ orgId: orgId })} for job "${job?.title}"`,
+      );
+
+      // Update cv
+      await this.cvRepository.update(
+        {
+          id: cvId,
+        },
+        {
+          lastUsed: new Date(),
+        },
+      );
+
+      // Update phone number
+      const phoneFromAnswers = this.extractPhoneFromApplyAnswers(answers);
+      if (phoneFromAnswers) {
+        const user = await this.userRepository.get(userId);
+        if (!user?.phone || user.phone.trim().length == 0) {
+          await this.userRepository.update(
+            { id: userId },
+            { phone: phoneFromAnswers },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `[handleAfterApplyJob] fail with error: ${JSON.stringify(error)}`,
+      );
+    }
+  }
+
+  buildApplyDataUpdate(current: ApplyJobResponse, updated: UpdateApplyJobDto) {
+    const data: Partial<UpdateApplyJobDto> = {};
+
+    if (updated.status !== undefined && updated.status != current.status) {
+      data["status"] = updated.status;
+    }
+
+    if (updated.cvId !== undefined && updated.cvId != current.cv?.id) {
+      data["cvId"] = updated.cvId;
+    }
+    if (
+      updated.answers !== undefined &&
+      !isEqual(updated.answers, current.answers)
+    ) {
+      data["answers"] = updated.answers;
+    }
+
+    return data;
   }
 
   async updateApplyJob(
@@ -712,6 +769,14 @@ export class JobUseCases {
         : undefined,
     };
 
+    const applyData = await this.jobRepository.getApplyJobById(applyId);
+    if (!applyData) {
+      throw new BadRequestException({
+        message: "Failed to update application",
+        code: RESPONSE_CODE.APPLICATION_NOT_FOUND,
+      });
+    }
+
     if (cvFile && !updateApplyJobDto.cvId) {
       const newCv = await this.cvService.uploadAndPersistCv(
         orgSenderId,
@@ -725,63 +790,32 @@ export class JobUseCases {
       updateApplyJobDto.cvId = newCv.id;
     }
 
-    const repoResult:
-      | ApplyJobResponse
-      | {
-          application: ApplyJobResponse;
-          notification: Notification;
-          jobTitle: string;
-        } = await this.jobRepository.updateApplyJob(
-      applyId,
-      updateApplyJobDto.status,
-      true,
-      orgSenderId,
-      updateApplyJobDto.cvId,
-      updateApplyJobDto.answers,
-    );
-
-    if (!repoResult) {
+    const dataUpdated = this.buildApplyDataUpdate(applyData, updateApplyJobDto);
+    if (Object.keys(dataUpdated).length === 0) {
       throw new BadRequestException({
-        message: "Failed to update application",
+        message: "No data has been changed",
         code: RESPONSE_CODE.APPLICATION_NOT_UPDATED,
       });
     }
 
-    let application: ApplyJobResponse;
-    if ("application" in repoResult) {
-      application = repoResult.application;
-      const notification = repoResult.notification;
-      const jobTitle = repoResult.jobTitle;
+    const repoResult = await this.jobRepository.updateApplyJob(
+      applyId,
+      dataUpdated,
+    );
 
-      // Send notification
-      if (notification) {
-        const sent = this.webSocketGateway.sendToUser(
-          {
-            userId: notification.receiverId,
-            organizationId: notification.organizationId || undefined,
-          },
-          notification,
-        );
+    this.handleAfterUpdateApllyJob({
+      shoudSendNotification: !!dataUpdated["status"],
+      data: updateApplyJobDto,
+      senderUserId: orgSenderId,
+      applyData: applyData,
+    });
 
-        if (sent) {
-          this.logger.log(
-            `Sent application status update notification to user ${notification.receiverId} for job "${jobTitle}"`,
-          );
-        } else {
-          this.logger.warn(
-            `Failed to send WebSocket notification to user ${notification.receiverId}`,
-          );
-        }
-      }
-    } else {
-      application = repoResult;
-    }
-    if (updateApplyJobDto.cvId && application.jobId) {
+    if (updateApplyJobDto.cvId && repoResult.jobId) {
       await this.messageQueueService.addCvThenScore(
         { cvId: updateApplyJobDto.cvId },
         {
-          applyId: application.id,
-          jobId: application.jobId,
+          applyId: repoResult.id,
+          jobId: repoResult.jobId,
           cvId: updateApplyJobDto.cvId,
         },
       );
@@ -790,8 +824,69 @@ export class JobUseCases {
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: application,
+      data: repoResult,
     };
+  }
+
+  async handleAfterUpdateApllyJob({
+    shoudSendNotification,
+    senderUserId,
+    data,
+    applyData,
+  }: {
+    shoudSendNotification: boolean;
+    senderUserId: string;
+    data: UpdateApplyJobDto;
+    applyData: ApplyJobResponse;
+  }) {
+    try {
+      if (!applyData.cv?.id) {
+        this.logger.warn(
+          "[handleAfterUpdateApllyJob] Not found cv id in apply data",
+        );
+        return;
+      }
+      const [job, cv] = await Promise.all([
+        this.jobRepository.get(applyData.jobId),
+        this.cvRepository.get(applyData.cv.id),
+      ]);
+      if (!job || !cv) {
+        this.logger.warn(
+          "[handleAfterUpdateApllyJob] Not found cv or job in apply data",
+        );
+        return;
+      }
+
+      if (shoudSendNotification) {
+        const notificationTitle =
+          data.status == ApplyStatusEnum.ACCEPTED
+            ? "Đơn ứng tuyển được chấp nhận"
+            : "Đơn ứng tuyển bị từ chối";
+        const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${job.title}" đã được ${data.status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
+
+        await this.notificationRepository.createNotificationWithRecipients(
+          {
+            title: notificationTitle,
+            message: notificationMessage,
+            type:
+              data.status == ApplyStatusEnum.ACCEPTED
+                ? NotificationType.CV_APPROVED
+                : NotificationType.CV_REJECTED,
+            senderId: senderUserId,
+            payload: {
+              jobId: applyData.jobId,
+              applyId: applyData.id,
+              orgId: job.organizationId,
+            },
+          },
+          [{ receiverId: cv.userId, organizationId: job.organizationId }],
+        );
+      }
+    } catch (err) {
+      this.logger.error(
+        `[handleAfterUpdateApllyJob] fail with error: ${JSON.stringify(err)}`,
+      );
+    }
   }
 
   async getApplyJobById(
@@ -1344,7 +1439,7 @@ export class JobUseCases {
             await this.notificationRepository.createNotificationWithRecipients(
               {
                 title: "Cập nhật trạng thái công việc",
-                message: `Công việc "${updateJobDto.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
+                message: `Công việc "${updatedJob?.title ?? currentJob.job.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
                 type:
                   updateJobDto.status === JobStatusEnum.ACTIVE
                     ? NotificationType.ADMIN_JOB_APPROVED
@@ -1455,6 +1550,7 @@ export class JobUseCases {
     };
   }
 
+  // [TODO]: fix for admin
   async getJobById(
     jobId: string,
     userId?: string,
@@ -1528,14 +1624,21 @@ export class JobUseCases {
 
     const targetLimit = jobDetail.job.recruitCount ?? 10;
 
-    const { data: seekingUser } = await this.userRepository.getAllWithOffset({
-      isSeekingJob: true,
-      limit: targetLimit,
-      isActive: true,
-      isDeleted: false,
-      fields: ["onboarding"],
-    });
-    const seekingUserIds = seekingUser.map((user) => user.id);
+    const [appliedUserIdList, { data: seekingUser }] = await Promise.all([
+      this.jobRepository.getAppliedUserIdsByJobId(jobId),
+      this.userRepository.getAllWithOffset({
+        isSeekingJob: true,
+        limit: targetLimit,
+        isActive: true,
+        isDeleted: false,
+        fields: ["onboarding"],
+      }),
+    ]);
+    const appliedUserIds = new Set(appliedUserIdList);
+    const eligibleSeekingUsers = seekingUser.filter(
+      (user) => !appliedUserIds.has(user.id),
+    );
+    const seekingUserIds = eligibleSeekingUsers.map((user) => user.id);
     if (seekingUserIds.length === 0) {
       return {
         message: RESPONSE_MESSAGE.SUCCESS,
@@ -1566,12 +1669,18 @@ export class JobUseCases {
     });
 
     const userMap = new Map<string, GetAllUserResponse>(
-      seekingUser.map((user) => [user.id, user]),
+      eligibleSeekingUsers.map((user) => [user.id, user]),
     );
 
     const recommendations: JobCandidateRecommendationDto[] = [];
     for (const cv of cvDocs) {
       const user = userMap.get(cv.userId);
+      if (!user) {
+        this.logger.warn(
+          `User ${cv.userId} not found for CV ${cv.id} in job recommendation for job ${jobId}`,
+        );
+        continue;
+      }
       const criteria = this.cvService.calculateMatchingScore(
         cv,
         jobForMatching,
@@ -1585,11 +1694,11 @@ export class JobUseCases {
         score: cv.score ?? 0,
         criteria: criteria.criteria,
         user: {
-          id: user?.id ?? "",
-          email: user?.email ?? "",
-          name: user?.name ?? "",
-          avatarUrl: user?.avatarUrl ?? "",
-          username: user?.username ?? "",
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          username: user.username,
         },
       });
     }

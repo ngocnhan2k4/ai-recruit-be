@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -8,11 +9,10 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { BlogPostSourceTypeEnum, BlogPostStatusEnum } from "./enums";
+import { timestamps } from "./helpers";
 import { skills } from "./skill.model";
 import { users } from "./user.model";
-import { timestamps } from "./helpers";
-import { BlogPostStatusEnum, BlogPostSourceTypeEnum } from "./enums";
 
 export type BlogLocalizedContent = Partial<{
   title: string;

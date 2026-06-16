@@ -16,6 +16,7 @@ import {
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
   INotificationRepository,
+  ISubpathRepository,
 } from "@/core/abstracts";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
@@ -34,6 +35,7 @@ import {
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
+import pLimit from "p-limit";
 
 type TaskData = {
   taskId: string;
@@ -59,6 +61,7 @@ export class TaskWorker extends WorkerHost {
     private readonly notificationRepository: INotificationRepository,
     private readonly aiCvRepository: IAiCvRepository,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly subpathRepository: ISubpathRepository,
   ) {
     super();
   }
@@ -311,7 +314,6 @@ export class TaskWorker extends WorkerHost {
                   return (skill.options || []).map((option: SkillOption) => ({
                     roadmapSkillId: matchedSkill.id,
                     optionId: option.optionId,
-                    optionName: option.optionName,
                     resources: option.resources || [],
                     keyConcepts: option.keyConcepts || [],
                   }));
@@ -365,7 +367,62 @@ export class TaskWorker extends WorkerHost {
       sourceLanguage,
     });
 
+    // Eager gen subpaths so clients receive ready-to-use roadmap options.
+    await this.generateSubpaths(phases, request);
+
     return persisted.roadmap;
+  }
+
+  private async generateSubpaths(
+    phases: Array<{ skills?: RoadmapSkillData[] }>,
+    request: PreviewRoadmapDto,
+  ): Promise<void> {
+    const targetRole = request.targetRole ?? "";
+    const currentRole = request.currentRole ?? "";
+
+    const allOptions: SkillOption[] = phases.flatMap(
+      (phase) =>
+        phase.skills?.flatMap(
+          (skill: RoadmapSkillData) => skill.options || [],
+        ) ?? [],
+    );
+
+    const limit = pLimit(3);
+
+    await Promise.all(
+      allOptions.map((option) =>
+        limit(async () => {
+          const optionName = option.optionName;
+          if (!optionName) return;
+
+          const existing = await this.subpathRepository.findByKey(
+            optionName,
+            targetRole,
+            currentRole,
+          );
+          if (existing) return;
+
+          try {
+            const aiResult = await this.aiService.generateSubPath({
+              optionName,
+              keyConcepts: option.keyConcepts ?? [],
+              targetRole,
+              currentRole,
+            });
+
+            await this.subpathRepository.createFromAIResult(
+              { optionName, targetRole, currentRole },
+              aiResult,
+            );
+            this.logger.log(`Subpath generated for "${optionName}"`);
+          } catch (err: any) {
+            this.logger.warn(
+              `Subpath gen failed for "${optionName}": ${err.message}`,
+            );
+          }
+        }),
+      ),
+    );
   }
 
   private async withTaskLifecycle<TResult>(

@@ -34,7 +34,7 @@ export const notifications = pgTable("notifications", {
     blogId?: string;
     blogSlug?: string;
     commentId?: string;
-    rootCommentId?: string | null;
+    commentParentId?: string | null;
   }>(),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),

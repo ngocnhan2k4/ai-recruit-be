@@ -1,14 +1,15 @@
 import {
   index,
+  integer,
   pgTable,
   text,
   uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { users } from "./user.model";
-import { timestamps } from "./helpers";
 import { ActionTypeEnum, ObjectTypeEnum } from "./enums";
+import { timestamps } from "./helpers";
+import { users } from "./user.model";
 
 export const comments = pgTable(
   "comments",
@@ -21,14 +22,12 @@ export const comments = pgTable(
     parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
       onDelete: "cascade",
     }),
-    rootCommentId: uuid("root_comment_id").references(() => comments.id, {
-      onDelete: "cascade",
-    }),
     objectId: uuid("object_id").notNull(),
     objectType: ObjectTypeEnum("object_type").notNull(),
     languageCode: varchar("language_code", { length: 5 })
       .notNull()
       .default("vi"),
+    depth: integer("depth").notNull().default(0),
     ...timestamps,
   },
   (table) => [
@@ -38,6 +37,7 @@ export const comments = pgTable(
       table.authorId,
     ),
     index("idx_created_at").on(table.createdAt),
+    index("idx_comments_parent_id").on(table.parentCommentId),
   ],
 );
 
