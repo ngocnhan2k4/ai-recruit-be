@@ -1,11 +1,11 @@
-import { Inject, Injectable } from "@nestjs/common";
-import { type DBDrizzle } from "../types";
-import { comments, users } from "../models";
+import { PaginatedResult } from "@/common/types";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { Comment, CommentWithAuthor, ObjectType } from "@/core/entities";
-import { and, count, desc, eq, lt, sql } from "drizzle-orm";
-import { PaginatedResult } from "@/common/types";
+import { and, count, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import { GenericRepository } from "./generic-repository";
+import { Inject, Injectable } from "@nestjs/common";
+import { comments, users } from "../models";
+import { type DBDrizzle } from "../types";
 
 @Injectable()
 export class CommentRepository
@@ -30,14 +30,13 @@ export class CommentRepository
       eq(comments.objectType, objectType),
       parentCommentId
         ? eq(comments.parentCommentId, parentCommentId)
-        : sql`${comments.parentCommentId} IS NULL`,
+        : isNull(comments.parentCommentId),
     ];
 
     if (cursor) {
       conditions.push(lt(comments.createdAt, new Date(cursor)));
     }
 
-    // Subquery to count children
     const childCountSq = this.db
       .select({
         parentId: comments.parentCommentId,
@@ -59,6 +58,7 @@ export class CommentRepository
         content: comments.content,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
+        depth: comments.depth,
         objectId: comments.objectId,
         objectType: comments.objectType,
         createdAt: comments.createdAt,
@@ -86,22 +86,60 @@ export class CommentRepository
           eq(comments.objectType, objectType),
           parentCommentId
             ? eq(comments.parentCommentId, parentCommentId)
-            : sql`${comments.parentCommentId} IS NULL`,
+            : isNull(comments.parentCommentId),
         ),
       );
 
     const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const lastItem = data[data.length - 1];
+    const rawData = hasNextPage ? rows.slice(0, limit) : rows;
+    const lastItem = rawData.at(-1);
 
     return {
-      data: data as CommentWithAuthor[],
+      data: rawData,
       pagination: {
         nextCursor:
-          hasNextPage && lastItem ? lastItem.createdAt.toISOString() : null,
+          hasNextPage && lastItem?.createdAt
+            ? lastItem.createdAt.toISOString()
+            : null,
         hasNextPage,
         total: totalCount,
       },
     };
+  }
+
+  async getComment(id: string): Promise<CommentWithAuthor | null> {
+    const childCountSq = this.db
+      .select({
+        parentId: comments.parentCommentId,
+        count: count(comments.id).as("count"),
+      })
+      .from(comments)
+      .groupBy(comments.parentCommentId)
+      .as("child_counts");
+
+    const rows = await this.db
+      .select({
+        id: comments.id,
+        content: comments.content,
+        authorId: comments.authorId,
+        parentCommentId: comments.parentCommentId,
+        depth: comments.depth,
+        objectId: comments.objectId,
+        objectType: comments.objectType,
+        createdAt: comments.createdAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+        childCount: sql<number>`COALESCE(${childCountSq.count}, 0)::int`,
+      })
+      .from(comments)
+      .innerJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(childCountSq, eq(childCountSq.parentId, comments.id))
+      .where(eq(comments.id, id));
+
+    return rows[0] || null;
   }
 }

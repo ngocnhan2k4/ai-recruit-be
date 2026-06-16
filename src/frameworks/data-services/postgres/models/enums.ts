@@ -66,6 +66,8 @@ export const NotificationTypeEnum = pgEnum("notification_type", [
   "organization_invitation",
   "system",
   "feedback_assigned",
+  "blog_comment",
+  "blog_comment_reply",
 ]);
 export const OrganizationRoleEnum = pgEnum("organization_role", [
   "organization_owner",

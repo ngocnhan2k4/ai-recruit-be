@@ -110,39 +110,19 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract applyJob({
     jobId,
     userCvId,
-    sendNotifications,
     senderUserId,
     answers,
   }: {
     jobId: string;
     userCvId: string;
-    sendNotifications: boolean;
     senderUserId: string;
     answers?: JobAnswer[];
-  }): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notifications: Notification[];
-        jobTitle?: string;
-      }
-  >;
+  }): Promise<ApplyJobResponse>;
 
   abstract updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum | undefined,
-    sendNotifications: boolean,
-    senderUserId?: string,
-    userCvId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notification: Notification;
-        jobTitle: string;
-      }
-  >;
+    data: Record<string, any>,
+  ): Promise<ApplyJobResponse>;
 
   abstract getApplyJobById(applyId: string): Promise<ApplyJobResponse | null>;
 
@@ -192,6 +172,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
   abstract getApplyJobs(
     filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>>;
+
+  abstract getAppliedUserIdsByJobId(jobId: string): Promise<string[]>;
 
   abstract getJobCounts(): Promise<JobCounts>;
 

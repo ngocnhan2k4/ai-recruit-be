@@ -1,8 +1,10 @@
+import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 import { GeneralQueryDto } from "@/interfaces/dtos";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -10,9 +12,7 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
-  IsEnum,
 } from "class-validator";
-import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -46,7 +46,8 @@ export class QueryBlogsDto extends GeneralQueryDto {
   status?: BlogPostStatus;
 
   @ApiPropertyOptional({
-    description: "Filter by source type",
+    description:
+      "Filter by source type (ADMIN = manually by admin, AI = AI-generated, CRAWLED = crawled)",
     enum: BlogSourceType,
   })
   @IsOptional()
@@ -55,11 +56,6 @@ export class QueryBlogsDto extends GeneralQueryDto {
 }
 
 export class CreateBlogPostDto {
-  @ApiPropertyOptional({ format: "uuid" })
-  @IsOptional()
-  @IsUUID("4")
-  postId?: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

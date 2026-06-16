@@ -87,6 +87,16 @@ import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
+import {
+  ISubpathRepository,
+  IOptionResourceCompletionRepository,
+  ISubpathModuleQuizResultRepository,
+} from "@/core/abstracts";
+import {
+  SubpathRepository,
+  OptionResourceCompletionRepository,
+  SubpathModuleQuizResultRepository,
+} from "./repositories/subpath.repository";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { createLoggerQuery } from "@/common/utils";
 
@@ -314,6 +324,18 @@ import { createLoggerQuery } from "@/common/utils";
       provide: ISkillNoteRepository,
       useClass: SkillNoteRepository,
     },
+    {
+      provide: ISubpathRepository,
+      useClass: SubpathRepository,
+    },
+    {
+      provide: IOptionResourceCompletionRepository,
+      useClass: OptionResourceCompletionRepository,
+    },
+    {
+      provide: ISubpathModuleQuizResultRepository,
+      useClass: SubpathModuleQuizResultRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -358,6 +380,9 @@ import { createLoggerQuery } from "@/common/utils";
     IUserActionRepository,
     ICommentRepository,
     ISkillNoteRepository,
+    ISubpathRepository,
+    IOptionResourceCompletionRepository,
+    ISubpathModuleQuizResultRepository,
   ],
 })
 export class PostgresDataServicesModule {}

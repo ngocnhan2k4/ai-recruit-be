@@ -1,36 +1,36 @@
-import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery } from "@nestjs/swagger";
+import { GetUser } from "@/common/decorators";
+import type { PaginatedResult, TokenPayload } from "@/common/types";
+import { Comment } from "@/core/entities";
 import {
   JwtAuthGuard,
   OptionalJwtAuthGuard,
 } from "@/frameworks/auth-services/guards";
-import { GetUser } from "@/common/decorators";
-import type { PaginatedResult, TokenPayload } from "@/common/types";
+import { ApiResponse } from "@/interfaces/dtos";
 import {
-  QueryBlogsDto,
+  BlogCategoryDto,
+  BlogPostDetailDto,
+  BlogPostListItemDto,
+  BlogTagCursorResponseDto,
   CreateBlogPostDto,
+  QueryBlogsDto,
+  QueryBlogTagsDto,
   SaveDraftBlogPostDto,
   UpdateBlogPostDto,
-  QueryBlogTagsDto,
-  BlogPostDetailDto,
-  BlogCategoryDto,
-  BlogTagCursorResponseDto,
-  BlogPostListItemDto,
 } from "@/interfaces/dtos/blog";
-import { ApiResponse } from "@/interfaces/dtos";
 import { CommentDto } from "@/interfaces/dtos/comment/req/comment.dto";
-import { Comment } from "@/core/entities";
+import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 
 @ApiTags("Blogs")
 @Controller("blogs")
@@ -47,20 +47,6 @@ export class BlogController {
     @Query() query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     return this.blogUseCase.getBlogs(query);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get("my")
-  @ApiOperation({
-    summary: "Get My Blogs",
-    description:
-      "Retrieve blogs created by the authenticated user, including draft posts",
-  })
-  async getMyBlogs(
-    @GetUser() user: TokenPayload,
-    @Query() query: QueryBlogsDto,
-  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    return this.blogUseCase.getMyBlogs(user.userId, query);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -83,9 +69,7 @@ export class BlogController {
     description:
       "Retrieve trending/top blogs, typically sorted by likes or view count",
   })
-  async getTopBlogs(): Promise<
-    ApiResponse<PaginatedResult<BlogPostListItemDto>>
-  > {
+  async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
     return this.blogUseCase.getTopBlogs();
   }
 
@@ -124,6 +108,19 @@ export class BlogController {
     return this.blogUseCase.createComment(user, postId, dto);
   }
 
+  @Get(":slug/related")
+  @ApiOperation({
+    summary: "Get Related Blog Posts",
+    description:
+      "Retrieve related blog posts for a given slug using Content-Based Similarity Scoring (same category +5, common tags +2 each, same source type +1)",
+  })
+  @ApiParam({ name: "slug", description: "URL-friendly slug of the blog post" })
+  async getRelatedPosts(
+    @Param("slug") slug: string,
+  ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    return this.blogUseCase.getRelatedPosts(slug);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(":slug")
   @ApiOperation({
@@ -139,69 +136,6 @@ export class BlogController {
     return this.blogUseCase.getBlogBySlug(slug, user?.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  @ApiOperation({
-    summary: "Create Blog",
-    description: "Create a new published blog post",
-  })
-  async createBlog(
-    @GetUser() user: TokenPayload,
-    @Body() dto: CreateBlogPostDto,
-  ): Promise<ApiResponse<{ slug: string }>> {
-    return this.blogUseCase.createPost(user, dto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post("draft")
-  @ApiOperation({
-    summary: "Save Draft",
-    description:
-      "Save a blog post as draft or update an existing draft. Without postId creates new draft, with postId updates existing draft.",
-  })
-  @ApiQuery({
-    name: "postId",
-    required: false,
-    description: "ID of an existing draft to update",
-  })
-  async saveDraft(
-    @GetUser() user: TokenPayload,
-    @Body() dto: SaveDraftBlogPostDto,
-    @Query("postId") postId?: string,
-  ): Promise<ApiResponse<{ id: string; slug: string }>> {
-    return this.blogUseCase.saveDraft(user, dto, postId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Put(":id")
-  @ApiOperation({
-    summary: "Update Blog",
-    description: "Update an existing blog post (must be the post author)",
-  })
-  @ApiParam({ name: "id", description: "Blog post ID" })
-  async updateBlog(
-    @GetUser() user: TokenPayload,
-    @Param("id") id: string,
-    @Body() dto: UpdateBlogPostDto,
-  ): Promise<ApiResponse<UpdateBlogPostDto>> {
-    return this.blogUseCase.updatePost(user, id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete(":id")
-  @ApiOperation({
-    summary: "Delete Blog",
-    description: "Delete a blog post (must be the post author)",
-  })
-  @ApiParam({ name: "id", description: "Blog post ID" })
-  async deleteBlog(
-    @GetUser() user: TokenPayload,
-    @Param("id") id: string,
-  ): Promise<ApiResponse<void>> {
-    return this.blogUseCase.deletePost(user, id);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @UseGuards(JwtAuthGuard)
   @Post(":blogId/likes")
   @ApiOperation({
@@ -230,5 +164,68 @@ export class BlogController {
     @Param("blogId") blogId: string,
   ): Promise<ApiResponse<void>> {
     return this.blogUseCase.toggleSave(user, blogId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  @ApiOperation({ summary: "Create a new blog post" })
+  async createBlog(
+    @GetUser() user: TokenPayload,
+    @Body() dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ slug: string }>> {
+    return await this.blogUseCase.createPost(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("draft")
+  @ApiOperation({ summary: "Save a blog post as draft" })
+  async saveDraft(
+    @GetUser() user: TokenPayload,
+    @Body() dto: SaveDraftBlogPostDto,
+    @Query("postId") postId?: string,
+  ): Promise<ApiResponse<{ id: string; slug: string }>> {
+    return await this.blogUseCase.saveDraft(user, dto, postId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":postId/submit")
+  @ApiOperation({ summary: "Submit a draft blog post" })
+  async submitDraft(
+    @GetUser() user: TokenPayload,
+    @Param("postId") postId: string,
+    @Body() dto: CreateBlogPostDto,
+  ): Promise<ApiResponse<{ id: string }>> {
+    return await this.blogUseCase.submitDraft(user, postId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(":id")
+  @ApiOperation({ summary: "Update a blog post" })
+  async updateBlog(
+    @GetUser() user: TokenPayload,
+    @Param("id") id: string,
+    @Body() dto: UpdateBlogPostDto,
+  ): Promise<ApiResponse<{ id: string }>> {
+    return await this.blogUseCase.updatePost(user, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id")
+  @ApiOperation({ summary: "Delete a blog post" })
+  async deleteBlog(
+    @GetUser() user: TokenPayload,
+    @Param("id") id: string,
+  ): Promise<ApiResponse<void>> {
+    return await this.blogUseCase.deletePost(user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("my")
+  @ApiOperation({ summary: "Get my blog posts" })
+  async getMyBlogs(
+    @GetUser() user: TokenPayload,
+    @Query() query: QueryBlogsDto,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    return await this.blogUseCase.getMyBlogs(user.userId, query);
   }
 }

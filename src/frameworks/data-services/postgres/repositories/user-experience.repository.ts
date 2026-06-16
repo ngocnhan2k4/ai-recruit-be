@@ -7,6 +7,7 @@ import {
   UserExperience,
   OrganizationTypeEnum,
   OrganizationWithDetails,
+  UserStatusEnum,
 } from "@/core/entities";
 import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
@@ -47,7 +48,13 @@ export class UserExperienceRepository
         skill: skills,
       })
       .from(userExperiences)
-      .innerJoin(users, eq(users.id, userExperiences.userId))
+      .innerJoin(
+        users,
+        and(
+          eq(userExperiences.userId, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
+      )
       .leftJoin(
         organizations,
         eq(userExperiences.organizationId, organizations.id),

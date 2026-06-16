@@ -47,6 +47,10 @@ export class CvIndexWorker extends WorkerHost {
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
 
+    this.logger.log(
+      `[processEvent] Processing event ${type} for cv ${JSON.stringify(data)}`,
+    );
+
     switch (type) {
       case CvEventType.UPSERT_CV: {
         const cvId = data.cvId;

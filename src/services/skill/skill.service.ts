@@ -66,6 +66,7 @@ export class SkillService implements ISkillService {
       this.skillRepository.getAll(["id", "name"]),
       this.skillsSynonymsRepository.getAll(["masterSkillId", "aliasName"]),
     ]);
+
     const grouped = this.buildGroupedSkill(allSkills, allRows);
     const filtered = grouped.filter((item) => {
       const matchesKeyword = keyword
@@ -75,12 +76,13 @@ export class SkillService implements ISkillService {
           )
         : true;
 
-      const matchesExactNames = exactNames
-        ? exactNames.includes(normalizeString(item.masterName)) ||
-          exactNames.some((name) =>
-            item.aliasNames.map(normalizeString).includes(name),
-          )
-        : true;
+      const matchesExactNames =
+        exactNames.length > 0
+          ? exactNames.includes(normalizeString(item.masterName)) ||
+            exactNames.some((name) =>
+              item.aliasNames.map(normalizeString).includes(name),
+            )
+          : true;
 
       const hasAlias = item.aliasNames.length > 0;
       const matchesSynonymFilter =

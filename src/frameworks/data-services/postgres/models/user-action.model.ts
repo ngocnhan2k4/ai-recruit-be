@@ -1,7 +1,14 @@
-import { index, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { users } from "./user.model";
-import { timestamps } from "./helpers";
+import {
+  index,
+  integer,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { ActionTypeEnum, ObjectTypeEnum } from "./enums";
+import { timestamps } from "./helpers";
+import { users } from "./user.model";
 
 export const comments = pgTable(
   "comments",
@@ -16,6 +23,7 @@ export const comments = pgTable(
     }),
     objectId: uuid("object_id").notNull(),
     objectType: ObjectTypeEnum("object_type").notNull(),
+    depth: integer("depth").notNull().default(0),
     ...timestamps,
   },
   (table) => [
@@ -25,6 +33,7 @@ export const comments = pgTable(
       table.authorId,
     ),
     index("idx_created_at").on(table.createdAt),
+    index("idx_comments_parent_id").on(table.parentCommentId),
   ],
 );
 
