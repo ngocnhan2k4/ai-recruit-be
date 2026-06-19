@@ -43,7 +43,11 @@ import { IUserRepository } from "@/core/abstracts/repositories/user-repository.a
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
 import { differenceInYears, endOfDay, startOfDay } from "date-fns";
 import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { ProviderEnum, UserStatusEnum } from "@/core";
+import {
+  ProviderEnum,
+  UserStatusEnum,
+  UserSubscriptionStatusEnum,
+} from "@/core";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
 import { buildSort } from "@/common/utils/db";
@@ -276,7 +280,7 @@ export class UserRepository
     const offset = (page - 1) * limit;
 
     const fields = this.ensureGetUsersColumns(query);
-    const { db, countDb } = this.joinGetUsersBuilder(fields);
+    const { db, countDb } = this.joinGetUsersBuilder(fields, query);
     const conditions = this.buildGetAllAdminUsersQuery(query);
 
     const [items, totalRow] = await Promise.all([
@@ -330,7 +334,29 @@ export class UserRepository
     return fields;
   }
 
-  private joinGetUsersBuilder(fields: string[]) {
+  private buildUserSubscriptionJoinCondition(query?: GetUserQuery) {
+    const conditions: SQL[] = [
+      eq(userSubscriptions.userId, users.id),
+      isNull(userSubscriptions.deletedAt),
+    ];
+
+    if (query?.subscriptionId) {
+      conditions.push(
+        eq(userSubscriptions.subscriptionId, query.subscriptionId),
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+      );
+    } else if (query?.statusSubscription) {
+      conditions.push(eq(userSubscriptions.status, query.statusSubscription));
+    } else {
+      conditions.push(
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+      );
+    }
+
+    return and(...conditions);
+  }
+
+  private joinGetUsersBuilder(fields: string[], query?: GetUserQuery) {
     let needSubscription = false;
     let needUserSubscription = false;
     let needOnboarding = false;
@@ -392,14 +418,10 @@ export class UserRepository
       .from(users);
 
     if (needUserSubscription) {
-      db = db.leftJoin(
-        userSubscriptions,
-        eq(userSubscriptions.userId, users.id),
-      );
-      countDb = countDb.leftJoin(
-        userSubscriptions,
-        eq(userSubscriptions.userId, users.id),
-      );
+      const subscriptionJoinCondition =
+        this.buildUserSubscriptionJoinCondition(query);
+      db = db.leftJoin(userSubscriptions, subscriptionJoinCondition);
+      countDb = countDb.leftJoin(userSubscriptions, subscriptionJoinCondition);
     }
 
     if (needSubscription) {
@@ -453,10 +475,9 @@ export class UserRepository
     if (query.subscriptionId) {
       conditions.push(
         eq(userSubscriptions.subscriptionId, query.subscriptionId),
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
       );
-    }
-
-    if (query.statusSubscription) {
+    } else if (query.statusSubscription) {
       conditions.push(eq(userSubscriptions.status, query.statusSubscription));
     }
 
