@@ -28,11 +28,6 @@ export enum ObjectTypeEnum {
 }
 
 export class CreateTrackingEventRequestDto {
-  @ApiProperty({ description: "The ID of the user" })
-  @IsString()
-  @IsOptional()
-  userId?: string;
-
   @ApiProperty({ enum: EventTypeEnum })
   @IsEnum(EventTypeEnum)
   @IsNotEmpty()

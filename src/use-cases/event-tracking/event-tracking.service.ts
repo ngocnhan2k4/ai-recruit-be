@@ -18,7 +18,9 @@ export class EventTrackingService {
 
   constructor(private readonly redisService: RedisService) {}
 
-  async trackEvent(dto: CreateTrackingEventRequestDto): Promise<void> {
+  async trackEvent(
+    dto: CreateTrackingEventRequestDto & { userId?: string },
+  ): Promise<void> {
     if (!dto.userId) return;
 
     if (dto.objectType === ObjectTypeEnum.JOB) {
@@ -34,7 +36,7 @@ export class EventTrackingService {
   }
 
   private async trackJobInteraction(
-    dto: CreateTrackingEventRequestDto,
+    dto: CreateTrackingEventRequestDto & { userId?: string },
   ): Promise<void> {
     const key = `user:${dto.userId}:recent_jobs`;
     const score = Date.now();

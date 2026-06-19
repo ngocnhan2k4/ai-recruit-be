@@ -157,9 +157,7 @@ export class JobMatchingUseCases {
       }
     }
     // Khắc phục Race Condition: Lưu liền tay xuống Redis nhưng không dùng await để tránh block API
-    this.bloomFilterService.syncKeyToRedis(bloomKey).catch((err) => {
-      console.error("Failed to sync bloom filter to Redis instantly", err);
-    });
+    this.bloomFilterService.syncKeyToRedis(bloomKey).catch(() => {});
 
     // Extract job IDs for batch query
     const jobIds: string[] = [];

@@ -181,7 +181,6 @@ export class JobUseCases {
         await this.bloomFilterService.loadFromRedis(bloomKey);
       }
     }
-    console.log(filters);
     const {
       data: rawDocs,
       pagination: { nextCursor, hasNextPage: hasMore },
@@ -207,9 +206,7 @@ export class JobUseCases {
         }
       }
       // Khắc phục Race Condition: Lưu liền tay xuống Redis nhưng không dùng await để tránh block API
-      this.bloomFilterService.syncKeyToRedis(bloomKey).catch((err) => {
-        console.error("Failed to sync bloom filter to Redis instantly", err);
-      });
+      this.bloomFilterService.syncKeyToRedis(bloomKey).catch(() => {});
     }
 
     const jobIds: string[] = [];
