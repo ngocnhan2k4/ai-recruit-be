@@ -54,4 +54,42 @@ export class JobMatchingController {
       },
     );
   }
+
+  @ApiOperation({
+    summary: "Get matched jobs with scores for current user (legacy)",
+    description: "Legacy implementation for matched jobs",
+  })
+  @ApiResponseDto(JobMatchResultDto, { isArray: true })
+  @Get("matched-jobs/legacy")
+  async getMatchedJobsLegacy(
+    @Query() query: QueryMatchedJobsDto,
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<PaginatedResultDto<JobMatchResultDto>>> {
+    return await this.jobMatchingUseCases.getMatchedJobsWithScoresLegacy(
+      user.userId,
+      {
+        cursor: query.cursor,
+        limit: query.limit || 20,
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+        keyword: query.keyword,
+        salaryMin: query.salaryMin,
+        salaryMax: query.salaryMax,
+        experienceMin: query.experienceMin,
+        experienceMax: query.experienceMax,
+        provinceId: query.provinceId,
+        categoryId: query.categoryId,
+        organizationId: query.organizationId,
+        skillIds: query.skillIds,
+        fromDate: query.fromDate,
+        toDate: query.toDate,
+        workType: query.workType,
+        status: JobStatusEnum.ACTIVE,
+        user: {
+          ...user,
+          roles: [RoleEnum.USER],
+        },
+      },
+    );
+  }
 }

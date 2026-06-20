@@ -101,6 +101,7 @@ import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
 
 @Module({
   imports: [
@@ -175,6 +176,7 @@ import { TaskUseCasesModule } from "@/use-cases/task/task.module";
     BlogUseCasesModule,
     CommentUseCasesModule,
     TaskUseCasesModule,
+    EventTrackingModule,
   ],
   controllers: [
     UserController,

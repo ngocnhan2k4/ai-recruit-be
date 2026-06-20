@@ -7,6 +7,8 @@ import { FeatureModule } from "@/services";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { ConfigModule } from "@nestjs/config";
 import { CvModule } from "@/services/cv/cv.module";
+import { EventTrackingModule } from "../event-tracking/event-tracking.module";
+import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module";
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { CvModule } from "@/services/cv/cv.module";
     ElasticsearchModule,
     ConfigModule,
     CvModule,
+    EventTrackingModule,
+    BloomFilterModule,
   ],
   providers: [JobUseCases],
   exports: [JobUseCases],
