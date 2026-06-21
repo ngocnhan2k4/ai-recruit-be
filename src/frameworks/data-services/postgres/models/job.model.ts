@@ -74,6 +74,7 @@ export const jobs = pgTable(
     rejectReason: text("reject_reason"),
     categoryId: uuid("category_id").references(() => categories.id),
     recruitCount: integer("recruit_count"),
+    embedding: jsonb("embedding"),
     ...timestamps,
   },
   (table) => [

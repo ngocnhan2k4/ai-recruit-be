@@ -111,6 +111,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-vault": "^0.10.9",
     "nodemailer": "^7.0.11",
+    "openai": "^6.39.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdf-parse": "^2.4.5",

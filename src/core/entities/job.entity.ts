@@ -23,16 +23,21 @@ export interface JobFilters extends GeneralQuery {
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
+  userPreference?: any; // Dữ liệu sở thích (Soft boost)
+  recentInteractions?: any[]; // Lịch sử tương tác
+
   fromDate?: string;
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
   fields?: string[];
   ids?: string[];
+  excludeJobIds?: string[];
 }
 
 export interface ApplyJobFilters extends GeneralQuery {
-  jobId: string;
+  jobId?: string;
+  ids?: string[];
 }
 
 export interface StatisticsJobFilter {
@@ -70,7 +75,6 @@ export interface ApplyJobResponse {
   answers?: JobAnswer[];
   matchingScore?: string | number | null;
   matchingCriteria?: Record<string, any> | null;
-  scoredAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   user?: Pick<User, "id" | "email" | "name" | "avatarUrl" | "username">;

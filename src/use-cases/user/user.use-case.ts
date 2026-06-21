@@ -176,7 +176,7 @@ export class UserUseCases implements OnModuleInit {
       const users = await this.userRepository.getAll(["username"]);
       const usernames = users.map((user) => user.username);
 
-      this.bloomFilterService.initialize(usernames);
+      this.bloomFilterService.initialize("global_usernames", usernames);
 
       this.logger.log(
         `[UserUseCases] [initializeBloomFilter] Bloom filter refreshed with ${usernames.length} usernames`,
@@ -775,7 +775,10 @@ export class UserUseCases implements OnModuleInit {
     username: string,
   ): Promise<ApiResponse<{ exists: boolean }>> {
     // Step 1: check bloom filter
-    const mightExist = this.bloomFilterService.mightContain(username);
+    const mightExist = this.bloomFilterService.mightContain(
+      "global_usernames",
+      username,
+    );
     if (!mightExist) {
       return {
         data: { exists: false },

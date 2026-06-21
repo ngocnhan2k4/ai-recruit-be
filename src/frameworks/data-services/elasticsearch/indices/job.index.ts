@@ -147,6 +147,12 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         createdAt: {
           type: "date",
         },
+        embedding: {
+          type: "dense_vector",
+          dims: 1536,
+          index: true,
+          similarity: "cosine",
+        },
         boost: {
           type: "rank_feature",
         },
@@ -161,12 +167,14 @@ export function transformJobToDocument({
   category,
   provinces,
   organization,
+  embedding,
 }: {
   job: Job;
   skills: Skill[];
   category: Category;
   provinces: Province[];
   organization: OrganizationWithDetails;
+  embedding?: number[];
 }): Record<string, unknown> {
   const salaryMin = job.salaryMin ? parseFloat(job.salaryMin) : null;
   const salaryMax = job.salaryMax ? parseFloat(job.salaryMax) : null;
@@ -194,6 +202,7 @@ export function transformJobToDocument({
     datePosted: job.datePosted,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    embedding: embedding || null,
     boost: 1.0,
   };
 }
