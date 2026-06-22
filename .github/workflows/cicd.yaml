@@ -3,13 +3,22 @@ name: CI/CD Pipeline
 on:
   pull_request:
     branches: ["dev", "main"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+      - "crawl_jobs/**"
+
   push:
     branches: ["dev", "main"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+      - "crawl_jobs/**"
 
 jobs:
   ci:
     environment: dev
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,7 +66,7 @@ jobs:
   cd:
     needs: ci
     if: github.event_name == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     environment: dev
     env:
       IMAGE_NAME: ghcr.io/ngocnhan2k4/ai-recruit-be
