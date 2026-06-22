@@ -2,6 +2,7 @@ import {
   IOrganizationMembersRepository,
   OrganizationMember,
   User,
+  UserStatusEnum,
 } from "@/core";
 import { GenericRepository } from "./generic-repository";
 import { organizationMembers, users } from "../models";
@@ -63,7 +64,13 @@ export class OrganizationMembersRepository
         createdAt: organizationMembers.createdAt,
       })
       .from(organizationMembers)
-      .innerJoin(users, eq(organizationMembers.userId, users.id))
+      .innerJoin(
+        users,
+        and(
+          eq(organizationMembers.userId, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
+      )
       .where(and(...whereConditions))
       .orderBy(desc(organizationMembers.createdAt))
       .limit(query.limit + 1);

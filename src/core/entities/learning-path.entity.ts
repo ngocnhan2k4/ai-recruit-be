@@ -151,6 +151,8 @@ export interface SubpathWithDetails extends Subpath {
       quizQuestions: SubpathQuizQuestion[];
     }
   >;
+  completedResourceIds?: string[];
+  masteredModuleIds?: string[];
 }
 
 export interface SubpathGenerateRequest {

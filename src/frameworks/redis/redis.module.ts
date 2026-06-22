@@ -45,6 +45,6 @@ import { ICacheService } from "@/core/abstracts/cache.abstract";
       useClass: RedisService,
     },
   ],
-  exports: [ICacheService],
+  exports: [ICacheService, RedisService],
 })
 export class RedisModule {}
