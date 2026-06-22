@@ -44,7 +44,7 @@ jobs:
     strategy:
       matrix:
         env: [dev, prod]
-      max-parallel: 1
+      max-parallel: 2
 
     environment: ${{ matrix.env }}
     runs-on: ubuntu-latest
