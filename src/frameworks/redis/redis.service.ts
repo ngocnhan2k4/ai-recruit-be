@@ -153,6 +153,14 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     await this.redis.zrem(key, member);
   }
 
+  async removeSortedSetRangeByRank(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<void> {
+    await this.redis.zremrangebyrank(key, start, stop);
+  }
+
   async getSortedSetRange(
     key: string,
     start: number,

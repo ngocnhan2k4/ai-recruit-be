@@ -105,6 +105,7 @@ import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { TranslationUseCasesModule } from "@/use-cases/translation/translation-use-cases.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
 import { ContextMiddleware } from "./common/middlewares/context.middleware";
+import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
 
 @Module({
   imports: [
@@ -181,6 +182,7 @@ import { ContextMiddleware } from "./common/middlewares/context.middleware";
     TranslationModule,
     TranslationUseCasesModule,
     TaskUseCasesModule,
+    EventTrackingModule,
   ],
   controllers: [
     UserController,

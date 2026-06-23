@@ -134,8 +134,30 @@ export class LearningPathUseCase {
       );
     }
 
+    // Fetch user completions
+    const completions = await this.resourceCompletionRepository.getByField({
+      userId,
+    });
+    const subpathResourceIds = new Set<string>();
+    subpath.subNodes.forEach((node) => {
+      node.resources.forEach((r) => subpathResourceIds.add(r.id));
+    });
+
+    const completedResourceIds = completions
+      .filter((c) => subpathResourceIds.has(c.resourceId))
+      .map((c) => c.resourceId);
+
+    // Fetch user quiz results
+    const quizResults = await this.quizResultRepository.getByField({ userId });
+    const subpathModuleIds = new Set<string>();
+    subpath.subNodes.forEach((node) => subpathModuleIds.add(node.id));
+
+    const masteredModuleIds = quizResults
+      .filter((q) => subpathModuleIds.has(q.moduleId) && q.passed)
+      .map((q) => q.moduleId);
+
     return {
-      data: subpath,
+      data: { ...subpath, completedResourceIds, masteredModuleIds },
       message: "Subpath fetched successfully",
       code: RESPONSE_CODE.SUCCESS,
     };

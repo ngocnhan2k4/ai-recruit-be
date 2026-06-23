@@ -10,4 +10,11 @@ export abstract class IJobSearchService {
     filters: JobFilters,
   ): Promise<PaginatedResult<JobSearchDocument>>;
   abstract getJobById(jobId: string): Promise<JobSearchDocument | null>;
+  abstract searchJobsLegacy(
+    filters: JobFilters,
+  ): Promise<PaginatedResult<JobSearchDocument>>;
+  abstract matchJobsLegacy(
+    userProfile: UserProfile,
+    filters: JobFilters,
+  ): Promise<PaginatedResult<JobSearchDocument>>;
 }
