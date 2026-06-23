@@ -36,12 +36,34 @@ export class BlogPostSourceDto {
   platform?: string | null;
 }
 
+export class BlogLocaleContentResponseDto {
+  @ApiPropertyOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  summary?: string;
+
+  @ApiPropertyOptional()
+  content?: string;
+}
+
+export class BlogLocalesResponseDto {
+  @ApiPropertyOptional({ type: BlogLocaleContentResponseDto })
+  vi?: BlogLocaleContentResponseDto;
+
+  @ApiPropertyOptional({ type: BlogLocaleContentResponseDto })
+  en?: BlogLocaleContentResponseDto;
+}
+
 export class BlogPostListItemDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
   title: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesResponseDto })
+  locales?: BlogLocalesResponseDto;
 
   @ApiProperty()
   slug: string;
@@ -105,6 +127,9 @@ export class BlogPostDetailDto {
 
   @ApiProperty()
   title: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesResponseDto })
+  locales?: BlogLocalesResponseDto;
 
   @ApiProperty()
   slug: string;

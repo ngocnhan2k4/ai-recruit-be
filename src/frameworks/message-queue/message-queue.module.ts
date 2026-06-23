@@ -8,6 +8,7 @@ import {
   JOB_INDEX_QUEUE,
   SCORE_CV_QUEUE,
   TASK_QUEUE,
+  TRANSLATION_QUEUE,
 } from "@/common/constants";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -33,6 +34,9 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     }),
     BullModule.registerQueue({
       name: EMAIL_QUEUE,
+    }),
+    BullModule.registerQueue({
+      name: TRANSLATION_QUEUE,
     }),
     BullModule.registerQueue({
       name: CV_INDEX_QUEUE,

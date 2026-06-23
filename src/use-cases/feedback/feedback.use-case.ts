@@ -26,6 +26,7 @@ import {
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
 import { PaginatedResult } from "@/common/types";
+import { getRequestLanguage } from "@/common/utils";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -50,6 +51,7 @@ export class FeedbackUseCase {
       email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
+      languageCode: getRequestLanguage(),
       images: data.images,
       metadata: data.metadata ?? null,
       userId,
@@ -91,6 +93,7 @@ export class FeedbackUseCase {
   async getFeedbacks(
     filter: FeedbackFilter,
   ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
+    const lang = getRequestLanguage();
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
@@ -100,6 +103,7 @@ export class FeedbackUseCase {
       data: {
         data: result.data.map((feedback) => ({
           ...feedback,
+          canTranslate: feedback.languageCode !== lang,
           type: feedback.type as FeedbackTypeEnum,
           status: feedback.status as FeedbackStatusEnum,
           assignedToUserId: feedback.assignedToUserId ?? null,

@@ -82,6 +82,7 @@ export class FeedbackRepository
           email: feedbacks.email,
           message: feedbacks.message,
           subject: feedbacks.subject,
+          languageCode: feedbacks.languageCode,
           images: feedbacks.images,
           type: feedbacks.type,
           metadata: feedbacks.metadata,

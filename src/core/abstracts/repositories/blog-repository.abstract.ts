@@ -3,6 +3,7 @@ import {
   BlogCategoryItem,
   BlogPostDetailBase,
   BlogPostFilters,
+  BlogLocaleMap,
   BlogPostListItem,
   BlogPostTagItem,
   BlogTagCursorItem,
@@ -58,6 +59,7 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
       title?: string;
       summary?: string;
       content?: string;
+      locales?: BlogLocaleMap;
       categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
@@ -73,10 +75,12 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
       title?: string;
       summary?: string;
       content?: string;
+      locales?: BlogLocaleMap;
       categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
       status?: BlogPostStatus;
+      slug?: string;
     },
   ): Promise<BlogPost>;
 

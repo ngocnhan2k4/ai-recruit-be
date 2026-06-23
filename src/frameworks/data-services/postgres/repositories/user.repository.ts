@@ -42,7 +42,12 @@ import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
 import { differenceInYears, endOfDay, startOfDay } from "date-fns";
-import { cacheWithDedup, convertDateToStr } from "@/common/utils";
+import {
+  cacheWithDedup,
+  convertDateToStr,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 import {
   ProviderEnum,
   UserStatusEnum,
@@ -78,6 +83,25 @@ export class UserRepository
         logger: this.logger,
       },
     );
+  }
+
+  private async getLocalizedRows<T>(params: {
+    getRowsByLanguage: (languageCode: string) => Promise<T[]>;
+    getFallbackRows: () => Promise<T[]>;
+  }): Promise<T[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+
+    let rows = await params.getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await params.getRowsByLanguage(fallbackLanguage);
+    }
+
+    if (!rows.length) {
+      rows = await params.getFallbackRows();
+    }
+
+    return rows;
   }
 
   async getByField(
@@ -511,13 +535,29 @@ export class UserRepository
           .where(eq(userSkills.userId, userId)),
 
         // Get user experiences for calculating years
-        this.db
-          .select({
-            startDate: userExperiences.startDate,
-            endDate: userExperiences.endDate,
-          })
-          .from(userExperiences)
-          .where(eq(userExperiences.userId, userId)),
+        this.getLocalizedRows({
+          getRowsByLanguage: (languageCode) =>
+            this.db
+              .select({
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+              })
+              .from(userExperiences)
+              .where(
+                and(
+                  eq(userExperiences.userId, userId),
+                  eq(userExperiences.languageCode, languageCode),
+                ),
+              ),
+          getFallbackRows: () =>
+            this.db
+              .select({
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+              })
+              .from(userExperiences)
+              .where(eq(userExperiences.userId, userId)),
+        }),
 
         // Get user onboarding preferences
         this.db
@@ -581,37 +621,84 @@ export class UserRepository
           .where(eq(userSkills.userId, userId)),
 
         // Get user experiences with organization names
-        this.db
-          .select({
-            position: userExperiences.position,
-            jobTitle: userExperiences.jobTitle,
-            organizationName: organizations.name,
-            startDate: userExperiences.startDate,
-            endDate: userExperiences.endDate,
-            description: userExperiences.description,
-          })
-          .from(userExperiences)
-          .innerJoin(
-            organizations,
-            eq(userExperiences.organizationId, organizations.id),
-          )
-          .where(eq(userExperiences.userId, userId)),
+        this.getLocalizedRows({
+          getRowsByLanguage: (languageCode) =>
+            this.db
+              .select({
+                position: userExperiences.position,
+                jobTitle: userExperiences.jobTitle,
+                organizationName: organizations.name,
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+                description: userExperiences.description,
+              })
+              .from(userExperiences)
+              .innerJoin(
+                organizations,
+                eq(userExperiences.organizationId, organizations.id),
+              )
+              .where(
+                and(
+                  eq(userExperiences.userId, userId),
+                  eq(userExperiences.languageCode, languageCode),
+                ),
+              ),
+          getFallbackRows: () =>
+            this.db
+              .select({
+                position: userExperiences.position,
+                jobTitle: userExperiences.jobTitle,
+                organizationName: organizations.name,
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+                description: userExperiences.description,
+              })
+              .from(userExperiences)
+              .innerJoin(
+                organizations,
+                eq(userExperiences.organizationId, organizations.id),
+              )
+              .where(eq(userExperiences.userId, userId)),
+        }),
 
         // Get user educations with school names
-        this.db
-          .select({
-            degree: userEducations.educationLevel,
-            major: userEducations.major,
-            schoolName: organizations.name,
-            startDate: userEducations.startDate,
-            endDate: userEducations.endDate,
-          })
-          .from(userEducations)
-          .innerJoin(
-            organizations,
-            eq(userEducations.schoolId, organizations.id),
-          )
-          .where(eq(userEducations.userId, userId)),
+        this.getLocalizedRows({
+          getRowsByLanguage: (languageCode) =>
+            this.db
+              .select({
+                degree: userEducations.educationLevel,
+                major: userEducations.major,
+                schoolName: organizations.name,
+                startDate: userEducations.startDate,
+                endDate: userEducations.endDate,
+              })
+              .from(userEducations)
+              .innerJoin(
+                organizations,
+                eq(userEducations.schoolId, organizations.id),
+              )
+              .where(
+                and(
+                  eq(userEducations.userId, userId),
+                  eq(userEducations.languageCode, languageCode),
+                ),
+              ),
+          getFallbackRows: () =>
+            this.db
+              .select({
+                degree: userEducations.educationLevel,
+                major: userEducations.major,
+                schoolName: organizations.name,
+                startDate: userEducations.startDate,
+                endDate: userEducations.endDate,
+              })
+              .from(userEducations)
+              .innerJoin(
+                organizations,
+                eq(userEducations.schoolId, organizations.id),
+              )
+              .where(eq(userEducations.userId, userId)),
+        }),
       ]);
 
     return {

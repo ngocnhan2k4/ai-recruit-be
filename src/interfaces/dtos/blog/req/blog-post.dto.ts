@@ -14,6 +14,37 @@ import {
   ValidateNested,
 } from "class-validator";
 
+export class BlogLocaleContentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  summary?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  content?: string;
+}
+
+export class BlogLocalesDto {
+  @ApiPropertyOptional({ type: BlogLocaleContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocaleContentDto)
+  vi?: BlogLocaleContentDto;
+
+  @ApiPropertyOptional({ type: BlogLocaleContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocaleContentDto)
+  en?: BlogLocaleContentDto;
+}
+
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
   @ValidateIf((obj: BlogPostTagInputDto) => !obj.skillId)
@@ -62,6 +93,12 @@ export class CreateBlogPostDto {
   @MaxLength(255)
   title: string;
 
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -97,6 +134,12 @@ export class SaveDraftBlogPostDto {
   @MaxLength(255)
   title?: string;
 
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -131,6 +174,12 @@ export class UpdateBlogPostDto {
   @IsString()
   @MaxLength(255)
   title?: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
 
   @ApiPropertyOptional()
   @IsOptional()

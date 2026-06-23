@@ -1,7 +1,12 @@
 import { Logger } from "@nestjs/common";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
-import { TASK_QUEUE } from "@/common/constants";
+import {
+  DEFAULT_LANGUAGE_CODE,
+  TASK_QUEUE,
+  TranslationJobType,
+  TRANSLATION_SUPPORTED_LANGUAGES,
+} from "@/common/constants";
 import {
   IAIService,
   ITaskRepository,
@@ -13,6 +18,7 @@ import {
   INotificationRepository,
   ISubpathRepository,
 } from "@/core/abstracts";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   AILearningRoadmapResult,
@@ -54,6 +60,7 @@ export class TaskWorker extends WorkerHost {
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly aiCvRepository: IAiCvRepository,
+    private readonly messageQueueService: IMessageQueueService,
     private readonly subpathRepository: ISubpathRepository,
   ) {
     super();
@@ -124,16 +131,55 @@ export class TaskWorker extends WorkerHost {
     return args.join(":");
   }
 
+  private resolveTranslationTargets() {
+    return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  }
+
+  private async enqueueRoadmapTranslationJobs(params: {
+    phaseIds: string[];
+    skillIds: string[];
+    sourceLanguage: string;
+  }) {
+    const targetLanguages = this.resolveTranslationTargets();
+    if (!targetLanguages.length) {
+      return;
+    }
+
+    await Promise.all([
+      ...params.phaseIds.map((phaseId) =>
+        this.messageQueueService.addTranslation(
+          TranslationJobType.ROADMAP_PHASE,
+          {
+            phaseId,
+            sourceLanguage: params.sourceLanguage,
+            targetLanguages,
+          },
+        ),
+      ),
+      ...params.skillIds.map((skillId) =>
+        this.messageQueueService.addTranslation(
+          TranslationJobType.ROADMAP_SKILL,
+          {
+            skillId,
+            sourceLanguage: params.sourceLanguage,
+            targetLanguages,
+          },
+        ),
+      ),
+    ]);
+  }
+
   private async persistRoadmapFromPreview(data: {
     userId: string;
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
+    sourceLanguage: string;
   }) {
-    const { userId, request, result } = data;
+    const { userId, request, result, sourceLanguage } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
-    const savedRoadmap = await this.roadmapRepository.executeWithTransaction(
+    const persisted = await this.roadmapRepository.executeWithTransaction(
       async (tx) => {
         // Step 1: Create Roadmap
         const newRoadmap = await this.roadmapRepository.create(
@@ -307,18 +353,28 @@ export class TaskWorker extends WorkerHost {
           }
         }
 
-        return newRoadmap;
+        return {
+          roadmap: newRoadmap,
+          phaseIds: createdPhases.map((item) => item.id),
+          skillIds: createdSkills.map((item) => item.id),
+        };
       },
     );
 
-    // Eager gen subpaths — await so notification fires after all subpaths are ready
+    await this.enqueueRoadmapTranslationJobs({
+      phaseIds: persisted.phaseIds,
+      skillIds: persisted.skillIds,
+      sourceLanguage,
+    });
+
+    // Eager gen subpaths so clients receive ready-to-use roadmap options.
     await this.generateSubpaths(phases, request);
 
-    return savedRoadmap;
+    return persisted.roadmap;
   }
 
   private async generateSubpaths(
-    phases: any[],
+    phases: Array<{ skills?: RoadmapSkillData[] }>,
     request: PreviewRoadmapDto,
   ): Promise<void> {
     const targetRole = request.targetRole ?? "";
@@ -467,12 +523,15 @@ export class TaskWorker extends WorkerHost {
       },
       async (task, request: PreviewRoadmapDto) => {
         let resultData: AILearningRoadmapResult | null = null;
+        const sourceLanguage =
+          (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
 
         const roadmapRequest = {
           currentRole: request.currentRole,
           targetRole: request.targetRole,
           timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
           currentSkills: request.currentSkills,
+          language: sourceLanguage as "vi" | "en",
         };
 
         await new Promise<void>((resolve, reject) => {
@@ -512,6 +571,7 @@ export class TaskWorker extends WorkerHost {
           userId: task.userId,
           request,
           result: resultData,
+          sourceLanguage,
         });
 
         return { roadmapId: roadmap.id, data: resultData };

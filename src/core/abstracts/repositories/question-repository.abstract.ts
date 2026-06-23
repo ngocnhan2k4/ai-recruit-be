@@ -11,6 +11,15 @@ export interface QuestionFilters {
   isActive?: boolean;
 }
 
+export interface QuestionTranslationRecord {
+  id: string;
+  questionId: string;
+  languageCode: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+}
+
 export abstract class IQuestionRepository extends IGenericRepository<Question> {
   abstract getPaginatedQuestions(
     query: GeneralQuery & QuestionFilters,
@@ -24,4 +33,22 @@ export abstract class IQuestionRepository extends IGenericRepository<Question> {
   abstract createMany(questions: Partial<Question>[]): Promise<Question[]>;
 
   abstract toggleActive(id: string, isActive: boolean): Promise<Question>;
+
+  abstract getQuestionByIdWithLanguage(id: string): Promise<Question | null>;
+
+  abstract getQuestionsByIdsWithLanguage(ids: string[]): Promise<Question[]>;
+
+  abstract getQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+  ): Promise<QuestionTranslationRecord | null>;
+
+  abstract upsertQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+    data: Pick<
+      QuestionTranslationRecord,
+      "questionText" | "options" | "correctAnswer"
+    >,
+  ): Promise<QuestionTranslationRecord>;
 }

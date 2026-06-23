@@ -1,4 +1,6 @@
 import { UserEducation } from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 
-export abstract class IUserEducationRepository extends IGenericRepository<UserEducation> {}
+export abstract class IUserEducationRepository extends IGenericRepository<UserEducation> {
+  abstract getUserEducationsByUserId(userId: string): Promise<UserEducation[]>;
+}

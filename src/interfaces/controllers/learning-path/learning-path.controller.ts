@@ -12,6 +12,7 @@ import {
   Get,
   Delete,
   Put,
+  Headers,
   Param,
   Query,
   UseGuards,
@@ -60,8 +61,13 @@ export class LearningPathController {
   createRoadmap(
     @Body() dto: PreviewRoadmapDto,
     @GetUser() user: TokenPayload,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ taskId: string }>> {
-    return this.learningPathUseCase.createRoadmap(dto, user.userId);
+    return this.learningPathUseCase.createRoadmap(
+      dto,
+      user.userId,
+      acceptLanguage,
+    );
   }
 
   // @Post()

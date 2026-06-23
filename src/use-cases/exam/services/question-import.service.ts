@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { IQuestionRepository, ISkillRepository, Question } from "@/core";
 import { ImportResultDto } from "@/interfaces/dtos/exam";
+import {
+  TranslationJobType,
+  TRANSLATION_SUPPORTED_LANGUAGES,
+} from "@/common/constants";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { getRequestLanguage } from "@/common/utils";
 
 export interface ImportRow {
   skill?: string;
@@ -16,6 +22,7 @@ export class QuestionImportService {
   constructor(
     private readonly questionRepo: IQuestionRepository,
     private readonly skillRepo: ISkillRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async importFromCSV(fileContent: string): Promise<ImportResultDto> {
@@ -90,6 +97,15 @@ export class QuestionImportService {
           errors.push(`Row ${rowNum}: correctAnswer not found in options`);
           continue;
         }
+        const correctAnswerIndex = options.findIndex(
+          (option) => option === row.correctAnswer,
+        );
+        if (correctAnswerIndex < 0) {
+          errors.push(`Row ${rowNum}: unable to determine correct answer key`);
+          continue;
+        }
+
+        const optionKeys = options.map((_, index) => String(index));
 
         // Parse and validate difficultyLevels
         let difficultyLevels: string[];
@@ -157,6 +173,8 @@ export class QuestionImportService {
           questionText: row.questionText,
           options,
           correctAnswer: row.correctAnswer,
+          optionKeys,
+          correctAnswerKey: String(correctAnswerIndex),
           difficultyLevels: difficultyLevels as (
             | "easy"
             | "medium"
@@ -174,7 +192,24 @@ export class QuestionImportService {
 
     // Bulk insert valid questions
     if (validQuestions.length > 0) {
-      await this.questionRepo.createMany(validQuestions);
+      const sourceLanguage = getRequestLanguage();
+      const targetLanguages = [...TRANSLATION_SUPPORTED_LANGUAGES];
+      const createdQuestions =
+        await this.questionRepo.createMany(validQuestions);
+      if (targetLanguages.length) {
+        await Promise.all(
+          createdQuestions.map((question) =>
+            this.messageQueueService.addTranslation(
+              TranslationJobType.QUESTION,
+              {
+                questionId: question.id,
+                sourceLanguage,
+                targetLanguages,
+              },
+            ),
+          ),
+        );
+      }
     }
 
     return {

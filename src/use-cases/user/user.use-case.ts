@@ -65,6 +65,7 @@ import { addDays } from "date-fns";
 import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
+import { getRequestLanguage, normalizeLanguageCode } from "@/common/utils";
 import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
@@ -502,6 +503,7 @@ export class UserUseCases implements OnModuleInit {
         if (skills !== undefined) {
           preferencesUpdate.skills = skills;
         }
+        preferencesUpdate.languageCode = getRequestLanguage();
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
@@ -579,10 +581,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
         userId,
-        createUserExperienceDto,
+        { ...createUserExperienceDto, languageCode },
       );
     if (!result) {
       throw new NotFoundException({
@@ -602,11 +605,12 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-        updateUserExperienceDto,
+        { ...updateUserExperienceDto, languageCode },
       );
 
     if (!result) {
@@ -835,6 +839,7 @@ export class UserUseCases implements OnModuleInit {
     const newOnboarding = {
       ...onboarding,
       userId,
+      languageCode: getRequestLanguage(),
     } as Partial<UserOnboarding>;
 
     const user = await this.userRepository.get(userId);
@@ -974,9 +979,8 @@ export class UserUseCases implements OnModuleInit {
   async getUserEducations(
     userId: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    const userEducations = await this.userEducationRepository.getByField({
-      userId,
-    });
+    const userEducations =
+      await this.userEducationRepository.getUserEducationsByUserId(userId);
 
     const universities =
       await this.organizationRepository.getOrganizationsByTypes([
@@ -1027,6 +1031,9 @@ export class UserUseCases implements OnModuleInit {
     const newEducation = await this.userEducationRepository.create({
       ...createUserEducationDto,
       userId,
+      languageCode: createUserEducationDto.languageCode
+        ? normalizeLanguageCode(createUserEducationDto.languageCode)
+        : getRequestLanguage(),
     });
 
     return {
@@ -1050,9 +1057,11 @@ export class UserUseCases implements OnModuleInit {
     educationId: string,
     updateUserEducationDto: UpdateUserEducationDto,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const languageCode = getRequestLanguage();
     const userEducation = await this.userEducationRepository.getByField({
       schoolId: educationId,
       userId,
+      languageCode,
     });
 
     if (!userEducation || userEducation.length === 0) {

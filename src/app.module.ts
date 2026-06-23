@@ -32,6 +32,7 @@ import {
   BlogController,
   AdminBlogController,
   CommentController,
+  TranslationController,
   TaskAdminController,
 } from "./interfaces/controllers";
 import { CasbinController } from "./interfaces/controllers/casbin/casbin.controller";
@@ -100,7 +101,10 @@ import { AdminDeploymentController } from "@/interfaces/controllers/deployment/a
 import { AdminCvSyncController } from "@/interfaces/controllers/cv-sync/admin-cv-sync.controller";
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.module";
+import { TranslationModule } from "@/frameworks/translation/translation.module";
+import { TranslationUseCasesModule } from "@/use-cases/translation/translation-use-cases.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { ContextMiddleware } from "./common/middlewares/context.middleware";
 import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
 
 @Module({
@@ -175,6 +179,8 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     DeploymentUseCasesModule,
     BlogUseCasesModule,
     CommentUseCasesModule,
+    TranslationModule,
+    TranslationUseCasesModule,
     TaskUseCasesModule,
     EventTrackingModule,
   ],
@@ -216,6 +222,7 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     BlogController,
     AdminBlogController,
     CommentController,
+    TranslationController,
     TaskAdminController,
   ],
   providers: [
@@ -255,5 +262,6 @@ export class AppModule implements NestModule {
       .apply(RateLimitMiddleware)
       .exclude("/health", "users/me", "auth/refresh")
       .forRoutes("*");
+    consumer.apply(ContextMiddleware).forRoutes("*");
   }
 }
