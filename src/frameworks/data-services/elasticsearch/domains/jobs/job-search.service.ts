@@ -232,17 +232,17 @@ export class JobSearchService implements IJobSearchService {
         {
           distance_feature: {
             field: "createdAt",
-            pivot: "14d",
+            pivot: "10d",
             origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 2,
+            boost: 10,
           },
         },
         {
           distance_feature: {
             field: "datePosted",
-            pivot: "14d",
+            pivot: "10d",
             origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 2,
+            boost: 15,
           },
         },
       );
@@ -693,17 +693,17 @@ export class JobSearchService implements IJobSearchService {
         {
           distance_feature: {
             field: "createdAt",
-            pivot: "14d",
-            origin: "now/h", // Cacheable
-            boost: 1.5,
+            pivot: "10d",
+            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
+            boost: 10,
           },
         },
         {
           distance_feature: {
             field: "datePosted",
-            pivot: "14d",
-            origin: "now/h", // Cacheable
-            boost: 2.0,
+            pivot: "10d",
+            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
+            boost: 15,
           },
         },
       );
