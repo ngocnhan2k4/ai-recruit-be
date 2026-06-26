@@ -8,6 +8,8 @@ Note: VietnamWorks uses dynamically generated CSS class names (React/styled-comp
 so we rely on structural selectors and tag-based patterns rather than specific class names.
 """
 
+import json
+import re
 from datetime import datetime, timezone
 from urllib.parse import urljoin
 
@@ -18,45 +20,250 @@ from helpers.province import is_likely_province
 from helpers.text import html_to_mixed_content, safe_text
 
 
+def _parse_nextjs_payload(html_content: str) -> dict:
+    """Extract and resolve Next.js RSC stream payload from HTML content."""
+    chunks = []
+    idx = 0
+    while True:
+        pos = html_content.find("self.__next_f.push", idx)
+        if pos == -1:
+            break
+        
+        array_start = html_content.find("[", pos)
+        if array_start == -1:
+            idx = pos + 1
+            continue
+            
+        comma_pos = html_content.find(",", array_start)
+        if comma_pos == -1:
+            idx = pos + 1
+            continue
+            
+        quote_char = None
+        quote_pos = -1
+        for i in range(comma_pos + 1, len(html_content)):
+            if html_content[i] in ("'", '"', '`'):
+                quote_char = html_content[i]
+                quote_pos = i
+                break
+                
+        if quote_pos == -1:
+            idx = pos + 1
+            continue
+            
+        val_chars = []
+        i = quote_pos + 1
+        n = len(html_content)
+        while i < n:
+            c = html_content[i]
+            if c == '\\':
+                if i + 1 >= n:
+                    break
+                next_c = html_content[i+1]
+                if next_c == 'n':
+                    val_chars.append('\n')
+                    i += 2
+                elif next_c == 't':
+                    val_chars.append('\t')
+                    i += 2
+                elif next_c == 'r':
+                    val_chars.append('\r')
+                    i += 2
+                elif next_c == 'f':
+                    val_chars.append('\f')
+                    i += 2
+                elif next_c == 'b':
+                    val_chars.append('\b')
+                    i += 2
+                elif next_c == 'u':
+                    hex_str = html_content[i+2:i+6]
+                    try:
+                        val_chars.append(chr(int(hex_str, 16)))
+                        i += 6
+                    except:
+                        val_chars.append('\\u')
+                        i += 2
+                else:
+                    val_chars.append(next_c)
+                    i += 2
+            elif c == quote_char:
+                break
+            else:
+                val_chars.append(c)
+                i += 1
+        
+        chunks.append("".join(val_chars))
+        idx = i + 1
+
+    full_stream = "".join(chunks)
+    if not full_stream:
+        return {}
+
+    defs = {}
+    pattern = re.compile(r'\b([0-9a-fA-F]+):(T[0-9a-fA-F]+,|\{|\[|I|M|E|b)')
+    matches = list(pattern.finditer(full_stream))
+    
+    for idx, match in enumerate(matches):
+        key = match.group(1)
+        prefix = match.group(2)
+        val_start = match.end()
+        
+        if idx + 1 < len(matches):
+            val_end = matches[idx+1].start()
+        else:
+            val_end = len(full_stream)
+            
+        val_str = full_stream[val_start:val_end].strip()
+        defs[key] = (prefix + val_str).strip()
+
+    def resolve(val, defs_dict, visited=None):
+        if visited is None:
+            visited = set()
+            
+        if isinstance(val, str):
+            if val.startswith("$") and val[1:] in defs_dict:
+                ref_key = val[1:]
+                if ref_key in visited:
+                    return None
+                visited.add(ref_key)
+                ref_val_str = defs_dict[ref_key]
+                resolved_ref = parse_value(ref_val_str, ref_key, defs_dict, visited)
+                visited.remove(ref_key)
+                return resolved_ref
+            return val
+        elif isinstance(val, list):
+            return [resolve(item, defs_dict, visited) for item in val]
+        elif isinstance(val, dict):
+            return {k: resolve(v, defs_dict, visited) for k, v in val.items()}
+        return val
+
+    def parse_value(val_str, key, defs_dict, visited):
+        if val_str.startswith('T'):
+            comma_idx = val_str.find(',')
+            if comma_idx != -1:
+                return val_str[comma_idx+1:]
+            return val_str
+        if val_str.startswith('{') or val_str.startswith('['):
+            try:
+                parsed_json = json.loads(val_str.strip())
+                return resolve(parsed_json, defs_dict, visited)
+            except:
+                return val_str
+        return val_str
+
+    job_key = None
+    for k, v in defs.items():
+        if '"jobId"' in v:
+            job_key = k
+            break
+            
+    if job_key:
+        try:
+            job_data = json.loads(defs[job_key].strip())
+            return resolve(job_data, defs)
+        except:
+            pass
+            
+    return {}
+
+
 def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
     """Scrape individual job detail page."""
     print(f"  📄 {job_url}")
 
     try:
         resp = scraper.get(job_url)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        resolved_job = _parse_nextjs_payload(resp.text)
+        
+        if resolved_job:
+            # Job title
+            job_title = resolved_job.get("jobTitle") or job_data.get("title") or "Unknown Job"
+            
+            # Company name
+            company_name = resolved_job.get("companyName") or job_data.get("company")
+            if not company_name:
+                company_name = resolved_job.get("companyInfo", {}).get("companyName") or "Unknown Company"
+                
+            # Company logo
+            logo = resolved_job.get("companyLogo") or resolved_job.get("companyInfo", {}).get("companyLogoURL")
+            
+            # Locations
+            locations = []
+            working_locs = resolved_job.get("workingLocations") or []
+            if isinstance(working_locs, list):
+                for loc in working_locs:
+                    if isinstance(loc, dict):
+                        city = loc.get("cityNameVI") or loc.get("cityName")
+                        if city and city not in locations:
+                            locations.append(city)
+            if not locations:
+                locations = job_data.get("locations", [])
+                
+            # Salary
+            salary_min = resolved_job.get("salaryMin", 0)
+            salary_max = resolved_job.get("salaryMax", 0)
+            pretty_salary = resolved_job.get("prettySalary") or resolved_job.get("prettySalaryVI") or ""
+            if (salary_min == 0 and salary_max == 0) and pretty_salary:
+                if "thương lượng" not in pretty_salary.lower() and "negotiable" not in pretty_salary.lower():
+                    salary_min, salary_max = extract_salary(pretty_salary)
+                    
+            # Experience
+            experience_min = resolved_job.get("yearsOfExperience")
+            if experience_min is not None:
+                try:
+                    experience_min = int(experience_min)
+                except:
+                    experience_min = None
+                    
+            # Skills
+            skills = []
+            job_skills = resolved_job.get("skills") or []
+            if isinstance(job_skills, list):
+                for s in job_skills:
+                    if isinstance(s, dict) and s.get("skillName"):
+                        skills.append(s.get("skillName"))
+            
+            # Description
+            desc_html = ""
+            desc_text = resolved_job.get("jobDescription")
+            req_text = resolved_job.get("jobRequirement")
+            if desc_text:
+                desc_html += f"<h2>Mô tả công việc</h2>\n{desc_text}\n"
+            if req_text:
+                desc_html += f"<h2>Yêu cầu công việc</h2>\n{req_text}\n"
+            description = html_to_mixed_content(desc_html)
+        else:
+            # Fallback to the original BeautifulSoup parsing
+            soup = BeautifulSoup(resp.text, "html.parser")
+            
+            # Job title
+            title_elem = soup.select_one("h1")
+            job_title = safe_text(title_elem) if title_elem else None
+            if not job_title or job_title == "N/A":
+                job_title = job_data.get("title", "Unknown Job")
 
-        # Job title
-        title_elem = soup.select_one("h1")
-        job_title = safe_text(title_elem) if title_elem else None
-        if not job_title or job_title == "N/A":
-            job_title = job_data.get("title", "Unknown Job")
+            # Company name
+            company_name = _extract_company_name(soup, job_data)
 
-        # Company name
-        company_name = _extract_company_name(soup, job_data)
+            # Company logo
+            logo = _extract_logo(soup)
 
-        # Company logo
-        logo = _extract_logo(soup)
+            # Locations
+            locations = job_data.get("locations", [])
+            if not locations:
+                locations = _extract_locations(soup)
 
-        # Locations
-        locations = job_data.get("locations", [])
-        if not locations:
-            locations = _extract_locations(soup)
+            # Salary
+            salary_min, salary_max = _extract_salary(soup)
 
-        # Salary
-        salary_min, salary_max = _extract_salary(soup)
+            # Experience
+            experience_min = _extract_experience(soup)
 
-        # Experience
-        experience_min = _extract_experience(soup)
+            # Skills
+            skills = _extract_skills_from_sections(soup, locations)
 
-        # Skills from requirements section
-        skills = _extract_skills_from_sections(soup, locations)
-
-        # skills already contains extracted tags
-        # (Model extraction will be done asynchronously later)
-
-        # Description — mixed content (markdown headings + raw HTML)
-        description = _extract_description(soup)
+            # Description
+            description = _extract_description(soup)
 
         # Build company and job data
         if company_name not in companies:
@@ -258,40 +465,67 @@ def scrape_page(scraper, page_num, headers):
     companies = {}
 
     # Find job links by URL pattern (-jv suffix)
-    seen_urls = set()
-    unique_jobs = []
+    job_links_dict = {}
     for link in soup.select("a[href*='-jv']"):
         href = link.get("href", "")
-        if "-jv" in href and href not in seen_urls:
+        if "-jv" in href:
             if "/viec-lam?" in href or "/tim-viec-lam" in href:
                 continue
-            seen_urls.add(href)
-            unique_jobs.append(link)
+            # Normalize URL to group by base URL (removing query parameters)
+            base_href = href.split("?")[0]
+            
+            text = safe_text(link)
+            if base_href not in job_links_dict:
+                job_links_dict[base_href] = {
+                    "link": link,
+                    "text": text,
+                    "href": href
+                }
+            else:
+                # If existing is empty/N/A and new has text, update it!
+                if (not job_links_dict[base_href]["text"] or job_links_dict[base_href]["text"] == "N/A") and text and text != "N/A":
+                    job_links_dict[base_href]["link"] = link
+                    job_links_dict[base_href]["text"] = text
+                    job_links_dict[base_href]["href"] = href
 
+    unique_jobs = list(job_links_dict.values())
     print(f"Found {len(unique_jobs)} unique job links")
 
     if not unique_jobs:
         # Fallback: look for any job-like links
+        fallback_dict = {}
         for link in soup.select("a[href]"):
             href = link.get("href", "")
             if any(kw in href for kw in ["/job/", "/viec-lam/", "/tuyen-dung/"]):
-                if href not in seen_urls:
-                    seen_urls.add(href)
-                    unique_jobs.append(link)
+                base_href = href.split("?")[0]
+                text = safe_text(link)
+                if base_href not in fallback_dict:
+                    fallback_dict[base_href] = {
+                        "link": link,
+                        "text": text,
+                        "href": href
+                    }
+                else:
+                    if (not fallback_dict[base_href]["text"] or fallback_dict[base_href]["text"] == "N/A") and text and text != "N/A":
+                        fallback_dict[base_href]["link"] = link
+                        fallback_dict[base_href]["text"] = text
+                        fallback_dict[base_href]["href"] = href
+        unique_jobs = list(fallback_dict.values())
         print(f"Fallback: found {len(unique_jobs)} potential job links")
 
-    for idx, job_link in enumerate(unique_jobs[:15]):
+    for idx, job_info in enumerate(unique_jobs[:15]):
         try:
-            href = job_link.get("href", "")
+            href = job_info["href"]
             job_url = urljoin(base_url, href)
 
             job_data = {
-                "title": safe_text(job_link),
+                "title": job_info["text"],
                 "company": "",
                 "locations": [],
                 "date_posted": None,
             }
 
+            job_link = job_info["link"]
             parent = job_link.find_parent()
             if parent:
                 company_elem = parent.find_next_sibling()
