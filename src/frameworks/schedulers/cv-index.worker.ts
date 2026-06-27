@@ -32,7 +32,7 @@ export class CvIndexWorker extends WorkerHost {
       await this.processEvent(job.name as CvEventType, job.data as CvIndexData);
     } catch (error: any) {
       this.logger.error(
-        `[process] Failed to process cv ${job.id}: ${error}`,
+        `[worker.cv-index.process] Failed to process cv ${job.id}: ${error}`,
         error.stack,
       );
       throw error;

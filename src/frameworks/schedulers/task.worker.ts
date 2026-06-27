@@ -71,16 +71,25 @@ export class TaskWorker extends WorkerHost {
       attemptsMade: job.attemptsMade,
       maxAttempts: job.opts.attempts,
     };
+    try {
+      if (
+        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+      ) {
+        return this.processLearningPath(job.data as TaskData, runOptions);
+      }
 
-    if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
-      return this.processLearningPath(job.data as TaskData, runOptions);
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+        return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
+    } catch (error) {
+      this.logger.error(
+        `[worker.task.process] Failed to process task: ${error}`,
+        error.stack,
+      );
+      throw error;
     }
-
-    if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-      return this.processOptimizeCv(job.data as TaskData, runOptions);
-    }
-
-    this.logger.warn(`[process] Unknown task job name: ${job.name}`);
   }
 
   private async emitAndPersistTask(params: {
