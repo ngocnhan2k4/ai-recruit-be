@@ -1,6 +1,8 @@
 // IMPORTANT: instrument.ts must be imported before everything else so Sentry
 // can instrument all modules (NestJS, database, HTTP, etc.) at startup.
 import "./instrument";
+import * as dns from "dns";
+dns.setDefaultResultOrder("ipv4first");
 
 import { NestFactory } from "@nestjs/core";
 import {

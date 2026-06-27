@@ -40,7 +40,9 @@ def scrape_job_detail(
     )
 
     # date posted
-    imb_3_wrap = soup.find("div", class_="imb-3")
+    job_show_info = soup.find("div", class_="job-show-info")
+    imb_3_wrap = job_show_info.find("div", class_="imb-3") if job_show_info else None
+
     date_posted = None
     if imb_3_wrap:
         span_text = get_date_posted(imb_3_wrap.find_all("span"))
@@ -52,7 +54,9 @@ def scrape_job_detail(
     # category
     category = None
     if imb_3_wrap:
-        category = safe_text(imb_3_wrap.find_all("a", class_="itag")[-1])
+        itags = imb_3_wrap.find_all("a", class_="itag")
+        if itags:
+            category = safe_text(itags[-1])
 
     # Skills extraction with province filtering
     def _collect_itag_skills(container):
@@ -84,7 +88,8 @@ def scrape_job_detail(
         description = ""
 
     # --- Company page ---
-    company_url_tag = soup.find("section", class_="job-show-employer-info").find("a")
+    company_info_sec = soup.find("section", class_="job-show-employer-info")
+    company_url_tag = company_info_sec.find("a") if company_info_sec else None
     company_size = None
     if company_url_tag:
         company_url = urljoin(base_url, company_url_tag.get("href"))
@@ -147,7 +152,9 @@ def scrape_page(scraper, page_num, headers):
     companies = {}
 
     for card in soup.find_all("div", class_="job-card"):
-        link = card["data-search--job-selection-job-url-value"]
+        link = card.get("data-search--job-selection-job-url-value")
+        if not link:
+            continue
 
         loc_text = safe_text(card.find("div", class_="text-truncate"))
         locations = [location.strip() for location in loc_text.split("-") if location]

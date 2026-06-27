@@ -1,6 +1,12 @@
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { PaginatedResult, SortDirection } from "@/common/types";
-import { cacheWithDedup } from "@/common/utils";
+import {
+  buildLanguagePriority,
+  cacheWithDedup,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
+import { generateSlug } from "@/common/utils/string";
 import {
   BlogCategory,
   BlogPost,
@@ -13,6 +19,7 @@ import {
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { ObjectType, UserActionType } from "@/core/entities";
 import {
+  BlogLocaleMap,
   BlogPostDetailBase,
   BlogPostFilters,
   BlogPostListItem,
@@ -120,9 +127,96 @@ export class BlogRepository
     super(db, blogPosts);
   }
 
+  private async invalidateBlogCache(postId: string, slug?: string) {
+    const patterns = [CACHE_KEYS.blog.patternDetail(postId)];
+    if (slug) {
+      patterns.push(CACHE_KEYS.blog.patternSlugDetail(slug));
+    }
+
+    try {
+      const matchedGroups = await Promise.all(
+        patterns.map((pattern) => this.cacheService.getKeysByPattern(pattern)),
+      );
+      const keysToDelete = [...new Set(matchedGroups.flat())];
+
+      if (keysToDelete.length > 0) {
+        await this.cacheService.deleteMultipleKeys(keysToDelete);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[cache] Failed to invalidate blog cache for ${postId}`,
+        err,
+      );
+    }
+  }
+
+  private normalizeLocaleMap(value: unknown): BlogLocaleMap {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (acc, [languageCode, localizedContent]) => {
+        if (
+          !localizedContent ||
+          typeof localizedContent !== "object" ||
+          Array.isArray(localizedContent)
+        ) {
+          return acc;
+        }
+
+        const normalized = Object.entries(
+          localizedContent as Record<string, unknown>,
+        ).reduce(
+          (fieldAcc, [field, fieldValue]) => {
+            if (
+              (field === "title" ||
+                field === "summary" ||
+                field === "content") &&
+              typeof fieldValue === "string"
+            ) {
+              fieldAcc[field] = fieldValue;
+            }
+            return fieldAcc;
+          },
+          {} as NonNullable<BlogLocaleMap[string]>,
+        );
+
+        if (Object.keys(normalized).length > 0) {
+          acc[languageCode] = normalized;
+        }
+
+        return acc;
+      },
+      {} as BlogLocaleMap,
+    );
+  }
+
+  private resolveLocalizedValue(params: {
+    locales?: BlogLocaleMap | null;
+    field: "title" | "summary" | "content";
+    requestLanguage: string;
+    fallbackLanguage: string;
+    baseValue: string | null;
+  }) {
+    const locales = params.locales ?? {};
+    for (const languageCode of buildLanguagePriority(
+      params.requestLanguage,
+      params.fallbackLanguage,
+    )) {
+      const resolved = locales[languageCode]?.[params.field];
+      if (typeof resolved === "string" && resolved.length > 0) {
+        return resolved;
+      }
+    }
+
+    return params.baseValue ?? "";
+  }
+
   private mapToPostDetailBase(post: {
     id: string;
     title: string;
+    locales?: BlogLocaleMap | null;
     slug: string;
     summary: string | null;
     thumbnail: string | null;
@@ -142,6 +236,7 @@ export class BlogRepository
     return {
       id: post.id,
       title: post.title,
+      locales: post.locales ?? {},
       slug: post.slug,
       summary: post.summary ?? "",
       thumbnail: post.thumbnail,
@@ -164,24 +259,25 @@ export class BlogRepository
     };
   }
 
-  private async invalidateBlogCache(postId: string, slug?: string) {
-    const pattern = CACHE_KEYS.blog.patternDetail(postId);
-
-    try {
-      const matchedKeys = await this.cacheService.getKeysByPattern(pattern);
-      const keysToDelete = [...matchedKeys];
-      if (slug) {
-        keysToDelete.push(CACHE_KEYS.blog.getPostBaseBySlug(slug));
-      }
-      if (keysToDelete.length > 0) {
-        await this.cacheService.deleteMultipleKeys(keysToDelete);
-      }
-    } catch (err) {
-      this.logger.warn(
-        `[cache] Failed to invalidate blog cache for ${postId} (pattern ${pattern})`,
-        err,
-      );
-    }
+  async get(id: string): Promise<BlogPost | null> {
+    const key = CACHE_KEYS.blog.get(id);
+    return cacheWithDedup<BlogPost | null>(
+      key,
+      () => this.cacheService.getJson<BlogPost | null>(key),
+      async () => {
+        const [post] = await this.db
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+          .limit(1);
+        return (post as BlogPost) ?? null;
+      },
+      (data: BlogPost | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   async update(
@@ -209,29 +305,8 @@ export class BlogRepository
     return data;
   }
 
-  async get(id: string): Promise<BlogPost | null> {
-    const key = CACHE_KEYS.blog.get(id);
-    return cacheWithDedup<BlogPost | null>(
-      key,
-      () => this.cacheService.getJson<BlogPost | null>(key),
-      async () => {
-        const [post] = await this.db
-          .select()
-          .from(blogPosts)
-          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .limit(1);
-        return (post as BlogPost) ?? null;
-      },
-      (data: BlogPost | null) =>
-        this.cacheService.setJson(key, data, SHORT_TTL),
-      {
-        logger: this.logger,
-      },
-    );
-  }
-
   async getCategories(): Promise<{ id: string; name: string }[]> {
-    return this.db
+    return await this.db
       .select({
         id: blogCategories.id,
         name: blogCategories.name,
@@ -371,12 +446,19 @@ export class BlogRepository
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const baseWhere = this.buildPostWhere(filters);
-    return this.queryPostsWithOffset(filters, baseWhere);
+    return this.queryPostsWithOffset(
+      filters,
+      baseWhere,
+      getRequestLanguage(),
+      getFallbackLanguage(),
+    );
   }
 
   private async queryPostsWithOffset(
     filters: BlogPostFilters,
     baseWhere: ReturnType<typeof and> | undefined,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
@@ -388,6 +470,7 @@ export class BlogRepository
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -414,7 +497,26 @@ export class BlogRepository
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: rows as BlogPostListItem[],
+      data: rows.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+        sourceType: item.sourceType as BlogSourceType,
+        source: item.source as BlogPostSource | null,
+      })) as BlogPostListItem[],
       pagination: {
         total,
         hasNextPage: page < totalPages,
@@ -437,13 +539,20 @@ export class BlogRepository
       conditions.push(eq(blogPosts.categoryId, filters.category));
     if (filters.status) conditions.push(eq(blogPosts.status, filters.status));
     const baseWhere = and(...conditions);
-    return this.queryPostsWithCursor(filters, baseWhere);
+    return this.queryPostsWithCursor(
+      filters,
+      baseWhere,
+      getRequestLanguage(),
+      getFallbackLanguage(),
+    );
   }
 
   async getSavedBlogs(
     userId: string,
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
     const sortBy = resolveCursorSortBy(filters.sortBy);
@@ -484,6 +593,7 @@ export class BlogRepository
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -524,7 +634,24 @@ export class BlogRepository
         : (last?.updatedAt ?? last?.createdAt);
 
     return {
-      data: data as BlogPostListItem[],
+      data: data.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+      })) as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
@@ -539,6 +666,8 @@ export class BlogRepository
   private async queryPostsWithCursor(
     filters: BlogPostFilters,
     baseWhere: SQL | ReturnType<typeof and> | undefined,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
@@ -564,6 +693,7 @@ export class BlogRepository
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -594,7 +724,24 @@ export class BlogRepository
         : (last?.updatedAt ?? last?.createdAt);
 
     return {
-      data: data as BlogPostListItem[],
+      data: data.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+      })) as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
@@ -642,7 +789,14 @@ export class BlogRepository
   }
 
   async getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null> {
-    const key = CACHE_KEYS.blog.getPostBaseBySlug(slug);
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const key = CACHE_KEYS.blog.getPostBaseBySlug(
+      slug,
+      requestLanguage,
+      fallbackLanguage,
+    );
+
     return cacheWithDedup<BlogPostDetailBase | null>(
       key,
       () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
@@ -651,6 +805,7 @@ export class BlogRepository
           .select({
             id: blogPosts.id,
             title: blogPosts.title,
+            locales: blogPosts.locales,
             slug: blogPosts.slug,
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
@@ -674,7 +829,33 @@ export class BlogRepository
 
         if (!post) return null;
 
-        return this.mapToPostDetailBase(post);
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -685,7 +866,14 @@ export class BlogRepository
   }
 
   async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
-    const key = CACHE_KEYS.blog.getPostBaseById(id);
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const key = CACHE_KEYS.blog.getPostBaseById(
+      id,
+      requestLanguage,
+      fallbackLanguage,
+    );
+
     return cacheWithDedup<BlogPostDetailBase | null>(
       key,
       () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
@@ -694,6 +882,7 @@ export class BlogRepository
           .select({
             id: blogPosts.id,
             title: blogPosts.title,
+            locales: blogPosts.locales,
             slug: blogPosts.slug,
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
@@ -717,7 +906,33 @@ export class BlogRepository
 
         if (!post) return null;
 
-        return this.mapToPostDetailBase(post);
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -750,6 +965,7 @@ export class BlogRepository
         await this.updatePostTags(created.id, normalizedTags);
       }
 
+      await this.invalidateBlogCache(created.id, created.slug);
       return created as BlogPost;
     });
   }
@@ -760,6 +976,7 @@ export class BlogRepository
       title?: string;
       summary?: string;
       content?: string;
+      locales?: BlogLocaleMap;
       categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
@@ -768,7 +985,6 @@ export class BlogRepository
   ): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
       const tx = this.getExecutor();
-      const finalCategoryId = await this.resolveCategoryId(data.categoryId);
 
       if (postId) {
         const [existing] = await tx
@@ -781,10 +997,15 @@ export class BlogRepository
           throw new Error(`Draft blog post ${postId} not found`);
         }
 
+        const finalCategoryId = await this.resolveCategoryId(
+          data.categoryId ?? existing.categoryId ?? undefined,
+        );
+
         const updateData: Record<string, unknown> = {
           title: data.title ?? existing.title ?? "Bản nháp không có tiêu đề",
           summary: data.summary ?? existing.summary ?? "",
           content: data.content ?? existing.content ?? "",
+          locales: data.locales ?? existing.locales ?? {},
           thumbnail:
             data.thumbnail !== undefined ? data.thumbnail : existing.thumbnail,
           categoryId: finalCategoryId,
@@ -807,19 +1028,16 @@ export class BlogRepository
       } else {
         // Create new draft
         const timestampValue = new Date().getTime();
-        const baseSlug = data.title
-          ? data.title
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/(^-|-$)/g, "")
-          : "draft";
+        const baseSlug = data.title ? generateSlug(data.title) : "draft";
         const slug = `${baseSlug}-${timestampValue}`;
+        const finalCategoryId = await this.resolveCategoryId(data.categoryId);
 
         const insertData: any = {
           title: data.title ?? "Bản nháp không có tiêu đề",
           slug,
           summary: data.summary ?? "",
           content: data.content ?? "",
+          locales: data.locales ?? {},
           thumbnail: data.thumbnail ?? null,
           status: "DRAFT",
           sourceType: "USER",
@@ -840,6 +1058,7 @@ export class BlogRepository
           await this.updatePostTags(created.id, normalizedTags);
         }
 
+        await this.invalidateBlogCache(created.id, created.slug);
         return created as BlogPost;
       }
     });
@@ -1033,10 +1252,12 @@ export class BlogRepository
       title?: string;
       summary?: string;
       content?: string;
+      locales?: BlogLocaleMap;
       categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
       status?: BlogPostStatus;
+      slug?: string;
     },
   ): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
@@ -1046,10 +1267,12 @@ export class BlogRepository
       if (data.title !== undefined) updateData.title = data.title;
       if (data.summary !== undefined) updateData.summary = data.summary;
       if (data.content !== undefined) updateData.content = data.content;
+      if (data.locales !== undefined) updateData.locales = data.locales;
       if (data.categoryId !== undefined)
         updateData.categoryId = data.categoryId;
       if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
       if (data.status !== undefined) updateData.status = data.status;
+      if (data.slug !== undefined) updateData.slug = data.slug;
 
       const [updated] = await tx
         .update(blogPosts)

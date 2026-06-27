@@ -20,11 +20,13 @@ import {
   UserActionType,
 } from "@/core/entities";
 import {
+  BlogLocaleMap,
   BlogPostListItem,
   BlogPostUserActions,
 } from "@/core/entities/blog.entity";
 import { ApiResponse } from "@/interfaces/dtos";
 import {
+  BlogLocalesDto,
   CreateBlogCategoryDto,
   CreateBlogPostDto,
   CreateBlogTagDto,
@@ -65,6 +67,107 @@ export class BlogUseCases {
     private readonly notificationService: INotificationService,
     private readonly commentService: CommentService,
   ) {}
+
+  private resolveLegacyBlogField(
+    field: "title" | "summary" | "content",
+    baseValue: string | undefined,
+    locales?: BlogLocalesDto,
+    existing?: Partial<BlogPost> | null,
+  ) {
+    if (baseValue !== undefined) {
+      return baseValue;
+    }
+
+    const localizedValue = locales?.vi?.[field];
+    if (localizedValue !== undefined) {
+      return localizedValue;
+    }
+
+    return existing?.[field];
+  }
+
+  private buildLocalizedBlogLocales(params: {
+    title?: string;
+    summary?: string;
+    content?: string;
+    locales?: BlogLocalesDto;
+    existing?: Partial<BlogPost> | null;
+  }) {
+    if (
+      params.title === undefined &&
+      params.summary === undefined &&
+      params.content === undefined &&
+      params.locales === undefined
+    ) {
+      return undefined;
+    }
+
+    const existingLocales = params.existing?.locales ?? {};
+    const mergedLocales: BlogLocaleMap = {
+      ...existingLocales,
+    };
+
+    for (const languageCode of ["vi", "en"] as const) {
+      const nextLocale = params.locales?.[languageCode];
+      if (!nextLocale) {
+        continue;
+      }
+
+      mergedLocales[languageCode] = {
+        ...(mergedLocales[languageCode] ?? {}),
+        ...(nextLocale.title !== undefined ? { title: nextLocale.title } : {}),
+        ...(nextLocale.summary !== undefined
+          ? { summary: nextLocale.summary }
+          : {}),
+        ...(nextLocale.content !== undefined
+          ? { content: nextLocale.content }
+          : {}),
+      };
+    }
+
+    const resolvedVietnameseLocale = {
+      ...(mergedLocales.vi ?? {}),
+      ...(params.title !== undefined ? { title: params.title } : {}),
+      ...(params.summary !== undefined ? { summary: params.summary } : {}),
+      ...(params.content !== undefined ? { content: params.content } : {}),
+    };
+
+    if (Object.keys(resolvedVietnameseLocale).length > 0) {
+      mergedLocales.vi = resolvedVietnameseLocale;
+    }
+
+    return mergedLocales;
+  }
+
+  private buildLocalizedBlogPayload(params: {
+    title?: string;
+    summary?: string;
+    content?: string;
+    locales?: BlogLocalesDto;
+    existing?: Partial<BlogPost> | null;
+  }) {
+    return {
+      title: this.resolveLegacyBlogField(
+        "title",
+        params.title,
+        params.locales,
+        params.existing,
+      ),
+      summary: this.resolveLegacyBlogField(
+        "summary",
+        params.summary,
+        params.locales,
+        params.existing,
+      ),
+      content: this.resolveLegacyBlogField(
+        "content",
+        params.content,
+        params.locales,
+        params.existing,
+      ),
+      locales: this.buildLocalizedBlogLocales(params),
+    };
+  }
 
   async createComment(
     user: TokenPayload,
@@ -222,6 +325,7 @@ export class BlogUseCases {
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
     const { limit, page } = this.normalizePagination(query);
     const { data, pagination } = await this.blogRepository.getPosts({
+      ...query,
       limit,
       page,
       keyword: query.keyword,
@@ -246,6 +350,8 @@ export class BlogUseCases {
       keyword: query.keyword,
       category: query.category,
       status: query.status,
+      sortBy: query.sortBy,
+      sortDirection: query.sortDirection,
     });
 
     return this.buildPaginatedBlogsResponse(data, pagination);
@@ -342,17 +448,6 @@ export class BlogUseCases {
   }
 
   async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    const cacheKey = CACHE_KEYS.blog.topBlogs();
-    const cached =
-      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
-    if (cached) {
-      return {
-        code: RESPONSE_CODE.SUCCESS,
-        message: RESPONSE_MESSAGE.SUCCESS,
-        data: cached,
-      };
-    }
-
     const { data } = await this.blogRepository.getPosts({
       limit: 100,
       page: 1,
@@ -361,8 +456,6 @@ export class BlogUseCases {
 
     const dataWithTags = await this.getBlogsWithTags(data);
     const result = this.blogService.calculateTopBlogs(dataWithTags);
-
-    await this.cacheService.setJson(cacheKey, result, 600000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -375,17 +468,6 @@ export class BlogUseCases {
     slug: string,
     limit = 4,
   ): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    const cacheKey = CACHE_KEYS.blog.relatedPosts(slug);
-    const cached =
-      await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey);
-    if (cached) {
-      return {
-        code: RESPONSE_CODE.SUCCESS,
-        message: RESPONSE_MESSAGE.SUCCESS,
-        data: cached,
-      };
-    }
-
     const currentPost = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!currentPost) {
@@ -414,8 +496,6 @@ export class BlogUseCases {
       currentTags,
       limit,
     );
-
-    await this.cacheService.setJson(cacheKey, result, 1800000);
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -531,6 +611,12 @@ export class BlogUseCases {
     user: TokenPayload,
     dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ slug: string }>> {
+    const localizedPayload = this.buildLocalizedBlogPayload({
+      title: dto.title,
+      summary: dto.summary,
+      content: dto.content,
+      locales: dto.locales,
+    });
     const result = await this.blogRepository.executeWithTransaction(
       async () => {
         const baseSlug = generateSlug(dto.title);
@@ -538,11 +624,12 @@ export class BlogUseCases {
         const slug = existed ? `${baseSlug}-${Date.now()}` : baseSlug;
 
         return this.blogRepository.createPost({
-          title: dto.title,
+          title: localizedPayload.title!,
           slug,
-          summary: dto.summary,
+          summary: localizedPayload.summary!,
           thumbnail: dto.thumbnail ?? null,
-          content: dto.content,
+          content: localizedPayload.content!,
+          locales: localizedPayload.locales ?? {},
           categoryId: dto.category,
           authorId: user.userId,
           status: BlogPostStatus.PENDING,
@@ -565,7 +652,18 @@ export class BlogUseCases {
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     if (postId) {
-      await this.blogService.checkIsAuthor(postId, user.userId);
+      const existing = await this.blogRepository.get(postId);
+      if (!existing) {
+        throw new NotFoundException({
+          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+          message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+        });
+      }
+      if (existing.authorId !== user.userId) {
+        throw new BadRequestException(
+          "You are not the author of this blog post",
+        );
+      }
     }
 
     const result = await this.blogRepository.saveDraft(
@@ -593,16 +691,41 @@ export class BlogUseCases {
     postId: string,
     dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ id: string }>> {
-    await this.blogService.checkIsAuthor(postId, user.userId);
+    const existing = await this.blogRepository.get(postId);
+    if (!existing) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
+      });
+    }
 
-    await this.blogRepository.updatePost(postId, {
+    if (existing.authorId !== user.userId) {
+      throw new BadRequestException("You are not the author of this blog post");
+    }
+
+    const baseSlug = generateSlug(dto.title);
+    const existed = await this.blogRepository.getPostBySlug(baseSlug);
+    const slug =
+      existed && existed.id !== postId ? `${baseSlug}-${Date.now()}` : baseSlug;
+
+    const localizedPayload = this.buildLocalizedBlogPayload({
       title: dto.title,
       summary: dto.summary,
       content: dto.content,
+      locales: dto.locales,
+      existing,
+    });
+
+    await this.blogRepository.updatePost(postId, {
+      title: localizedPayload.title,
+      summary: localizedPayload.summary,
+      content: localizedPayload.content,
+      locales: localizedPayload.locales ?? {},
       categoryId: dto.category,
-      thumbnail: dto.thumbnail,
+      thumbnail: dto.thumbnail ?? null,
       tags: dto.tags,
       status: BlogPostStatus.PENDING,
+      slug,
     });
 
     return {
@@ -623,11 +746,19 @@ export class BlogUseCases {
       (existing.status as any) === BlogPostStatus.DRAFT
         ? BlogPostStatus.DRAFT
         : BlogPostStatus.PENDING;
-
-    await this.blogRepository.updatePost(postId, {
+    const localizedPayload = this.buildLocalizedBlogPayload({
       title: dto.title,
       summary: dto.summary,
       content: dto.content,
+      locales: dto.locales,
+      existing,
+    });
+
+    await this.blogRepository.updatePost(postId, {
+      title: localizedPayload.title,
+      summary: localizedPayload.summary,
+      content: localizedPayload.content,
+      locales: localizedPayload.locales,
       categoryId: dto.category,
       thumbnail: dto.thumbnail,
       tags: dto.tags,

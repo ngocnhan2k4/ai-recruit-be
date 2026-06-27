@@ -32,6 +32,7 @@ export class CreateUserExperience {
   startDate: Date;
   endDate?: Date;
   description: string;
+  languageCode?: string;
   skillIds?: Skill["id"][];
   skillNames?: Skill["name"][];
 }

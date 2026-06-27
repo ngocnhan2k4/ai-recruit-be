@@ -1,11 +1,11 @@
 import { PaginatedResult } from "@/common/types";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { Comment, CommentWithAuthor, ObjectType } from "@/core/entities";
-import { Inject, Injectable } from "@nestjs/common";
 import { and, count, desc, eq, isNull, lt, sql } from "drizzle-orm";
+import { GenericRepository } from "./generic-repository";
+import { Inject, Injectable } from "@nestjs/common";
 import { comments, users } from "../models";
 import { type DBDrizzle } from "../types";
-import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class CommentRepository
@@ -56,6 +56,7 @@ export class CommentRepository
       .select({
         id: comments.id,
         content: comments.content,
+        languageCode: comments.languageCode,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
         depth: comments.depth,
@@ -121,6 +122,7 @@ export class CommentRepository
       .select({
         id: comments.id,
         content: comments.content,
+        languageCode: comments.languageCode,
         authorId: comments.authorId,
         parentCommentId: comments.parentCommentId,
         depth: comments.depth,

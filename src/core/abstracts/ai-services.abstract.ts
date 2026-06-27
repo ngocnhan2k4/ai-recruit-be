@@ -8,7 +8,11 @@ import {
   ExtractCvRequest,
   ExtractCvResponse,
 } from "../entities";
-import { RoadmapGenerateRequest } from "../entities/learning-path.entity";
+import {
+  RoadmapGenerateRequest,
+  SubpathGenerateRequest,
+  AISubpathResult,
+} from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
 
@@ -16,6 +20,10 @@ export abstract class IAIService {
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Observable<MessageEvent>;
+
+  abstract generateSubPath(
+    request: SubpathGenerateRequest,
+  ): Promise<AISubpathResult>;
 
   abstract optimizeCvAts(
     request: OptimizeAtsRequest,
@@ -30,4 +38,7 @@ export abstract class IAIService {
   ): Promise<GenerateJobBlogPostResponse>;
 
   abstract extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse>;
+
+  abstract generateEmbedding(text: string): Promise<number[]>;
+  abstract generateEmbeddings(texts: string[]): Promise<number[][]>;
 }

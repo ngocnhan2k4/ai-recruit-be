@@ -10,14 +10,22 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import {
   learningRoadmaps,
+  roadmapPhaseTranslation,
   roadmapPhases,
+  roadmapSkillTranslation,
   roadmapSkills,
   roadmapSkillOptions,
   skills,
+  subpaths,
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { eq, and, SQL, isNull, desc, lt } from "drizzle-orm";
-import { getCurrentWeekNumber } from "@/common/utils";
+import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
+import {
+  buildLanguagePriority,
+  getCurrentWeekNumber,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -83,6 +91,8 @@ export class LearningRoadmapRepository
   async getRoadmapWithDetails(
     roadmapId: string,
   ): Promise<LearningRoadmapWithDetails | null> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const roadmap = await this.db
       .select()
       .from(learningRoadmaps)
@@ -109,6 +119,12 @@ export class LearningRoadmapRepository
       )
       .orderBy(roadmapPhases.orderIndex);
 
+    const phaseTranslationMap = await this.getRoadmapPhaseTranslationsMap(
+      phases.map((phase) => phase.id),
+      requestLanguage,
+      fallbackLanguage,
+    );
+
     const phasesWithSkills = await Promise.all(
       phases.map(async (phase) => {
         const phaseSkills = await this.db
@@ -122,48 +138,96 @@ export class LearningRoadmapRepository
           )
           .orderBy(roadmapSkills.orderIndex);
 
-        // Fetch options for each skill
-        const skillsWithOptions = await Promise.all(
-          phaseSkills.map(async (skill) => {
-            const options = await this.db
-              .select()
-              .from(roadmapSkillOptions)
-              .where(
-                and(
-                  eq(roadmapSkillOptions.roadmapSkillId, skill.id),
-                  isNull(roadmapSkillOptions.deletedAt),
-                ),
-              );
-
-            // Enrich each option with optionName and proficiencyLevels from skills table
-            const enrichedOptions = await Promise.all(
-              options.map(async (option) => {
-                const skillResult = await this.db
-                  .select({
-                    name: skills.name,
-                    proficiencyLevels: skills.proficiencyLevels,
-                  })
-                  .from(skills)
-                  .where(eq(skills.id, option.optionId))
-                  .limit(1);
-
-                return {
-                  ...option,
-                  optionName: skillResult[0]?.name || "",
-                  proficiencyLevels: skillResult[0]?.proficiencyLevels || null,
-                };
-              }),
-            );
-
-            return {
-              ...skill,
-              options: enrichedOptions,
-            };
-          }),
+        const skillTranslationMap = await this.getRoadmapSkillTranslationsMap(
+          phaseSkills.map((skill) => skill.id),
+          requestLanguage,
+          fallbackLanguage,
         );
+
+        // Batch fetch all options for all skills in this phase
+        const skillIds = phaseSkills.map((s) => s.id);
+        const allOptions =
+          skillIds.length > 0
+            ? await this.db
+                .select()
+                .from(roadmapSkillOptions)
+                .where(
+                  and(
+                    inArray(roadmapSkillOptions.roadmapSkillId, skillIds),
+                    isNull(roadmapSkillOptions.deletedAt),
+                  ),
+                )
+            : [];
+
+        // Batch fetch skill names for all optionIds
+        const optionIds = [...new Set(allOptions.map((o) => o.optionId))];
+        const skillNameMap = new Map<string, string>();
+        if (optionIds.length > 0) {
+          const skillRows = await this.db
+            .select({ id: skills.id, name: skills.name })
+            .from(skills)
+            .where(inArray(skills.id, optionIds));
+          for (const row of skillRows) skillNameMap.set(row.id, row.name);
+        }
+
+        // Batch check which (optionName, targetRole, currentRole) tuples have subpaths
+        const targetRole = roadmap[0].targetRole;
+        const currentRole = roadmap[0].currentRole ?? "";
+        const allOptionNames = [
+          ...new Set(
+            allOptions.map((o) => skillNameMap.get(o.optionId) ?? o.optionId),
+          ),
+        ];
+        const existingSubpathNames = new Set<string>();
+        if (allOptionNames.length > 0) {
+          const subpathRows = await this.db
+            .select({ optionName: subpaths.optionName })
+            .from(subpaths)
+            .where(
+              and(
+                inArray(subpaths.optionName, allOptionNames),
+                eq(subpaths.targetRole, targetRole),
+                eq(subpaths.currentRole, currentRole),
+                isNull(subpaths.deletedAt),
+              ),
+            );
+          for (const row of subpathRows)
+            existingSubpathNames.add(row.optionName);
+        }
+
+        // Group options by skill and attach enriched data
+        const optionsBySkill = new Map<string, typeof allOptions>();
+        for (const opt of allOptions) {
+          const list = optionsBySkill.get(opt.roadmapSkillId) ?? [];
+          list.push(opt);
+          optionsBySkill.set(opt.roadmapSkillId, list);
+        }
+
+        const skillsWithOptions = phaseSkills.map((skill) => {
+          const options = optionsBySkill.get(skill.id) ?? [];
+          const enrichedOptions = options.map((option) => {
+            const optionName =
+              skillNameMap.get(option.optionId) ?? option.optionId;
+            return {
+              ...option,
+              optionName,
+              hasSubpath: existingSubpathNames.has(optionName),
+            };
+          });
+          return {
+            ...skill,
+            skill: skillTranslationMap[skill.id]?.skill || skill.skill,
+            description:
+              skillTranslationMap[skill.id]?.description || skill.description,
+            options: enrichedOptions,
+          };
+        });
 
         return {
           ...phase,
+          name: phaseTranslationMap[phase.id]?.name || phase.name,
+          description:
+            phaseTranslationMap[phase.id]?.description || phase.description,
           skills: skillsWithOptions,
         };
       }),
@@ -210,7 +274,7 @@ export class LearningRoadmapRepository
     const totalSkills = allSkills.length;
 
     // For each skill, check if any option has been completed
-    const completedSkillsCount = await Promise.all(
+    const completedSkillsCount: number[] = await Promise.all(
       allSkills.map(async (skillRow) => {
         const skill = skillRow.roadmap_skills;
         const completedOptions = await this.db
@@ -228,7 +292,10 @@ export class LearningRoadmapRepository
       }),
     );
 
-    const completedSkills = completedSkillsCount.reduce((a, b) => a + b, 0);
+    const completedSkills = completedSkillsCount.reduce<number>(
+      (sum, count) => sum + count,
+      0,
+    );
 
     const overallProgress =
       totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;
@@ -297,5 +364,106 @@ export class LearningRoadmapRepository
     );
 
     return enriched;
+  }
+
+  private async getRoadmapPhaseTranslationsMap(
+    phaseIds: string[],
+    requestLanguage: string,
+    fallbackLanguage: string,
+  ) {
+    if (!phaseIds.length) {
+      return {} as Record<string, { name: string; description: string }>;
+    }
+
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
+    );
+    if (!languagePriority.length) {
+      return {};
+    }
+
+    const rows = await this.db
+      .select({
+        phaseId: roadmapPhaseTranslation.phaseId,
+        languageCode: roadmapPhaseTranslation.languageCode,
+        name: roadmapPhaseTranslation.name,
+        description: roadmapPhaseTranslation.description,
+      })
+      .from(roadmapPhaseTranslation)
+      .where(
+        and(
+          inArray(roadmapPhaseTranslation.phaseId, phaseIds),
+          inArray(roadmapPhaseTranslation.languageCode, languagePriority),
+          isNull(roadmapPhaseTranslation.deletedAt),
+        ),
+      );
+
+    const map: Record<string, { name: string; description: string }> = {};
+    for (const id of phaseIds) {
+      const found = rows.find(
+        (row) => row.phaseId === id && row.languageCode === languagePriority[0],
+      );
+      const fallback = rows.find(
+        (row) => row.phaseId === id && row.languageCode === languagePriority[1],
+      );
+      map[id] = {
+        name: found?.name || fallback?.name || "",
+        description: found?.description || fallback?.description || "",
+      };
+    }
+
+    return map;
+  }
+
+  private async getRoadmapSkillTranslationsMap(
+    skillIds: string[],
+    requestLanguage: string,
+    fallbackLanguage: string,
+  ) {
+    if (!skillIds.length) {
+      return {} as Record<string, { skill: string; description: string }>;
+    }
+
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
+    );
+    if (!languagePriority.length) {
+      return {};
+    }
+
+    const rows = await this.db
+      .select({
+        skillId: roadmapSkillTranslation.skillId,
+        languageCode: roadmapSkillTranslation.languageCode,
+        skill: roadmapSkillTranslation.skill,
+        description: roadmapSkillTranslation.description,
+      })
+      .from(roadmapSkillTranslation)
+      .where(
+        and(
+          inArray(roadmapSkillTranslation.skillId, skillIds),
+          inArray(roadmapSkillTranslation.languageCode, languagePriority),
+          isNull(roadmapSkillTranslation.deletedAt),
+        ),
+      );
+
+    const map: Record<string, { skill: string; description: string }> = {};
+    for (const id of skillIds) {
+      const found = rows.find(
+        (row) => row.skillId === id && row.languageCode === languagePriority[0],
+      );
+      const fallback = rows.find(
+        (row) => row.skillId === id && row.languageCode === languagePriority[1],
+      );
+
+      map[id] = {
+        skill: found?.skill || fallback?.skill || "",
+        description: found?.description || fallback?.description || "",
+      };
+    }
+
+    return map;
   }
 }

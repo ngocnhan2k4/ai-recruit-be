@@ -12,6 +12,7 @@ import {
   Observable,
 } from "rxjs";
 import { AxiosError, AxiosResponse } from "axios";
+import OpenAI from "openai";
 
 import {
   ExtractCvResponse,
@@ -25,6 +26,10 @@ import {
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
 } from "@/core";
+import {
+  SubpathGenerateRequest,
+  AISubpathResult,
+} from "@/core/entities/learning-path.entity";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -33,6 +38,7 @@ export class AIClientService implements IAIService {
   private readonly aiServiceTimeout: number;
   private readonly maxRetries: number;
   private readonly apiKey: string;
+  private readonly openai: OpenAI;
 
   constructor(
     private readonly httpService: HttpService,
@@ -49,6 +55,14 @@ export class AIClientService implements IAIService {
       this.configService.get<number>("AI_SERVICE_MAX_RETRIES") || 3;
 
     this.apiKey = this.configService.get<string>("AI_API_KEY")!;
+
+    this.openai = new OpenAI({
+      apiKey: this.apiKey, // Assuming AI_API_KEY is actually the OpenAI key. If not, this might fail. We should use OPENAI_API_KEY. Let's try OPENAI_API_KEY.
+    });
+    // Override with OPENAI_API_KEY if exists
+    if (this.configService.get<string>("OPENAI_API_KEY")) {
+      this.openai.apiKey = this.configService.get<string>("OPENAI_API_KEY")!;
+    }
   }
 
   private formatAxiosErrorMessage(error: AxiosError): string {
@@ -137,6 +151,48 @@ export class AIClientService implements IAIService {
 
       makeRequest();
     });
+  }
+
+  async generateSubPath(
+    request: SubpathGenerateRequest,
+  ): Promise<AISubpathResult> {
+    const url = `${this.aiServiceUrl}/api/v1/generate-subpath`;
+
+    return firstValueFrom(
+      this.httpService
+        .post<AISubpathResult>(url, request, {
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": this.apiKey,
+          },
+        })
+        .pipe(
+          timeout(this.aiServiceTimeout * 2),
+          retry({
+            count: this.maxRetries,
+            delay: (_, retryCount) => {
+              const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
+              return new Promise((resolve) => setTimeout(resolve, delayMs));
+            },
+            resetOnSuccess: true,
+          }),
+          catchError((error: AxiosError) => {
+            const errorMsg = this.formatAxiosErrorMessage(error);
+            this.logger.error(
+              `AI Service subpath generation failed: ${errorMsg}`,
+              error.stack,
+            );
+
+            throw new Error(
+              `AI Service subpath generation failed: ${errorMsg}`,
+            );
+          }),
+          map(
+            (response: AxiosResponse<AISubpathResult>): AISubpathResult =>
+              response.data,
+          ),
+        ),
+    );
   }
 
   // Optimize CV for ATS compatibility
@@ -232,5 +288,36 @@ export class AIClientService implements IAIService {
       body: request,
       errorContext: "AI Service CV extraction failed",
     });
+  }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      const response = await this.openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text.substring(0, 8000), // OpenAI max tokens ~8k
+        encoding_format: "float",
+      });
+
+      return response.data[0].embedding;
+    } catch (error: any) {
+      this.logger.error(`Failed to generate embedding: ${error.message}`);
+      throw new Error(`Embedding generation failed: ${error.message}`);
+    }
+  }
+
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    if (!texts.length) return [];
+    try {
+      const response = await this.openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: texts.map((t) => t.substring(0, 8000)),
+        encoding_format: "float",
+      });
+
+      return response.data.map((d) => d.embedding);
+    } catch (error: any) {
+      this.logger.error(`Failed to generate embeddings: ${error.message}`);
+      throw new Error(`Embeddings generation failed: ${error.message}`);
+    }
   }
 }

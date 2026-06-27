@@ -97,7 +97,10 @@ export class UserAnswerRepository
 
   async upsertAnswers(
     userTestId: string,
-    answers: Array<{ questionId: string; chosenAnswer: string }>,
+    answers: Array<{
+      questionId: string;
+      chosenAnswer: string;
+    }>,
     tx?: DBDrizzleTransaction,
   ): Promise<UserAnswer[]> {
     if (tx) {
@@ -115,7 +118,10 @@ export class UserAnswerRepository
     ctx: DBDrizzle | DBDrizzleTransaction,
     data: {
       userTestId: string;
-      answers: Array<{ questionId: string; chosenAnswer: string }>;
+      answers: Array<{
+        questionId: string;
+        chosenAnswer: string;
+      }>;
     },
   ) {
     // Get existing answers for this test
@@ -127,13 +133,18 @@ export class UserAnswerRepository
     const existingMap = new Map(existingAnswers.map((a) => [a.questionId, a]));
 
     const toInsert: Partial<UserAnswer>[] = [];
-    const toUpdate: Array<{ id: string; chosenAnswer: string }> = [];
+    const toUpdate: Array<{
+      id: string;
+      questionId: string;
+      chosenAnswer: string;
+    }> = [];
 
     for (const answer of data.answers) {
       const existing = existingMap.get(answer.questionId);
       if (existing) {
         toUpdate.push({
           id: existing.id,
+          questionId: answer.questionId,
           chosenAnswer: answer.chosenAnswer,
         });
       } else {
@@ -156,7 +167,9 @@ export class UserAnswerRepository
     for (const update of toUpdate) {
       await ctx
         .update(userAnswers)
-        .set({ chosenAnswer: update.chosenAnswer })
+        .set({
+          chosenAnswer: update.chosenAnswer,
+        })
         .where(eq(userAnswers.id, update.id));
     }
 

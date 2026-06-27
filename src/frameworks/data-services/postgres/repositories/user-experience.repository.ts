@@ -7,13 +7,18 @@ import {
   UserExperience,
   OrganizationTypeEnum,
   OrganizationWithDetails,
+  UserStatusEnum,
 } from "@/core/entities";
 import { skills, userExperiences, users, userSkills } from "../models";
 import { and, eq } from "drizzle-orm";
 import { organizations } from "../models/organization.model";
 import { CreateUserExperience } from "@/core/entities/user.entity";
-import { convertDateToStr } from "@/common/utils";
-import { slugify } from "@/common/utils";
+import {
+  convertDateToStr,
+  getFallbackLanguage,
+  getRequestLanguage,
+  slugify,
+} from "@/common/utils";
 
 @Injectable()
 export class UserExperienceRepository
@@ -40,27 +45,76 @@ export class UserExperienceRepository
       skills: Pick<Skill, "id" | "name">[];
     }[]
   > {
-    const rows = await this.db
-      .select({
-        experience: userExperiences,
-        organization: organizations,
-        skill: skills,
-      })
-      .from(userExperiences)
-      .innerJoin(users, eq(users.id, userExperiences.userId))
-      .leftJoin(
-        organizations,
-        eq(userExperiences.organizationId, organizations.id),
-      )
-      .leftJoin(
-        userSkills,
-        and(
-          eq(userExperiences.organizationId, userSkills.organizationId),
-          eq(userExperiences.userId, userSkills.userId),
-        ),
-      )
-      .leftJoin(skills, eq(userSkills.skillId, skills.id))
-      .where(eq(users.username, username));
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const getRowsByLanguage = async (languageCode: string) =>
+      this.db
+        .select({
+          experience: userExperiences,
+          organization: organizations,
+          skill: skills,
+        })
+        .from(userExperiences)
+        .innerJoin(
+          users,
+          and(
+            eq(users.id, userExperiences.userId),
+            eq(users.status, UserStatusEnum.ACTIVE),
+          ),
+        )
+        .leftJoin(
+          organizations,
+          eq(userExperiences.organizationId, organizations.id),
+        )
+        .leftJoin(
+          userSkills,
+          and(
+            eq(userExperiences.organizationId, userSkills.organizationId),
+            eq(userExperiences.userId, userSkills.userId),
+          ),
+        )
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(
+          and(
+            eq(users.username, username),
+            eq(userExperiences.languageCode, languageCode),
+          ),
+        );
+
+    let rows = await getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await getRowsByLanguage(fallbackLanguage);
+    }
+
+    if (!rows.length) {
+      rows = await this.db
+        .select({
+          experience: userExperiences,
+          organization: organizations,
+          skill: skills,
+        })
+        .from(userExperiences)
+        .innerJoin(
+          users,
+          and(
+            eq(users.id, userExperiences.userId),
+            eq(users.status, UserStatusEnum.ACTIVE),
+          ),
+        )
+        .leftJoin(
+          organizations,
+          eq(userExperiences.organizationId, organizations.id),
+        )
+        .leftJoin(
+          userSkills,
+          and(
+            eq(userExperiences.organizationId, userSkills.organizationId),
+            eq(userExperiences.userId, userSkills.userId),
+          ),
+        )
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(users.username, username));
+    }
 
     const grouped = Object.values(
       rows.reduce(
@@ -76,6 +130,7 @@ export class UserExperienceRepository
                 endDate: row.experience.endDate,
                 jobTitle: row.experience.jobTitle,
                 description: row.experience.description,
+                languageCode: row.experience.languageCode,
               },
               organization: {
                 id: row.organization?.id || "",

@@ -118,7 +118,7 @@ export class BlogController {
   async getRelatedPosts(
     @Param("slug") slug: string,
   ): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    return this.blogUseCase.getRelatedPosts(slug);
+    return this.blogUseCase.getRelatedPosts(slug, 4);
   }
 
   @UseGuards(OptionalJwtAuthGuard)

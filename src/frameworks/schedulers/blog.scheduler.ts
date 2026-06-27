@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   BlogPostStatus,
+  BlogSourceType,
+  BlogGeneratedLocaleMap,
   GenerateJobBlogPostResponse,
   IAIService,
   IBlogRepository,
@@ -99,10 +101,30 @@ export class BlogScheduler {
     }
   }
 
+  private buildGeneratedBlogLocales(
+    payload: GenerateJobBlogPostResponse,
+  ): BlogGeneratedLocaleMap {
+    const locales: BlogGeneratedLocaleMap = {};
+
+    for (const languageCode of ["vi", "en"] as const) {
+      locales[languageCode] = {
+        title: payload.locales?.[languageCode]?.title ?? payload.title,
+        summary: payload.locales?.[languageCode]?.summary ?? payload.summary,
+        content: payload.locales?.[languageCode]?.content ?? payload.content,
+      };
+    }
+
+    return locales;
+  }
+
   @Cron("0 0 0 * * 0", {
     timeZone: "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
+    await this.generateAiBlogOnce();
+  }
+
+  private async generateAiBlogOnce(): Promise<void> {
     try {
       this.logger.log(
         "Running scheduled weekly AI blog generation cron job...",
@@ -140,6 +162,14 @@ export class BlogScheduler {
           tagId: item.tagId ?? null,
           skillId: item.skillId ?? null,
         }));
+      const categoryId = payload.categoryId ?? payload.category;
+
+      if (!categoryId) {
+        this.logger.warn(
+          "Skipping AI blog generation because the AI payload did not include a categoryId.",
+        );
+        return;
+      }
 
       await this.blogRepository.createPost({
         title: payload.title,
@@ -147,17 +177,19 @@ export class BlogScheduler {
         summary: payload.summary,
         thumbnail: payload.thumbnail ?? null,
         content: payload.content,
-        categoryId: payload.category,
+        locales: this.buildGeneratedBlogLocales(payload),
+        categoryId,
         authorId: author.id,
         status: BlogPostStatus.PENDING,
+        sourceType: BlogSourceType.AI,
         tags: normalizedTags,
       });
 
-      this.logger.log(`Created weekly AI blog successfully with slug ${slug}.`);
+      this.logger.log(`Created AI blog successfully with slug ${slug}.`);
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to generate weekly AI blog: ${err.message}`,
+        `Failed to generate AI blog: ${err.message}`,
         err.stack,
       );
     }

@@ -47,6 +47,7 @@ export * from "./blog/admin-blog.controller";
 
 // comment controllers
 export * from "./comment/comment.controller";
+export * from "./translation/translation.controller";
 
 export * from "./learning-path/learning-path.controller";
 export * from "./subscription/admin-subscription.controller";

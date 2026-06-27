@@ -1,5 +1,6 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
+import { getRequestLanguage } from "@/common/utils";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
 import { CommentWithAuthor } from "@/core/entities";
 import { ApiResponse } from "@/interfaces/dtos";
@@ -13,6 +14,7 @@ export class CommentUseCases {
   async getComments(
     query: QueryCommentsDto,
   ): Promise<ApiResponse<PaginatedResult<CommentWithAuthor>>> {
+    const lang = getRequestLanguage();
     const limit = Math.min(query.limit ?? 10, 50);
     const result = await this.commentRepository.getComments({
       objectId: query.objectId,
@@ -25,7 +27,14 @@ export class CommentUseCases {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
+      data: {
+        ...result,
+        data: result.data.map((comment) => ({
+          ...comment,
+          canTranslate: comment.languageCode !== lang,
+          can_translate: comment.languageCode !== lang,
+        })),
+      },
     };
   }
 

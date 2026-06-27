@@ -4,7 +4,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { features } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { and, count, ilike, isNull, SQL } from "drizzle-orm";
+import { and, count, eq, ilike, isNull, SQL } from "drizzle-orm";
 
 @Injectable()
 export class FeatureRepository
@@ -51,5 +51,19 @@ export class FeatureRepository
         total,
       },
     } as PaginatedResult<Feature>;
+  }
+
+  async getFeatureById(id: number): Promise<Feature | null> {
+    const [feature] = await this.db
+      .select()
+      .from(features)
+      .where(and(eq(features.id, id), isNull(features.deletedAt)))
+      .limit(1);
+
+    if (!feature) {
+      return null;
+    }
+
+    return feature;
   }
 }

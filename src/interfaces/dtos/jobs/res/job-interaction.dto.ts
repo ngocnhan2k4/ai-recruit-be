@@ -64,14 +64,6 @@ export class ApplyJobResponseDto {
   matchingCriteria?: Record<string, any> | null;
 
   @ApiProperty({
-    description: "The date when the application was last scored",
-    required: false,
-    nullable: true,
-    type: Date,
-  })
-  scoredAt?: Date | null;
-
-  @ApiProperty({
     description: "The user who applied for the job",
     required: false,
   })

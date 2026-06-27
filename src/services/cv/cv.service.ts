@@ -415,18 +415,20 @@ export class CvService implements ICvService {
     }
 
     // Experience match (25%)
-    const expYears: number = cv.experienceYears ?? 0;
-    const expMin: number = job.experienceMin ?? 0;
-    const expMax: number = job.experienceMax ?? expMin;
-    let experienceScore = 0;
-    if (expYears >= expMax) {
-      experienceScore = 1.0;
-    } else if (expYears >= expMin) {
-      experienceScore = 0.8;
-    } else if (expMin > 0 && expYears >= expMin * 0.7) {
-      experienceScore = 0.5;
-    } else {
-      experienceScore = 0.2;
+    const expYears: number | null = cv.experienceYears ?? null;
+    const expMin: number | null = job.experienceMin ?? null;
+    const expMax: number | null = job.experienceMax ?? null;
+    let experienceScore = 1.0;
+    if (expYears !== null && expMin !== null && expMax !== null) {
+      if (expYears >= expMax) {
+        experienceScore = 1.0;
+      } else if (expYears >= expMin) {
+        experienceScore = 0.8;
+      } else if (expMin > 0 && expYears >= expMin * 0.7) {
+        experienceScore = 0.5;
+      } else {
+        experienceScore = 0.2;
+      }
     }
 
     // Location match (15%)

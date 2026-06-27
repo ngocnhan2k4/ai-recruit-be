@@ -162,7 +162,21 @@ export class QuestionRandomizerService {
   randomizeOptions(questions: Question[]): Question[] {
     return questions.map((q) => ({
       ...q,
-      options: this.fisherYatesShuffle([...q.options]),
+      ...this.shuffleOptionsWithKeys(q.options, q.optionKeys),
     }));
+  }
+
+  private shuffleOptionsWithKeys(options: string[], optionKeys?: string[]) {
+    const keys = optionKeys ?? options.map((_, index) => String(index));
+    const paired = options.map((option, index) => ({
+      option,
+      key: keys[index] ?? String(index),
+    }));
+    const shuffled = this.fisherYatesShuffle(paired);
+
+    return {
+      options: shuffled.map((item) => item.option),
+      optionKeys: shuffled.map((item) => item.key),
+    };
   }
 }
