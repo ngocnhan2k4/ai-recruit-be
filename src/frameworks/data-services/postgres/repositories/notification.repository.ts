@@ -146,8 +146,8 @@ export class NotificationRepository
       return createdUserNotifications.map((d) => ({
         ...d,
         ...createdNotification,
-        senderInfo,
-        organizationInfo,
+        sender: senderInfo?.[0] ?? null,
+        organization: organizationInfo?.[0] ?? null,
       }));
     });
   }

@@ -10,6 +10,7 @@ import { IUserActionRepository } from "@/core/abstracts/repositories/user-action
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import {
   BlogCategory,
+  BlogPost,
   BlogPostStatus,
   BlogSourceType,
   Comment,
@@ -70,14 +71,7 @@ export class BlogUseCases {
     postId: string,
     dto: CommentDto,
   ): Promise<ApiResponse<Comment>> {
-    const post = await this.blogRepository.get(postId);
-
-    if (!post) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: "Blog post not found",
-      });
-    }
+    const post = await this.blogService.checkPublished(postId);
 
     const { parentCommentId, depth } =
       await this.commentService.resolveCommentParent(
@@ -94,12 +88,28 @@ export class BlogUseCases {
       authorId: user.userId,
     });
 
+    await this.sendCommentNotifications(post, _cmt, user);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: _cmt,
+    };
+  }
+
+  private async sendCommentNotifications(
+    post: BlogPost,
+    comment: Comment,
+    user: TokenPayload,
+  ): Promise<void> {
     try {
       const commenter = await this.userRepository.get(user.userId);
       const commenterName = commenter?.name || "Người dùng";
 
-      if (parentCommentId) {
-        const parentComment = await this.commentRepository.get(parentCommentId);
+      if (comment.parentCommentId) {
+        const parentComment = await this.commentRepository.get(
+          comment.parentCommentId,
+        );
 
         // Thông báo reply → không gộp, tạo riêng từng cái
         if (parentComment?.authorId && parentComment.authorId !== user.userId) {
@@ -112,8 +122,8 @@ export class BlogUseCases {
               payload: {
                 blogId: post.id,
                 blogSlug: post.slug,
-                commentId: _cmt.id,
-                commentParentId: _cmt.parentCommentId,
+                commentId: comment.id,
+                commentParentId: comment.parentCommentId,
               },
             },
             { userId: parentComment.authorId },
@@ -143,7 +153,7 @@ export class BlogUseCases {
             payload: {
               blogId: post.id,
               blogSlug: post.slug,
-              commentId: _cmt.id,
+              commentId: comment.id,
             },
           });
         }
@@ -166,26 +176,43 @@ export class BlogUseCases {
           payload: {
             blogId: post.id,
             blogSlug: post.slug,
-            commentId: _cmt.id,
+            commentId: comment.id,
           },
         });
       }
     } catch (err) {
       this.logger.warn("Failed to send comment notification", err);
     }
+  }
 
+  private normalizePagination(query: QueryBlogsDto): {
+    limit: number;
+    page: number;
+  } {
+    return {
+      limit: Math.min(query.limit ?? 10, 50),
+      page: Math.max(query.page ?? 1, 1),
+    };
+  }
+
+  private buildPaginatedResponse<T>(
+    data: T[],
+    pagination: any,
+  ): ApiResponse<PaginatedResult<T>> {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: _cmt,
+      data: {
+        data,
+        pagination,
+      },
     };
   }
 
   async getBlogs(
     query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    const limit = Math.min(query.limit ?? 10, 50);
-    const page = Math.max(query.page ?? 1, 1);
+    const { limit, page } = this.normalizePagination(query);
     const { data, pagination } = await this.blogRepository.getPosts({
       limit,
       page,
@@ -193,27 +220,18 @@ export class BlogUseCases {
       category: query.category,
       status: BlogPostStatus.PUBLISHED,
       sortBy: query.sortBy,
-      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        data: dataWithTags,
-        pagination,
-      },
-    };
+    return this.buildPaginatedResponse(dataWithTags, pagination);
   }
 
   async getMyBlogs(
     userId: string,
     query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    const limit = Math.min(query.limit ?? 10, 50);
-    const page = Math.max(query.page ?? 1, 1);
+    const { limit, page } = this.normalizePagination(query);
     const { data, pagination } = await this.blogRepository.getMyBlogs(userId, {
       ...query,
       limit,
@@ -225,21 +243,14 @@ export class BlogUseCases {
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        data: dataWithTags,
-        pagination,
-      },
-    };
+    return this.buildPaginatedResponse(dataWithTags, pagination);
   }
 
   async getSavedBlogs(
     userId: string,
     query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    const limit = Math.min(query.limit ?? 10, 50);
+    const { limit } = this.normalizePagination(query);
     const { data, pagination } = await this.blogRepository.getSavedBlogs(
       userId,
       {
@@ -252,14 +263,7 @@ export class BlogUseCases {
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        data: dataWithTags,
-        pagination,
-      },
-    };
+    return this.buildPaginatedResponse(dataWithTags, pagination);
   }
 
   private async getBlogsWithTags(
@@ -285,29 +289,21 @@ export class BlogUseCases {
   async getAdminBlogs(
     query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
-    const limit = Math.min(query.limit ?? 10, 50);
-    const page = Math.max(query.page ?? 1, 1);
+    const { limit, page } = this.normalizePagination(query);
     const { data, pagination } = await this.blogRepository.getPosts({
       limit,
       page,
       keyword: query.keyword,
       category: query.category,
       status: query.status,
+      excludeStatus: query.status ? undefined : BlogPostStatus.DRAFT,
       sourceType: query.sourceType,
       sortBy: query.sortBy,
-      sortDirection: query.sortDirection,
     });
 
     const dataWithTags = await this.getBlogsWithTags(data);
 
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        data: dataWithTags,
-        pagination,
-      },
-    };
+    return this.buildPaginatedResponse(dataWithTags, pagination);
   }
 
   async getAdminBlogById(id: string): Promise<ApiResponse<BlogPostDetailDto>> {
@@ -568,18 +564,7 @@ export class BlogUseCases {
     postId?: string,
   ): Promise<ApiResponse<{ id: string; slug: string }>> {
     if (postId) {
-      const existing = await this.blogRepository.get(postId);
-      if (!existing) {
-        throw new NotFoundException({
-          code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-          message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-        });
-      }
-      if (existing.authorId !== user.userId) {
-        throw new BadRequestException(
-          "You are not the author of this blog post",
-        );
-      }
+      await this.blogService.checkIsAuthor(postId, user.userId);
     }
 
     const result = await this.blogRepository.saveDraft(
@@ -607,17 +592,7 @@ export class BlogUseCases {
     postId: string,
     dto: CreateBlogPostDto,
   ): Promise<ApiResponse<{ id: string }>> {
-    const existing = await this.blogRepository.get(postId);
-    if (!existing) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-      });
-    }
-
-    if (existing.authorId !== user.userId) {
-      throw new BadRequestException("You are not the author of this blog post");
-    }
+    await this.blogService.checkIsAuthor(postId, user.userId);
 
     await this.blogRepository.updatePost(postId, {
       title: dto.title,
@@ -641,17 +616,7 @@ export class BlogUseCases {
     postId: string,
     dto: UpdateBlogPostDto,
   ): Promise<ApiResponse<{ id: string }>> {
-    const existing = await this.blogRepository.get(postId);
-    if (!existing) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-      });
-    }
-
-    if (existing.authorId !== user.userId) {
-      throw new BadRequestException("You are not the author of this blog post");
-    }
+    const existing = await this.blogService.checkIsAuthor(postId, user.userId);
 
     const status =
       (existing.status as any) === BlogPostStatus.DRAFT
@@ -679,17 +644,7 @@ export class BlogUseCases {
     user: TokenPayload,
     postId: string,
   ): Promise<ApiResponse<void>> {
-    const existing = await this.blogRepository.get(postId);
-    if (!existing) {
-      throw new NotFoundException({
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-      });
-    }
-
-    if (existing.authorId !== user.userId) {
-      throw new BadRequestException("You are not the author of this blog post");
-    }
+    await this.blogService.checkIsAuthor(postId, user.userId);
 
     await this.blogRepository.deletePost(postId);
 

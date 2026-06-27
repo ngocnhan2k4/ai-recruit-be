@@ -1,8 +1,10 @@
-import { RESPONSE_CODE } from "@/common/constants";
+import { RESPONSE_CODE, MAX_COMMENT_DEPTH } from "@/common/constants";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
-import { BadRequestException, Injectable } from "@nestjs/common";
-
-const MAX_COMMENT_DEPTH = 2;
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 @Injectable()
 export class CommentService {
@@ -18,7 +20,14 @@ export class CommentService {
 
     const parent = await this.commentRepository.get(targetCommentId);
 
-    if (parent?.objectId !== objectId) {
+    if (!parent) {
+      throw new NotFoundException({
+        code: RESPONSE_CODE.INVALID_REQUEST,
+        message: "Parent comment not found",
+      });
+    }
+
+    if (parent.objectId !== objectId) {
       throw new BadRequestException({
         code: RESPONSE_CODE.INVALID_REQUEST,
         message: "Parent comment does not belong to this object",
