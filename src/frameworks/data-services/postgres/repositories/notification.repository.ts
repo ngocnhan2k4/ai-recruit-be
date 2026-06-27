@@ -172,7 +172,6 @@ export class NotificationRepository
     } = params;
 
     return this.executeWithTransaction(async (tx) => {
-      // Tìm notification chưa đọc cùng (người nhận, loại, bài viết)
       const existingRows = await tx
         .select({
           userNotification: userNotifications,
@@ -186,7 +185,6 @@ export class NotificationRepository
         .where(
           and(
             eq(userNotifications.receiverId, recipientId),
-            isNull(userNotifications.readAt),
             isNull(userNotifications.deletedAt),
             eq(
               notifications.type,
@@ -209,7 +207,11 @@ export class NotificationRepository
       const topActorIds = updatedActorIds.slice(-2).reverse();
       const actorUsers = topActorIds.length
         ? await tx
-            .select({ id: users.id, name: users.name })
+            .select({
+              id: users.id,
+              name: users.name,
+              avatarUrl: users.avatarUrl,
+            })
             .from(users)
             .where(inArray(users.id, topActorIds))
         : [];
@@ -219,8 +221,10 @@ export class NotificationRepository
       );
       const message = buildMessage(actorNames, actorCount);
 
+      // Reuse actorUsers (already fetched) to get sender info for avatar display
+      const senderInfo = actorUsers.find((u) => u.id === senderId) ?? null;
+
       if (existing) {
-        // Cập nhật notification đã có
         const [updated] = await tx
           .update(notifications)
           .set({
@@ -232,10 +236,16 @@ export class NotificationRepository
           .where(eq(notifications.id, existing.notification.id))
           .returning();
 
+        await tx
+          .update(userNotifications)
+          .set({ readAt: null })
+          .where(eq(userNotifications.id, existing.userNotification.id));
+
         return {
           ...existing.userNotification,
+          readAt: null,
           ...updated,
-          sender: null,
+          sender: senderInfo,
           organization: null,
           orgInvitation: null,
           task: null,
@@ -264,7 +274,7 @@ export class NotificationRepository
       return {
         ...userNotif,
         ...created,
-        sender: null,
+        sender: senderInfo,
         organization: null,
         orgInvitation: null,
         task: null,
