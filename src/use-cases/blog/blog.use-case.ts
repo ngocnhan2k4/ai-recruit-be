@@ -209,6 +209,14 @@ export class BlogUseCases {
     };
   }
 
+  private async buildPaginatedBlogsResponse(
+    data: BlogPostListItem[],
+    pagination: any,
+  ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
+    const dataWithTags = await this.getBlogsWithTags(data);
+    return this.buildPaginatedResponse(dataWithTags, pagination);
+  }
+
   async getBlogs(
     query: QueryBlogsDto,
   ): Promise<ApiResponse<PaginatedResult<BlogPostListItemDto>>> {
@@ -219,12 +227,11 @@ export class BlogUseCases {
       keyword: query.keyword,
       category: query.category,
       status: BlogPostStatus.PUBLISHED,
+      sourceType: query.sourceType,
       sortBy: query.sortBy,
     });
 
-    const dataWithTags = await this.getBlogsWithTags(data);
-
-    return this.buildPaginatedResponse(dataWithTags, pagination);
+    return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
   async getMyBlogs(
@@ -241,9 +248,7 @@ export class BlogUseCases {
       status: query.status,
     });
 
-    const dataWithTags = await this.getBlogsWithTags(data);
-
-    return this.buildPaginatedResponse(dataWithTags, pagination);
+    return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
   async getSavedBlogs(
@@ -261,9 +266,7 @@ export class BlogUseCases {
       },
     );
 
-    const dataWithTags = await this.getBlogsWithTags(data);
-
-    return this.buildPaginatedResponse(dataWithTags, pagination);
+    return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
   private async getBlogsWithTags(
@@ -301,9 +304,7 @@ export class BlogUseCases {
       sortBy: query.sortBy,
     });
 
-    const dataWithTags = await this.getBlogsWithTags(data);
-
-    return this.buildPaginatedResponse(dataWithTags, pagination);
+    return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
   async getAdminBlogById(id: string): Promise<ApiResponse<BlogPostDetailDto>> {
