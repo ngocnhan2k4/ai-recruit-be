@@ -89,7 +89,7 @@ export class JobIndexWorker extends WorkerHost {
 
         if (job.job.status === (JobStatusEnum.ACTIVE as string)) {
           try {
-            const textToEmbed = `${job.job.title} ${job.job.description || ""} ${job.skills.map((s: any) => s.name).join(" ")} ${job.category.name || ""}`;
+            const textToEmbed = `${job.job.title} ${job.job.description || ""} ${(job.skills || []).map((s: any) => s.name).join(" ")} ${job.category?.name || ""}`;
             embedding = await this.aiService.generateEmbedding(textToEmbed);
 
             // Save the new embedding back to the database
