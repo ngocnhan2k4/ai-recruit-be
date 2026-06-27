@@ -256,7 +256,7 @@ export class LearningPathUseCase {
           await this.notificationRepository.createNotificationWithRecipients(
             {
               senderId: null,
-              title: "Lộ trình học tập của bạn đang được tạo",
+              title: `Lộ trình học tập cho vai trò ${request.targetRole}`,
               message:
                 "Đang tạo lộ trình học tập dựa trên vai trò mục tiêu của bạn. Vui lòng chờ trong giây lát!",
               type: NotificationType.SYSTEM,
