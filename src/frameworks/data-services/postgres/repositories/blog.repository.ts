@@ -54,17 +54,12 @@ import { GenericRepository } from "./generic-repository";
 
 const resolveSortExpr = (sortBy?: string): SQL => {
   switch (sortBy) {
-    case "createdAt":
-      return sql`${blogPosts.createdAt}`;
     case "viewCount":
       return sql`${blogPosts.viewCount}`;
+    case "createdAt":
     default:
-      return sql`coalesce(${blogPosts.updatedAt}, ${blogPosts.createdAt})`;
+      return sql`${blogPosts.updatedAt}`;
   }
-};
-
-const resolveCursorSortBy = (sortBy?: string): "createdAt" | "updatedAt" => {
-  return sortBy === "createdAt" ? "createdAt" : "updatedAt";
 };
 
 const buildOrderBy = (sortBy?: string, sortDirection?: SortDirection) => {
@@ -557,7 +552,7 @@ export class BlogRepository
     const fallbackLanguage = getFallbackLanguage();
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
-    const sortBy = resolveCursorSortBy(filters.sortBy);
+    const sortBy = filters.sortBy;
     const sortDirection = filters.sortDirection ?? "desc";
     const cursorExpr = resolveSortExpr(sortBy);
     const orderBy = buildOrderBy(sortBy, sortDirection);
@@ -673,7 +668,7 @@ export class BlogRepository
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
-    const sortBy = resolveCursorSortBy(filters.sortBy);
+    const sortBy = filters.sortBy;
     const sortDirection = filters.sortDirection ?? "desc";
     const cursorExpr = resolveSortExpr(sortBy);
     const orderBy = buildOrderBy(sortBy, sortDirection);
@@ -719,11 +714,8 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data[data.length - 1];
-    const cursorTime =
-      sortBy === "createdAt"
-        ? last?.createdAt
-        : (last?.updatedAt ?? last?.createdAt);
+    const last = data.at(-1);
+    const cursorTime = last?.updatedAt ?? last?.createdAt;
 
     return {
       data: data.map((item) => ({
@@ -957,7 +949,14 @@ export class BlogRepository
   async createPost(data: NewBlogPost): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
       const db = this.getExecutor();
-      const [created] = await db.insert(blogPosts).values(data).returning();
+      const now = new Date();
+      const [created] = await db
+        .insert(blogPosts)
+        .values({
+          ...data,
+          updatedAt: now,
+        })
+        .returning();
 
       const normalizedTags = (data.tags ?? []).filter(
         (item) => item.tagId || item.skillId,
@@ -1009,7 +1008,7 @@ export class BlogRepository
           content: data.content ?? existing.content ?? "",
           locales: data.locales ?? existing.locales ?? {},
           thumbnail:
-            data.thumbnail !== undefined ? data.thumbnail : existing.thumbnail,
+            data.thumbnail === undefined ? existing.thumbnail : data.thumbnail,
           categoryId: finalCategoryId,
           status: "DRAFT",
           updatedAt: new Date(),
@@ -1029,11 +1028,12 @@ export class BlogRepository
         return updated as BlogPost;
       } else {
         // Create new draft
-        const timestampValue = new Date().getTime();
+        const timestampValue = Date.now();
         const baseSlug = data.title ? generateSlug(data.title) : "draft";
         const slug = `${baseSlug}-${timestampValue}`;
         const finalCategoryId = await this.resolveCategoryId(data.categoryId);
 
+        const now = new Date();
         const insertData: any = {
           title: data.title ?? "Bản nháp không có tiêu đề",
           slug,
@@ -1045,6 +1045,7 @@ export class BlogRepository
           sourceType: "USER",
           categoryId: finalCategoryId,
           authorId,
+          updatedAt: now,
         };
 
         const [created] = await tx
