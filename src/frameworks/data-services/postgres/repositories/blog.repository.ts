@@ -193,7 +193,7 @@ export class BlogRepository
   }
 
   private resolveLocalizedValue(params: {
-    locales?: BlogLocaleMap | null;
+    locales?: Record<string, any> | null;
     field: "title" | "summary" | "content";
     requestLanguage: string;
     fallbackLanguage: string;
@@ -216,7 +216,7 @@ export class BlogRepository
   private mapToPostDetailBase(post: {
     id: string;
     title: string;
-    locales?: BlogLocaleMap | null;
+    locales?: Record<string, any> | null;
     slug: string;
     summary: string | null;
     thumbnail: string | null;
@@ -330,16 +330,18 @@ export class BlogRepository
     const whereConditions: SQL[] = [];
 
     if (filters.keyword?.trim()) {
-      whereConditions.push(sql`name ILIKE ${`%${filters.keyword.trim()}%`}`);
+      const keywordPattern = `%${filters.keyword.trim()}%`;
+      whereConditions.push(sql`name ILIKE ${keywordPattern}`);
     }
 
     if (filters.cursor) {
       whereConditions.push(sql`created_at < ${new Date(filters.cursor)}`);
     }
 
+    const andSeparator = sql` AND `;
     const whereClause =
       whereConditions.length > 0
-        ? sql`WHERE ${sql.join(whereConditions, sql` AND `)}`
+        ? sql`WHERE ${sql.join(whereConditions, andSeparator)}`
         : sql``;
 
     const result = await this.db.execute(sql`
@@ -375,7 +377,7 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const dataRows = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = dataRows[dataRows.length - 1];
+    const last = dataRows.at(-1);
 
     return {
       data: dataRows.map((row) => ({
@@ -627,7 +629,7 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data[data.length - 1];
+    const last = data.at(-1);
     const cursorTime =
       sortBy === "createdAt"
         ? last?.createdAt

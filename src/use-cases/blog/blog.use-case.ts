@@ -214,7 +214,7 @@ export class BlogUseCases {
           comment.parentCommentId,
         );
 
-        // Thông báo reply → không gộp, tạo riêng từng cái
+        // Thông báo reply → chỉ thông báo tới tác giả comment cha, không thông báo tới tác giả bài viết
         if (parentComment?.authorId && parentComment.authorId !== user.userId) {
           await this.notificationService.createAndSendToUser(
             {
@@ -231,34 +231,6 @@ export class BlogUseCases {
             },
             { userId: parentComment.authorId },
           );
-        }
-
-        // Thông báo cho tác giả bài viết → gộp
-        if (
-          post.authorId &&
-          post.authorId !== user.userId &&
-          parentComment?.authorId !== post.authorId
-        ) {
-          await this.notificationService.upsertAggregatedAndSendToUser({
-            recipientId: post.authorId,
-            senderId: user.userId,
-            objectId: post.id,
-            type: NotificationType.BLOG_COMMENT,
-            title: "Bình luận mới",
-            buildMessage: (actorNames, actorCount) => {
-              const others = actorCount - actorNames.length;
-              if (actorCount === 1)
-                return `${actorNames[0]} đã bình luận bài viết "${post.title}" của bạn.`;
-              if (actorCount === 2)
-                return `${actorNames[0]} và ${actorNames[1]} đã bình luận bài viết "${post.title}" của bạn.`;
-              return `${actorNames.slice(0, 2).join(", ")} và ${others} người khác đã bình luận bài viết "${post.title}" của bạn.`;
-            },
-            payload: {
-              blogId: post.id,
-              blogSlug: post.slug,
-              commentId: comment.id,
-            },
-          });
         }
       } else if (post.authorId && post.authorId !== user.userId) {
         // Bình luận gốc → gộp
