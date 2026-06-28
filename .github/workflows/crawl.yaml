@@ -44,7 +44,7 @@ jobs:
     strategy:
       matrix:
         env: [dev, prod]
-      max-parallel: 1
+      max-parallel: 2
 
     environment: ${{ matrix.env }}
     runs-on: ubuntu-latest
@@ -237,7 +237,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: "pip"
 
       - name: Install dependencies
         working-directory: ./crawl_jobs
