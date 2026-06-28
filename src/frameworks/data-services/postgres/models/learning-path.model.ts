@@ -152,6 +152,7 @@ export const roadmapSkillOptions = pgTable(
       .references(() => roadmapSkills.id, { onDelete: "cascade" }),
 
     optionId: varchar("option_id", { length: 255 }).notNull(),
+    optionName: varchar("option_name", { length: 500 }).notNull().default(""),
     resources: jsonb("resources")
       .$type<
         Array<{

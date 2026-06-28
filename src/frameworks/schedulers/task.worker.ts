@@ -328,6 +328,7 @@ export class TaskWorker extends WorkerHost {
                   return (skill.options || []).map((option: SkillOption) => ({
                     roadmapSkillId: matchedSkill.id,
                     optionId: option.optionId,
+                    optionName: option.optionName ?? "",
                     resources: option.resources || [],
                     keyConcepts: option.keyConcepts || [],
                   }));
@@ -347,9 +348,15 @@ export class TaskWorker extends WorkerHost {
                 if (dbSkillId) {
                   // Map AI skillIds to database skillIds
                   const mappedPrerequisites = skillData.prerequisites
-                    .map((prereqSkillId: string) =>
-                      skillIdMap.get(prereqSkillId),
-                    )
+                    .map((prereqSkillId: string) => {
+                      const mapped = skillIdMap.get(prereqSkillId);
+                      if (!mapped) {
+                        this.logger.warn(
+                          `Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                        );
+                      }
+                      return mapped;
+                    })
                     .filter(
                       (id: string | undefined): id is string =>
                         id !== undefined,
@@ -416,22 +423,38 @@ export class TaskWorker extends WorkerHost {
           );
           if (existing) return;
 
-          try {
-            const aiResult = await this.aiService.generateSubPath({
-              optionName,
-              keyConcepts: option.keyConcepts ?? [],
-              targetRole,
-              currentRole,
-            });
-
-            await this.subpathRepository.createFromAIResult(
-              { optionName, targetRole, currentRole },
-              aiResult,
-            );
-            this.logger.log(`Subpath generated for "${optionName}"`);
-          } catch (err: any) {
-            this.logger.warn(
-              `Subpath gen failed for "${optionName}": ${err.message}`,
+          const maxAttempts = 3;
+          let lastErr: any;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              const aiResult = await this.aiService.generateSubPath({
+                optionName,
+                keyConcepts: option.keyConcepts ?? [],
+                targetRole,
+                currentRole,
+              });
+              await this.subpathRepository.createFromAIResult(
+                { optionName, targetRole, currentRole },
+                aiResult,
+              );
+              this.logger.log(`Subpath generated for "${optionName}"`);
+              lastErr = null;
+              break;
+            } catch (err: any) {
+              lastErr = err;
+              this.logger.warn(
+                `Subpath gen attempt ${attempt}/${maxAttempts} failed for "${optionName}": ${err.message}`,
+              );
+              if (attempt < maxAttempts) {
+                await new Promise((resolve) =>
+                  setTimeout(resolve, attempt * 2000),
+                );
+              }
+            }
+          }
+          if (lastErr) {
+            this.logger.error(
+              `Subpath gen permanently failed for "${optionName}" after ${maxAttempts} attempts: ${lastErr.message}`,
             );
           }
         }),

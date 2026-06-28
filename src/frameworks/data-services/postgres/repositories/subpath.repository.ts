@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import {
   ISubpathRepository,
   IOptionResourceCompletionRepository,
@@ -289,6 +289,23 @@ export class OptionResourceCompletionRepository
     }
     await this.markCompleted(userId, resourceId);
     return { completed: true };
+  }
+
+  async getManyByFields(
+    userId: string,
+    resourceIds: string[],
+  ): Promise<OptionResourceCompletion[]> {
+    if (resourceIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(optionResourceCompletions)
+      .where(
+        and(
+          eq(optionResourceCompletions.userId, userId),
+          inArray(optionResourceCompletions.resourceId, resourceIds),
+          isNull(optionResourceCompletions.deletedAt),
+        ),
+      );
   }
 }
 

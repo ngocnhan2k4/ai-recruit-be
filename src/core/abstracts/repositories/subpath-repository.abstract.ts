@@ -32,6 +32,11 @@ export abstract class IOptionResourceCompletionRepository extends IGenericReposi
     userId: string,
     resourceId: string,
   ): Promise<{ completed: boolean }>;
+
+  abstract getManyByFields(
+    userId: string,
+    resourceIds: string[],
+  ): Promise<OptionResourceCompletion[]>;
 }
 
 export abstract class ISubpathModuleQuizResultRepository extends IGenericRepository<SubpathModuleQuizResult> {

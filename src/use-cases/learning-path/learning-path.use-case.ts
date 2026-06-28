@@ -77,41 +77,29 @@ export class LearningPathUseCase {
     optionId: string,
     userId: string,
   ): Promise<ApiResponse<SubpathWithDetails>> {
-    const roadmapDetails =
-      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
-    if (!roadmapDetails || roadmapDetails.userId !== userId) {
+    // Lightweight ownership check (B8: no full getRoadmapWithDetails here)
+    const roadmap = await this.roadmapRepository.get(roadmapId);
+    if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
       });
     }
 
-    let targetOption: any = null;
-    for (const phase of roadmapDetails.phases) {
-      for (const skill of phase.skills) {
-        const opt = skill.options?.find((o) => o.id === optionId);
-        if (opt) {
-          targetOption = {
-            ...opt,
-            targetRole: roadmapDetails.targetRole,
-            currentRole: roadmapDetails.currentRole,
-          };
-          break;
-        }
-      }
-      if (targetOption) break;
-    }
-
-    if (!targetOption) {
+    // Single JOIN query: option + skill + phase (B8)
+    const optionCtx =
+      await this.skillOptionRepository.findOptionWithSkillAndPhase(optionId);
+    if (!optionCtx) {
       throw new NotFoundException({
         message: "Option not found in this roadmap",
         code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
       });
     }
 
-    const optionName = targetOption.optionName as string;
-    const targetRole = roadmapDetails.targetRole ?? "";
-    const currentRole = roadmapDetails.currentRole ?? "";
+    const { option } = optionCtx;
+    const optionName = (option as any).optionName as string;
+    const targetRole = roadmap.targetRole ?? "";
+    const currentRole = roadmap.currentRole ?? "";
 
     let subpath = await this.subpathRepository.findByKey(
       optionName,
@@ -122,9 +110,9 @@ export class LearningPathUseCase {
     if (!subpath) {
       this.logger.log(`Generating subpath for option ${optionName}`);
       const aiResult = await this.aiService.generateSubPath({
-        optionName: targetOption.optionName,
-        optionReason: targetOption.reason,
-        keyConcepts: targetOption.keyConcepts ?? [],
+        optionName,
+        optionReason: (option as any).reason,
+        keyConcepts: option.keyConcepts ?? [],
         targetRole,
         currentRole,
       });
@@ -134,26 +122,27 @@ export class LearningPathUseCase {
       );
     }
 
-    // Fetch user completions
-    const completions = await this.resourceCompletionRepository.getByField({
-      userId,
-    });
-    const subpathResourceIds = new Set<string>();
-    subpath.subNodes.forEach((node) => {
-      node.resources.forEach((r) => subpathResourceIds.add(r.id));
-    });
+    // Collect IDs scoped to this subpath
+    const subpathResourceIds = subpath.subNodes.flatMap((node) =>
+      node.resources.map((r) => r.id),
+    );
+    const subpathModuleIds = subpath.subNodes.map((node) => node.id);
 
-    const completedResourceIds = completions
-      .filter((c) => subpathResourceIds.has(c.resourceId))
-      .map((c) => c.resourceId);
+    // B7: fetch only completions for resources in this subpath, not all user completions
+    const [completions, quizResults] = await Promise.all([
+      subpathResourceIds.length > 0
+        ? this.resourceCompletionRepository.getManyByFields(
+            userId,
+            subpathResourceIds,
+          )
+        : Promise.resolve([]),
+      this.quizResultRepository.getByField({ userId }),
+    ]);
 
-    // Fetch user quiz results
-    const quizResults = await this.quizResultRepository.getByField({ userId });
-    const subpathModuleIds = new Set<string>();
-    subpath.subNodes.forEach((node) => subpathModuleIds.add(node.id));
-
+    const completedResourceIds = completions.map((c) => c.resourceId);
+    const subpathModuleIdSet = new Set(subpathModuleIds);
     const masteredModuleIds = quizResults
-      .filter((q) => subpathModuleIds.has(q.moduleId) && q.passed)
+      .filter((q) => subpathModuleIdSet.has(q.moduleId) && q.passed)
       .map((q) => q.moduleId);
 
     return {
@@ -513,40 +502,18 @@ export class LearningPathUseCase {
       });
     }
 
-    // Find the option to complete
-    const roadmapDetails =
-      await this.roadmapRepository.getRoadmapWithDetails(roadmapId);
+    // B8: Single JOIN query to find option + skill + phase instead of full getRoadmapWithDetails
+    const optionCtx =
+      await this.skillOptionRepository.findOptionWithSkillAndPhase(optionId);
 
-    if (!roadmapDetails) {
-      throw new NotFoundException({
-        message: "Roadmap not found",
-        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
-      });
-    }
-
-    let targetOption: any = null;
-    let targetSkill: any = null;
-    let targetPhaseId: string | null = null;
-
-    for (const phase of roadmapDetails.phases) {
-      for (const skill of phase.skills) {
-        const option = skill.options.find((opt) => opt.id === optionId);
-        if (option) {
-          targetOption = option;
-          targetSkill = skill;
-          targetPhaseId = phase.id;
-          break;
-        }
-      }
-      if (targetOption) break;
-    }
-
-    if (!targetOption || !targetSkill) {
+    if (!optionCtx) {
       throw new NotFoundException({
         message: "Option not found in this roadmap",
         code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
       });
     }
+
+    const { option: targetOption, skillId, phaseId: targetPhaseId } = optionCtx;
 
     if (targetOption.completedAt) {
       throw new BadRequestException({
@@ -557,9 +524,7 @@ export class LearningPathUseCase {
 
     // Check prerequisites (prerequisites are skillIds)
     const prerequisitesCompleted =
-      await this.skillRepository.checkPrerequisitesCompleted(
-        targetSkill.id as string,
-      );
+      await this.skillRepository.checkPrerequisitesCompleted(skillId);
 
     if (!prerequisitesCompleted) {
       throw new BadRequestException({
@@ -591,10 +556,7 @@ export class LearningPathUseCase {
         tx,
       );
 
-      // Update phase progress and status
-      if (targetPhaseId) {
-        await this.phaseRepository.updatePhaseProgress(targetPhaseId, tx);
-      }
+      await this.phaseRepository.updatePhaseProgress(targetPhaseId, tx);
     });
 
     const unlockedSkills =
@@ -684,25 +646,26 @@ export class LearningPathUseCase {
     const allSkills =
       await this.skillRepository.getSkillsByRoadmapId(roadmapId);
 
-    const scheduledSkills = await Promise.all(
-      allSkills
-        .filter(
-          (skill) =>
-            skill.weekStart <= weekNumber && skill.weekEnd >= weekNumber,
-        )
-        .map(async (skill) => {
-          const options = await this.skillOptionRepository.getOptionsBySkillId(
-            skill.id,
-          );
-          const isCompleted = options.some((opt) => opt.completedAt !== null);
-
-          return {
-            skillId: skill.id,
-            skillName: skill.skill,
-            isCompleted,
-          };
-        }),
+    const weekSkills = allSkills.filter(
+      (skill) => skill.weekStart <= weekNumber && skill.weekEnd >= weekNumber,
     );
+
+    // B5: batch fetch all options for scheduled skills in one query
+    const weekSkillIds = weekSkills.map((s) => s.id);
+    const allOptions =
+      await this.skillOptionRepository.getOptionsBySkillIds(weekSkillIds);
+
+    const completedSkillIds = new Set(
+      allOptions
+        .filter((o) => o.completedAt !== null)
+        .map((o) => o.roadmapSkillId),
+    );
+
+    const scheduledSkills = weekSkills.map((skill) => ({
+      skillId: skill.id,
+      skillName: skill.skill,
+      isCompleted: completedSkillIds.has(skill.id),
+    }));
 
     return {
       data: {
