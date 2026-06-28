@@ -262,7 +262,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract updateMatchingScore(
     applyId: string,
-    score: number,
+    score: number | null,
     criteria: Record<string, any>,
   ): Promise<void>;
 }
