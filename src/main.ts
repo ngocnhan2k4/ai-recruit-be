@@ -1,6 +1,8 @@
 // IMPORTANT: instrument.ts must be imported before everything else so Sentry
 // can instrument all modules (NestJS, database, HTTP, etc.) at startup.
 import "./instrument";
+import * as dns from "dns";
+dns.setDefaultResultOrder("ipv4first");
 
 import { NestFactory } from "@nestjs/core";
 import {
@@ -18,7 +20,9 @@ async function bootstrap() {
   const { AppModule } = await import("./app.module.js");
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    new FastifyAdapter({
+      maxParamLength: 256,
+    }),
   );
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);

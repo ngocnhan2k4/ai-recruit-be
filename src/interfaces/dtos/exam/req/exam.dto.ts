@@ -39,10 +39,23 @@ export class AnswerDto {
   @IsNotEmpty()
   questionId: string;
 
-  @ApiProperty({ example: "A programming language" })
+  @ApiProperty({
+    example: "2",
+    description:
+      "Stable answer key returned by the API. Frontend should submit this instead of raw answer text.",
+  })
   @IsString()
-  @IsNotEmpty()
-  chosenAnswer: string;
+  @IsOptional()
+  chosenAnswerKey?: string;
+
+  @ApiProperty({
+    example: "A programming language",
+    required: false,
+    description: "Legacy fallback. Will be normalized to a key when possible.",
+  })
+  @IsString()
+  @IsOptional()
+  chosenAnswer?: string;
 }
 
 export class SubmitExamDto {

@@ -92,6 +92,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./build/Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
@@ -104,7 +105,7 @@ jobs:
           username: ${{ secrets.DEV_SERVER_USER }}
           key: ${{ secrets.DEV_SERVER_SSH_KEY }}
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
-          source: "./${{ env.COMPOSE_FILE }}"
+          source: "./build/${{ env.COMPOSE_FILE }}"
           target: "${{ env.DEPLOY_DIR }}"
 
       - name: Deploy to Server
@@ -115,11 +116,14 @@ jobs:
           key: ${{ secrets.DEV_SERVER_SSH_KEY }}
           port: ${{ secrets.DEV_SERVER_SSH_PORT }}
           script: |
+            echo "${{ secrets.REGISTRY_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             cd ${{ env.DEPLOY_DIR }}
-            docker compose -f ${{ env.COMPOSE_FILE }} down
-            docker image prune -f
             docker compose -f ${{ env.COMPOSE_FILE }} pull
+            docker compose -f ${{ env.COMPOSE_FILE }} down
             docker compose -f ${{ env.COMPOSE_FILE }} up -d
+
+            docker logout ghcr.io
 
       - name: Notify Slack
         uses: rtCamp/action-slack-notify@v2

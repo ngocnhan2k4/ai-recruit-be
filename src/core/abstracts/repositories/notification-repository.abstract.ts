@@ -13,6 +13,22 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
     }[],
   ): Promise<Notification[]>;
 
+  /**
+   * Tìm notification chưa đọc có cùng (recipient, type, objectId).
+   * Nếu tìm thấy → cập nhật danh sách actor + message.
+   * Nếu không → tạo notification mới.
+   * Dùng cho các thông báo kiểu "A, B và N người khác đã bình luận..."
+   */
+  abstract upsertAggregatedNotification(params: {
+    recipientId: string;
+    senderId: string;
+    objectId: string;
+    type: string;
+    title: string;
+    buildMessage: (actorNames: string[], actorCount: number) => string;
+    payload: Record<string, any>;
+  }): Promise<Notification | null>;
+
   abstract getNotificationsByUser(
     filter: NotificationFilter,
   ): Promise<PaginatedResult<Notification>>;

@@ -227,7 +227,7 @@ jobs:
       matrix:
         env: [dev, prod]
     environment: ${{ matrix.env }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository

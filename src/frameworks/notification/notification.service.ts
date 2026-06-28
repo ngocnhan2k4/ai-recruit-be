@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Notification, NewNotification } from "@/core";
+import { NewNotification, Notification, NotificationType } from "@/core";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -38,6 +38,36 @@ export class NotificationService implements INotificationService {
     } catch (error) {
       this.logger.error(
         `Error creating and sending notification to user ${recipient.userId}, orgId ${recipient.organizationId || "none"}:`,
+        error,
+      );
+      return { success: false };
+    }
+  }
+
+  async upsertAggregatedAndSendToUser(params: {
+    recipientId: string;
+    senderId: string;
+    objectId: string;
+    type: NotificationType;
+    title: string;
+    buildMessage: (actorNames: string[], actorCount: number) => string;
+    payload: Record<string, any>;
+  }): Promise<{ success: boolean }> {
+    try {
+      const notification =
+        await this.notificationRepository.upsertAggregatedNotification(params);
+
+      if (notification) {
+        this.sendNotification({
+          ...notification,
+          receiverId: params.recipientId,
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Error upserting aggregated notification for user ${params.recipientId}:`,
         error,
       );
       return { success: false };

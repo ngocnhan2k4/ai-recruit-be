@@ -23,6 +23,7 @@ import { ExamUseCases } from "@/use-cases/exam/exam.use-case";
 import {
   CreateQuestionDto,
   UpdateQuestionDto,
+  UpdateQuestionTranslationDto,
   ToggleQuestionStatusDto,
   QueryQuestionsDto,
   QuerySkillQuestionsDto,
@@ -133,6 +134,33 @@ export class AdminExamController {
   @Get("questions/:id")
   async getQuestionById(@Param("id") id: string) {
     return this.examUseCases.getQuestionById(id);
+  }
+
+  @ApiOperation({
+    summary: "Get question translation by language",
+    description:
+      "Fetch only the editable translated text for a question without changing canonical answer-key mapping.",
+  })
+  @Get("questions/:id/translations/:languageCode")
+  async getQuestionTranslation(
+    @Param("id") id: string,
+    @Param("languageCode") languageCode: string,
+  ) {
+    return this.examUseCases.getQuestionTranslation(id, languageCode);
+  }
+
+  @ApiOperation({
+    summary: "Update question translation by language",
+    description:
+      "Manually edit translated question text and translated options only. Correct answer mapping stays locked to the base question key.",
+  })
+  @Put("questions/:id/translations/:languageCode")
+  async updateQuestionTranslation(
+    @Param("id") id: string,
+    @Param("languageCode") languageCode: string,
+    @Body() dto: UpdateQuestionTranslationDto,
+  ) {
+    return this.examUseCases.updateQuestionTranslation(id, languageCode, dto);
   }
 
   // ==================== QUESTION IMPORT ====================

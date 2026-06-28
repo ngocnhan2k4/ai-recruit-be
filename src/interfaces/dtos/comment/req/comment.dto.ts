@@ -1,3 +1,4 @@
+import { ObjectType } from "@/core/entities";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEnum,
@@ -5,9 +6,9 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
 } from "class-validator";
 import { GeneralQueryDto } from "../../common/query";
-import { ObjectType } from "@/core/entities";
 
 export class QueryCommentsDto extends GeneralQueryDto {
   @ApiProperty({ description: "ID of the object being commented on" })
@@ -22,9 +23,10 @@ export class QueryCommentsDto extends GeneralQueryDto {
 
   @ApiPropertyOptional({
     description: "ID of the parent comment (for replies)",
+    format: "uuid",
   })
   @IsOptional()
-  @IsString()
+  @IsUUID("4")
   parentCommentId?: string;
 }
 
@@ -37,5 +39,6 @@ export class CommentDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @MaxLength(1000, { message: "Bình luận không được vượt quá 1000 ký tự" })
   content: string;
 }

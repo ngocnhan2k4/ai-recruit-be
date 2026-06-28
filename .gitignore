@@ -1,7 +1,6 @@
 # compiled output
 /dist
 /node_modules
-/build
 
 # Logs
 logs
@@ -66,3 +65,8 @@ checkpoints/
 multi_class_model/
 artifacts/
 crawl_jobs/skills/
+
+# blog-crawler
+/blog-crawler/dist/
+/blog-crawler/node_modules/
+/blog-crawler/.env

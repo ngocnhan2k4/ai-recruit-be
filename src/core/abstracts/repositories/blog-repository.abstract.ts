@@ -3,11 +3,18 @@ import {
   BlogCategoryItem,
   BlogPostDetailBase,
   BlogPostFilters,
+  BlogLocaleMap,
   BlogPostListItem,
   BlogPostTagItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost, BlogCategory, Tag } from "@/core/entities";
+import {
+  BlogPost,
+  NewBlogPost,
+  BlogCategory,
+  Tag,
+  BlogPostStatus,
+} from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
@@ -47,18 +54,37 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract createPost(data: NewBlogPost): Promise<BlogPost>;
 
   abstract saveDraft(
+    authorId: string,
     data: {
       title?: string;
       summary?: string;
       content?: string;
-      category?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
-      slug?: string;
     },
-    authorId: string,
     postId?: string,
   ): Promise<BlogPost>;
+
+  abstract resolveCategoryId(categoryId?: string): Promise<string>;
+
+  abstract updatePost(
+    postId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+      status?: BlogPostStatus;
+      slug?: string;
+    },
+  ): Promise<BlogPost>;
+
+  abstract deletePost(postId: string): Promise<void>;
 
   abstract incrementViewCount(
     data: { postId: string; viewCount: number }[],

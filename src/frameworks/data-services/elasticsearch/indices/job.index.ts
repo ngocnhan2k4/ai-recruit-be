@@ -126,6 +126,9 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         experienceMax: {
           type: "integer",
         },
+        recruitCount: {
+          type: "integer",
+        },
         workType: {
           type: "keyword",
         },
@@ -144,6 +147,12 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         createdAt: {
           type: "date",
         },
+        embedding: {
+          type: "dense_vector",
+          dims: 1536,
+          index: true,
+          similarity: "cosine",
+        },
         boost: {
           type: "rank_feature",
         },
@@ -158,31 +167,36 @@ export function transformJobToDocument({
   category,
   provinces,
   organization,
+  embedding,
 }: {
   job: Job;
   skills: Skill[];
   category: Category;
   provinces: Province[];
   organization: OrganizationWithDetails;
+  embedding?: number[];
 }): Record<string, unknown> {
-  const salaryMin = job.salaryMin ? parseFloat(job.salaryMin) : null;
-  const salaryMax = job.salaryMax ? parseFloat(job.salaryMax) : null;
+  const salaryMin = job.salaryMin ? parseFloat(job.salaryMin as any) : null;
+  const salaryMax = job.salaryMax ? parseFloat(job.salaryMax as any) : null;
   return {
     id: job.id,
     title: job.title,
     description: job.description || "",
     organizationId: job.organizationId,
     organizationName: organization?.name || null,
-    skillIds: skills.map((s: Skill) => s.id).filter(Boolean),
-    skillNames: skills.map((s: Skill) => s.name).filter(Boolean),
-    categoryId: category.id,
-    categoryName: category.name,
-    provinceIds: provinces.map((p: Province) => p.id).filter(Boolean),
-    provinceNames: provinces.map((p: Province) => p.name).filter(Boolean),
+    skillIds: (skills || []).map((s: Skill) => s.id).filter(Boolean),
+    skillNames: (skills || []).map((s: Skill) => s.name).filter(Boolean),
+    categoryId: category?.id || null,
+    categoryName: category?.name || null,
+    provinceIds: (provinces || []).map((p: Province) => p.id).filter(Boolean),
+    provinceNames: (provinces || [])
+      .map((p: Province) => p.name)
+      .filter(Boolean),
     salaryMin,
     salaryMax,
     experienceMin: job.experienceMin,
     experienceMax: job.experienceMax,
+    recruitCount: job.recruitCount ?? null,
     workType: job.workType,
     questions: job.questions,
     status: job.status,
@@ -190,6 +204,7 @@ export function transformJobToDocument({
     datePosted: job.datePosted,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    embedding: embedding || null,
     boost: 1.0,
   };
 }

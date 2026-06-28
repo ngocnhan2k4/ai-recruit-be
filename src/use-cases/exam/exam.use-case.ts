@@ -30,7 +30,15 @@ import {
   ExamScoringService,
   ImportRow,
 } from "./services";
-import { EXAM_MAX_QUESTIONS } from "@/common/constants";
+import {
+  EXAM_MAX_QUESTIONS,
+  TranslationJobType,
+  TRANSLATION_SUPPORTED_LANGUAGES,
+  SUPPORTED_LANGUAGE_CODES,
+} from "@/common/constants";
+import { getRequestLanguage } from "@/common/utils";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { UpdateQuestionTranslationDto } from "@/interfaces/dtos/exam";
 
 @Injectable()
 export class ExamUseCases {
@@ -45,7 +53,125 @@ export class ExamUseCases {
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
     private readonly scoringService: ExamScoringService,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
+
+  private resolveTranslationTargets() {
+    return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  }
+
+  private async enqueueQuestionTranslation(
+    questionId: string,
+    sourceLanguage: string,
+  ) {
+    const targetLanguages = this.resolveTranslationTargets();
+    if (!targetLanguages.length) {
+      return;
+    }
+
+    await this.messageQueueService.addTranslation(TranslationJobType.QUESTION, {
+      questionId,
+      sourceLanguage,
+      targetLanguages,
+    });
+  }
+
+  private addAnswerKeys(question: Question): Question {
+    const optionKeys =
+      question.optionKeys?.length === question.options.length
+        ? question.optionKeys
+        : question.options.map((_, index) => String(index));
+    const derivedCorrectAnswerIndex = question.options.findIndex(
+      (option) =>
+        option.trim().toLowerCase() ===
+        question.correctAnswer.trim().toLowerCase(),
+    );
+
+    return {
+      ...question,
+      optionKeys,
+      correctAnswerKey:
+        question.correctAnswerKey ||
+        (derivedCorrectAnswerIndex >= 0
+          ? String(derivedCorrectAnswerIndex)
+          : "0"),
+    };
+  }
+
+  private resolveChosenAnswerKey(answer: {
+    chosenAnswerKey?: string;
+    chosenAnswer?: string;
+  }) {
+    return answer.chosenAnswerKey?.trim() || answer.chosenAnswer?.trim() || "";
+  }
+
+  private normalizeSupportedLanguageCode(languageCode: string) {
+    const normalized = languageCode.trim().toLowerCase().split("-")[0];
+
+    if (!SUPPORTED_LANGUAGE_CODES.includes(normalized as "vi" | "en")) {
+      throw new BadRequestException(
+        `Unsupported language code: ${languageCode}`,
+      );
+    }
+
+    return normalized;
+  }
+
+  private buildQuestionCreatePayload(
+    dto: CreateQuestionDto,
+  ): Partial<Question> {
+    const options = dto.options ?? [];
+    const correctAnswerIndex = options.findIndex(
+      (option) =>
+        option.trim().toLowerCase() === dto.correctAnswer.trim().toLowerCase(),
+    );
+
+    if (correctAnswerIndex < 0) {
+      throw new BadRequestException(
+        "Correct answer must match one of the provided options",
+      );
+    }
+
+    return {
+      ...dto,
+      options,
+      optionKeys: options.map((_, index) => String(index)),
+      correctAnswer: dto.correctAnswer,
+      correctAnswerKey: String(correctAnswerIndex),
+      difficultyLevels: dto.difficultyLevels as Question["difficultyLevels"],
+    } as Partial<Question>;
+  }
+
+  private buildQuestionUpdatePayload(
+    existing: Question,
+    dto: UpdateQuestionDto,
+  ): Partial<Question> {
+    const payload = { ...dto } as Partial<Question>;
+
+    const nextOptions = dto.options ?? existing.options;
+    const nextCorrectAnswer = dto.correctAnswer ?? existing.correctAnswer;
+
+    if (dto.options || dto.correctAnswer) {
+      const correctAnswerIndex = nextOptions.findIndex(
+        (option) =>
+          option.trim().toLowerCase() ===
+          nextCorrectAnswer.trim().toLowerCase(),
+      );
+
+      if (correctAnswerIndex < 0) {
+        throw new BadRequestException(
+          "Correct answer must match one of the provided options",
+        );
+      }
+
+      payload.options = nextOptions;
+      payload.optionKeys = nextOptions.map((_, index) => String(index));
+      payload.correctAnswer = nextCorrectAnswer;
+      payload.correctAnswerKey = String(correctAnswerIndex);
+    }
+
+    return payload;
+  }
 
   // ==================== AREA MANAGEMENT ====================
 
@@ -118,7 +244,11 @@ export class ExamUseCases {
   // ==================== QUESTION MANAGEMENT ====================
 
   async createQuestion(dto: CreateQuestionDto) {
-    const question = await this.questionRepo.create(dto as Partial<Question>);
+    const sourceLanguage = getRequestLanguage();
+    const question = await this.questionRepo.create(
+      this.buildQuestionCreatePayload(dto),
+    );
+    await this.enqueueQuestionTranslation(question.id, sourceLanguage);
     this.logger.log(`Created question: ${question.id}`);
     return {
       success: true,
@@ -128,6 +258,7 @@ export class ExamUseCases {
   }
 
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
+    const sourceLanguage = getRequestLanguage();
     const existing = await this.questionRepo.get(id);
     if (!existing) {
       throw new NotFoundException("Question not found");
@@ -135,8 +266,11 @@ export class ExamUseCases {
 
     const [updated] = await this.questionRepo.update(
       { id },
-      dto as Partial<Question>,
+      this.buildQuestionUpdatePayload(existing, dto),
     );
+    if (updated) {
+      await this.enqueueQuestionTranslation(updated.id, sourceLanguage);
+    }
     this.logger.log(`Updated question: ${id}`);
     return {
       success: true,
@@ -235,7 +369,7 @@ export class ExamUseCases {
   }
 
   async getQuestionById(id: string) {
-    const question = await this.questionRepo.get(id);
+    const question = await this.questionRepo.getQuestionByIdWithLanguage(id);
     if (!question) {
       throw new NotFoundException("Question not found");
     }
@@ -245,6 +379,92 @@ export class ExamUseCases {
       message: "Question fetched successfully",
       data: question,
     };
+  }
+
+  async getQuestionTranslation(id: string, languageCode: string) {
+    const normalizedLanguageCode =
+      this.normalizeSupportedLanguageCode(languageCode);
+    const existing = await this.questionRepo.get(id);
+    if (!existing) {
+      throw new NotFoundException("Question not found");
+    }
+
+    const question = this.addAnswerKeys(existing);
+    const translation = await this.questionRepo.getQuestionTranslation(
+      id,
+      normalizedLanguageCode,
+    );
+
+    return {
+      success: true,
+      message: "Question translation fetched successfully",
+      data: {
+        questionId: question.id,
+        languageCode: normalizedLanguageCode,
+        questionText: translation?.questionText ?? question.questionText,
+        options: translation?.options ?? question.options,
+        optionKeys: question.optionKeys,
+        correctAnswerKey: question.correctAnswerKey,
+        exists: Boolean(translation),
+      },
+    };
+  }
+
+  async updateQuestionTranslation(
+    id: string,
+    languageCode: string,
+    dto: UpdateQuestionTranslationDto,
+  ) {
+    const normalizedLanguageCode =
+      this.normalizeSupportedLanguageCode(languageCode);
+    const existing = await this.questionRepo.get(id);
+    if (!existing) {
+      throw new NotFoundException("Question not found");
+    }
+
+    const question = this.addAnswerKeys(existing);
+    const trimmedQuestionText = dto.questionText.trim();
+    const normalizedOptions = dto.options.map((option) => option.trim());
+
+    if (!trimmedQuestionText) {
+      throw new BadRequestException("Question translation text is required");
+    }
+
+    if (normalizedOptions.length !== question.options.length) {
+      throw new BadRequestException(
+        `Translated options must contain exactly ${question.options.length} items`,
+      );
+    }
+
+    if (normalizedOptions.some((option) => !option)) {
+      throw new BadRequestException(
+        "Translated options must not contain empty values",
+      );
+    }
+
+    const correctAnswerIndex = question.optionKeys.findIndex(
+      (key) => key === question.correctAnswerKey,
+    );
+    if (
+      correctAnswerIndex < 0 ||
+      correctAnswerIndex >= normalizedOptions.length
+    ) {
+      throw new BadRequestException(
+        "Unable to determine the correct answer mapping for this question",
+      );
+    }
+
+    await this.questionRepo.upsertQuestionTranslation(
+      id,
+      normalizedLanguageCode,
+      {
+        questionText: trimmedQuestionText,
+        options: normalizedOptions,
+        correctAnswer: normalizedOptions[correctAnswerIndex],
+      },
+    );
+
+    return this.getQuestionTranslation(id, normalizedLanguageCode);
   }
 
   // ==================== QUESTION IMPORT ====================
@@ -287,8 +507,11 @@ export class ExamUseCases {
       [dto.skillId],
       dto.difficultyLevels,
     );
+    const allQuestionsWithKeys = allQuestions.map((question) =>
+      this.addAnswerKeys(question),
+    );
 
-    if (allQuestions.length === 0) {
+    if (allQuestionsWithKeys.length === 0) {
       throw new BadRequestException(
         "No active questions found for selected skill and difficulty levels",
       );
@@ -302,9 +525,12 @@ export class ExamUseCases {
     // }
 
     // Randomize and select questions (use available count or EXAM_MAX_QUESTIONS, whichever is less)
-    const questionCount = Math.min(allQuestions.length, EXAM_MAX_QUESTIONS);
+    const questionCount = Math.min(
+      allQuestionsWithKeys.length,
+      EXAM_MAX_QUESTIONS,
+    );
     const selectedQuestions = this.randomizerService.randomizeQuestions(
-      allQuestions,
+      allQuestionsWithKeys,
       {
         totalQuestions: questionCount,
         balanceBySkill: false,
@@ -330,6 +556,7 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
+      optionKeys: q.optionKeys,
       difficultyLevels: q.difficultyLevels,
     }));
 
@@ -379,9 +606,9 @@ export class ExamUseCases {
       );
     }
 
-    // Validate all submitted answers have non-empty chosenAnswer
+    // Validate all submitted answers have a non-empty stable answer key/text
     const emptyAnswers = dto.answers.filter(
-      (a) => !a.chosenAnswer || a.chosenAnswer.trim() === "",
+      (a) => this.resolveChosenAnswerKey(a) === "",
     );
     if (emptyAnswers.length > 0) {
       throw new BadRequestException(
@@ -390,11 +617,11 @@ export class ExamUseCases {
     }
 
     // Get all questions from the test
-    const questions = await Promise.all(
-      userTest.questionIds.map((id) => this.questionRepo.get(id)),
-    );
-
-    const validQuestions = questions.filter((q) => q !== null) as Question[];
+    const validQuestions = (
+      await this.questionRepo.getQuestionsByIdsWithLanguage(
+        userTest.questionIds,
+      )
+    ).map((question) => this.addAnswerKeys(question));
 
     if (validQuestions.length !== userTest.questionIds.length) {
       throw new BadRequestException("Some questions not found");
@@ -411,9 +638,9 @@ export class ExamUseCases {
     await this.userTestRepo.executeWithTransaction(async (tx) => {
       const answersToSave = examResult.answersDetails.map((detail) => ({
         questionId: detail.questionId,
-        chosenAnswer:
-          dto.answers.find((a) => a.questionId === detail.questionId)
-            ?.chosenAnswer || "",
+        chosenAnswer: this.resolveChosenAnswerKey(
+          dto.answers.find((a) => a.questionId === detail.questionId) || {},
+        ),
         isCorrect: detail.isCorrect,
         pointGained: detail.pointGained,
       }));
@@ -478,12 +705,18 @@ export class ExamUseCases {
     }
 
     const answers = await this.userAnswerRepo.getTestAnswers(testId);
+    const questions = (
+      await this.questionRepo.getQuestionsByIdsWithLanguage(
+        test.questionIds ?? [],
+      )
+    ).map((question) => this.addAnswerKeys(question));
 
     return {
       success: true,
       message: "Test details fetched successfully",
       data: {
         test,
+        questions,
         answers,
       },
     };
@@ -528,11 +761,11 @@ export class ExamUseCases {
     }
 
     // Get all questions
-    const questions = await Promise.all(
-      userTest.questionIds.map((id) => this.questionRepo.get(id)),
-    );
-
-    const validQuestions = questions.filter((q) => q !== null) as Question[];
+    const validQuestions = (
+      await this.questionRepo.getQuestionsByIdsWithLanguage(
+        userTest.questionIds,
+      )
+    ).map((question) => this.addAnswerKeys(question));
 
     if (validQuestions.length !== userTest.questionIds.length) {
       throw new BadRequestException("Some questions not found");
@@ -553,6 +786,7 @@ export class ExamUseCases {
       id: q.id,
       questionText: q.questionText,
       options: q.options,
+      optionKeys: q.optionKeys,
       difficultyLevels: q.difficultyLevels,
       savedAnswer: answerMap.get(q.id) || null,
     }));
@@ -572,7 +806,11 @@ export class ExamUseCases {
   async savePartialAnswers(
     userId: string,
     testId: string,
-    answers: Array<{ questionId: string; chosenAnswer: string }>,
+    answers: Array<{
+      questionId: string;
+      chosenAnswer?: string;
+      chosenAnswerKey?: string;
+    }>,
   ) {
     const userTest = await this.userTestRepo.get(testId);
     if (!userTest) {
@@ -603,7 +841,7 @@ export class ExamUseCases {
 
     // Filter out empty answers (user might want to clear previous answer by not sending it)
     const validAnswers = answers.filter(
-      (a) => a.chosenAnswer && a.chosenAnswer.trim() !== "",
+      (a) => this.resolveChosenAnswerKey(a) !== "",
     );
 
     if (validAnswers.length === 0) {
@@ -611,7 +849,13 @@ export class ExamUseCases {
     }
 
     // Upsert answers (save or update) - only save non-empty answers
-    await this.userAnswerRepo.upsertAnswers(testId, validAnswers);
+    await this.userAnswerRepo.upsertAnswers(
+      testId,
+      validAnswers.map((item) => ({
+        questionId: item.questionId,
+        chosenAnswer: this.resolveChosenAnswerKey(item),
+      })),
+    );
 
     // Get updated answer count
     const savedAnswers = await this.userAnswerRepo.getTestAnswers(testId);
