@@ -22,3 +22,4 @@ export * from "./task.model";
 export * from "./skills-synonyms.model";
 export * from "./user-action.model";
 export * from "./blog.model";
+export * from "./i18n-translations.model";

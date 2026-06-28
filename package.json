@@ -38,7 +38,8 @@
     "casbin:migrate": "ts-node migrate-casbin.ts",
     "swagger:json": "node scripts/fetch-swagger-json.js",
     "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts",
-    "sync:firebase-identities": "ts-node -r tsconfig-paths/register scripts/sync-firebase-user-identities.ts"
+    "sync:firebase-identities": "ts-node -r tsconfig-paths/register scripts/sync-firebase-user-identities.ts",
+    "blog:backfill-locales": "ts-node -r tsconfig-paths/register scripts/backfill-blog-post-locales.ts"
   },
   "husky": {
     "hooks": {
@@ -111,6 +112,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-vault": "^0.10.9",
     "nodemailer": "^7.0.11",
+    "openai": "^6.39.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdf-parse": "^2.4.5",

@@ -13,7 +13,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
 import { GenderEnum, UserSubscriptionStatusEnum } from "@/core";
 import { RoleEnum } from "@/common/constants";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 
 export class CreateUserRequestDto {
   @ApiProperty()
@@ -171,7 +171,23 @@ export class GetUserQueryDto extends GeneralQueryDto {
   @IsOptional()
   @IsArray()
   @IsEnum(RoleEnum, { each: true })
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : value ? [value] : undefined,
+  )
   roles?: RoleEnum[];
+
+  @ApiPropertyOptional({
+    description: "Filter by fields",
+    example: ["subscription", "userSubscription"],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : value ? [value] : undefined,
+  )
+  fields?: string[];
 }
 
 export class AdminUpdateUserRequestDto {

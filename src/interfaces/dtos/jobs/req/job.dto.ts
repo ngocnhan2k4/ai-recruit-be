@@ -7,6 +7,10 @@ import {
   IsUUID,
   IsArray,
   IsEnum,
+  IsInt,
+  Min,
+  Max,
+  ValidateIf,
 } from "class-validator";
 import { JobStatusEnum, WorkTypeEnum } from "@/core";
 import { Transform, Type } from "class-transformer";
@@ -171,7 +175,11 @@ export class CreateJobDto {
     example: 10,
   })
   @IsOptional()
-  @IsNumber()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
   recruitCount?: number | null;
 
   @ApiProperty({ type: "number", nullable: true })
@@ -319,7 +327,11 @@ export class UpdateJobDto {
     example: 10,
   })
   @IsOptional()
-  @IsNumber()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
   recruitCount?: number | null;
 
   @ApiProperty({ type: "number", nullable: true, required: false })

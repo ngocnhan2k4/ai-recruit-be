@@ -1,13 +1,33 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { GenericRepository } from "./generic-repository";
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { PaginatedResult, SortDirection } from "@/common/types";
 import {
-  blogCategories,
-  blogPosts,
-  blogPostTags,
-  tags,
-} from "../models/blog.model";
+  buildLanguagePriority,
+  cacheWithDedup,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
+import { generateSlug } from "@/common/utils/string";
+import {
+  BlogCategory,
+  BlogPost,
+  BlogPostStatus,
+  ICacheService,
+  NewBlogPost,
+  NewBlogPostTag,
+  Tag,
+} from "@/core";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { ObjectType, UserActionType } from "@/core/entities";
+import {
+  BlogLocaleMap,
+  BlogPostDetailBase,
+  BlogPostFilters,
+  BlogPostListItem,
+  BlogPostSource,
+  BlogPostTagItem,
+  BlogSourceType,
+} from "@/core/entities/blog.entity";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   and,
   asc,
@@ -16,38 +36,52 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
+  ne,
+  or,
   sql,
   SQL,
-  ne,
-  isNull,
-  or,
 } from "drizzle-orm";
-import { skills, users, userActions } from "../models";
-import { ObjectType, UserActionType } from "@/core/entities";
-import { PaginatedResult } from "@/common/types";
+import { skills, userActions, users } from "../models";
 import {
-  BlogPostDetailBase,
-  BlogPostFilters,
-  BlogPostListItem,
-  BlogPostSource,
-  BlogSourceType,
-  BlogPostTagItem,
-} from "@/core/entities/blog.entity";
-import {
-  BlogPost,
-  BlogPostStatus,
-  NewBlogPost,
-  NewBlogPostTag,
-  BlogCategory,
-  Tag,
-  ICacheService,
-} from "@/core";
-import { generateSlug } from "@/common/utils/string";
-import { cacheWithDedup } from "@/common/utils";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+  blogCategories,
+  blogPosts,
+  blogPostTags,
+  tags,
+} from "../models/blog.model";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
-const sortExpr = (bp: typeof blogPosts) =>
-  sql`coalesce(${bp.updatedAt}, ${bp.createdAt})`;
+const resolveSortExpr = (sortBy?: string): SQL => {
+  switch (sortBy) {
+    case "viewCount":
+      return sql`${blogPosts.viewCount}`;
+    case "createdAt":
+    default:
+      return sql`${blogPosts.updatedAt}`;
+  }
+};
+
+const buildOrderBy = (sortBy?: string, sortDirection?: SortDirection) => {
+  const direction = sortDirection === "asc" ? asc : desc;
+  const orderExpr = resolveSortExpr(sortBy);
+  return [direction(orderExpr), direction(blogPosts.id)];
+};
+
+const buildCursorWhere = (
+  cursorExpr: SQL,
+  cursorTime: Date,
+  cursorId: string,
+  sortDirection?: SortDirection,
+) => {
+  const operator = sortDirection === "asc" ? ">" : "<";
+  const sortTimeSql = sql`${cursorTime.toISOString()}::timestamptz AT TIME ZONE 'UTC'`;
+
+  return sql`(
+    ${cursorExpr} ${sql.raw(operator)} (${sortTimeSql})
+    OR (${cursorExpr} = (${sortTimeSql}) AND ${blogPosts.id} ${sql.raw(operator)} ${cursorId}::uuid)
+  )`;
+};
 
 function encodeCursor(
   sortTime: Date | string | null | undefined,
@@ -68,7 +102,7 @@ function decodeCursor(
     const parts = decoded.split("|");
     if (parts.length !== 2) return null;
     const d = new Date(parts[0]);
-    if (isNaN(d.getTime())) return null;
+    if (Number.isNaN(d.getTime())) return null;
     return { sortTime: d, id: parts[1] };
   } catch {
     return null;
@@ -89,23 +123,156 @@ export class BlogRepository
   }
 
   private async invalidateBlogCache(postId: string, slug?: string) {
-    const pattern = CACHE_KEYS.blog.patternDetail(postId);
+    const patterns = [CACHE_KEYS.blog.patternDetail(postId)];
+    if (slug) {
+      patterns.push(CACHE_KEYS.blog.patternSlugDetail(slug));
+    }
 
     try {
-      const matchedKeys = await this.cacheService.getKeysByPattern(pattern);
-      const keysToDelete = [...matchedKeys];
-      if (slug) {
-        keysToDelete.push(CACHE_KEYS.blog.getPostBaseBySlug(slug));
-      }
+      const matchedGroups = await Promise.all(
+        patterns.map((pattern) => this.cacheService.getKeysByPattern(pattern)),
+      );
+      const keysToDelete = [...new Set(matchedGroups.flat())];
+
       if (keysToDelete.length > 0) {
         await this.cacheService.deleteMultipleKeys(keysToDelete);
       }
     } catch (err) {
       this.logger.warn(
-        `[cache] Failed to invalidate blog cache for ${postId} (pattern ${pattern})`,
+        `[cache] Failed to invalidate blog cache for ${postId}`,
         err,
       );
     }
+  }
+
+  private normalizeLocaleMap(value: unknown): BlogLocaleMap {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (acc, [languageCode, localizedContent]) => {
+        if (
+          !localizedContent ||
+          typeof localizedContent !== "object" ||
+          Array.isArray(localizedContent)
+        ) {
+          return acc;
+        }
+
+        const normalized = Object.entries(
+          localizedContent as Record<string, unknown>,
+        ).reduce(
+          (fieldAcc, [field, fieldValue]) => {
+            if (
+              (field === "title" ||
+                field === "summary" ||
+                field === "content") &&
+              typeof fieldValue === "string"
+            ) {
+              fieldAcc[field] = fieldValue;
+            }
+            return fieldAcc;
+          },
+          {} as NonNullable<BlogLocaleMap[string]>,
+        );
+
+        if (Object.keys(normalized).length > 0) {
+          acc[languageCode] = normalized;
+        }
+
+        return acc;
+      },
+      {} as BlogLocaleMap,
+    );
+  }
+
+  private resolveLocalizedValue(params: {
+    locales?: Record<string, any> | null;
+    field: "title" | "summary" | "content";
+    requestLanguage: string;
+    fallbackLanguage: string;
+    baseValue: string | null;
+  }) {
+    const locales = params.locales ?? {};
+    for (const languageCode of buildLanguagePriority(
+      params.requestLanguage,
+      params.fallbackLanguage,
+    )) {
+      const resolved = locales[languageCode]?.[params.field];
+      if (typeof resolved === "string" && resolved.length > 0) {
+        return resolved;
+      }
+    }
+
+    return params.baseValue ?? "";
+  }
+
+  private mapToPostDetailBase(post: {
+    id: string;
+    title: string;
+    locales?: Record<string, any> | null;
+    slug: string;
+    summary: string | null;
+    thumbnail: string | null;
+    content: string | null;
+    category: string | null;
+    status: BlogPostStatus;
+    viewCount: number | null;
+    sourceType: string | null;
+    source: unknown;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    authorId: string | null;
+    authorUsername: string | null;
+    authorName: string | null;
+    authorAvatarUrl: string | null;
+  }): BlogPostDetailBase {
+    return {
+      id: post.id,
+      title: post.title,
+      locales: post.locales ?? {},
+      slug: post.slug,
+      summary: post.summary ?? "",
+      thumbnail: post.thumbnail,
+      content: post.content ?? "",
+      category: post.category ?? "",
+      status: post.status,
+      viewCount: post.viewCount ?? 0,
+      sourceType: post.sourceType as BlogSourceType,
+      source: post.source as BlogPostSource | null,
+      createdAt: post.createdAt ?? new Date(),
+      updatedAt: post.updatedAt,
+      author: post.authorId
+        ? {
+            id: post.authorId,
+            username: post.authorUsername!,
+            name: post.authorName!,
+            avatarUrl: post.authorAvatarUrl,
+          }
+        : null,
+    };
+  }
+
+  async get(id: string): Promise<BlogPost | null> {
+    const key = CACHE_KEYS.blog.get(id);
+    return cacheWithDedup<BlogPost | null>(
+      key,
+      () => this.cacheService.getJson<BlogPost | null>(key),
+      async () => {
+        const [post] = await this.db
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
+          .limit(1);
+        return (post as BlogPost) ?? null;
+      },
+      (data: BlogPost | null) =>
+        this.cacheService.setJson(key, data, SHORT_TTL),
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   async update(
@@ -133,29 +300,8 @@ export class BlogRepository
     return data;
   }
 
-  async get(id: string): Promise<BlogPost | null> {
-    const key = CACHE_KEYS.blog.get(id);
-    return cacheWithDedup<BlogPost | null>(
-      key,
-      () => this.cacheService.getJson<BlogPost | null>(key),
-      async () => {
-        const [post] = await this.db
-          .select()
-          .from(blogPosts)
-          .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .limit(1);
-        return (post as BlogPost) ?? null;
-      },
-      (data: BlogPost | null) =>
-        this.cacheService.setJson(key, data, SHORT_TTL),
-      {
-        logger: this.logger,
-      },
-    );
-  }
-
   async getCategories(): Promise<{ id: string; name: string }[]> {
-    return this.db
+    return await this.db
       .select({
         id: blogCategories.id,
         name: blogCategories.name,
@@ -179,16 +325,18 @@ export class BlogRepository
     const whereConditions: SQL[] = [];
 
     if (filters.keyword?.trim()) {
-      whereConditions.push(sql`name ILIKE ${`%${filters.keyword.trim()}%`}`);
+      const keywordPattern = `%${filters.keyword.trim()}%`;
+      whereConditions.push(sql`name ILIKE ${keywordPattern}`);
     }
 
     if (filters.cursor) {
       whereConditions.push(sql`created_at < ${new Date(filters.cursor)}`);
     }
 
+    const andSeparator = sql` AND `;
     const whereClause =
       whereConditions.length > 0
-        ? sql`WHERE ${sql.join(whereConditions, sql` AND `)}`
+        ? sql`WHERE ${sql.join(whereConditions, andSeparator)}`
         : sql``;
 
     const result = await this.db.execute(sql`
@@ -224,7 +372,7 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const dataRows = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = dataRows[dataRows.length - 1];
+    const last = dataRows.at(-1);
 
     return {
       data: dataRows.map((row) => ({
@@ -295,22 +443,31 @@ export class BlogRepository
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const baseWhere = this.buildPostWhere(filters);
-    return this.queryPostsWithOffset(filters, baseWhere);
+    return this.queryPostsWithOffset(
+      filters,
+      baseWhere,
+      getRequestLanguage(),
+      getFallbackLanguage(),
+    );
   }
 
   private async queryPostsWithOffset(
     filters: BlogPostFilters,
     baseWhere: ReturnType<typeof and> | undefined,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
     const offset = (page - 1) * limit;
+    const orderBy = buildOrderBy(filters.sortBy, filters.sortDirection);
 
     const [rows, totalRows] = await Promise.all([
       this.db
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -323,7 +480,7 @@ export class BlogRepository
         })
         .from(blogPosts)
         .where(baseWhere)
-        .orderBy(desc(blogPosts.createdAt), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit)
         .offset(offset),
 
@@ -337,7 +494,26 @@ export class BlogRepository
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: rows as BlogPostListItem[],
+      data: rows.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+        sourceType: item.sourceType as BlogSourceType,
+        source: item.source as BlogPostSource | null,
+      })) as BlogPostListItem[],
       pagination: {
         total,
         hasNextPage: page < totalPages,
@@ -360,15 +536,26 @@ export class BlogRepository
       conditions.push(eq(blogPosts.categoryId, filters.category));
     if (filters.status) conditions.push(eq(blogPosts.status, filters.status));
     const baseWhere = and(...conditions);
-    return this.queryPostsWithCursor(filters, baseWhere);
+    return this.queryPostsWithCursor(
+      filters,
+      baseWhere,
+      getRequestLanguage(),
+      getFallbackLanguage(),
+    );
   }
 
   async getSavedBlogs(
     userId: string,
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
+    const sortBy = filters.sortBy;
+    const sortDirection = filters.sortDirection ?? "desc";
+    const cursorExpr = resolveSortExpr(sortBy);
+    const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const conditions: SQL[] = [
       eq(userActions.userId, userId),
@@ -389,10 +576,12 @@ export class BlogRepository
     const finalWhere = decoded
       ? and(
           baseWhere,
-          sql`(
-            ${sortExpr(blogPosts)} < ${decoded.sortTime}
-            OR (${sortExpr(blogPosts)} = ${decoded.sortTime} AND ${blogPosts.id} < ${decoded.id}::uuid)
-          )`,
+          buildCursorWhere(
+            cursorExpr,
+            decoded.sortTime,
+            decoded.id,
+            sortDirection,
+          ),
         )
       : baseWhere;
 
@@ -401,6 +590,7 @@ export class BlogRepository
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -414,7 +604,7 @@ export class BlogRepository
         .from(userActions)
         .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
         .where(finalWhere)
-        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit + 1),
 
       this.db
@@ -434,16 +624,37 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data[data.length - 1];
+    const last = data.at(-1);
+    const cursorTime =
+      sortBy === "createdAt"
+        ? last?.createdAt
+        : (last?.updatedAt ?? last?.createdAt);
 
     return {
-      data: data as BlogPostListItem[],
+      data: data.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+      })) as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
         nextCursor:
-          hasNextPage && last
-            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+          hasNextPage && last && cursorTime
+            ? encodeCursor(cursorTime, last.id)
             : null,
       },
     };
@@ -452,17 +663,25 @@ export class BlogRepository
   private async queryPostsWithCursor(
     filters: BlogPostFilters,
     baseWhere: SQL | ReturnType<typeof and> | undefined,
+    requestLanguage = "vi",
+    fallbackLanguage = "vi",
   ): Promise<PaginatedResult<BlogPostListItem>> {
     const limit = Math.min(filters.limit ?? 10, 50);
     const decoded = decodeCursor(filters.cursor);
+    const sortBy = filters.sortBy;
+    const sortDirection = filters.sortDirection ?? "desc";
+    const cursorExpr = resolveSortExpr(sortBy);
+    const orderBy = buildOrderBy(sortBy, sortDirection);
 
     const finalWhere = decoded
       ? and(
           baseWhere,
-          sql`(
-            ${sortExpr(blogPosts)} < (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC')
-            OR (${sortExpr(blogPosts)} = (${decoded.sortTime.toISOString()}::timestamptz AT TIME ZONE 'UTC') AND ${blogPosts.id} < ${decoded.id}::uuid)
-          )`,
+          buildCursorWhere(
+            cursorExpr,
+            decoded.sortTime,
+            decoded.id,
+            sortDirection,
+          ),
         )
       : baseWhere;
 
@@ -471,6 +690,7 @@ export class BlogRepository
         .select({
           id: blogPosts.id,
           title: blogPosts.title,
+          locales: blogPosts.locales,
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
@@ -483,7 +703,7 @@ export class BlogRepository
         })
         .from(blogPosts)
         .where(finalWhere)
-        .orderBy(desc(sortExpr(blogPosts)), desc(blogPosts.id))
+        .orderBy(...orderBy)
         .limit(limit + 1),
 
       this.db
@@ -494,16 +714,34 @@ export class BlogRepository
 
     const hasNextPage = rows.length > limit;
     const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data[data.length - 1];
+    const last = data.at(-1);
+    const cursorTime = last?.updatedAt ?? last?.createdAt;
 
     return {
-      data: data as BlogPostListItem[],
+      data: data.map((item) => ({
+        ...item,
+        title: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "title",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.title,
+        }),
+        summary: this.resolveLocalizedValue({
+          locales: this.normalizeLocaleMap(item.locales),
+          field: "summary",
+          requestLanguage,
+          fallbackLanguage,
+          baseValue: item.summary,
+        }),
+        locales: this.normalizeLocaleMap(item.locales),
+      })) as BlogPostListItem[],
       pagination: {
         total: Number(totalRows[0]?.total ?? 0),
         hasNextPage,
         nextCursor:
-          hasNextPage && last
-            ? encodeCursor(last.updatedAt ?? last.createdAt, last.id)
+          hasNextPage && last && cursorTime
+            ? encodeCursor(cursorTime, last.id)
             : null,
       },
     };
@@ -545,7 +783,14 @@ export class BlogRepository
   }
 
   async getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null> {
-    const key = CACHE_KEYS.blog.getPostBaseBySlug(slug);
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const key = CACHE_KEYS.blog.getPostBaseBySlug(
+      slug,
+      requestLanguage,
+      fallbackLanguage,
+    );
+
     return cacheWithDedup<BlogPostDetailBase | null>(
       key,
       () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
@@ -554,6 +799,7 @@ export class BlogRepository
           .select({
             id: blogPosts.id,
             title: blogPosts.title,
+            locales: blogPosts.locales,
             slug: blogPosts.slug,
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
@@ -573,52 +819,37 @@ export class BlogRepository
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
           .limit(1);
 
         if (!post) return null;
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          summary: post.summary,
-          thumbnail: post.thumbnail,
-          content: post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -629,7 +860,14 @@ export class BlogRepository
   }
 
   async getPostBaseById(id: string): Promise<BlogPostDetailBase | null> {
-    const key = CACHE_KEYS.blog.getPostBaseById(id);
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const key = CACHE_KEYS.blog.getPostBaseById(
+      id,
+      requestLanguage,
+      fallbackLanguage,
+    );
+
     return cacheWithDedup<BlogPostDetailBase | null>(
       key,
       () => this.cacheService.getJson<BlogPostDetailBase | null>(key),
@@ -638,6 +876,7 @@ export class BlogRepository
           .select({
             id: blogPosts.id,
             title: blogPosts.title,
+            locales: blogPosts.locales,
             slug: blogPosts.slug,
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
@@ -657,52 +896,37 @@ export class BlogRepository
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
           .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
-          .groupBy(
-            blogPosts.id,
-            blogPosts.title,
-            blogPosts.slug,
-            blogPosts.summary,
-            blogPosts.thumbnail,
-            blogPosts.content,
-            blogPosts.categoryId,
-            blogPosts.status,
-            blogPosts.viewCount,
-            blogPosts.sourceType,
-            blogPosts.source,
-            blogPosts.createdAt,
-            users.id,
-            users.username,
-            users.name,
-            users.avatarUrl,
-            blogPosts.updatedAt,
-          )
           .limit(1);
 
         if (!post) return null;
 
-        return {
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          summary: post.summary,
-          thumbnail: post.thumbnail,
-          content: post.content,
-          category: post.category,
-          status: post.status,
-          viewCount: post.viewCount,
-          sourceType: post.sourceType as BlogSourceType,
-          source: post.source as BlogPostSource | null,
-          createdAt: post.createdAt,
-          updatedAt: post.updatedAt,
-          author: post.authorId
-            ? {
-                id: post.authorId,
-                username: post.authorUsername!,
-                name: post.authorName!,
-                avatarUrl: post.authorAvatarUrl,
-              }
-            : null,
-        };
+        const locales = this.normalizeLocaleMap(post.locales);
+
+        return this.mapToPostDetailBase({
+          ...post,
+          title: this.resolveLocalizedValue({
+            locales,
+            field: "title",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.title,
+          }),
+          summary: this.resolveLocalizedValue({
+            locales,
+            field: "summary",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.summary,
+          }),
+          content: this.resolveLocalizedValue({
+            locales,
+            field: "content",
+            requestLanguage,
+            fallbackLanguage,
+            baseValue: post.content,
+          }),
+          locales,
+        });
       },
       (data: BlogPostDetailBase | null) =>
         this.cacheService.setJson(key, data, SHORT_TTL),
@@ -725,7 +949,14 @@ export class BlogRepository
   async createPost(data: NewBlogPost): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
       const db = this.getExecutor();
-      const [created] = await db.insert(blogPosts).values(data).returning();
+      const now = new Date();
+      const [created] = await db
+        .insert(blogPosts)
+        .values({
+          ...data,
+          updatedAt: now,
+        })
+        .returning();
 
       const normalizedTags = (data.tags ?? []).filter(
         (item) => item.tagId || item.skillId,
@@ -735,88 +966,108 @@ export class BlogRepository
         await this.updatePostTags(created.id, normalizedTags);
       }
 
+      await this.invalidateBlogCache(created.id, created.slug);
       return created as BlogPost;
     });
   }
 
   async saveDraft(
+    authorId: string,
     data: {
       title?: string;
       summary?: string;
       content?: string;
-      category?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
-      slug?: string;
     },
-    authorId: string,
     postId?: string,
   ): Promise<BlogPost> {
     return this.executeWithTransaction(async () => {
       const tx = this.getExecutor();
+
       if (postId) {
-        const updateData: Record<string, unknown> = { status: "DRAFT" };
+        const [existing] = await tx
+          .select()
+          .from(blogPosts)
+          .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+          .limit(1);
 
-        if (data.title !== undefined) updateData.title = data.title;
-        if (data.summary !== undefined) updateData.summary = data.summary;
-        if (data.content !== undefined) updateData.content = data.content;
-        if (data.category !== undefined) updateData.categoryId = data.category;
-        if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
-        if (data.slug !== undefined) updateData.slug = data.slug;
+        if (!existing) {
+          throw new Error(`Draft blog post ${postId} not found`);
+        }
 
-        await tx
+        const finalCategoryId = await this.resolveCategoryId(
+          data.categoryId ?? existing.categoryId ?? undefined,
+        );
+
+        const updateData: Record<string, unknown> = {
+          title: data.title ?? existing.title ?? "Bản nháp không có tiêu đề",
+          summary: data.summary ?? existing.summary ?? "",
+          content: data.content ?? existing.content ?? "",
+          locales: data.locales ?? existing.locales ?? {},
+          thumbnail:
+            data.thumbnail === undefined ? existing.thumbnail : data.thumbnail,
+          categoryId: finalCategoryId,
+          status: "DRAFT",
+          updatedAt: new Date(),
+        };
+
+        const [updated] = await tx
           .update(blogPosts)
           .set(updateData)
-          .where(eq(blogPosts.id, postId));
+          .where(eq(blogPosts.id, postId))
+          .returning();
 
-        if (data.tags) {
+        if (data.tags !== undefined) {
           await this.updatePostTags(postId, data.tags);
         }
 
-        const [updated] = await tx
-          .select()
-          .from(blogPosts)
-          .where(eq(blogPosts.id, postId));
-        if (updated) {
-          await this.invalidateBlogCache(updated.id, updated.slug);
-        }
+        await this.invalidateBlogCache(updated.id, updated.slug);
         return updated as BlogPost;
       } else {
-        const categoryId = await this.resolveDraftCategoryId(data.category);
-        const slug2 = data.slug ?? generateSlug(data.title || "draft");
+        // Create new draft
+        const timestampValue = Date.now();
+        const baseSlug = data.title ? generateSlug(data.title) : "draft";
+        const slug = `${baseSlug}-${timestampValue}`;
+        const finalCategoryId = await this.resolveCategoryId(data.categoryId);
+
+        const now = new Date();
+        const insertData: any = {
+          title: data.title ?? "Bản nháp không có tiêu đề",
+          slug,
+          summary: data.summary ?? "",
+          content: data.content ?? "",
+          locales: data.locales ?? {},
+          thumbnail: data.thumbnail ?? null,
+          status: "DRAFT",
+          sourceType: "USER",
+          categoryId: finalCategoryId,
+          authorId,
+          updatedAt: now,
+        };
 
         const [created] = await tx
           .insert(blogPosts)
-          .values({
-            title: data.title ?? "",
-            slug: slug2,
-            summary: data.summary ?? "",
-            content: data.content ?? "",
-            categoryId,
-            thumbnail: data.thumbnail ?? null,
-            authorId,
-            status: "DRAFT",
-          })
+          .values(insertData)
           .returning();
 
         const normalizedTags = (data.tags ?? []).filter(
           (item) => item.tagId || item.skillId,
         );
+
         if (normalizedTags.length > 0) {
-          const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
-            postId: created.id,
-            tagId: item.tagId ?? null,
-            skillId: item.skillId ?? null,
-          }));
-          await tx.insert(blogPostTags).values(tagRows);
+          await this.updatePostTags(created.id, normalizedTags);
         }
 
+        await this.invalidateBlogCache(created.id, created.slug);
         return created as BlogPost;
       }
     });
   }
 
-  private async resolveDraftCategoryId(categoryId?: string): Promise<string> {
+  async resolveCategoryId(categoryId?: string): Promise<string> {
     const tx = this.getExecutor();
     if (categoryId) return categoryId;
 
@@ -860,7 +1111,7 @@ export class BlogRepository
 
     const normalizedTags = tags.filter((item) => item.tagId || item.skillId);
     if (normalizedTags.length > 0) {
-      const tagRows: any[] = normalizedTags.map((item) => ({
+      const tagRows: NewBlogPostTag[] = normalizedTags.map((item) => ({
         postId,
         tagId: item.tagId ?? null,
         skillId: item.skillId ?? null,
@@ -996,5 +1247,64 @@ export class BlogRepository
       )
       .limit(1);
     return row ?? null;
+  }
+
+  async updatePost(
+    postId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+      status?: BlogPostStatus;
+      slug?: string;
+    },
+  ): Promise<BlogPost> {
+    return this.executeWithTransaction(async () => {
+      const tx = this.getExecutor();
+      const updateData: Record<string, unknown> = { updatedAt: new Date() };
+
+      if (data.title !== undefined) updateData.title = data.title;
+      if (data.summary !== undefined) updateData.summary = data.summary;
+      if (data.content !== undefined) updateData.content = data.content;
+      if (data.locales !== undefined) updateData.locales = data.locales;
+      if (data.categoryId !== undefined)
+        updateData.categoryId = data.categoryId;
+      if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
+      if (data.status !== undefined) updateData.status = data.status;
+      if (data.slug !== undefined) updateData.slug = data.slug;
+
+      const [updated] = await tx
+        .update(blogPosts)
+        .set(updateData)
+        .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+        .returning();
+
+      if (!updated) {
+        throw new Error(`Blog post ${postId} not found`);
+      }
+
+      if (data.tags !== undefined) {
+        await this.updatePostTags(postId, data.tags);
+      }
+
+      await this.invalidateBlogCache(updated.id, updated.slug);
+      return updated as BlogPost;
+    });
+  }
+
+  async deletePost(postId: string): Promise<void> {
+    const [deleted] = await this.db
+      .update(blogPosts)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(blogPosts.id, postId), isNull(blogPosts.deletedAt)))
+      .returning();
+
+    if (deleted) {
+      await this.invalidateBlogCache(deleted.id, deleted.slug);
+    }
   }
 }

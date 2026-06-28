@@ -26,7 +26,11 @@ export class ExamScoringService {
    */
   calculateScore(
     questions: Question[],
-    answers: Array<{ questionId: string; chosenAnswer: string }>,
+    answers: Array<{
+      questionId: string;
+      chosenAnswer?: string;
+      chosenAnswerKey?: string;
+    }>,
     selectedDifficultyLevels: string[] | null | undefined,
   ): ScoringResult {
     const questionMap = new Map(questions.map((q) => [q.id, q]));
@@ -49,9 +53,18 @@ export class ExamScoringService {
         };
       }
 
-      const isCorrect =
-        answer.chosenAnswer.trim().toLowerCase() ===
+      const normalizedKey = answer.chosenAnswerKey?.trim();
+      const isCorrectByKey =
+        normalizedKey != null &&
+        normalizedKey !== "" &&
+        question.correctAnswerKey != null &&
+        normalizedKey === question.correctAnswerKey;
+
+      const isCorrectByText =
+        answer.chosenAnswer?.trim().toLowerCase() ===
         question.correctAnswer.trim().toLowerCase();
+
+      const isCorrect = isCorrectByKey || isCorrectByText;
 
       const maxPoints = pointsIfCorrect.get(question.id) ?? 0;
       const pointGained = isCorrect ? maxPoints : 0;
@@ -170,7 +183,11 @@ export class ExamScoringService {
    */
   scoreAndEvaluate(
     questions: Question[],
-    answers: Array<{ questionId: string; chosenAnswer: string }>,
+    answers: Array<{
+      questionId: string;
+      chosenAnswer?: string;
+      chosenAnswerKey?: string;
+    }>,
     selectedDifficultyLevels: string[] | null | undefined,
   ): ExamResult {
     const scoringResult = this.calculateScore(

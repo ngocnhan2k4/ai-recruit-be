@@ -1,16 +1,38 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { IBlogRepository, ICacheService } from "@/core";
+import {
+  BlogPostStatus,
+  BlogSourceType,
+  BlogGeneratedLocaleMap,
+  GenerateJobBlogPostResponse,
+  IAIService,
+  IBlogRepository,
+  ICacheService,
+  IUserRepository,
+} from "@/core";
 import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
 export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
+  private readonly aiBlogAuthorId?: string;
+  private readonly aiBlogRangeDays: number;
 
   constructor(
     private readonly cacheService: ICacheService,
     private readonly blogRepository: IBlogRepository,
-  ) {}
+    private readonly userRepository: IUserRepository,
+    private readonly aiService: IAIService,
+    private readonly configService: ConfigService,
+  ) {
+    this.aiBlogAuthorId =
+      this.configService.get<string>("AI_BLOG_AUTHOR_ID") || undefined;
+    this.aiBlogRangeDays = Math.max(
+      1,
+      this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
+    );
+  }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
   async syncBlogViewCount(): Promise<void> {
@@ -73,9 +95,118 @@ export class BlogScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to sync blog view counts: ${err.message}`,
+        `[scheduler.syncBlogViewCount] Failed to sync blog view counts: ${err.message}`,
         err.stack,
       );
     }
+  }
+
+  private buildGeneratedBlogLocales(
+    payload: GenerateJobBlogPostResponse,
+  ): BlogGeneratedLocaleMap {
+    const locales: BlogGeneratedLocaleMap = {};
+
+    for (const languageCode of ["vi", "en"] as const) {
+      locales[languageCode] = {
+        title: payload.locales?.[languageCode]?.title ?? payload.title,
+        summary: payload.locales?.[languageCode]?.summary ?? payload.summary,
+        content: payload.locales?.[languageCode]?.content ?? payload.content,
+      };
+    }
+
+    return locales;
+  }
+
+  @Cron("0 0 0 * * 0", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  })
+  async generateWeeklyAiBlog(): Promise<void> {
+    await this.generateAiBlogOnce();
+  }
+
+  private async generateAiBlogOnce(): Promise<void> {
+    try {
+      this.logger.log(
+        "Running scheduled weekly AI blog generation cron job...",
+      );
+
+      if (!this.aiBlogAuthorId) {
+        this.logger.warn(
+          "Skipping weekly AI blog generation because AI_BLOG_AUTHOR_ID is not configured.",
+        );
+        return;
+      }
+
+      const author = await this.userRepository.get(this.aiBlogAuthorId);
+      if (!author) {
+        this.logger.warn(
+          `Skipping weekly AI blog generation because author ${this.aiBlogAuthorId} was not found.`,
+        );
+        return;
+      }
+
+      const dateKey = this.formatVietnamDate(new Date());
+      const slug = `weekly-ai-job-market-${dateKey}`;
+      const existing = await this.blogRepository.getPostBySlug(slug);
+      if (existing) {
+        this.logger.log(
+          `Skipping weekly AI blog generation because slug ${slug} already exists.`,
+        );
+        return;
+      }
+
+      const payload = await this.requestWeeklyAiBlog();
+      const normalizedTags = (payload.tagInputs || [])
+        .filter((item) => item.tagId || item.skillId)
+        .map((item) => ({
+          tagId: item.tagId ?? null,
+          skillId: item.skillId ?? null,
+        }));
+      const categoryId = payload.categoryId ?? payload.category;
+
+      if (!categoryId) {
+        this.logger.warn(
+          "Skipping AI blog generation because the AI payload did not include a categoryId.",
+        );
+        return;
+      }
+
+      await this.blogRepository.createPost({
+        title: payload.title,
+        slug,
+        summary: payload.summary,
+        thumbnail: payload.thumbnail ?? null,
+        content: payload.content,
+        locales: this.buildGeneratedBlogLocales(payload),
+        categoryId,
+        authorId: author.id,
+        status: BlogPostStatus.PENDING,
+        sourceType: BlogSourceType.AI,
+        tags: normalizedTags,
+      });
+
+      this.logger.log(`Created AI blog successfully with slug ${slug}.`);
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `[scheduler.generateAiBlogOnce] Failed to generate AI blog: ${err.message}`,
+        err.stack,
+      );
+    }
+  }
+
+  private async requestWeeklyAiBlog(): Promise<GenerateJobBlogPostResponse> {
+    return this.aiService.generateJobBlogPost({
+      rangeDays: this.aiBlogRangeDays,
+    });
+  }
+
+  private formatVietnamDate(date: Date): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
   }
 }

@@ -15,11 +15,32 @@ export interface BlogPostSource {
   platform?: string | null;
 }
 
+export interface BlogLocalizedContent {
+  title?: string;
+  summary?: string;
+  content?: string;
+}
+
+export interface BlogLocaleMap {
+  [languageCode: string]: BlogLocalizedContent | undefined;
+}
+
+export interface BlogGeneratedLocaleContent {
+  title: string;
+  summary: string;
+  content: string;
+}
+
+export type BlogGeneratedLocaleMap = Partial<
+  Record<"vi" | "en", BlogGeneratedLocaleContent>
+>;
+
 export interface BlogPostListItem {
   id: string;
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
   category: string;
   status: BlogPostStatus;
@@ -52,6 +73,7 @@ export interface BlogPostDetailBase {
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
   category: string;
@@ -69,6 +91,7 @@ export interface BlogPostDetail {
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
   category: string;
@@ -103,4 +126,25 @@ export interface BlogTagCursorItem {
 export interface BlogPostTagInput {
   tagId?: string | null;
   skillId?: string | null;
+}
+
+export interface GenerateJobBlogPostRequest {
+  rangeDays: number;
+}
+
+export interface GenerateJobBlogPostResponse {
+  title: string;
+  summary: string;
+  categoryId?: string;
+  category?: string;
+  tags?: string[];
+  tagInputs?: Array<{
+    tagId?: string | null;
+    skillId?: string | null;
+    name?: string | null;
+  }>;
+  thumbnail?: string | null;
+  content: string;
+  locales?: BlogGeneratedLocaleMap;
+  generatedAt?: string;
 }

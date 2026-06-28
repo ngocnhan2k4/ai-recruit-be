@@ -29,12 +29,31 @@ export const CACHE_KEYS = {
   user: {
     get: (userId: string) => `user:${userId}:get`,
   },
+  cv: {
+    get: (cvId: string) => `cv:${cvId}:get`,
+  },
+  aiCv: {
+    get: (aiCvId: string) => `aiCv:${aiCvId}:get`,
+  },
   blog: {
     patternDetail: (postId: string) => `blog:${postId}:*`,
+    patternSlugDetail: (slug: string) => `blog:slug:${slug}:*`,
     get: (postId: string) => `blog:${postId}:get`,
-    getPostBaseById: (postId: string) => `blog:${postId}:getPostBaseById`,
-    getPostBaseBySlug: (slug: string) => `blog:slug:${slug}:getPostBaseBySlug`,
+    getPostBaseById: (
+      postId: string,
+      requestLanguage = "vi",
+      fallbackLanguage = "vi",
+    ) =>
+      `blog:${postId}:getPostBaseById:${requestLanguage}:${fallbackLanguage}`,
+    getPostBaseBySlug: (
+      slug: string,
+      requestLanguage = "vi",
+      fallbackLanguage = "vi",
+    ) =>
+      `blog:slug:${slug}:getPostBaseBySlug:${requestLanguage}:${fallbackLanguage}`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
+    topBlogs: () => `blog:top`,
+    relatedPosts: (slug: string) => `blog:related:${slug}`,
   },
 };

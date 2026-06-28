@@ -1,5 +1,5 @@
 import { TokenPayload, GeneralQuery } from "@/common/types";
-import { JobStatusEnum, WorkTypeEnum } from "./enum.entity";
+import { ApplyStatusEnum, JobStatusEnum, WorkTypeEnum } from "./enum.entity";
 import {
   Category,
   Job,
@@ -23,16 +23,21 @@ export interface JobFilters extends GeneralQuery {
   status?: JobStatusEnum;
   statuses?: JobStatusEnum[];
   user?: TokenPayload;
+  userPreference?: any; // Dữ liệu sở thích (Soft boost)
+  recentInteractions?: any[]; // Lịch sử tương tác
+
   fromDate?: string;
   toDate?: string;
   isJobSystem?: boolean;
   skillIds?: string[];
   fields?: string[];
   ids?: string[];
+  excludeJobIds?: string[];
 }
 
 export interface ApplyJobFilters extends GeneralQuery {
-  jobId: string;
+  jobId?: string;
+  ids?: string[];
 }
 
 export interface StatisticsJobFilter {
@@ -66,15 +71,13 @@ export interface JobAnswer {
 export interface ApplyJobResponse {
   id: string;
   jobId: string;
-  status: string;
+  status: ApplyStatusEnum;
   answers?: JobAnswer[];
   matchingScore?: string | number | null;
-  matchingRank?: number | null;
   matchingCriteria?: Record<string, any> | null;
-  scoredAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
-  user?: Pick<User, "id" | "email" | "name" | "avatarUrl">;
+  user?: Pick<User, "id" | "email" | "name" | "avatarUrl" | "username">;
   cv?: Pick<Cv, "id" | "name" | "fileUrl" | "mimeType">;
 }
 
@@ -147,6 +150,7 @@ export interface JobSearchDocument {
   categoryId?: string;
   categoryName?: string;
   score?: number;
+  recruitCount?: number | null;
 }
 
 export interface JobDetailFilter {

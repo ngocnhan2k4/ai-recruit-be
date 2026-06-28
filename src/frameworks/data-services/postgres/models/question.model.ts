@@ -25,7 +25,9 @@ export const questions = pgTable("questions", {
     .references(() => skills.id, { onDelete: "cascade" }),
   questionText: text("question_text").notNull(),
   options: jsonb("options").$type<string[]>().notNull(),
+  optionKeys: jsonb("option_keys").$type<string[]>().notNull(),
   correctAnswer: varchar("correct_answer", { length: 255 }).notNull(),
+  correctAnswerKey: varchar("correct_answer_key", { length: 255 }).notNull(),
   difficultyLevels: jsonb("difficulty_levels")
     .$type<Difficulty[]>()
     .notNull()

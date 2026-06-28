@@ -1,9 +1,11 @@
 import { ICacheService } from "@/core/abstracts/cache.abstract";
-import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Inject, OnModuleDestroy, Logger } from "@nestjs/common";
 import { Redis } from "ioredis";
 
 @Injectable()
 export class RedisService implements ICacheService, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
+
   constructor(@Inject("REDIS_CLIENT") private readonly redis: Redis) {}
 
   private ttlSeconds(ttlMs?: number) {
@@ -12,7 +14,18 @@ export class RedisService implements ICacheService, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    await this.redis.quit();
+    if (this.redis.status === "end" || this.redis.status === "close") {
+      return;
+    }
+
+    try {
+      await this.redis.quit();
+    } catch (error) {
+      const err = error as Error;
+      if (!err.message.includes("Connection is closed")) {
+        this.logger.warn(`Redis shutdown skipped: ${err.message}`);
+      }
+    }
   }
 
   async get(key: string): Promise<string | null> {
@@ -36,7 +49,7 @@ export class RedisService implements ICacheService, OnModuleDestroy {
     }
 
     if (options?.ttlSeconds) {
-      await this.redis.setex(key, value, options.ttlSeconds);
+      await this.redis.setex(key, options.ttlSeconds, value);
       return true;
     }
 
@@ -138,6 +151,14 @@ export class RedisService implements ICacheService, OnModuleDestroy {
 
   async removeFromSortedSet(key: string, member: string): Promise<void> {
     await this.redis.zrem(key, member);
+  }
+
+  async removeSortedSetRangeByRank(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<void> {
+    await this.redis.zremrangebyrank(key, start, stop);
   }
 
   async getSortedSetRange(

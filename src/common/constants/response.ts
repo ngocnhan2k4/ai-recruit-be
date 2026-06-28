@@ -54,6 +54,7 @@ export const RESPONSE_CODE = {
   JOB_NOT_UPDATED: "JOB_NOT_UPDATED",
   JOB_NOT_DELETED: "JOB_NOT_DELETED",
   APPLICATION_NOT_UPDATED: "APPLICATION_NOT_UPDATED",
+  APPLICATION_NOT_FOUND: "APPLICATION_NOT_FOUND",
   ALREADY_APPLIED: "ALREADY_APPLIED",
 
   // --- Organization ---
@@ -118,6 +119,11 @@ export const RESPONSE_CODE = {
   // --- Blog ---
   BLOG_POST_NOT_FOUND: "BLOG_POST_NOT_FOUND",
   BLOG_IS_NOT_DRAFT: "BLOG_IS_NOT_DRAFT",
+  BLOG_POST_IS_DRAFT: "BLOG_POST_IS_DRAFT",
+  BLOG_POST_NOT_PUBLISHED: "BLOG_POST_NOT_PUBLISHED",
+
+  // --- Task ---
+  TASK_NOT_FOUND: "TASK_NOT_FOUND",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -196,4 +202,10 @@ export const RESPONSE_MESSAGE = {
   // --- BLOG ---
   BLOG_POST_NOT_FOUND: "Blog post not found.",
   BLOG_IS_NOT_DRAFT: "Only draft blog posts can be submitted via create API.",
+  BLOG_POST_IS_DRAFT:
+    "Blog post is a draft and cannot be viewed or modified in this context.",
+  BLOG_POST_NOT_PUBLISHED: "Blog post is not published yet.",
+
+  // --- Task ---
+  TASK_NOT_FOUND: "Task not found.",
 } as const;

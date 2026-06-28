@@ -6,4 +6,6 @@ export abstract class IFeatureRepository extends IGenericRepository<Feature> {
   abstract getListFeatures(
     query: GeneralQuery,
   ): Promise<PaginatedResult<Feature>>;
+
+  abstract getFeatureById(id: number): Promise<Feature | null>;
 }

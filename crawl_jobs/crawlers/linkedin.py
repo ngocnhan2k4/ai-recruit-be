@@ -100,7 +100,7 @@ def linkedin_crawl(
             companies[company_name]["jobs"][job_title] = {
                 "description": description,
                 "locations": locations,
-                "job_url": job_url,
+                "job_url": f"https://www.linkedin.com/jobs/view/{job_id}",
                 "date_posted": process,
                 "skills": [],
                 "crawled_at": datetime.now(timezone.utc),
