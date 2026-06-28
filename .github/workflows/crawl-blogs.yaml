@@ -1,0 +1,41 @@
+name: Crawl Blogs
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 04:00 AM
+  workflow_dispatch:
+
+jobs:
+  run-blog-crawler:
+    strategy:
+      matrix:
+        env: [dev, prod]
+      max-parallel: 1
+
+    environment: ${{ matrix.env }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ai-recruit-be/blog-crawler/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./ai-recruit-be/blog-crawler
+        run: |
+          npm ci
+
+      - name: Run Blog Crawler
+        working-directory: ./ai-recruit-be/blog-crawler
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEV_TO_FEED_URL: https://dev.to/feed
+          DEFAULT_CATEGORY_NAME: Technology
+        run: |
+          npm start
