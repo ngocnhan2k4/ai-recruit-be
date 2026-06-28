@@ -34,6 +34,7 @@ import {
   TaskTypeEnum,
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
+import { JitterBackoff, retry } from "@/common/utils";
 import { keyBy } from "lodash";
 import pLimit from "p-limit";
 
@@ -352,7 +353,7 @@ export class TaskWorker extends WorkerHost {
                       const mapped = skillIdMap.get(prereqSkillId);
                       if (!mapped) {
                         this.logger.warn(
-                          `Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                          `[worer.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
                         );
                       }
                       return mapped;
@@ -423,38 +424,30 @@ export class TaskWorker extends WorkerHost {
           );
           if (existing) return;
 
-          const maxAttempts = 3;
-          let lastErr: any;
-          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-              const aiResult = await this.aiService.generateSubPath({
-                optionName,
-                keyConcepts: option.keyConcepts ?? [],
-                targetRole,
-                currentRole,
-              });
-              await this.subpathRepository.createFromAIResult(
-                { optionName, targetRole, currentRole },
-                aiResult,
-              );
-              this.logger.log(`Subpath generated for "${optionName}"`);
-              lastErr = null;
-              break;
-            } catch (err: any) {
-              lastErr = err;
-              this.logger.warn(
-                `Subpath gen attempt ${attempt}/${maxAttempts} failed for "${optionName}": ${err.message}`,
-              );
-              if (attempt < maxAttempts) {
-                await new Promise((resolve) =>
-                  setTimeout(resolve, attempt * 2000),
+          try {
+            await retry(
+              async () => {
+                const aiResult = await this.aiService.generateSubPath({
+                  optionName,
+                  keyConcepts: option.keyConcepts ?? [],
+                  targetRole,
+                  currentRole,
+                });
+
+                await this.subpathRepository.createFromAIResult(
+                  { optionName, targetRole, currentRole },
+                  aiResult,
                 );
-              }
-            }
-          }
-          if (lastErr) {
+              },
+              {
+                retries: 3,
+                backoff: new JitterBackoff(1000, 10000),
+              },
+            );
+            this.logger.log(`Subpath generated for "${optionName}"`);
+          } catch (err: any) {
             this.logger.error(
-              `Subpath gen permanently failed for "${optionName}" after ${maxAttempts} attempts: ${lastErr.message}`,
+              `[worer.task] [generateSubpaths] Subpath gen permanently failed for "${optionName}" after 3 attempts: ${err.message}`,
             );
           }
         }),
