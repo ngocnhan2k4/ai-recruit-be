@@ -27,6 +27,7 @@ import {
   GenerateJobBlogPostResponse,
 } from "@/core";
 import {
+  AILearningRoadmapResult,
   SubpathGenerateRequest,
   AISubpathResult,
 } from "@/core/entities/learning-path.entity";
@@ -82,6 +83,12 @@ export class AIClientService implements IAIService {
         .join("; ");
     }
 
+    if (typeof errorData?.error === "string") {
+      const detail =
+        typeof errorData?.detail === "string" ? errorData.detail : "";
+      return detail ? `${errorData.error}: ${detail}` : errorData.error;
+    }
+
     if (typeof errorData?.message === "string" && errorData.message.trim()) {
       return errorData.message;
     }
@@ -119,7 +126,6 @@ export class AIClientService implements IAIService {
             buffer += chunkStr;
             const lines = buffer.split("\n");
 
-            // Keep the last incomplete line in the buffer
             buffer = lines.pop() || "";
 
             for (const line of lines) {
@@ -150,6 +156,19 @@ export class AIClientService implements IAIService {
       };
 
       makeRequest();
+    });
+  }
+
+  async generateRoadmapV2(
+    request: RoadmapGenerateRequest,
+  ): Promise<AILearningRoadmapResult> {
+    const url = `${this.aiServiceUrl}/api/v1/generate-roadmap/v2`;
+
+    return this.postWithRetry<RoadmapGenerateRequest, AILearningRoadmapResult>({
+      url,
+      body: request,
+      errorContext: "AI Service roadmap generation failed",
+      timeoutMs: this.aiServiceTimeout * 5,
     });
   }
 
@@ -247,8 +266,14 @@ export class AIClientService implements IAIService {
     url: string;
     body: TRequest;
     errorContext: string;
+    timeoutMs?: number;
   }): Promise<TResponse> {
-    const { url, body, errorContext } = params;
+    const {
+      url,
+      body,
+      errorContext,
+      timeoutMs = this.aiServiceTimeout,
+    } = params;
 
     return firstValueFrom(
       this.httpService
@@ -259,7 +284,7 @@ export class AIClientService implements IAIService {
           },
         })
         .pipe(
-          timeout(this.aiServiceTimeout),
+          timeout(timeoutMs),
           retry({
             count: this.maxRetries,
             delay: (_, retryCount) => {
