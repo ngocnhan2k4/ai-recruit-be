@@ -3,8 +3,17 @@ name: CI/CD Pipeline
 on:
   pull_request:
     branches: ["dev", "main"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+      - "crawl_jobs/**"
+
   push:
     branches: ["dev", "main"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+      - "crawl_jobs/**"
 
 jobs:
   ci:
