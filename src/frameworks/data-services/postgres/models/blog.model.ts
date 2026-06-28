@@ -29,7 +29,7 @@ export const blogPosts = pgTable(
     title: varchar("title", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull().unique(),
     summary: text("summary").notNull(),
-    thumbnail: varchar("thumbnail", { length: 255 }),
+    thumbnail: text("thumbnail"),
     content: text("content").notNull(),
     locales: jsonb("locales")
       .$type<BlogLocaleMap>()
