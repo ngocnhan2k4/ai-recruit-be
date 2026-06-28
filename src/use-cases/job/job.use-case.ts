@@ -36,7 +36,7 @@ import {
   RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
   CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
 } from "@/common/constants/job-matching";
-import { Dictionary, isEqual, keyBy } from "lodash";
+import { Dictionary, isEqual, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
   CompareStatisticsFilterRequestDto,
@@ -403,21 +403,26 @@ export class JobUseCases {
   async getJobStatistics(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
-    const postedDateFilter = {
-      ...filter,
-      haveDatePosted: true,
-    } as StatisticsJobFilter & { haveDatePosted: boolean };
-
-    const [frequentlyJobs, openJobCount, salaryStatistics, totalJobs] =
-      await Promise.all([
-        this.jobRepository.getFrequentlyJobs(postedDateFilter),
-        this.jobRepository.count({
-          ...postedDateFilter,
-          isOpen: true,
-        }),
-        this.jobRepository.getSalaryStatisticsByExperience(postedDateFilter),
-        this.jobRepository.count(postedDateFilter),
-      ]);
+    const [
+      frequentlyJobs,
+      openJobCount,
+      salaryStatistics,
+      totalJobs,
+      totalJobByCategoryId,
+    ] = await Promise.all([
+      this.jobRepository.getFrequentlyJobs(filter),
+      this.jobRepository.count({
+        ...filter,
+        isOpen: true,
+      }),
+      this.jobRepository.getSalaryStatisticsByExperience(filter),
+      this.jobRepository.count({
+        ...(omit(filter, ["categoryId"]) as StatisticsJobFilter),
+      }),
+      this.jobRepository.count({
+        ...filter,
+      }),
+    ]);
 
     this.logger.log(`Fetched job statistics`);
     return {
@@ -428,7 +433,7 @@ export class JobUseCases {
         openJobCount,
         salaryStatistics,
         totalJobs,
-        totalJobByCategoryId: totalJobs,
+        totalJobByCategoryId,
       },
     };
   }
