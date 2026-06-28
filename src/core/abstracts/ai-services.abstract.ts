@@ -9,6 +9,7 @@ import {
   ExtractCvResponse,
 } from "../entities";
 import {
+  AILearningRoadmapResult,
   RoadmapGenerateRequest,
   SubpathGenerateRequest,
   AISubpathResult,
@@ -20,6 +21,10 @@ export abstract class IAIService {
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Observable<MessageEvent>;
+
+  abstract generateRoadmapV2(
+    request: RoadmapGenerateRequest,
+  ): Promise<AILearningRoadmapResult>;
 
   abstract generateSubPath(
     request: SubpathGenerateRequest,

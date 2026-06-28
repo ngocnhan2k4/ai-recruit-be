@@ -1,11 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import {
-  IJobRepository,
-  ILoggerServices,
-  ISearchService,
-  IAIService,
-} from "@/core/abstracts";
+import { IJobRepository, ISearchService, IAIService } from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { JOB_INDEX_QUEUE } from "@/common/constants";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
@@ -27,7 +22,6 @@ export class JobIndexWorker extends WorkerHost {
   constructor(
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
-    private readonly loggerService: ILoggerServices,
     private readonly jobRepository: IJobRepository,
     private readonly aiService: IAIService,
   ) {
@@ -42,14 +36,14 @@ export class JobIndexWorker extends WorkerHost {
       );
     } catch (error: any) {
       this.logger.error(
-        `[process] Failed to process job ${job.id}: ${error}`,
+        `[worker.job-index.process] Failed to process job ${job.id}: ${error}`,
         error.stack,
       );
-      await this.loggerService.logError({
-        type: "error",
-        content: `[process] Failed to process job ${job.id}: ${error}`,
-        note: error.stack,
-      });
+      // await this.loggerService.logError({
+      //   type: "error",
+      //   content: `[process] Failed to process job ${job.id}: ${error}`,
+      //   note: error.stack,
+      // });
       throw error;
     }
   }
@@ -89,7 +83,7 @@ export class JobIndexWorker extends WorkerHost {
 
         if (job.job.status === (JobStatusEnum.ACTIVE as string)) {
           try {
-            const textToEmbed = `${job.job.title} ${job.job.description || ""} ${job.skills.map((s: any) => s.name).join(" ")} ${job.category.name || ""}`;
+            const textToEmbed = `${job.job.title} ${job.job.description || ""} ${(job.skills || []).map((s: any) => s.name).join(" ")} ${job.category?.name || ""}`;
             embedding = await this.aiService.generateEmbedding(textToEmbed);
 
             // Save the new embedding back to the database
