@@ -2208,13 +2208,13 @@ export class JobRepository
 
   async updateMatchingScore(
     applyId: string,
-    score: number,
+    score: number | null,
     criteria: Record<string, any>,
   ): Promise<void> {
     await this.getExecutor()
       .update(applyJobs)
       .set({
-        matchingScore: score.toFixed(2),
+        matchingScore: score === null ? null : score.toFixed(2),
         matchingCriteria: criteria,
         scoredAt: new Date(),
       })

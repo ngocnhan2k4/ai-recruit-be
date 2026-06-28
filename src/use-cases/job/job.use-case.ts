@@ -30,7 +30,13 @@ import {
   JobMatchResultDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { Dictionary, isEqual, keyBy, omit } from "lodash";
+import {
+  RECOMMENDED_CV_MIN_MATCHING_SCORE,
+  RECOMMENDED_CV_SEARCH_POOL_MIN,
+  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
+} from "@/common/constants/job-matching";
+import { Dictionary, isEqual, keyBy } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
   CompareStatisticsFilterRequestDto,
@@ -397,26 +403,21 @@ export class JobUseCases {
   async getJobStatistics(
     filter: StatisticsJobFilterRequestDto,
   ): Promise<ApiResponse<StatisticsJobResponse>> {
-    const [
-      frequentlyJobs,
-      openJobCount,
-      salaryStatistics,
-      totalJobs,
-      totalJobByCategoryId,
-    ] = await Promise.all([
-      this.jobRepository.getFrequentlyJobs(filter),
-      this.jobRepository.count({
-        ...filter,
-        isOpen: true,
-      }),
-      this.jobRepository.getSalaryStatisticsByExperience(filter),
-      this.jobRepository.count({
-        ...(omit(filter, ["categoryId"]) as StatisticsJobFilter),
-      }),
-      this.jobRepository.count({
-        ...filter,
-      }),
-    ]);
+    const postedDateFilter = {
+      ...filter,
+      haveDatePosted: true,
+    } as StatisticsJobFilter & { haveDatePosted: boolean };
+
+    const [frequentlyJobs, openJobCount, salaryStatistics, totalJobs] =
+      await Promise.all([
+        this.jobRepository.getFrequentlyJobs(postedDateFilter),
+        this.jobRepository.count({
+          ...postedDateFilter,
+          isOpen: true,
+        }),
+        this.jobRepository.getSalaryStatisticsByExperience(postedDateFilter),
+        this.jobRepository.count(postedDateFilter),
+      ]);
 
     this.logger.log(`Fetched job statistics`);
     return {
@@ -427,7 +428,7 @@ export class JobUseCases {
         openJobCount,
         salaryStatistics,
         totalJobs,
-        totalJobByCategoryId,
+        totalJobByCategoryId: totalJobs,
       },
     };
   }
@@ -1700,6 +1701,10 @@ export class JobUseCases {
     }
 
     const targetLimit = jobDetail.job.recruitCount ?? 10;
+    const searchPoolLimit = Math.max(
+      targetLimit * RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+      RECOMMENDED_CV_SEARCH_POOL_MIN,
+    );
 
     const [appliedUserIdList, { data: seekingUser }] = await Promise.all([
       this.jobRepository.getAppliedUserIdsByJobId(jobId),
@@ -1735,7 +1740,7 @@ export class JobUseCases {
     };
     const { data: cvDocs } = await this.cvSearchService.searchCvs({
       userIds: seekingUserIds,
-      limit: targetLimit,
+      limit: searchPoolLimit,
       skillIds: jobSkillIds,
       provinceIds: jobProvinceIds,
       categoryId: jobCategoryId,
@@ -1758,18 +1763,25 @@ export class JobUseCases {
         );
         continue;
       }
-      const criteria = this.cvService.calculateMatchingScore(
+      const { score, criteria } = this.cvService.calculateMatchingScore(
         cv,
         jobForMatching,
       );
+      if (
+        score === null ||
+        score < RECOMMENDED_CV_MIN_MATCHING_SCORE ||
+        (criteria.completeness ?? 0) < CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND
+      ) {
+        continue;
+      }
       recommendations.push({
         cvId: cv.id,
         userId: cv.userId,
         name: cv.name ?? "",
         fileUrl: cv.fileUrl ?? "",
         mimeType: cv.mimeType ?? "",
-        score: cv.score ?? 0,
-        criteria: criteria.criteria,
+        score,
+        criteria,
         user: {
           id: user.id,
           email: user.email,
@@ -1780,10 +1792,12 @@ export class JobUseCases {
       });
     }
 
+    recommendations.sort((a, b) => b.score - a.score);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: recommendations,
+      data: recommendations.slice(0, targetLimit),
     };
   }
 
