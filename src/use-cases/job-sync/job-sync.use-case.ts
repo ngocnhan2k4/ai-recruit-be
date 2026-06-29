@@ -61,7 +61,7 @@ export class JobSyncUseCases {
   > {
     this.logger.log("Starting manual sync of all active jobs...");
 
-    const batchSize = 50;
+    const batchSize = 30;
     let page = 1;
     let hasMore = true;
     let totalSynced = 0;
@@ -230,7 +230,7 @@ export class JobSyncUseCases {
   > {
     this.logger.log("Starting manual sync of all active jobs' embeddings...");
 
-    const batchSize = 50;
+    const batchSize = 30;
     let page = 1;
     let hasMore = true;
     let totalSynced = 0;
@@ -268,7 +268,7 @@ export class JobSyncUseCases {
       if (jobsToGenerateEmbedding.length > 0) {
         const textsToEmbed = jobsToGenerateEmbedding.map(
           (item) =>
-            `${item.job.title} ${item.job.description || ""} ${item.skills.map((s: any) => s.name).join(" ")} ${item.category.name || ""}`,
+            `${item.job.title} ${item.job.description || ""} ${(item.skills || []).map((s: any) => s.name).join(" ")} ${item.category?.name || ""}`,
         );
         try {
           const embeddings =

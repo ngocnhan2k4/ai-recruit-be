@@ -34,34 +34,42 @@ export class TranslationWorker extends WorkerHost {
   }
 
   async process(job: Job<TranslationJobData, void, TranslationJobType>) {
-    const type = job.name;
-    const jobName = String(job.name);
-    const data = job.data;
-    const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
+    try {
+      const type = job.name;
+      const jobName = String(job.name);
+      const data = job.data;
+      const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
 
-    switch (type) {
-      case TranslationJobType.QUESTION:
-        return this.processQuestion(
-          data as TranslationJobDataMap[TranslationJobType.QUESTION],
-          sourceLanguage,
-          targetLanguages,
-        );
-      case TranslationJobType.ROADMAP_PHASE:
-        return this.processRoadmapPhase(
-          data as TranslationJobDataMap[TranslationJobType.ROADMAP_PHASE],
-          sourceLanguage,
-          targetLanguages,
-        );
-      case TranslationJobType.ROADMAP_SKILL:
-        return this.processRoadmapSkill(
-          data as TranslationJobDataMap[TranslationJobType.ROADMAP_SKILL],
-          sourceLanguage,
-          targetLanguages,
-        );
-      default:
-        this.logger.warn(
-          `[translation.worker] Unknown translation job: ${jobName}`,
-        );
+      switch (type) {
+        case TranslationJobType.QUESTION:
+          return this.processQuestion(
+            data as TranslationJobDataMap[TranslationJobType.QUESTION],
+            sourceLanguage,
+            targetLanguages,
+          );
+        case TranslationJobType.ROADMAP_PHASE:
+          return this.processRoadmapPhase(
+            data as TranslationJobDataMap[TranslationJobType.ROADMAP_PHASE],
+            sourceLanguage,
+            targetLanguages,
+          );
+        case TranslationJobType.ROADMAP_SKILL:
+          return this.processRoadmapSkill(
+            data as TranslationJobDataMap[TranslationJobType.ROADMAP_SKILL],
+            sourceLanguage,
+            targetLanguages,
+          );
+        default:
+          this.logger.warn(
+            `[translation.worker] Unknown translation job: ${jobName}`,
+          );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[worker.translation.process] Failed to process translation: ${error}`,
+        error.stack,
+      );
+      throw error;
     }
   }
 

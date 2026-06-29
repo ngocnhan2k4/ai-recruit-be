@@ -95,7 +95,7 @@ export class BlogScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to sync blog view counts: ${err.message}`,
+        `[scheduler.syncBlogViewCount] Failed to sync blog view counts: ${err.message}`,
         err.stack,
       );
     }
@@ -189,7 +189,7 @@ export class BlogScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to generate AI blog: ${err.message}`,
+        `[scheduler.generateAiBlogOnce] Failed to generate AI blog: ${err.message}`,
         err.stack,
       );
     }

@@ -67,15 +67,29 @@ export class TaskWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    if ((job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION) {
-      return this.processLearningPath(job.data as TaskData, job.opts);
-    }
+    const runOptions = {
+      attemptsMade: job.attemptsMade,
+      maxAttempts: job.opts.attempts,
+    };
+    try {
+      if (
+        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+      ) {
+        return this.processLearningPath(job.data as TaskData, runOptions);
+      }
 
-    if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-      return this.processOptimizeCv(job.data as TaskData, job.opts);
-    }
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+        return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
 
-    this.logger.warn(`[process] Unknown task job name: ${job.name}`);
+      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
+    } catch (error) {
+      this.logger.error(
+        `[worker.task.process] Failed to process task: ${error}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   private async emitAndPersistTask(params: {
@@ -431,7 +445,8 @@ export class TaskWorker extends WorkerHost {
     messages: { inProgress: string; completed: string; failed: string },
     coreLogic: (task: Task, request: any) => Promise<TResult>,
     options?: {
-      attempts?: number;
+      attemptsMade?: number;
+      maxAttempts?: number;
     },
   ) {
     const { taskId, notificationId } = data;
@@ -466,6 +481,7 @@ export class TaskWorker extends WorkerHost {
       });
 
       const result = await coreLogic(task, request);
+      const attempts = options?.attemptsMade ?? 1;
 
       await this.emitAndPersistTask({
         taskId,
@@ -476,7 +492,10 @@ export class TaskWorker extends WorkerHost {
         taskData: {
           type: taskType,
           status: TaskStatusEnum.COMPLETED,
-          result: result || {},
+          result: {
+            ...(result && typeof result === "object" ? result : {}),
+            attempts,
+          },
         },
       });
     } catch (error: any) {
@@ -492,7 +511,7 @@ export class TaskWorker extends WorkerHost {
             status: TaskStatusEnum.FAILED,
             error: JSON.stringify({
               message: error.message || "Unknown error",
-              attempts: options?.attempts,
+              attempts: options?.attemptsMade,
             }),
             result: null,
           },
@@ -508,7 +527,7 @@ export class TaskWorker extends WorkerHost {
 
   private async processLearningPath(
     data: TaskData,
-    options?: { attempts?: number },
+    options?: { attemptsMade?: number; maxAttempts?: number },
   ) {
     return this.withTaskLifecycle(
       data,
@@ -517,12 +536,11 @@ export class TaskWorker extends WorkerHost {
         inProgress: "Đang tạo lộ trình học tập của bạn...",
         completed: "Lộ trình học tập của bạn đã sẵn sàng.",
         failed:
-          options?.attempts === MAX_TASK_ATTEMPTS
+          options?.attemptsMade === options?.maxAttempts
             ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
             : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
       },
       async (task, request: PreviewRoadmapDto) => {
-        let resultData: AILearningRoadmapResult | null = null;
         const sourceLanguage =
           (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
 
@@ -534,38 +552,8 @@ export class TaskWorker extends WorkerHost {
           language: sourceLanguage as "vi" | "en",
         };
 
-        await new Promise<void>((resolve, reject) => {
-          const subscription = this.aiService
-            .generateRoadmap(roadmapRequest)
-            .subscribe({
-              next: (event: any) => {
-                const payload = event?.data;
-                if (!payload) return;
-
-                if (payload.type === "result" && payload.data) {
-                  resultData = payload.data;
-                }
-
-                if (payload.type === "error") {
-                  subscription.unsubscribe();
-                  reject(new Error(payload.message || "AI generation failed"));
-                  return;
-                }
-
-                if (resultData) {
-                  subscription.unsubscribe();
-                  resolve();
-                }
-              },
-              error: (err: any) =>
-                reject(err instanceof Error ? err : new Error(String(err))),
-              complete: () => resolve(),
-            });
-        });
-
-        if (!resultData) {
-          throw new Error("AI stream completed without result");
-        }
+        const resultData =
+          await this.aiService.generateRoadmapV2(roadmapRequest);
 
         const roadmap = await this.persistRoadmapFromPreview({
           userId: task.userId,
@@ -582,7 +570,7 @@ export class TaskWorker extends WorkerHost {
 
   private async processOptimizeCv(
     data: TaskData,
-    options?: { attempts?: number },
+    options?: { attemptsMade?: number; maxAttempts?: number },
   ) {
     return this.withTaskLifecycle(
       data,
@@ -591,7 +579,7 @@ export class TaskWorker extends WorkerHost {
         inProgress: "Đang tối ưu CV của bạn...",
         completed: "CV của bạn đã được tối ưu.",
         failed:
-          options?.attempts === MAX_TASK_ATTEMPTS
+          options?.attemptsMade === options?.maxAttempts
             ? "Đã gặp sự cố khi tối ưu CV, vui lòng thử lại sau."
             : "Đang gặp sự cố khi tối ưu CV, hệ thống sẽ thử lại...",
       },
