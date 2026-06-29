@@ -6,14 +6,12 @@ on:
     paths-ignore:
       - "docs/**"
       - ".github/workflows/**"
-      - "crawl_jobs/**"
 
   push:
     branches: ["dev", "main"]
     paths-ignore:
       - "docs/**"
       - ".github/workflows/**"
-      - "crawl_jobs/**"
 
 jobs:
   ci:
