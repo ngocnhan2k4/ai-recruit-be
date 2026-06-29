@@ -227,7 +227,7 @@ export class JobUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
@@ -240,26 +240,15 @@ export class JobUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
 
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        data: this.convertHitToDto(
-          docs,
-          organizationMap,
-          userJobStatusMap,
-          jobMap,
-        ),
+        data: this.convertHitToDto(docs, organizationMap, userJobStatusMap),
         pagination: {
           nextCursor,
           hasNextPage: hasMore,
@@ -280,11 +269,10 @@ export class JobUseCases {
         applyId: string | null;
       }
     >,
-    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
-      const applyUrl = jobMap[source.id]?.applyUrl ?? null;
-      const questions = jobMap[source.id]?.job?.questions ?? source.questions;
+      const applyUrl = source.applyUrl ?? null;
+      const questions = source.questions ?? null;
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -1975,7 +1963,7 @@ export class JobUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
@@ -1988,26 +1976,15 @@ export class JobUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
 
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        data: this.convertHitToDto(
-          docs,
-          organizationMap,
-          userJobStatusMap,
-          jobMap,
-        ),
+        data: this.convertHitToDto(docs, organizationMap, userJobStatusMap),
         pagination: {
           nextCursor,
           hasNextPage: hasMore,
