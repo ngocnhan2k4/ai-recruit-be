@@ -32,6 +32,7 @@ import {
   inArray,
   gte,
   lte,
+  isNotNull,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -246,8 +247,12 @@ export class SkillRepository
     fromDate?: Date,
     toDate?: Date,
     provinceId?: string,
+    categoryId?: string,
   ): Promise<{ name: string; jobCount: number }[]> {
-    const conditions: SQL[] = [eq(skills.isApproved, true)];
+    const conditions: SQL[] = [
+      eq(skills.isApproved, true),
+      isNotNull(jobs.datePosted),
+    ];
 
     if (fromDate) {
       conditions.push(gte(jobs.datePosted, convertDateToStr(fromDate)));
@@ -263,6 +268,9 @@ export class SkillRepository
           AND jp.province_id = ${provinceId}
         )`,
       );
+    }
+    if (categoryId) {
+      conditions.push(eq(jobs.categoryId, categoryId));
     }
 
     const result = await this.db

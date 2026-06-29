@@ -101,6 +101,17 @@ export class GetTopDemandedSkillsQueryDto {
   @IsString()
   @Transform(({ value }) => value || undefined)
   provinceId?: string;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: "Filter by job category UUID",
+    example: "9f1a9d45-3a5c-4f4a-bf57-182f98244fcd",
+  })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value || undefined)
+  categoryId?: string;
 }
 
 export class BulkReviewSkillDto {

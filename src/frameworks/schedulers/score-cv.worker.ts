@@ -66,7 +66,7 @@ export class ScoreCvWorker extends WorkerHost {
     await this.jobRepository.updateMatchingScore(applyId, score, criteria);
 
     this.logger.log(
-      `[processCvScoring] done applyId=${applyId} score=${score.toFixed(2)}`,
+      `[processCvScoring] done applyId=${applyId} score=${score === null ? "null" : score.toFixed(2)}`,
     );
   }
 }
