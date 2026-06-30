@@ -70,3 +70,5 @@ crawl_jobs/skills/
 /blog-crawler/dist/
 /blog-crawler/node_modules/
 /blog-crawler/.env
+
+/test/load-test
