@@ -5,10 +5,12 @@ import {
   IsBoolean,
   IsDate,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  Min,
 } from "class-validator";
 import { GeneralQueryDto } from "../../common/query";
 import { Transform, Type } from "class-transformer";
@@ -53,6 +55,18 @@ export class GetSkillsQueryDto extends GeneralQueryDto {
   @IsBoolean()
   @Type(() => Boolean)
   questions?: boolean;
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description: "Minimum number of questions a skill must have",
+    example: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  minQuestionCount?: number;
 }
 
 export class GetCrawledSkillsQueryDto extends GeneralQueryDto {

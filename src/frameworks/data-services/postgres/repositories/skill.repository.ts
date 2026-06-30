@@ -186,6 +186,12 @@ export class SkillRepository
       )`);
     }
 
+    if (query.minQuestionCount != null && query.minQuestionCount > 0) {
+      whereConditions.push(
+        sql`(SELECT COUNT(*)::int FROM ${questions} WHERE ${questions.skillId} = ${skills.id}) >= ${query.minQuestionCount}`,
+      );
+    }
+
     if ((query.exactNames?.length || 0) > 0) {
       whereConditions.push(inArray(skills.name, query.exactNames as string[]));
     }
