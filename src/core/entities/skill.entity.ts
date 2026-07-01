@@ -4,6 +4,7 @@ import { Skill } from ".";
 export interface SkillFilter extends GeneralQuery {
   fields?: string[];
   questions?: boolean; // Get skill if it exist question
+  minQuestionCount?: number;
   skillIds?: string[];
   isApproved?: boolean;
   exactNames?: string[];

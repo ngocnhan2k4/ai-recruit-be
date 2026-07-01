@@ -13,7 +13,7 @@ export abstract class ICvService {
   abstract calculateMatchingScore(
     cv: Record<string, any>,
     job: Record<string, any>,
-  ): { score: number; criteria: Record<string, any> };
+  ): { score: number | null; criteria: Record<string, any> };
 
   abstract uploadAndPersistCv(
     userId: string,

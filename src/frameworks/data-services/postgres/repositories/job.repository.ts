@@ -249,7 +249,12 @@ export class JobRepository
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
-        job: jobs,
+        job: {
+          ...jobs,
+          applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+            "applyUrl",
+          ),
+        },
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
@@ -257,6 +262,7 @@ export class JobRepository
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
@@ -2183,12 +2189,8 @@ export class JobRepository
           id: jobs.id,
           questions: jobs.questions,
         },
-        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
-          "applyUrl",
-        ),
       })
-      .from(jobs)
-      .leftJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
+      .from(jobs);
 
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
@@ -2208,13 +2210,13 @@ export class JobRepository
 
   async updateMatchingScore(
     applyId: string,
-    score: number,
+    score: number | null,
     criteria: Record<string, any>,
   ): Promise<void> {
     await this.getExecutor()
       .update(applyJobs)
       .set({
-        matchingScore: score.toFixed(2),
+        matchingScore: score === null ? null : score.toFixed(2),
         matchingCriteria: criteria,
         scoredAt: new Date(),
       })

@@ -144,7 +144,14 @@ export function getJobIndexMapping({ env }: JobIndexConfig) {
         questions: {
           type: "keyword",
         },
+        applyUrl: {
+          type: "keyword",
+          index: false,
+        },
         createdAt: {
+          type: "date",
+        },
+        updatedAt: {
           type: "date",
         },
         embedding: {
@@ -199,6 +206,7 @@ export function transformJobToDocument({
     recruitCount: job.recruitCount ?? null,
     workType: job.workType,
     questions: job.questions,
+    applyUrl: job.applyUrl ?? null,
     status: job.status,
     endDate: job.endDate,
     datePosted: job.datePosted,
