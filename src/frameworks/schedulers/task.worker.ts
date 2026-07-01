@@ -423,7 +423,7 @@ export class TaskWorker extends WorkerHost {
                       const mapped = skillIdMap.get(prereqSkillId);
                       if (!mapped) {
                         this.logger.warn(
-                          `Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                          `[worer.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
                         );
                       }
                       return mapped;
