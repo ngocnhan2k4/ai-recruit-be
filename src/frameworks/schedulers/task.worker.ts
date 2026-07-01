@@ -35,7 +35,6 @@ import {
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
-import pLimit from "p-limit";
 
 type TaskData = {
   taskId: string;
@@ -147,6 +146,78 @@ export class TaskWorker extends WorkerHost {
 
   private resolveTranslationTargets() {
     return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  }
+
+  private async generateAllSubpathsForRoadmap(params: {
+    roadmapId: string;
+    userId: string;
+    targetRole: string;
+    currentRole: string;
+  }) {
+    const roadmapWithDetails =
+      await this.roadmapRepository.getRoadmapWithDetails(params.roadmapId);
+
+    if (!roadmapWithDetails) {
+      return;
+    }
+
+    const allOptions = roadmapWithDetails.phases.flatMap((phase) =>
+      phase.skills.flatMap((skill) =>
+        skill.options.map((option) => ({
+          optionId: option.id,
+          optionName: (option as any).optionName ?? skill.skill,
+          keyConcepts: (option as any).keyConcepts ?? [],
+        })),
+      ),
+    );
+
+    // Generate in parallel with concurrency cap of 5 to avoid overwhelming AI service
+    const CONCURRENCY = 5;
+
+    for (let i = 0; i < allOptions.length; i += CONCURRENCY) {
+      const batch = allOptions.slice(i, i + CONCURRENCY);
+
+      await Promise.all(
+        batch.map(async ({ optionId, optionName, keyConcepts }) => {
+          try {
+            const existing =
+              await this.subpathRepository.findByOptionId(optionId);
+            if (existing) {
+              return;
+            }
+
+            const aiResult = await this.aiService.generateSubPath({
+              optionName,
+              keyConcepts,
+              targetRole: params.targetRole,
+              currentRole: params.currentRole,
+            });
+
+            const shared = await this.subpathRepository.createFromAIResult(
+              {
+                optionName,
+                targetRole: params.targetRole,
+                currentRole: params.currentRole,
+              },
+              aiResult,
+            );
+            await this.subpathRepository.cloneSharedSubpathForUser(
+              shared.id,
+              optionId,
+              params.userId,
+            );
+          } catch (err: any) {
+            this.logger.warn(
+              `[worker] Failed to generate subpath for option ${optionId}: ${err.message}`,
+            );
+          }
+        }),
+      );
+    }
+
+    this.logger.log(
+      `[worker] Generated subpaths for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+    );
   }
 
   private async enqueueRoadmapTranslationJobs(params: {
@@ -388,78 +459,7 @@ export class TaskWorker extends WorkerHost {
       sourceLanguage,
     });
 
-    // Eager gen subpaths so clients receive ready-to-use roadmap options.
-    await this.generateSubpaths(phases, request);
-
     return persisted.roadmap;
-  }
-
-  private async generateSubpaths(
-    phases: Array<{ skills?: RoadmapSkillData[] }>,
-    request: PreviewRoadmapDto,
-  ): Promise<void> {
-    const targetRole = request.targetRole ?? "";
-    const currentRole = request.currentRole ?? "";
-
-    const allOptions: SkillOption[] = phases.flatMap(
-      (phase) =>
-        phase.skills?.flatMap(
-          (skill: RoadmapSkillData) => skill.options || [],
-        ) ?? [],
-    );
-
-    const limit = pLimit(3);
-
-    await Promise.all(
-      allOptions.map((option) =>
-        limit(async () => {
-          const optionName = option.optionName;
-          if (!optionName) return;
-
-          const existing = await this.subpathRepository.findByKey(
-            optionName,
-            targetRole,
-            currentRole,
-          );
-          if (existing) return;
-
-          const maxAttempts = 3;
-          let lastErr: any;
-          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-              const aiResult = await this.aiService.generateSubPath({
-                optionName,
-                keyConcepts: option.keyConcepts ?? [],
-                targetRole,
-                currentRole,
-              });
-              await this.subpathRepository.createFromAIResult(
-                { optionName, targetRole, currentRole },
-                aiResult,
-              );
-              this.logger.log(`Subpath generated for "${optionName}"`);
-              lastErr = null;
-              break;
-            } catch (err: any) {
-              lastErr = err;
-              this.logger.warn(
-                `Subpath gen attempt ${attempt}/${maxAttempts} failed for "${optionName}": ${err.message}`,
-              );
-              if (attempt < maxAttempts) {
-                await new Promise((resolve) =>
-                  setTimeout(resolve, attempt * 2000),
-                );
-              }
-            }
-          }
-          if (lastErr) {
-            this.logger.error(
-              `Subpath gen permanently failed for "${optionName}" after ${maxAttempts} attempts: ${lastErr.message}`,
-            );
-          }
-        }),
-      ),
-    );
   }
 
   private async withTaskLifecycle<TResult>(
@@ -583,6 +583,14 @@ export class TaskWorker extends WorkerHost {
           request,
           result: resultData,
           sourceLanguage,
+        });
+
+        // Generate all subpaths before notifying user so content is ready on first open
+        await this.generateAllSubpathsForRoadmap({
+          roadmapId: roadmap.id,
+          userId: task.userId,
+          targetRole: roadmap.targetRole ?? "",
+          currentRole: roadmap.currentRole ?? "",
         });
 
         return { roadmapId: roadmap.id, data: resultData };

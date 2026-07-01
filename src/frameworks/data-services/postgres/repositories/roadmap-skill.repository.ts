@@ -79,6 +79,13 @@ export class RoadmapSkillRepository
     });
   }
 
+  async moveToPhase(skillId: string, targetPhaseId: string): Promise<void> {
+    await this.db
+      .update(roadmapSkills)
+      .set({ phaseId: targetPhaseId })
+      .where(eq(roadmapSkills.id, skillId));
+  }
+
   async checkPrerequisitesCompleted(skillId: string): Promise<boolean> {
     const [skill] = await this.db
       .select({ prerequisites: roadmapSkills.prerequisites })

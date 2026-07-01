@@ -15,6 +15,7 @@ import {
 } from "@/core";
 import {
   subpaths,
+  userSubpathSnapshots,
   subpathModules,
   subpathResources,
   subpathQuizQuestions,
@@ -33,23 +34,132 @@ export class SubpathRepository
     super(db, subpaths);
   }
 
-  async findByKey(
-    optionName: string,
-    targetRole: string,
-    currentRole: string,
-  ): Promise<SubpathWithDetails | null> {
+  async findByOptionId(optionId: string): Promise<SubpathWithDetails | null> {
+    const [snapshot] = await this.db
+      .select({ snapshotOfId: userSubpathSnapshots.snapshotOfId })
+      .from(userSubpathSnapshots)
+      .where(
+        and(
+          eq(userSubpathSnapshots.roadmapSkillOptionId, optionId),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!snapshot) return null;
+
     return this._loadSubpath(
-      and(
-        eq(subpaths.optionName, optionName),
-        eq(subpaths.targetRole, targetRole),
-        eq(subpaths.currentRole, currentRole),
-        isNull(subpaths.deletedAt),
-      ),
+      and(eq(subpaths.id, snapshot.snapshotOfId), isNull(subpaths.deletedAt)),
+      optionId,
     );
   }
 
+  async getUserSubpathByOptionId(
+    optionId: string,
+  ): Promise<{ id: string; snapshotOfId: string } | null> {
+    const [row] = await this.db
+      .select()
+      .from(userSubpathSnapshots)
+      .where(
+        and(
+          eq(userSubpathSnapshots.roadmapSkillOptionId, optionId),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async cloneSharedSubpathForUser(
+    sharedSubpathId: string,
+    roadmapSkillOptionId: string,
+    userId: string,
+  ): Promise<{ id: string }> {
+    const [existing] = await this.db
+      .select()
+      .from(userSubpathSnapshots)
+      .where(
+        eq(userSubpathSnapshots.roadmapSkillOptionId, roadmapSkillOptionId),
+      )
+      .limit(1);
+
+    if (existing) return existing;
+
+    return this.executeWithTransaction(async (db) => {
+      const [snapshot] = await db
+        .insert(userSubpathSnapshots)
+        .values({ userId, roadmapSkillOptionId, snapshotOfId: sharedSubpathId })
+        .returning();
+
+      // Copy all shared modules + their resources into the user's snapshot
+      const sharedModules = await db
+        .select()
+        .from(subpathModules)
+        .where(
+          and(
+            eq(subpathModules.subpathId, sharedSubpathId),
+            isNull(subpathModules.snapshotId),
+            isNull(subpathModules.deletedAt),
+          ),
+        )
+        .orderBy(subpathModules.orderIndex);
+
+      if (sharedModules.length === 0) return snapshot;
+
+      const copiedModules = await db
+        .insert(subpathModules)
+        .values(
+          sharedModules.map((m) => ({
+            subpathId: sharedSubpathId,
+            snapshotId: snapshot.id,
+            title: m.title,
+            description: m.description,
+            duration: m.duration,
+            category: m.category,
+            concepts: m.concepts,
+            orderIndex: m.orderIndex,
+          })),
+        )
+        .returning();
+
+      // Copy resources for each module
+      for (let i = 0; i < sharedModules.length; i++) {
+        const sharedResources = await db
+          .select()
+          .from(subpathResources)
+          .where(
+            and(
+              eq(subpathResources.moduleId, sharedModules[i].id),
+              isNull(subpathResources.deletedAt),
+            ),
+          );
+
+        if (sharedResources.length > 0) {
+          await db.insert(subpathResources).values(
+            sharedResources.map((r) => ({
+              moduleId: copiedModules[i].id,
+              title: r.title,
+              url: r.url,
+              type: r.type,
+              description: r.description,
+              isFree: r.isFree,
+              orderIndex: r.orderIndex,
+              quickCheck: r.quickCheck,
+            })),
+          );
+        }
+      }
+
+      return snapshot;
+    });
+  }
+
   async createFromAIResult(
-    payload: { optionName: string; targetRole: string; currentRole: string },
+    payload: {
+      optionName: string;
+      targetRole: string;
+      currentRole: string;
+    },
     ai: AISubpathResult,
   ): Promise<SubpathWithDetails> {
     const run = async (db) => {
@@ -68,11 +178,21 @@ export class SubpathRepository
         .returning();
 
       if (!subpath) {
-        // Another concurrent writer won — return existing
-        return this.findByKey(
-          payload.optionName,
-          payload.targetRole,
-          payload.currentRole,
+        // Another concurrent writer won — load by natural key
+        const [existing] = await db
+          .select()
+          .from(subpaths)
+          .where(
+            and(
+              eq(subpaths.optionName, payload.optionName),
+              eq(subpaths.targetRole, payload.targetRole),
+              eq(subpaths.currentRole, payload.currentRole),
+              isNull(subpaths.deletedAt),
+            ),
+          )
+          .limit(1);
+        return this._loadSubpath(
+          and(eq(subpaths.id, existing.id), isNull(subpaths.deletedAt)),
         ) as Promise<SubpathWithDetails>;
       }
 
@@ -84,7 +204,6 @@ export class SubpathRepository
             title: mod.title,
             description: mod.description,
             duration: mod.duration,
-            category: mod.category,
             concepts: mod.concepts,
             orderIndex: mod.orderIndex,
           })),
@@ -152,6 +271,7 @@ export class SubpathRepository
 
   private async _loadSubpath(
     condition: any,
+    optionId?: string,
   ): Promise<SubpathWithDetails | null> {
     const [subpath] = await this.db
       .select()
@@ -161,6 +281,27 @@ export class SubpathRepository
 
     if (!subpath) return null;
 
+    // When optionId is given, load the user's snapshot modules only
+    // Otherwise load shared template modules (snapshotId IS NULL)
+    let snapshotId: string | null = null;
+    if (optionId) {
+      const [snap] = await this.db
+        .select({ id: userSubpathSnapshots.id })
+        .from(userSubpathSnapshots)
+        .where(
+          and(
+            eq(userSubpathSnapshots.roadmapSkillOptionId, optionId),
+            isNull(userSubpathSnapshots.deletedAt),
+          ),
+        )
+        .limit(1);
+      snapshotId = snap?.id ?? null;
+    }
+
+    const moduleFilter = snapshotId
+      ? eq(subpathModules.snapshotId, snapshotId)
+      : isNull(subpathModules.snapshotId);
+
     const modules = await this.db
       .select()
       .from(subpathModules)
@@ -168,6 +309,7 @@ export class SubpathRepository
         and(
           eq(subpathModules.subpathId, subpath.id),
           isNull(subpathModules.deletedAt),
+          moduleFilter,
         ),
       )
       .orderBy(subpathModules.orderIndex);
@@ -202,6 +344,105 @@ export class SubpathRepository
 
     return { ...subpath, subNodes: subNodesWithChildren };
   }
+
+  async deleteResource(resourceId: string): Promise<void> {
+    await this.db
+      .update(subpathResources)
+      .set({ deletedAt: new Date() })
+      .where(eq(subpathResources.id, resourceId));
+  }
+
+  async deleteModule(moduleId: string): Promise<void> {
+    await this.db
+      .update(subpathModules)
+      .set({ deletedAt: new Date() })
+      .where(eq(subpathModules.id, moduleId));
+  }
+
+  async addModule(
+    snapshotId: string,
+    module: {
+      title: string;
+      description: string;
+      duration: string;
+      category?: string;
+      concepts: string[];
+    },
+  ): Promise<{ id: string; title: string }> {
+    const [snapshot] = await this.db
+      .select({ snapshotOfId: userSubpathSnapshots.snapshotOfId })
+      .from(userSubpathSnapshots)
+      .where(eq(userSubpathSnapshots.id, snapshotId))
+      .limit(1);
+
+    if (!snapshot) throw new Error(`Snapshot ${snapshotId} not found`);
+
+    const existing = await this.db
+      .select({ orderIndex: subpathModules.orderIndex })
+      .from(subpathModules)
+      .where(
+        and(
+          eq(subpathModules.subpathId, snapshot.snapshotOfId),
+          isNull(subpathModules.deletedAt),
+        ),
+      )
+      .orderBy(subpathModules.orderIndex);
+
+    const maxOrder =
+      existing.length > 0 ? existing[existing.length - 1].orderIndex : -1;
+
+    const [inserted] = await this.db
+      .insert(subpathModules)
+      .values({
+        subpathId: snapshot.snapshotOfId,
+        snapshotId,
+        title: module.title,
+        description: module.description,
+        duration: module.duration,
+        category: module.category,
+        concepts: module.concepts,
+        orderIndex: maxOrder + 1,
+      })
+      .returning({ id: subpathModules.id, title: subpathModules.title });
+
+    return inserted;
+  }
+
+  async addResourcesToModule(
+    moduleId: string,
+    resources: Array<{
+      title: string;
+      url: string;
+      type: string;
+      isFree?: boolean;
+    }>,
+  ): Promise<void> {
+    const existing = await this.db
+      .select({ orderIndex: subpathResources.orderIndex })
+      .from(subpathResources)
+      .where(
+        and(
+          eq(subpathResources.moduleId, moduleId),
+          isNull(subpathResources.deletedAt),
+        ),
+      )
+      .orderBy(subpathResources.orderIndex);
+
+    const maxOrder =
+      existing.length > 0 ? existing[existing.length - 1].orderIndex : -1;
+
+    await this.db.insert(subpathResources).values(
+      resources.map((r, i) => ({
+        moduleId,
+        title: r.title,
+        url: r.url || "",
+        type: (r.type as ResourceTypeEnum) ?? ResourceTypeEnum.ARTICLE,
+        isFree: r.isFree ?? true,
+        orderIndex: maxOrder + 1 + i,
+        description: "",
+      })),
+    );
+  }
 }
 
 @Injectable()
@@ -214,27 +455,6 @@ export class OptionResourceCompletionRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, optionResourceCompletions);
-  }
-
-  async getCompletedResourceIds(
-    userId: string,
-    moduleId: string,
-  ): Promise<string[]> {
-    const rows = await this.db
-      .select({ resourceId: optionResourceCompletions.resourceId })
-      .from(optionResourceCompletions)
-      .innerJoin(
-        subpathResources,
-        eq(optionResourceCompletions.resourceId, subpathResources.id),
-      )
-      .where(
-        and(
-          eq(optionResourceCompletions.userId, userId),
-          eq(subpathResources.moduleId, moduleId),
-          isNull(optionResourceCompletions.deletedAt),
-        ),
-      );
-    return rows.map((r) => r.resourceId);
   }
 
   async markCompleted(

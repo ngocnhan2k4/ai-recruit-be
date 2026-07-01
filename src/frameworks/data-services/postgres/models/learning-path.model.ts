@@ -313,6 +313,30 @@ export const subpaths = pgTable(
   ],
 );
 
+/** User-specific snapshot of a shared subpath*/
+export const userSubpathSnapshots = pgTable(
+  "user_subpath_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    roadmapSkillOptionId: uuid("roadmap_skill_option_id")
+      .notNull()
+      .references(() => roadmapSkillOptions.id, { onDelete: "cascade" }),
+    snapshotOfId: uuid("snapshot_of_id")
+      .notNull()
+      .references(() => subpaths.id, { onDelete: "restrict" }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("idx_user_subpath_snapshots_option").on(
+      table.roadmapSkillOptionId,
+    ),
+    index("idx_user_subpath_snapshots_user").on(table.userId),
+  ],
+);
+
 /** A learning module (subNode) within a subpath */
 export const subpathModules = pgTable(
   "subpath_modules",
@@ -321,6 +345,9 @@ export const subpathModules = pgTable(
     subpathId: uuid("subpath_id")
       .notNull()
       .references(() => subpaths.id, { onDelete: "cascade" }),
+    snapshotId: uuid("snapshot_id").references(() => userSubpathSnapshots.id, {
+      onDelete: "cascade",
+    }),
     title: varchar("title", { length: 500 }).notNull(),
     description: text("description").notNull().default(""),
     duration: varchar("duration", { length: 100 }).notNull().default(""),
@@ -442,7 +469,23 @@ export const subpathModuleQuizResults = pgTable(
 
 export const subpathsRelations = relations(subpaths, ({ many }) => ({
   modules: many(subpathModules),
+  snapshots: many(userSubpathSnapshots),
 }));
+
+export const userSubpathSnapshotsRelations = relations(
+  userSubpathSnapshots,
+  ({ one, many }) => ({
+    sharedSubpath: one(subpaths, {
+      fields: [userSubpathSnapshots.snapshotOfId],
+      references: [subpaths.id],
+    }),
+    user: one(users, {
+      fields: [userSubpathSnapshots.userId],
+      references: [users.id],
+    }),
+    userModules: many(subpathModules),
+  }),
+);
 
 export const subpathModulesRelations = relations(
   subpathModules,
@@ -450,6 +493,10 @@ export const subpathModulesRelations = relations(
     subpath: one(subpaths, {
       fields: [subpathModules.subpathId],
       references: [subpaths.id],
+    }),
+    snapshot: one(userSubpathSnapshots, {
+      fields: [subpathModules.snapshotId],
+      references: [userSubpathSnapshots.id],
     }),
     resources: many(subpathResources),
     quizQuestions: many(subpathQuizQuestions),
@@ -502,4 +549,30 @@ export const subpathModuleQuizResultsRelations = relations(
       references: [subpathModules.id],
     }),
   }),
+);
+
+export const roadmapChatMessages = pgTable(
+  "roadmap_chat_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    roadmapId: uuid("roadmap_id")
+      .notNull()
+      .references(() => learningRoadmaps.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 16 }).notNull(),
+    text: text("text").notNull(),
+    intent: varchar("intent", { length: 64 }),
+    proposal: jsonb("proposal"),
+    proposalStatus: varchar("proposal_status", { length: 16 }),
+    ...timestamps,
+  },
+  (table) => [
+    index("idx_chat_messages_roadmap_user").on(
+      table.roadmapId,
+      table.userId,
+      table.createdAt,
+    ),
+  ],
 );

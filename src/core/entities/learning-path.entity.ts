@@ -164,6 +164,79 @@ export interface SubpathGenerateRequest {
   currentRole?: string;
 }
 
+export type RoadmapChatIntent =
+  | "add_skill"
+  | "remove_skill"
+  | "add_option"
+  | "remove_option"
+  | "suggest_resource"
+  | "delete_resource"
+  | "remove_module"
+  | "add_module"
+  | "move_skill"
+  | "already_exists"
+  | "rejected"
+  | "general";
+
+export interface RoadmapChatSkillContext {
+  id: string;
+  name: string;
+  phaseId: string;
+  phaseName: string;
+  isCompleted: boolean;
+  options?: Array<{ id: string; optionName: string }>;
+}
+
+export interface RoadmapChatPhaseContext {
+  id: string;
+  name: string;
+  orderIndex: number;
+}
+
+export interface RoadmapChatRequest {
+  message: string;
+  targetRole: string;
+  currentRole?: string;
+  phases: RoadmapChatPhaseContext[];
+  skills: RoadmapChatSkillContext[];
+  language?: string;
+  currentSkillId?: string;
+  currentSkillName?: string;
+  currentModuleResources?: Array<{ id: string; title: string }>;
+  currentSkillOptions?: Array<{ id: string; optionName: string }>;
+  currentModules?: Array<{ id: string; title: string }>;
+}
+
+export interface RoadmapChatProposal {
+  action: string;
+  skillName?: string;
+  phaseId?: string;
+  phaseName?: string;
+  existingSkillId?: string;
+  resources?: Array<{
+    title: string;
+    url: string;
+    type: "video" | "article" | "course" | "docs";
+    isFree?: boolean;
+  }>;
+  resourceId?: string;
+  resourceName?: string;
+  optionName?: string;
+  optionId?: string;
+  moduleId?: string;
+  moduleName?: string;
+  moduleDescription?: string;
+  skillId?: string;
+  targetPhaseId?: string;
+  targetPhaseName?: string;
+}
+
+export interface RoadmapChatResponse {
+  intent: RoadmapChatIntent;
+  reply: string;
+  proposal?: RoadmapChatProposal;
+}
+
 export interface AISubpathResult {
   title: string;
   description: string;
@@ -173,7 +246,6 @@ export interface AISubpathResult {
     title: string;
     description: string;
     duration: string;
-    category: string;
     concepts: string[];
     orderIndex: number;
     resources: Array<{
@@ -198,4 +270,16 @@ export interface AISubpathResult {
       orderIndex: number;
     }>;
   }>;
+}
+
+export interface RoadmapChatMessage {
+  id: string;
+  roadmapId: string;
+  userId: string;
+  role: "user" | "assistant";
+  text: string;
+  intent?: string;
+  proposal?: RoadmapChatProposal;
+  proposalStatus?: "applied" | "dismissed" | null;
+  createdAt: Date;
 }
