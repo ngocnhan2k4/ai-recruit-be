@@ -91,6 +91,12 @@ def main():
         help="Keywords to search for on LinkedIn (default: Web Development)",
     )
     parser.add_argument(
+        "--linkedin-limit",
+        type=int,
+        default=None,
+        help="Limit number of jobs to crawl on LinkedIn",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=["skip", "update"],
@@ -249,6 +255,7 @@ def main():
                 pages=1,
                 start_page=page - 1,
                 keywords=args.linkedin_keywords,
+                limit=args.linkedin_limit,
             )
             result = (
                 insert_to_db(

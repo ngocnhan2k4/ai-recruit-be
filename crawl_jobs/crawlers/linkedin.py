@@ -13,6 +13,7 @@ def linkedin_crawl(
     pages: int = 1,
     start_page: int = 0,
     keywords: str = "Web Development",
+    limit: int = None,
 ):
     companies = {}
     headers = get_headers()
@@ -20,6 +21,8 @@ def linkedin_crawl(
     job_ids = _get_job_ids(
         headers, pages=pages, start_page=start_page, keywords=keywords
     )
+    if limit is not None:
+        job_ids = job_ids[:limit]
 
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
     for job_id in job_ids:
