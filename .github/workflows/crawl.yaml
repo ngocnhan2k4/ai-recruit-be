@@ -112,43 +112,6 @@ jobs:
           echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
           echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
-          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
-
-          node <<'NODE'
-          const path = require("path");
-          const Redis = require(
-            path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis")
-          );
-
-          const url = process.env.QUEUE_REDIS_URL;
-          const client = new Redis(url, {
-            enableReadyCheck: true,
-            connectTimeout: 5000,
-            maxRetriesPerRequest: 1,
-            retryStrategy: () => null,
-          });
-
-          const timer = setTimeout(() => {
-            console.error("Redis connection timeout");
-            process.exit(1);
-          }, 6000);
-
-          client.once("ready", async () => {
-            clearTimeout(timer);
-            await client.quit();
-            process.exit(0);
-          });
-
-          client.once("error", (err) => {
-            console.error(err?.message || err);
-            process.exit(1);
-          });
-          NODE
-
-          if [ $? -ne 0 ]; then
-            echo "Queue disabled: Redis auth/connect failed."
-            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
-          fi
 
       - name: Run crawler - Part 1 (ITViec, VietnamWorks, LinkedIn KW1)
         id: run_crawler_1
@@ -319,43 +282,6 @@ jobs:
           echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
           echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
-          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
-
-          node <<'NODE'
-          const path = require("path");
-          const Redis = require(
-            path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis")
-          );
-
-          const url = process.env.QUEUE_REDIS_URL;
-          const client = new Redis(url, {
-            enableReadyCheck: true,
-            connectTimeout: 5000,
-            maxRetriesPerRequest: 1,
-            retryStrategy: () => null,
-          });
-
-          const timer = setTimeout(() => {
-            console.error("Redis connection timeout");
-            process.exit(1);
-          }, 6000);
-
-          client.once("ready", async () => {
-            clearTimeout(timer);
-            await client.quit();
-            process.exit(0);
-          });
-
-          client.once("error", (err) => {
-            console.error(err?.message || err);
-            process.exit(1);
-          });
-          NODE
-
-          if [ $? -ne 0 ]; then
-            echo "Queue disabled: Redis auth/connect failed."
-            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
-          fi
 
       - name: Run crawler - Part 1 (TopCV, JobsGO, LinkedIn KW1)
         id: run_crawler_1
