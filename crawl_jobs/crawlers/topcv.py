@@ -193,7 +193,7 @@ def scrape_job_detail(
 
     print(f"  📄 {job_url}")
 
-    job_title = safe_text(card.select_one("h3.title"))
+    job_title = safe_text(card.select_one("h3.title"), normalize_camel_case=False)
     company_name = safe_text(card.select_one("a.company"))
 
     # salary

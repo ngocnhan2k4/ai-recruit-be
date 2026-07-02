@@ -250,7 +250,7 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
             
             # Job title
             title_elem = soup.select_one("h1")
-            job_title = safe_text(title_elem) if title_elem else None
+            job_title = safe_text(title_elem, normalize_camel_case=False) if title_elem else None
             if not job_title or job_title == "N/A":
                 job_title = job_data.get("title", "Unknown Job")
 

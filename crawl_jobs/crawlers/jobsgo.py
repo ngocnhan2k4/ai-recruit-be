@@ -48,7 +48,8 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     resp = scraper.get(job_url)
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    job_title = safe_text(soup.select_one("h1.job-title"))
+    job_title = safe_text(soup.select_one("h1.job-title"), normalize_camel_case=False)
+    company_name_tag = soup.select_one("div.media-body h2")
 
     body = soup.select_one("div.tab-pane")
 
