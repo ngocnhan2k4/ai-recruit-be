@@ -144,10 +144,10 @@ def fetch_with_retry(scraper, url, headers=None, max_retries=5, base_delay=5):
                 )
                 continue
 
-            # Check for captcha
-            if "captcha" in resp.text.lower() or "hcaptcha" in resp.text.lower():
+            # Check for Cloudflare challenge
+            if "cf-challenge" in resp.text or "ray id:" in resp.text.lower():
                 print(
-                    f"[!] Captcha detected on {url}, retrying ({attempt + 1}/{max_retries})..."
+                    f"[!] Cloudflare challenge detected on {url}, retrying ({attempt + 1}/{max_retries})..."
                 )
                 continue
 
@@ -239,7 +239,7 @@ def scrape_job_detail(
     human_delay(2, 3)
 
     # Get into job page with referer
-    detail_headers = get_stealth_headers(referer=base_url)
+    detail_headers = {"Referer": base_url}
     resp_text = fetch_with_retry(
         scraper, job_url, headers=detail_headers, max_retries=3, base_delay=3
     )
@@ -347,7 +347,7 @@ def scrape_job_detail(
 
         human_delay(2, 3)
 
-        comp_headers = get_stealth_headers(referer=job_url)
+        comp_headers = {"Referer": job_url}
         comp_text = fetch_with_retry(
             scraper, company_url, headers=comp_headers, max_retries=2, base_delay=3
         )
@@ -413,7 +413,7 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     print(f"\n--- TopCV listing page {page_num} ---")
 
     # Use stealth headers for listing page
-    listing_headers = get_stealth_headers(host="www.topcv.vn")
+    listing_headers = None
 
     html = fetch_with_retry(
         scraper, listing_url, headers=listing_headers, max_retries=5, base_delay=5
