@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
-import cloudscraper
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 from helpers.date import vn_parse_posted_date
 from helpers.extraction import (
@@ -35,22 +35,8 @@ TOPCV_USER_AGENTS = [
 
 
 def create_stealth_scraper():
-    """Create a cloudscraper with enhanced anti-detection settings."""
-    browser_configs = [
-        {"browser": "chrome", "platform": "windows", "mobile": False, "desktop": True},
-        {"browser": "chrome", "platform": "darwin", "mobile": False, "desktop": True},
-        {"browser": "firefox", "platform": "windows", "mobile": False, "desktop": True},
-    ]
-
-    config = random.choice(browser_configs)
-
-    scraper = cloudscraper.create_scraper(
-        browser=config,
-        delay=random.uniform(5, 10),  # Random delay for JS challenges
-        interpreter="native",  # Use native JS interpreter
-    )
-
-    return scraper
+    """Create a curl_cffi Session instance configured for job crawling."""
+    return requests.Session(impersonate="chrome")
 
 
 def get_stealth_headers(referer=None, host="www.topcv.vn"):
@@ -193,7 +179,8 @@ def scrape_job_detail(
 
     print(f"  📄 {job_url}")
 
-    job_title = safe_text(card.select_one("h3.title"), normalize_camel_case=False)
+    job_title_elem = card.select_one("h3.title a") or card.select_one("h3.title")
+    job_title = safe_text(job_title_elem, normalize_camel_case=False)
     company_name = safe_text(card.select_one("a.company"))
 
     # salary
@@ -201,7 +188,13 @@ def scrape_job_detail(
     salary_min, salary_max = extract_salary(salary)
 
     # date_posted
-    date_posted = vn_parse_posted_date(safe_text(card.select_one("label.deadline")))
+    date_posted_elem = card.select_one("label.deadline") or card.select_one("label.label-update")
+    date_posted = None
+    if date_posted_elem:
+        try:
+            date_posted = vn_parse_posted_date(safe_text(date_posted_elem))
+        except Exception:
+            pass
 
     # logo
     logo = None
@@ -414,8 +407,8 @@ def scrape_job_detail(
 
 def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     """Scrape TopCV listing page."""
-    base_url = "https://www.topcv.vn/viec-lam-it"
-    listing_url = f"{base_url}?page={page_num}"
+    base_url = "https://www.topcv.vn/tim-viec-lam-cong-nghe-thong-tin-cr257"
+    listing_url = f"{base_url}?type_keyword=1&sba=1&category_family=r257&page={page_num}"
 
     print(f"\n--- TopCV listing page {page_num} ---")
 
@@ -432,7 +425,7 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     soup = BeautifulSoup(html, "html.parser")
     companies = {}
 
-    job_cards = soup.find_all("div", class_="job-item-2")
+    job_cards = soup.find_all("div", class_="job-item-search-result")
     print(f"Found {len(job_cards)} job cards")
 
     if max_jobs_per_page:
