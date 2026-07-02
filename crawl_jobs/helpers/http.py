@@ -63,7 +63,7 @@ def fetch_page(
 def create_scraper() -> cloudscraper.CloudScraper:
     """Create a cloudscraper instance configured for job crawling."""
     return cloudscraper.create_scraper(
-        browser={"browser": "chrome", "platform": "windows", "mobile": False}
+        browser={"browser": "firefox", "platform": "windows", "mobile": False}
     )
 
 
