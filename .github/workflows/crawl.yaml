@@ -112,7 +112,6 @@ jobs:
           echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
           echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
-
       - name: Run crawler - Part 1 (ITViec, VietnamWorks, LinkedIn KW1)
         id: run_crawler_1
         working-directory: ./crawl_jobs
@@ -282,7 +281,6 @@ jobs:
           echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
           echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
-
       - name: Run crawler - Part 1 (TopCV, JobsGO, LinkedIn KW1)
         id: run_crawler_1
         working-directory: ./crawl_jobs
@@ -391,7 +389,7 @@ jobs:
       matrix:
         env: [dev, prod]
     environment: ${{ matrix.env }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository
@@ -419,14 +417,12 @@ jobs:
       - name: Export unextracted jobs
         id: export_jobs
         working-directory: ./crawl_jobs
-        env:
-          DB_URL: ${{ matrix.env == 'dev' && secrets.DEV_DATABASE_URL || secrets.PROD_DATABASE_URL }}
         shell: bash
         run: |
           mkdir -p extract_skills/data
 
           python scripts/export_recent_jobs_for_extraction.py \
-            --db-url "$DB_URL" \
+            --db-url "${{ secrets.DATABASE_URL }}" \
             --output-file "extract_skills/data/jobs_export.csv" \
             --hours 24
 
@@ -436,11 +432,9 @@ jobs:
       - name: Extract skills using huggingface model
         if: steps.export_jobs.outputs.job_count != '0'
         working-directory: ./crawl_jobs
-        env:
-          DB_URL: ${{ matrix.env == 'dev' && secrets.DEV_DATABASE_URL || secrets.PROD_DATABASE_URL }}
         run: |
           python extract_skills/extract_skills.py \
-            --db-url "$DB_URL" \
+            --db-url "${{ secrets.DATABASE_URL }}" \
             --model-path "tienminhktvn/extract-skills-model" \
             --input-file "extract_skills/data/jobs_export.csv"
 
@@ -457,7 +451,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
           SLACK_CHANNEL: crawl
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "🧠 Skill Extraction Results (Dev & Prod)"
+          SLACK_TITLE: "🧠 Skill Extraction Results (${{ matrix.env }})"
           SLACK_MESSAGE: |
             📊 Jobs processed: ${{ steps.export_jobs.outputs.job_count || '0' }}
             ✅ Status: ${{ job.status }}
