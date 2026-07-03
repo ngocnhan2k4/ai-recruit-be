@@ -2,7 +2,7 @@ name: Crawl Jobs
 
 on:
   schedule:
-    - cron: "30 10 * * *"
+    - cron: "30 10 */2 * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -172,7 +172,9 @@ jobs:
                       if '=' in line:
                           k, v = line.strip().split('=', 1)
                           try: d[k] = int(v)
-                          except: d[k] = v
+                          except ValueError:
+                              try: d[k] = float(v)
+                              except ValueError: d[k] = v
               return d
 
           v1 = load_vars('gha_out_1.txt')
@@ -182,8 +184,10 @@ jobs:
               for k in keys:
                   val1 = v1.get(k, 0)
                   val2 = v2.get(k, 0)
-                  if isinstance(val1, int) and isinstance(val2, int):
-                      f.write(f'{k}={val1 + val2}\n')
+                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                      total = val1 + val2
+                      res = f'{total:.2f}' if isinstance(total, float) else total
+                      f.write(f'{k}={res}\n')
                   else:
                       f.write(f'{k}={val1 or val2}\n')
           "
@@ -223,9 +227,18 @@ jobs:
       total_queue_enqueued: ${{ steps.aggregate_outputs.outputs.total_queue_enqueued }}
       total_queue_failed: ${{ steps.aggregate_outputs.outputs.total_queue_failed }}
 
+    env:
+      QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
+      QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Clean stale output files
+        run: rm -f gha_out_*.txt
 
       - name: Select LinkedIn keywords
         id: keywords
@@ -259,29 +272,17 @@ jobs:
       - name: Install dependencies
         working-directory: ./crawl_jobs
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip --cache-dir /home/cloud-user/.cache/pip
+          pip install -r requirements.txt --cache-dir /home/cloud-user/.cache/pip
 
       - name: Install queue bridge dependencies
         working-directory: ./crawl_jobs
-        env:
-          QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
-          QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
         run: |
           if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
-            npm ci --omit=dev --prefix ./job_index_queue
+            npm ci --omit=dev --prefix ./job_index_queue --cache /home/cloud-user/.npm --prefer-offline
           else
             echo "Skip queue bridge install: REDIS_URL secrets are empty."
           fi
-
-      - name: Prepare Redis URLs
-        working-directory: ./crawl_jobs
-        env:
-          QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
-          QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
-        run: |
-          echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
-          echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
       - name: Run crawler - Part 1 (TopCV, JobsGO, LinkedIn KW1)
         id: run_crawler_1
@@ -343,7 +344,9 @@ jobs:
                       if '=' in line:
                           k, v = line.strip().split('=', 1)
                           try: d[k] = int(v)
-                          except: d[k] = v
+                          except ValueError:
+                              try: d[k] = float(v)
+                              except ValueError: d[k] = v
               return d
 
           v1 = load_vars('gha_out_1.txt')
@@ -353,8 +356,10 @@ jobs:
               for k in keys:
                   val1 = v1.get(k, 0)
                   val2 = v2.get(k, 0)
-                  if isinstance(val1, int) and isinstance(val2, int):
-                      f.write(f'{k}={val1 + val2}\n')
+                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                      total = val1 + val2
+                      res = f'{total:.2f}' if isinstance(total, float) else total
+                      f.write(f'{k}={res}\n')
                   else:
                       f.write(f'{k}={val1 or val2}\n')
           "
@@ -396,6 +401,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -405,7 +412,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./crawl_jobs
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip --cache-dir /home/cloud-user/.cache/pip
 
           pip install \
             psycopg2-binary \
@@ -414,7 +421,7 @@ jobs:
             torch \
             bs4 \
             tqdm \
-            --no-cache-dir
+            --cache-dir /home/cloud-user/.cache/pip
 
       - name: Export unextracted jobs
         id: export_jobs
@@ -426,7 +433,7 @@ jobs:
           python scripts/export_recent_jobs_for_extraction.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --output-file "extract_skills/data/jobs_export.csv" \
-            --hours 24
+            --hours 48
 
           JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('extract_skills/data/jobs_export.csv')))" 2>/dev/null || echo 0)
           echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
