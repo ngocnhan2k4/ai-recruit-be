@@ -27,7 +27,7 @@ def cleanup_na_data(db_url, dry_run=True):
         # Find jobs linked to N/A organization
         job_ids = []
         if org_ids:
-            cur.execute("SELECT id, title FROM jobs WHERE organization_id = ANY(%s)", (org_ids,))
+            cur.execute("SELECT id, title FROM jobs WHERE organization_id = ANY(%s::uuid[])", (org_ids,))
             job_rows = cur.fetchall()
             job_ids = [r['id'] for r in job_rows]
             print(f"Found {len(job_ids)} jobs linked to N/A organizations:")
@@ -37,7 +37,7 @@ def cleanup_na_data(db_url, dry_run=True):
         # Find job raws linked to N/A company raws
         job_raw_ids = []
         if comp_raw_ids:
-            cur.execute("SELECT id, title FROM job_raws WHERE company_id = ANY(%s)", (comp_raw_ids,))
+            cur.execute("SELECT id, title FROM job_raws WHERE company_id = ANY(%s::bigint[])", (comp_raw_ids,))
             job_raw_rows = cur.fetchall()
             job_raw_ids = [r['id'] for r in job_raw_rows]
             print(f"Found {len(job_raw_ids)} job_raws linked to N/A company_raws:")
@@ -64,30 +64,30 @@ def cleanup_na_data(db_url, dry_run=True):
         
         # 1. Delete job mappings and child records
         if job_ids:
-            cur.execute("DELETE FROM job_skills WHERE job_id = ANY(%s)", (job_ids,))
-            cur.execute("DELETE FROM job_provinces WHERE job_id = ANY(%s)", (job_ids,))
-            cur.execute("DELETE FROM user_interactions WHERE job_id = ANY(%s)", (job_ids,))
-            cur.execute("DELETE FROM apply_jobs WHERE job_id = ANY(%s)", (job_ids,))
+            cur.execute("DELETE FROM job_skills WHERE job_id = ANY(%s::uuid[])", (job_ids,))
+            cur.execute("DELETE FROM job_provinces WHERE job_id = ANY(%s::uuid[])", (job_ids,))
+            cur.execute("DELETE FROM user_interactions WHERE job_id = ANY(%s::uuid[])", (job_ids,))
+            cur.execute("DELETE FROM apply_jobs WHERE job_id = ANY(%s::uuid[])", (job_ids,))
             # 2. Delete jobs
-            cur.execute("DELETE FROM jobs WHERE id = ANY(%s)", (job_ids,))
+            cur.execute("DELETE FROM jobs WHERE id = ANY(%s::uuid[])", (job_ids,))
             print(f"Deleted {len(job_ids)} jobs and their relations.")
 
         # 3. Delete organization mappings and child records
         if org_ids:
-            cur.execute("DELETE FROM companies WHERE organization_id = ANY(%s)", (org_ids,))
-            cur.execute("DELETE FROM organization_locations WHERE organization_id = ANY(%s)", (org_ids,))
+            cur.execute("DELETE FROM companies WHERE organization_id = ANY(%s::uuid[])", (org_ids,))
+            cur.execute("DELETE FROM organization_locations WHERE organization_id = ANY(%s::uuid[])", (org_ids,))
             # 4. Delete organizations
-            cur.execute("DELETE FROM organizations WHERE id = ANY(%s)", (org_ids,))
+            cur.execute("DELETE FROM organizations WHERE id = ANY(%s::uuid[])", (org_ids,))
             print(f"Deleted {len(org_ids)} organizations.")
 
         # 5. Delete job raws
         if job_raw_ids:
-            cur.execute("DELETE FROM job_raws WHERE id = ANY(%s)", (job_raw_ids,))
+            cur.execute("DELETE FROM job_raws WHERE id = ANY(%s::bigint[])", (job_raw_ids,))
             print(f"Deleted {len(job_raw_ids)} job_raws.")
 
         # 6. Delete company raws
         if comp_raw_ids:
-            cur.execute("DELETE FROM company_raws WHERE id = ANY(%s)", (comp_raw_ids,))
+            cur.execute("DELETE FROM company_raws WHERE id = ANY(%s::bigint[])", (comp_raw_ids,))
             print(f"Deleted {len(comp_raw_ids)} company_raws.")
 
         conn.commit()
