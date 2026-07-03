@@ -12,7 +12,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     print(job_url)
 
     # company_name
-    company_name = safe_text(card.select_one("div.company-title"))
+    company_name = safe_text(card.select_one(".company-title"))
 
     # logo
     logo = card.find("img")["src"]
@@ -51,8 +51,12 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         return
     soup = BeautifulSoup(html, "html.parser")
 
+    if company_name == "N/A" or not company_name:
+        company_name_tag = soup.select_one("div.card-company h6") or soup.select_one("div.card-company .fw-semibold") or soup.select_one("div.media-body h2")
+        if company_name_tag:
+            company_name = safe_text(company_name_tag)
+
     job_title = safe_text(soup.select_one("h1.job-title"), normalize_camel_case=False)
-    company_name_tag = soup.select_one("div.media-body h2")
 
     body = soup.select_one("div.tab-pane")
 
