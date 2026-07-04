@@ -8,7 +8,7 @@ import re
 import unicodedata
 
 
-def safe_text(el, is_strip: bool = True, sep: str = " ") -> str:
+def safe_text(el, is_strip: bool = True, sep: str = " ", normalize_camel_case: bool = True) -> str:
     """
     Safely extract text from a BeautifulSoup element.
 
@@ -16,6 +16,7 @@ def safe_text(el, is_strip: bool = True, sep: str = " ") -> str:
         el: BeautifulSoup element to extract text from
         is_strip: Whether to strip whitespace from the result
         sep: Separator to use when joining text from child elements.
+        normalize_camel_case: Whether to split camelCase strings.
 
     Returns:
         Extracted text or "N/A" if element is None/empty
@@ -24,11 +25,11 @@ def safe_text(el, is_strip: bool = True, sep: str = " ") -> str:
         return "N/A"
     txt = el.get_text(separator=sep, strip=is_strip)
     if txt:
-        txt = normalize_text(txt)
+        txt = normalize_text(txt, normalize_camel_case=normalize_camel_case)
     return txt if txt else "N/A"
 
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str, normalize_camel_case: bool = True) -> str:
     """
     Normalize text by cleaning up spacing issues.
 
@@ -43,12 +44,13 @@ def normalize_text(text: str) -> str:
 
     text = re.sub(r"\s+", " ", text)
 
-    # Add space between lowercase Vietnamese/ASCII letter followed by uppercase
-    text = re.sub(
-        r"([a-zàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ])([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ])",
-        r"\1 \2",
-        text,
-    )
+    if normalize_camel_case:
+        # Add space between lowercase Vietnamese/ASCII letter followed by uppercase
+        text = re.sub(
+            r"([a-zàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ])([A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ])",
+            r"\1 \2",
+            text,
+        )
 
     # Handle punctuation followed directly by uppercase letter
     text = re.sub(

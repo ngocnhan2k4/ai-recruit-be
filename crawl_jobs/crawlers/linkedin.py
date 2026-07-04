@@ -13,6 +13,7 @@ def linkedin_crawl(
     pages: int = 1,
     start_page: int = 0,
     keywords: str = "Web Development",
+    limit: int = None,
 ):
     companies = {}
     headers = get_headers()
@@ -20,6 +21,8 @@ def linkedin_crawl(
     job_ids = _get_job_ids(
         headers, pages=pages, start_page=start_page, keywords=keywords
     )
+    if limit is not None:
+        job_ids = job_ids[:limit]
 
     detail_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
     for job_id in job_ids:
@@ -127,10 +130,15 @@ def _get_job_ids(
         print(f"--- Found {len(jobs_on_page)} jobs on page {i} of Linkedin ---")
 
         for job in jobs_on_page:
-            job_id = (
-                job.select_one("div.base-card").get("data-entity-urn").split(":")[3]
-            )
-            job_ids.append(job_id)
+            base_card = job.select_one("div.base-card")
+            if not base_card:
+                continue
+            entity_urn = base_card.get("data-entity-urn")
+            if not entity_urn or ":" not in entity_urn:
+                continue
+            parts = entity_urn.split(":")
+            if len(parts) > 3:
+                job_ids.append(parts[3])
 
         human_delay(base=1, jitter=0)
 
