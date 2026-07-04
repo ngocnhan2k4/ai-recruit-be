@@ -40,47 +40,37 @@ on:
         type: string
 
 jobs:
-  run-crawler:
-    strategy:
-      matrix:
-        env: [dev, prod]
-      max-parallel: 2
-
-    environment: ${{ matrix.env }}
+  run-crawler-ubuntu:
     runs-on: ubuntu-latest
     outputs:
-      total_inserted: ${{ steps.run_crawler.outputs.total_inserted }}
-      total_updated: ${{ steps.run_crawler.outputs.total_updated }}
+      total_inserted: ${{ steps.aggregate_outputs.outputs.total_inserted }}
+      total_updated: ${{ steps.aggregate_outputs.outputs.total_updated }}
+      crawl_time: ${{ steps.aggregate_outputs.outputs.crawl_time }}
+      itviec: ${{ steps.aggregate_outputs.outputs.itviec }}
+      topcv: ${{ steps.aggregate_outputs.outputs.topcv }}
+      jobsgo: ${{ steps.aggregate_outputs.outputs.jobsgo }}
+      linkedin: ${{ steps.aggregate_outputs.outputs.linkedin }}
+      vietnamworks: ${{ steps.aggregate_outputs.outputs.vietnamworks }}
+      total_queue_enqueued: ${{ steps.aggregate_outputs.outputs.total_queue_enqueued }}
+      total_queue_failed: ${{ steps.aggregate_outputs.outputs.total_queue_failed }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select LinkedIn keyword
-        id: keyword
+      - name: Select LinkedIn keywords
+        id: keywords
+        shell: bash
         run: |
-          FILE="crawl_jobs/classifier/data/categories.txt"
-
-          if [ ! -f "$FILE" ]; then
-            echo "Categories file not found: $FILE"
-            exit 1
-          fi
-
-          mapfile -t KEYWORDS < <(grep . "$FILE")
-
-          COUNT=${#KEYWORDS[@]}
-          if [ "$COUNT" -eq 0 ]; then
-            echo "No keywords found in $FILE"
-            exit 1
-          fi
-
-          DAY_INDEX=$(date +%-j)
-          IDX=$(( DAY_INDEX % COUNT ))
-
-          SELECTED="${KEYWORDS[$IDX]}"
-
-          echo "keyword=$SELECTED" >> $GITHUB_OUTPUT
-          echo "Selected LinkedIn keyword: $SELECTED"
+          python -c "
+          import random, os
+          lines = [line.strip() for line in open('crawl_jobs/classifier/data/categories.txt', encoding='utf-8') if line.strip()]
+          kws = random.sample(lines, 2) if len(lines) >= 2 else (lines * 2)[:2]
+          print(f'Selected Keywords: {kws}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'kw1={kws[0]}\n')
+              f.write(f'kw2={kws[1]}\n')
+          "
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -104,95 +94,103 @@ jobs:
       - name: Install queue bridge dependencies
         working-directory: ./crawl_jobs
         env:
-          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+          QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
+          QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
         run: |
-          if [ -n "$QUEUE_REDIS_URL" ]; then
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
             npm ci --omit=dev --prefix ./job_index_queue
           else
-            echo "Skip queue bridge install: REDIS_URL secret is empty."
+            echo "Skip queue bridge install: REDIS_URL secrets are empty."
           fi
 
-      - name: Validate Redis credentials
+      - name: Prepare Redis URLs
         working-directory: ./crawl_jobs
         env:
-          QUEUE_REDIS_URL: ${{ secrets.REDIS_URL }}
+          QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
+          QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
         run: |
-          if [ -z "$QUEUE_REDIS_URL" ]; then
-            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
-            echo "Skip Redis validation: REDIS_URL secret is empty."
-            exit 0
-          fi
+          echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
+          echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
 
-          echo "QUEUE_REDIS_URL_EFFECTIVE=$QUEUE_REDIS_URL" >> "$GITHUB_ENV"
-
-          node <<'NODE'
-          const path = require("path");
-          const Redis = require(
-            path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis")
-          );
-
-          const url = process.env.QUEUE_REDIS_URL;
-          const client = new Redis(url, {
-            enableReadyCheck: true,
-            connectTimeout: 5000,
-            maxRetriesPerRequest: 1,
-            retryStrategy: () => null,
-          });
-
-          const timer = setTimeout(() => {
-            console.error("Redis connection timeout");
-            process.exit(1);
-          }, 6000);
-
-          client.once("ready", async () => {
-            clearTimeout(timer);
-            await client.quit();
-            process.exit(0);
-          });
-
-          client.once("error", (err) => {
-            console.error(err?.message || err);
-            process.exit(1);
-          });
-          NODE
-
-          if [ $? -ne 0 ]; then
-            echo "Queue disabled: Redis auth/connect failed."
-            echo "QUEUE_REDIS_URL_EFFECTIVE=" >> "$GITHUB_ENV"
-          fi
-
-      - name: Run crawler
-        id: run_crawler
+      - name: Run crawler - Part 1 (ITViec, VietnamWorks, LinkedIn KW1)
+        id: run_crawler_1
         working-directory: ./crawl_jobs
-        env:
-          QUEUE_REDIS_URL: ${{ env.QUEUE_REDIS_URL_EFFECTIVE }}
         run: |
           QUEUE_ARGS=()
-          QUEUE_MODE="disabled"
-
-          if [ -n "$QUEUE_REDIS_URL" ]; then
-            QUEUE_MODE="enabled"
-            QUEUE_ARGS+=(
-              --queue-index-enabled
-              --queue-redis-url "$QUEUE_REDIS_URL"
-            )
-          else
-            echo "Queue indexing disabled: REDIS_URL secret is empty."
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
+            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
+            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
+            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
           fi
 
-          echo "queue_mode=$QUEUE_MODE" >> "$GITHUB_OUTPUT"
-
           python main.py \
-            --db-url "${{ secrets.DATABASE_URL }}" \
-            --gha-output "$GITHUB_OUTPUT" \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --gha-output "../gha_out_1.txt" \
             --mode ${{ inputs.mode || 'update' }} \
             --itviec-pages ${{ inputs.itviec_pages || '1' }} \
-            --linkedin-pages ${{ inputs.linkedin_pages || '1' }} \
-            --topcv-pages ${{ inputs.topcv_pages || '1' }} \
-            --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
             --vietnamworks-pages ${{ inputs.vietnamworks_pages || '1' }} \
-            --linkedin-keywords "${{ steps.keyword.outputs.keyword }}" \
+            --topcv-pages 0 \
+            --jobsgo-pages 0 \
+            --linkedin-pages 1 \
+            --linkedin-keywords "${{ steps.keywords.outputs.kw1 }}" \
+            --linkedin-limit 5 \
             "${QUEUE_ARGS[@]}"
+
+      - name: Run crawler - Part 2 (LinkedIn KW2 only)
+        id: run_crawler_2
+        working-directory: ./crawl_jobs
+        run: |
+          QUEUE_ARGS=()
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
+            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
+            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
+            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
+          fi
+
+          python main.py \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --gha-output "../gha_out_2.txt" \
+            --mode ${{ inputs.mode || 'update' }} \
+            --itviec-pages 0 \
+            --vietnamworks-pages 0 \
+            --topcv-pages 0 \
+            --jobsgo-pages 0 \
+            --linkedin-pages 1 \
+            --linkedin-keywords "${{ steps.keywords.outputs.kw2 }}" \
+            --linkedin-limit 5 \
+            "${QUEUE_ARGS[@]}"
+
+      - name: Aggregate Outputs
+        id: aggregate_outputs
+        run: |
+          python -c "
+          import os
+          def load_vars(path):
+              d = {}
+              if os.path.exists(path):
+                  for line in open(path):
+                      if '=' in line:
+                          k, v = line.strip().split('=', 1)
+                          try: d[k] = int(v)
+                          except ValueError:
+                              try: d[k] = float(v)
+                              except ValueError: d[k] = v
+              return d
+
+          v1 = load_vars('gha_out_1.txt')
+          v2 = load_vars('gha_out_2.txt')
+          keys = set(v1.keys()) | set(v2.keys())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for k in keys:
+                  val1 = v1.get(k, 0)
+                  val2 = v2.get(k, 0)
+                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                      total = val1 + val2
+                      res = f'{total:.2f}' if isinstance(total, float) else total
+                      f.write(f'{k}={res}\n')
+                  else:
+                      f.write(f'{k}={val1 or val2}\n')
+          "
 
       - name: Notify Slack
         if: always()
@@ -201,37 +199,210 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
           SLACK_CHANNEL: crawl
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
-          SLACK_TITLE: "📊 Kết quả crawl việc làm (${{ matrix.env }}) - Mode: ${{ inputs.mode || 'update' }}"
+          SLACK_TITLE: "📊 Kết quả crawl việc làm UBUNTU (Dev & Prod) - Mode: ${{ inputs.mode || 'update' }}"
           SLACK_MESSAGE: |
-            🕒 Thời gian: ${{ steps.run_crawler.outputs.crawl_time }}
+            🕒 Thời gian: ${{ steps.aggregate_outputs.outputs.crawl_time }}
 
             📈 Tổng hợp:
-            ✓ Inserted: ${{ steps.run_crawler.outputs.total_inserted }} jobs
-            ↻ Updated: ${{ steps.run_crawler.outputs.total_updated }} jobs
-            📨 Queue Indexed: ${{ steps.run_crawler.outputs.total_queue_enqueued || '0' }} jobs
-            ⚠ Queue Failed: ${{ steps.run_crawler.outputs.total_queue_failed || '0' }} jobs
-            ⚙ Queue Mode: ${{ steps.run_crawler.outputs.queue_mode }}
+            ✓ Inserted: ${{ steps.aggregate_outputs.outputs.total_inserted }} jobs
+            ↻ Updated: ${{ steps.aggregate_outputs.outputs.total_updated }} jobs
 
-            🔹 ITviec: ${{ steps.run_crawler.outputs.itviec }} jobs (${{ inputs.itviec_pages || '1' }} pages)
-            🔹 TopCV: ${{ steps.run_crawler.outputs.topcv }} jobs (${{ inputs.topcv_pages || '1' }} pages)
-            🔹 JobsGo: ${{ steps.run_crawler.outputs.jobsgo }} jobs (${{ inputs.jobsgo_pages || '1' }} pages)
-            🔹 LinkedIn: ${{ steps.run_crawler.outputs.linkedin }} jobs (${{ inputs.linkedin_pages || '1' }} pages)
-            🔹 VietnamWorks: ${{ steps.run_crawler.outputs.vietnamworks }} jobs (${{ inputs.vietnamworks_pages || '1' }} pages)
+            🔹 ITviec: ${{ steps.aggregate_outputs.outputs.itviec }} jobs (${{ inputs.itviec_pages || '1' }} pages)
+            🔹 LinkedIn (Ubuntu): ${{ steps.aggregate_outputs.outputs.linkedin }} jobs (10 jobs / 2 categories)
+            🔹 VietnamWorks: ${{ steps.aggregate_outputs.outputs.vietnamworks }} jobs (${{ inputs.vietnamworks_pages || '1' }} pages)
 
             ✅ Status: ${{ job.status }}
 
-  extract-skills:
-    needs: run-crawler
-    if: ${{ needs.run-crawler.outputs.total_inserted != '0' || needs.run-crawler.outputs.total_updated != '0' }}
-    strategy:
-      matrix:
-        env: [dev, prod]
-    environment: ${{ matrix.env }}
-    runs-on: ubuntu-latest
+  run-crawler-selfhosted:
+    runs-on: self-hosted
+    outputs:
+      total_inserted: ${{ steps.aggregate_outputs.outputs.total_inserted }}
+      total_updated: ${{ steps.aggregate_outputs.outputs.total_updated }}
+      crawl_time: ${{ steps.aggregate_outputs.outputs.crawl_time }}
+      itviec: ${{ steps.aggregate_outputs.outputs.itviec }}
+      topcv: ${{ steps.aggregate_outputs.outputs.topcv }}
+      jobsgo: ${{ steps.aggregate_outputs.outputs.jobsgo }}
+      linkedin: ${{ steps.aggregate_outputs.outputs.linkedin }}
+      vietnamworks: ${{ steps.aggregate_outputs.outputs.vietnamworks }}
+      total_queue_enqueued: ${{ steps.aggregate_outputs.outputs.total_queue_enqueued }}
+      total_queue_failed: ${{ steps.aggregate_outputs.outputs.total_queue_failed }}
+
+    env:
+      QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
+      QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Clean stale output files
+        run: rm -f gha_out_*.txt
+
+      - name: Select LinkedIn keywords
+        id: keywords
+        shell: bash
+        run: |
+          python -c "
+          import random, os
+          lines = [line.strip() for line in open('crawl_jobs/classifier/data/categories.txt', encoding='utf-8') if line.strip()]
+          kws = random.sample(lines, 2) if len(lines) >= 2 else (lines * 2)[:2]
+          print(f'Selected Keywords: {kws}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'kw1={kws[0]}\n')
+              f.write(f'kw2={kws[1]}\n')
+          "
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Node dependencies
+        run: |
+          npm ci --cache /home/cloud-user/.npm --prefer-offline
+        working-directory: crawl_jobs/job_index_queue
+
+      - name: Install dependencies
+        working-directory: ./crawl_jobs
+        run: |
+          python -m pip install --upgrade pip --cache-dir /home/cloud-user/.cache/pip
+          pip install -r requirements.txt --cache-dir /home/cloud-user/.cache/pip
+
+      - name: Install queue bridge dependencies
+        working-directory: ./crawl_jobs
+        run: |
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
+            npm ci --omit=dev --prefix ./job_index_queue --cache /home/cloud-user/.npm --prefer-offline
+          else
+            echo "Skip queue bridge install: REDIS_URL secrets are empty."
+          fi
+
+      - name: Run crawler - Part 1 (TopCV, JobsGO, LinkedIn KW1)
+        id: run_crawler_1
+        working-directory: ./crawl_jobs
+        run: |
+          QUEUE_ARGS=()
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
+            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
+            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
+            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
+          fi
+
+          python main.py \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --gha-output "../gha_out_1.txt" \
+            --mode ${{ inputs.mode || 'update' }} \
+            --itviec-pages 0 \
+            --vietnamworks-pages 0 \
+            --topcv-pages ${{ inputs.topcv_pages || '1' }} \
+            --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
+            --linkedin-pages 1 \
+            --linkedin-keywords "${{ steps.keywords.outputs.kw1 }}" \
+            --linkedin-limit 5 \
+            "${QUEUE_ARGS[@]}"
+
+      - name: Run crawler - Part 2 (LinkedIn KW2 only)
+        id: run_crawler_2
+        working-directory: ./crawl_jobs
+        run: |
+          QUEUE_ARGS=()
+          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
+            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
+            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
+            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
+          fi
+
+          python main.py \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --gha-output "../gha_out_2.txt" \
+            --mode ${{ inputs.mode || 'update' }} \
+            --itviec-pages 0 \
+            --vietnamworks-pages 0 \
+            --topcv-pages 0 \
+            --jobsgo-pages 0 \
+            --linkedin-pages 1 \
+            --linkedin-keywords "${{ steps.keywords.outputs.kw2 }}" \
+            --linkedin-limit 5 \
+            "${QUEUE_ARGS[@]}"
+
+      - name: Aggregate Outputs
+        id: aggregate_outputs
+        run: |
+          python -c "
+          import os
+          def load_vars(path):
+              d = {}
+              if os.path.exists(path):
+                  for line in open(path):
+                      if '=' in line:
+                          k, v = line.strip().split('=', 1)
+                          try: d[k] = int(v)
+                          except ValueError:
+                              try: d[k] = float(v)
+                              except ValueError: d[k] = v
+              return d
+
+          v1 = load_vars('gha_out_1.txt')
+          v2 = load_vars('gha_out_2.txt')
+          keys = set(v1.keys()) | set(v2.keys())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for k in keys:
+                  val1 = v1.get(k, 0)
+                  val2 = v2.get(k, 0)
+                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                      total = val1 + val2
+                      res = f'{total:.2f}' if isinstance(total, float) else total
+                      f.write(f'{k}={res}\n')
+                  else:
+                      f.write(f'{k}={val1 or val2}\n')
+          "
+
+      - name: Notify Slack
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.CRAWL_CHANNEL }}
+          SLACK_CHANNEL: crawl
+          SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: "📊 Kết quả crawl việc làm SELFHOSTED (Dev & Prod) - Mode: ${{ inputs.mode || 'update' }}"
+          SLACK_MESSAGE: |
+            🕒 Thời gian: ${{ steps.aggregate_outputs.outputs.crawl_time }}
+
+            📈 Tổng hợp:
+            ✓ Inserted: ${{ steps.aggregate_outputs.outputs.total_inserted }} jobs
+            ↻ Updated: ${{ steps.aggregate_outputs.outputs.total_updated }} jobs
+
+            🔹 TopCV: ${{ steps.aggregate_outputs.outputs.topcv }} jobs (${{ inputs.topcv_pages || '1' }} pages)
+            🔹 JobsGo: ${{ steps.aggregate_outputs.outputs.jobsgo }} jobs (${{ inputs.jobsgo_pages || '1' }} pages)
+            🔹 LinkedIn (Self-hosted): ${{ steps.aggregate_outputs.outputs.linkedin }} jobs (10 jobs / 2 categories)
+
+            ✅ Status: ${{ job.status }}
+
+  extract-skills:
+    needs: [run-crawler-ubuntu, run-crawler-selfhosted]
+    if: |
+      always() &&
+      (needs.run-crawler-ubuntu.result == 'success' || needs.run-crawler-selfhosted.result == 'success') &&
+      (needs.run-crawler-ubuntu.outputs.total_inserted != '0' || needs.run-crawler-ubuntu.outputs.total_updated != '0' || 
+       needs.run-crawler-selfhosted.outputs.total_inserted != '0' || needs.run-crawler-selfhosted.outputs.total_updated != '0')
+    strategy:
+      matrix:
+        env: [dev, prod]
+    environment: ${{ matrix.env }}
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -241,7 +412,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./crawl_jobs
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip --cache-dir /home/cloud-user/.cache/pip
 
           pip install \
             psycopg2-binary \
@@ -250,7 +421,7 @@ jobs:
             torch \
             bs4 \
             tqdm \
-            --no-cache-dir
+            --cache-dir /home/cloud-user/.cache/pip
 
       - name: Export unextracted jobs
         id: export_jobs
@@ -262,7 +433,7 @@ jobs:
           python scripts/export_recent_jobs_for_extraction.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --output-file "extract_skills/data/jobs_export.csv" \
-            --hours 24
+            --hours 48
 
           JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('extract_skills/data/jobs_export.csv')))" 2>/dev/null || echo 0)
           echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT
