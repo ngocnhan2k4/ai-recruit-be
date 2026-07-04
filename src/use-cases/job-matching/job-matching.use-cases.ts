@@ -24,6 +24,7 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
+import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 import { Dictionary, keyBy } from "lodash";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
 import { IBloomFilterService } from "@/core/abstracts";
@@ -131,8 +132,12 @@ export class JobMatchingUseCases {
     if (recentJobs && recentJobs.length > 0) {
       filters.recentInteractions = recentJobs;
 
-      // Explicitly exclude these from recommendations to avoid recommending jobs the user already interacted with
-      filters.excludeJobIds = recentJobs.map((r) => r.jobId);
+      const appliedJobIds = recentJobs
+        .filter((r) => r.eventType === EventTypeEnum.APPLY_JOB)
+        .map((r) => r.jobId);
+      if (appliedJobIds.length > 0) {
+        filters.excludeJobIds = appliedJobIds;
+      }
     }
 
     // Load user's bloom filter to avoid duplicate recommendations
