@@ -202,10 +202,22 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
             # Salary
             salary_min = resolved_job.get("salaryMin", 0)
             salary_max = resolved_job.get("salaryMax", 0)
+            salary_currency = (resolved_job.get("salaryCurrency") or "VND").upper()
             pretty_salary = resolved_job.get("prettySalary") or resolved_job.get("prettySalaryVI") or ""
             if (salary_min == 0 and salary_max == 0) and pretty_salary:
                 if "thương lượng" not in pretty_salary.lower() and "negotiable" not in pretty_salary.lower():
                     salary_min, salary_max = extract_salary(pretty_salary)
+            else:
+                # Convert raw values to million VND standard (as done in extract_salary)
+                USD_CONVERSION_FACTOR = 25.0  # Approx rate in thousands (25,000 VND / USD)
+                if salary_currency == "VND":
+                    # Convert raw VND (e.g. 20000000) to million VND (e.g. 20)
+                    salary_min = round(salary_min / 1_000_000)
+                    salary_max = round(salary_max / 1_000_000)
+                elif salary_currency == "USD":
+                    # Convert raw USD (e.g. 2000) to million VND (e.g. 50)
+                    salary_min = round(salary_min * USD_CONVERSION_FACTOR / 1000)
+                    salary_max = round(salary_max * USD_CONVERSION_FACTOR / 1000)
                     
             # Experience
             experience_min = resolved_job.get("yearsOfExperience")
@@ -238,7 +250,7 @@ def scrape_job_detail(scraper, job_url: str, job_data: dict, companies: dict):
             
             # Job title
             title_elem = soup.select_one("h1")
-            job_title = safe_text(title_elem) if title_elem else None
+            job_title = safe_text(title_elem, normalize_camel_case=False) if title_elem else None
             if not job_title or job_title == "N/A":
                 job_title = job_data.get("title", "Unknown Job")
 

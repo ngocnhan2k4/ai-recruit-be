@@ -149,6 +149,8 @@ export interface JobSearchDocument {
   updatedAt?: string;
   categoryId?: string;
   categoryName?: string;
+  applyUrl?: string | null;
+  questions?: string[] | null;
   score?: number;
   recruitCount?: number | null;
 }

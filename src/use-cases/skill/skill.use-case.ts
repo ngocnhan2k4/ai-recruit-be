@@ -145,13 +145,14 @@ export class SkillUseCases {
     query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
     const limit = query.limit ?? 10;
-    const { fromDate, toDate, provinceId } = query;
+    const { fromDate, toDate, provinceId, categoryId } = query;
 
     const data = await this.skillRepository.getTopDemandedSkills(
       limit,
       fromDate,
       toDate,
       provinceId,
+      categoryId,
     );
     this.logger.log(`Fetched top ${limit} demanded skills`);
 

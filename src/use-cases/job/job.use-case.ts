@@ -30,6 +30,12 @@ import {
   JobMatchResultDto,
 } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import {
+  RECOMMENDED_CV_MIN_MATCHING_SCORE,
+  RECOMMENDED_CV_SEARCH_POOL_MIN,
+  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
+} from "@/common/constants/job-matching";
 import { Dictionary, isEqual, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
@@ -224,7 +230,7 @@ export class JobUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
@@ -237,26 +243,15 @@ export class JobUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
 
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        data: this.convertHitToDto(
-          docs,
-          organizationMap,
-          userJobStatusMap,
-          jobMap,
-        ),
+        data: this.convertHitToDto(docs, organizationMap, userJobStatusMap),
         pagination: {
           nextCursor,
           hasNextPage: hasMore,
@@ -277,11 +272,10 @@ export class JobUseCases {
         applyId: string | null;
       }
     >,
-    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
-      const applyUrl = jobMap[source.id]?.applyUrl ?? null;
-      const questions = jobMap[source.id]?.job?.questions ?? source.questions;
+      const applyUrl = source.applyUrl ?? null;
+      const questions = source.questions ?? null;
       // Transform provinces
       const provinces: Province[] = (source.provinceIds || []).map(
         (id: string, index: number) => ({
@@ -1703,6 +1697,10 @@ export class JobUseCases {
     }
 
     const targetLimit = jobDetail.job.recruitCount ?? 10;
+    const searchPoolLimit = Math.max(
+      targetLimit * RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+      RECOMMENDED_CV_SEARCH_POOL_MIN,
+    );
 
     const [appliedUserIdList, { data: seekingUser }] = await Promise.all([
       this.jobRepository.getAppliedUserIdsByJobId(jobId),
@@ -1738,7 +1736,7 @@ export class JobUseCases {
     };
     const { data: cvDocs } = await this.cvSearchService.searchCvs({
       userIds: seekingUserIds,
-      limit: targetLimit,
+      limit: searchPoolLimit,
       skillIds: jobSkillIds,
       provinceIds: jobProvinceIds,
       categoryId: jobCategoryId,
@@ -1761,18 +1759,25 @@ export class JobUseCases {
         );
         continue;
       }
-      const criteria = this.cvService.calculateMatchingScore(
+      const { score, criteria } = this.cvService.calculateMatchingScore(
         cv,
         jobForMatching,
       );
+      if (
+        score === null ||
+        score < RECOMMENDED_CV_MIN_MATCHING_SCORE ||
+        (criteria.completeness ?? 0) < CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND
+      ) {
+        continue;
+      }
       recommendations.push({
         cvId: cv.id,
         userId: cv.userId,
         name: cv.name ?? "",
         fileUrl: cv.fileUrl ?? "",
         mimeType: cv.mimeType ?? "",
-        score: cv.score ?? 0,
-        criteria: criteria.criteria,
+        score,
+        criteria,
         user: {
           id: user.id,
           email: user.email,
@@ -1783,10 +1788,12 @@ export class JobUseCases {
       });
     }
 
+    recommendations.sort((a, b) => b.score - a.score);
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: recommendations,
+      data: recommendations.slice(0, targetLimit),
     };
   }
 
@@ -1959,7 +1966,7 @@ export class JobUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? this.jobRepository.getUserJobStatuses(filters.user?.userId, jobIds)
         : Promise.resolve(new Map()),
@@ -1972,26 +1979,15 @@ export class JobUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
 
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: {
-        data: this.convertHitToDto(
-          docs,
-          organizationMap,
-          userJobStatusMap,
-          jobMap,
-        ),
+        data: this.convertHitToDto(docs, organizationMap, userJobStatusMap),
         pagination: {
           nextCursor,
           hasNextPage: hasMore,
