@@ -11,7 +11,6 @@ import {
   ICvRepository,
   IUserRepository,
   INotificationRepository,
-  ISearchService,
   ICvSearchService,
   ICvService,
   IBloomFilterService,
@@ -86,7 +85,6 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
@@ -105,9 +103,7 @@ export class JobUseCases {
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
     private readonly featureService: IFeatureService,
-    private readonly searchService: ISearchService,
     private readonly cvSearchService: ICvSearchService,
-    private readonly configService: ConfigService,
     private readonly cvService: ICvService,
     private readonly eventTrackingService: EventTrackingService,
     private readonly bloomFilterService: IBloomFilterService,
