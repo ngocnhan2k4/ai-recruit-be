@@ -163,7 +163,6 @@ export class AiCvController {
     @Param("id") aiCvId: string,
     @Body() updateAiCvDto: UpdateAiCvDto,
   ) {
-    console.log("I was called");
     return this.aiCvUseCases.updateAiCv(user.userId, aiCvId, updateAiCvDto);
   }
 
