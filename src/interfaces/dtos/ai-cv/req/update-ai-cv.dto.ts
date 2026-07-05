@@ -51,6 +51,5 @@ export class UpdateAiCvDto extends PartialType(
   })
   @ValidateNested()
   @Type(() => UpdateOptimizedCvDataDto)
-  @IsOptional()
   cvData?: UpdateOptimizedCvDataDto;
 }
