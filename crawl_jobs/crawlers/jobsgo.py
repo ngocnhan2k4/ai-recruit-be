@@ -54,7 +54,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     if company_name == "N/A" or not company_name:
         company_name_tag = soup.select_one("div.card-company h6") or soup.select_one("div.card-company .fw-semibold") or soup.select_one("div.media-body h2")
         if company_name_tag:
-            company_name = safe_text(company_name_tag)
+            company_name = safe_text(company_name_tag, normalize_camel_case=False)
 
     job_title = safe_text(soup.select_one("h1.job-title"), normalize_camel_case=False)
 
@@ -75,7 +75,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         if skill_container:
             skill_links = skill_container.find_all("a")
             for skill_link in skill_links:
-                skill_text = safe_text(skill_link)
+                skill_text = safe_text(skill_link, normalize_camel_case=False)
                 # Filter out provinces and invalid skills
                 if (
                     skill_text
