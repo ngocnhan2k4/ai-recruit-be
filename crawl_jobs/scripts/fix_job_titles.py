@@ -52,10 +52,21 @@ def fix_job_titles():
         "Ed Tech": "EdTech",
         "Fin Tech": "FinTech",
         "Teen Care": "TeenCare",
+        "i OS": "iOS",
+        "Vue JS": "VueJs",
+        "React JS": "ReactJS",
+        "Angular JS": "AngularJS",
+        "Next JS": "NextJS",
+        "Maria DB": "MariaDB",
+        ". Net": ".Net",
         "Git Hub": "GitHub",
         "Git Lab": "GitLab",
         "Java Script": "JavaScript",
-        "Type Script": "TypeScript"
+        "Type Script": "TypeScript",
+        "Node JS": "NodeJS",
+        "Postgre SQL": "PostgreSQL",
+        "My SQL": "MySQL",
+        "Nest JS": "NestJS",
     }
 
     for env_name, db_url in urls_to_process:
