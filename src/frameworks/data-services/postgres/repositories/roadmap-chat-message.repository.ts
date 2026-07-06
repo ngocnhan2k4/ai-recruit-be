@@ -1,13 +1,16 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { eq, and, isNull, asc, desc } from "drizzle-orm";
+import { eq, and, isNull, asc, desc, inArray } from "drizzle-orm";
 import { type DBDrizzle } from "../types";
 import { roadmapChatMessages } from "../models";
 import { RoadmapChatMessage } from "@/core/entities/learning-path.entity";
+import { IRoadmapChatMessageRepository } from "@/core/abstracts/repositories/roadmap-chat-message-repository.abstract";
 
 const MESSAGE_LIMIT = 50;
 
 @Injectable()
-export class RoadmapChatMessageRepository {
+export class RoadmapChatMessageRepository
+  implements IRoadmapChatMessageRepository
+{
   constructor(@Inject("DRIZZLE") private db: DBDrizzle) {}
 
   async getHistory(
@@ -71,13 +74,11 @@ export class RoadmapChatMessageRepository {
       .orderBy(desc(roadmapChatMessages.createdAt));
 
     if (all.length > MESSAGE_LIMIT) {
-      const excess = all.slice(MESSAGE_LIMIT);
-      for (const { id } of excess) {
-        await this.db
-          .update(roadmapChatMessages)
-          .set({ deletedAt: new Date() })
-          .where(eq(roadmapChatMessages.id, id));
-      }
+      const excessIds = all.slice(MESSAGE_LIMIT).map((r) => r.id);
+      await this.db
+        .update(roadmapChatMessages)
+        .set({ deletedAt: new Date() })
+        .where(inArray(roadmapChatMessages.id, excessIds));
     }
 
     return inserted.map((r) => ({

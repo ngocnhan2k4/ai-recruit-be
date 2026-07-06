@@ -79,7 +79,10 @@ export class SubpathRepository
       .select()
       .from(userSubpathSnapshots)
       .where(
-        eq(userSubpathSnapshots.roadmapSkillOptionId, roadmapSkillOptionId),
+        and(
+          eq(userSubpathSnapshots.roadmapSkillOptionId, roadmapSkillOptionId),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -122,17 +125,28 @@ export class SubpathRepository
         )
         .returning();
 
-      // Copy resources for each module
+      // Copy resources and quiz questions for each module
       for (let i = 0; i < sharedModules.length; i++) {
-        const sharedResources = await db
-          .select()
-          .from(subpathResources)
-          .where(
-            and(
-              eq(subpathResources.moduleId, sharedModules[i].id),
-              isNull(subpathResources.deletedAt),
+        const [sharedResources, sharedQuiz] = await Promise.all([
+          db
+            .select()
+            .from(subpathResources)
+            .where(
+              and(
+                eq(subpathResources.moduleId, sharedModules[i].id),
+                isNull(subpathResources.deletedAt),
+              ),
             ),
-          );
+          db
+            .select()
+            .from(subpathQuizQuestions)
+            .where(
+              and(
+                eq(subpathQuizQuestions.moduleId, sharedModules[i].id),
+                isNull(subpathQuizQuestions.deletedAt),
+              ),
+            ),
+        ]);
 
         if (sharedResources.length > 0) {
           await db.insert(subpathResources).values(
@@ -145,6 +159,19 @@ export class SubpathRepository
               isFree: r.isFree,
               orderIndex: r.orderIndex,
               quickCheck: r.quickCheck,
+            })),
+          );
+        }
+
+        if (sharedQuiz.length > 0) {
+          await db.insert(subpathQuizQuestions).values(
+            sharedQuiz.map((q) => ({
+              moduleId: copiedModules[i].id,
+              question: q.question,
+              options: q.options,
+              correctAnswerIndex: q.correctAnswerIndex,
+              explanation: q.explanation,
+              orderIndex: q.orderIndex,
             })),
           );
         }
@@ -210,23 +237,22 @@ export class SubpathRepository
         )
         .returning();
 
-      const allResources = await db
-        .insert(subpathResources)
-        .values(
-          ai.subNodes.flatMap((mod, i) =>
-            mod.resources.map((r) => ({
-              moduleId: createdModules[i].id,
-              title: r.title,
-              url: r.url,
-              type: r.type as ResourceTypeEnum,
-              description: r.description,
-              isFree: r.isFree ?? true,
-              orderIndex: r.orderIndex,
-              quickCheck: r.quickCheck?.length ? r.quickCheck : [],
-            })),
-          ),
-        )
-        .returning();
+      const resourceRows = ai.subNodes.flatMap((mod, i) =>
+        mod.resources.map((r) => ({
+          moduleId: createdModules[i].id,
+          title: r.title,
+          url: r.url,
+          type: r.type as ResourceTypeEnum,
+          description: r.description,
+          isFree: r.isFree ?? true,
+          orderIndex: r.orderIndex,
+          quickCheck: r.quickCheck?.length ? r.quickCheck : [],
+        })),
+      );
+      const allResources =
+        resourceRows.length > 0
+          ? await db.insert(subpathResources).values(resourceRows).returning()
+          : [];
 
       const quizRows = ai.subNodes.flatMap((mod, i) =>
         mod.quiz.map((q) => ({
@@ -382,7 +408,7 @@ export class SubpathRepository
       .from(subpathModules)
       .where(
         and(
-          eq(subpathModules.subpathId, snapshot.snapshotOfId),
+          eq(subpathModules.snapshotId, snapshotId),
           isNull(subpathModules.deletedAt),
         ),
       )
@@ -406,6 +432,52 @@ export class SubpathRepository
       .returning({ id: subpathModules.id, title: subpathModules.title });
 
     return inserted;
+  }
+
+  async getModuleOwnerUserId(moduleId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ userId: userSubpathSnapshots.userId })
+      .from(subpathModules)
+      .innerJoin(
+        userSubpathSnapshots,
+        and(
+          eq(subpathModules.snapshotId, userSubpathSnapshots.id),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
+      )
+      .where(
+        and(eq(subpathModules.id, moduleId), isNull(subpathModules.deletedAt)),
+      )
+      .limit(1);
+    return row?.userId ?? null;
+  }
+
+  async getResourceOwnerUserId(resourceId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ userId: userSubpathSnapshots.userId })
+      .from(subpathResources)
+      .innerJoin(
+        subpathModules,
+        and(
+          eq(subpathResources.moduleId, subpathModules.id),
+          isNull(subpathModules.deletedAt),
+        ),
+      )
+      .innerJoin(
+        userSubpathSnapshots,
+        and(
+          eq(subpathModules.snapshotId, userSubpathSnapshots.id),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
+      )
+      .where(
+        and(
+          eq(subpathResources.id, resourceId),
+          isNull(subpathResources.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row?.userId ?? null;
   }
 
   async addResourcesToModule(
@@ -541,6 +613,23 @@ export class SubpathModuleQuizResultRepository
     super(db, subpathModuleQuizResults);
   }
 
+  async getManyByModuleIds(
+    userId: string,
+    moduleIds: string[],
+  ): Promise<SubpathModuleQuizResult[]> {
+    if (moduleIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(subpathModuleQuizResults)
+      .where(
+        and(
+          eq(subpathModuleQuizResults.userId, userId),
+          inArray(subpathModuleQuizResults.moduleId, moduleIds),
+          isNull(subpathModuleQuizResults.deletedAt),
+        ),
+      );
+  }
+
   async upsert(
     userId: string,
     moduleId: string,
@@ -548,6 +637,7 @@ export class SubpathModuleQuizResultRepository
     totalQuestions: number,
   ): Promise<SubpathModuleQuizResult> {
     const passed = totalQuestions > 0 && score / totalQuestions >= 0.8;
+    const now = new Date();
     const [row] = await this.db
       .insert(subpathModuleQuizResults)
       .values({
@@ -556,7 +646,20 @@ export class SubpathModuleQuizResultRepository
         score,
         totalQuestions,
         passed,
-        attemptedAt: new Date(),
+        attemptedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          subpathModuleQuizResults.userId,
+          subpathModuleQuizResults.moduleId,
+        ],
+        set: {
+          score,
+          totalQuestions,
+          passed,
+          attemptedAt: now,
+          updatedAt: now,
+        },
       })
       .returning();
     return row;

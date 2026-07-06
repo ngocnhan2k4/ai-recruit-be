@@ -157,13 +157,13 @@ export class TaskWorker extends WorkerHost {
     const roadmapWithDetails =
       await this.roadmapRepository.getRoadmapWithDetails(params.roadmapId);
 
-    if (!roadmapWithDetails) {
-      return;
-    }
+    if (!roadmapWithDetails) return;
 
     const allOptions = roadmapWithDetails.phases.flatMap((phase) =>
       phase.skills.flatMap((skill) =>
         skill.options.map((option) => ({
+          skillId: skill.id,
+          skillName: skill.skill,
           optionId: option.id,
           optionName: (option as any).optionName ?? skill.skill,
           keyConcepts: (option as any).keyConcepts ?? [],
@@ -171,52 +171,135 @@ export class TaskWorker extends WorkerHost {
       ),
     );
 
-    // Generate in parallel with concurrency cap of 5 to avoid overwhelming AI service
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 10;
+    const MAX_OPTION_RETRIES = 2;
 
     for (let i = 0; i < allOptions.length; i += CONCURRENCY) {
       const batch = allOptions.slice(i, i + CONCURRENCY);
 
       await Promise.all(
-        batch.map(async ({ optionId, optionName, keyConcepts }) => {
-          try {
+        batch.map(
+          async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
             const existing =
               await this.subpathRepository.findByOptionId(optionId);
-            if (existing) {
-              return;
+            if (existing) return;
+
+            let lastErr: Error | undefined;
+            for (let attempt = 1; attempt <= MAX_OPTION_RETRIES; attempt++) {
+              try {
+                const aiResult = await this.aiService.generateSubPath({
+                  optionName,
+                  keyConcepts,
+                  targetRole: params.targetRole,
+                  currentRole: params.currentRole,
+                });
+                const shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+                await this.subpathRepository.cloneSharedSubpathForUser(
+                  shared.id,
+                  optionId,
+                  params.userId,
+                );
+                this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                  type: NotificationType.SKILL_READY,
+                  skillId,
+                  optionId,
+                  roadmapId: params.roadmapId,
+                  skillName,
+                  failed: false,
+                } as any);
+                return;
+              } catch (err: any) {
+                lastErr = err;
+                this.logger.warn(
+                  `[worker] Subpath gen attempt ${attempt}/${MAX_OPTION_RETRIES} failed for "${optionName}": ${err.message}`,
+                );
+              }
             }
 
-            const aiResult = await this.aiService.generateSubPath({
-              optionName,
-              keyConcepts,
-              targetRole: params.targetRole,
-              currentRole: params.currentRole,
-            });
+            this.logger.error(
+              `[worker] Subpath gen permanently failed for "${optionName}" after ${MAX_OPTION_RETRIES} attempts: ${lastErr?.message}`,
+            );
+            this.webSocketGateway.sendToUser({ userId: params.userId }, {
+              type: NotificationType.SKILL_READY,
+              skillId,
+              optionId,
+              roadmapId: params.roadmapId,
+              skillName,
+              failed: true,
+            } as any);
+          },
+        ),
+      );
+    }
 
-            const shared = await this.subpathRepository.createFromAIResult(
-              {
+    const missing = (
+      await Promise.all(
+        allOptions.map(async (o) => {
+          const exists = await this.subpathRepository.findByOptionId(
+            o.optionId,
+          );
+          return exists ? null : o;
+        }),
+      )
+    ).filter(Boolean) as typeof allOptions;
+
+    if (missing.length > 0) {
+      this.logger.warn(
+        `[worker] Verification pass: ${missing.length} options still missing snapshots — retrying`,
+      );
+      await Promise.all(
+        missing.map(
+          async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
+            try {
+              const aiResult = await this.aiService.generateSubPath({
                 optionName,
+                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
-              },
-              aiResult,
-            );
-            await this.subpathRepository.cloneSharedSubpathForUser(
-              shared.id,
-              optionId,
-              params.userId,
-            );
-          } catch (err: any) {
-            this.logger.warn(
-              `[worker] Failed to generate subpath for option ${optionId}: ${err.message}`,
-            );
-          }
-        }),
+              });
+              const shared = await this.subpathRepository.createFromAIResult(
+                {
+                  optionName,
+                  targetRole: params.targetRole,
+                  currentRole: params.currentRole,
+                },
+                aiResult,
+              );
+              await this.subpathRepository.cloneSharedSubpathForUser(
+                shared.id,
+                optionId,
+                params.userId,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: false,
+              } as any);
+              this.logger.log(
+                `[worker] Verification pass recovered "${optionName}"`,
+              );
+            } catch (err: any) {
+              this.logger.error(
+                `[worker] Verification pass also failed for "${optionName}": ${err.message}`,
+              );
+            }
+          },
+        ),
       );
     }
 
     this.logger.log(
-      `[worker] Generated subpaths for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+      `[worker] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
     );
   }
 
@@ -423,7 +506,7 @@ export class TaskWorker extends WorkerHost {
                       const mapped = skillIdMap.get(prereqSkillId);
                       if (!mapped) {
                         this.logger.warn(
-                          `[worer.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                          `[worker.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
                         );
                       }
                       return mapped;

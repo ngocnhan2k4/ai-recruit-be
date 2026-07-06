@@ -29,6 +29,12 @@ export abstract class ISubpathRepository extends IGenericRepository<Subpath> {
     userId: string,
   ): Promise<{ id: string }>;
 
+  /** Returns the userId of the snapshot that owns this module */
+  abstract getModuleOwnerUserId(moduleId: string): Promise<string | null>;
+
+  /** Returns the userId of the snapshot that owns this resource */
+  abstract getResourceOwnerUserId(resourceId: string): Promise<string | null>;
+
   abstract addResourcesToModule(
     moduleId: string,
     resources: Array<{
@@ -80,4 +86,9 @@ export abstract class ISubpathModuleQuizResultRepository extends IGenericReposit
     score: number,
     totalQuestions: number,
   ): Promise<SubpathModuleQuizResult>;
+
+  abstract getManyByModuleIds(
+    userId: string,
+    moduleIds: string[],
+  ): Promise<SubpathModuleQuizResult[]>;
 }

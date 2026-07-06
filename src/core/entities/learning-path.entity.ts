@@ -53,9 +53,14 @@ export interface Resource {
   isFree: boolean;
 }
 
+export interface GapAnalysisSkillRef {
+  id: string;
+  name: string;
+}
+
 export interface GapAnalysis {
-  missingSkills: string[];
-  skillsToImprove: string[];
+  missingSkills: GapAnalysisSkillRef[];
+  skillsToImprove: GapAnalysisSkillRef[];
   estimatedDifficulty: GapDifficultyEnum;
 }
 

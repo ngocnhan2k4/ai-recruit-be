@@ -54,7 +54,7 @@ import {
   normalizeLanguageCode,
   retry,
 } from "@/common/utils";
-import { RoadmapChatMessageRepository } from "@/frameworks/data-services/postgres/repositories/roadmap-chat-message.repository";
+import { IRoadmapChatMessageRepository } from "@/core/abstracts/repositories/roadmap-chat-message-repository.abstract";
 import { RoadmapChatMessage } from "@/core/entities/learning-path.entity";
 
 @Injectable()
@@ -77,7 +77,7 @@ export class LearningPathUseCase {
     private readonly resourceCompletionRepository: IOptionResourceCompletionRepository,
     private readonly quizResultRepository: ISubpathModuleQuizResultRepository,
     private readonly aiService: IAIService,
-    private readonly chatMessageRepository: RoadmapChatMessageRepository,
+    private readonly chatMessageRepository: IRoadmapChatMessageRepository,
   ) {}
 
   async getSubPath(
@@ -85,7 +85,6 @@ export class LearningPathUseCase {
     optionId: string,
     userId: string,
   ): Promise<ApiResponse<SubpathWithDetails>> {
-    // Lightweight ownership check (B8: no full getRoadmapWithDetails here)
     const roadmap = await this.roadmapRepository.get(roadmapId);
     if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
@@ -94,13 +93,60 @@ export class LearningPathUseCase {
       });
     }
 
-    const subpath = await this.subpathRepository.findByOptionId(optionId);
-
-    if (!subpath) {
+    // Verify optionId belongs to this roadmap (prevent cross-roadmap info leak)
+    const option = await this.skillOptionRepository.get(optionId);
+    if (!option) {
       throw new NotFoundException({
-        message: "Subpath not found for this option",
-        code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
+        message: "Option not found",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
       });
+    }
+    const skill = await this.skillRepository.get(option.roadmapSkillId);
+    const phase = skill ? await this.phaseRepository.get(skill.phaseId) : null;
+    if (!phase || phase.roadmapId !== roadmapId) {
+      throw new NotFoundException({
+        message: "Option not found in this roadmap",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
+      });
+    }
+
+    let subpath = await this.subpathRepository.findByOptionId(optionId);
+
+    // generate if missing
+    if (!subpath) {
+      try {
+        const aiResult = await this.aiService.generateSubPath({
+          optionName: option.optionName,
+          keyConcepts: option.keyConcepts ?? [],
+          targetRole: roadmap.targetRole ?? "",
+          currentRole: roadmap.currentRole ?? "",
+        });
+        const shared = await this.subpathRepository.createFromAIResult(
+          {
+            optionName: option.optionName,
+            targetRole: roadmap.targetRole ?? "",
+            currentRole: roadmap.currentRole ?? "",
+          },
+          aiResult,
+        );
+        await this.subpathRepository.cloneSharedSubpathForUser(
+          shared.id,
+          optionId,
+          userId,
+        );
+        subpath = await this.subpathRepository.findByOptionId(optionId);
+      } catch (err: any) {
+        this.logger.error(
+          `[getSubPath] On-demand subpath gen failed for option ${optionId}: ${err.message}`,
+        );
+      }
+
+      if (!subpath) {
+        throw new NotFoundException({
+          message: "Subpath not found for this option",
+          code: RESPONSE_CODE.SKILL_NOT_FOUND_IN_ROADMAP,
+        });
+      }
     }
 
     // Collect IDs scoped to this subpath
@@ -117,7 +163,7 @@ export class LearningPathUseCase {
             subpathResourceIds,
           )
         : Promise.resolve([]),
-      this.quizResultRepository.getByField({ userId }),
+      this.quizResultRepository.getManyByModuleIds(userId, subpathModuleIds),
     ]);
 
     const completedResourceIds = completions.map((c) => c.resourceId);
@@ -916,10 +962,21 @@ export class LearningPathUseCase {
       });
     }
 
-    const existingSkills = await this.skillRepository.getSkillsByPhaseId(
-      dto.phaseId,
-    );
+    const [existingSkills, allPhases] = await Promise.all([
+      this.skillRepository.getSkillsByPhaseId(dto.phaseId),
+      this.phaseRepository.getPhasesByRoadmapId(roadmapId),
+    ]);
     const nextOrder = existingSkills.length;
+
+    const sortedPhases = allPhases
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+    let weekStart = 1;
+    for (const p of sortedPhases) {
+      if (p.id === dto.phaseId) break;
+      weekStart += p.durationWeeks;
+    }
+    const weekEnd = weekStart + phase.durationWeeks - 1;
 
     const result = await this.skillRepository.executeWithTransaction(
       async (tx) => {
@@ -928,8 +985,8 @@ export class LearningPathUseCase {
             phaseId: dto.phaseId,
             skill: dto.skillName,
             description: `AI-added skill: ${dto.skillName}`,
-            weekStart: phase.durationWeeks,
-            weekEnd: phase.durationWeeks,
+            weekStart,
+            weekEnd,
             orderIndex: nextOrder,
             prerequisites: [],
           },
@@ -1003,11 +1060,20 @@ export class LearningPathUseCase {
       isFree?: boolean;
     }>,
   ): Promise<ApiResponse<void>> {
-    const roadmap = await this.roadmapRepository.get(roadmapId);
+    const [roadmap, moduleOwner] = await Promise.all([
+      this.roadmapRepository.get(roadmapId),
+      this.subpathRepository.getModuleOwnerUserId(moduleId),
+    ]);
     if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+    if (moduleOwner !== userId) {
+      throw new NotFoundException({
+        message: "Module not found",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
       });
     }
 
@@ -1024,11 +1090,20 @@ export class LearningPathUseCase {
     resourceId: string,
     userId: string,
   ): Promise<ApiResponse<void>> {
-    const roadmap = await this.roadmapRepository.get(roadmapId);
+    const [roadmap, resourceOwner] = await Promise.all([
+      this.roadmapRepository.get(roadmapId),
+      this.subpathRepository.getResourceOwnerUserId(resourceId),
+    ]);
     if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+    if (resourceOwner !== userId) {
+      throw new NotFoundException({
+        message: "Resource not found",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
       });
     }
 
@@ -1184,11 +1259,20 @@ export class LearningPathUseCase {
     moduleId: string,
     userId: string,
   ): Promise<ApiResponse<void>> {
-    const roadmap = await this.roadmapRepository.get(roadmapId);
+    const [roadmap, moduleOwner] = await Promise.all([
+      this.roadmapRepository.get(roadmapId),
+      this.subpathRepository.getModuleOwnerUserId(moduleId),
+    ]);
     if (!roadmap || roadmap.userId !== userId) {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+    if (moduleOwner !== userId) {
+      throw new NotFoundException({
+        message: "Module not found",
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
       });
     }
 

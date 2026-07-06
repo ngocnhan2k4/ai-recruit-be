@@ -88,6 +88,7 @@ import { CommentRepository } from "./repositories/comment.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
 import { RoadmapChatMessageRepository } from "./repositories/roadmap-chat-message.repository";
+import { IRoadmapChatMessageRepository } from "@/core/abstracts/repositories/roadmap-chat-message-repository.abstract";
 import {
   ISubpathRepository,
   IOptionResourceCompletionRepository,
@@ -332,7 +333,10 @@ import { createLoggerQuery, retry } from "@/common/utils";
       provide: ISubpathModuleQuizResultRepository,
       useClass: SubpathModuleQuizResultRepository,
     },
-    RoadmapChatMessageRepository,
+    {
+      provide: IRoadmapChatMessageRepository,
+      useClass: RoadmapChatMessageRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -380,7 +384,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
     ISubpathRepository,
     IOptionResourceCompletionRepository,
     ISubpathModuleQuizResultRepository,
-    RoadmapChatMessageRepository,
+    IRoadmapChatMessageRepository,
   ],
 })
 export class PostgresDataServicesModule {}

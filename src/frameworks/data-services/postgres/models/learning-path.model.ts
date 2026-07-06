@@ -54,8 +54,8 @@ export const learningRoadmaps = pgTable(
     totalWeeks: integer("total_weeks").notNull(),
     gapAnalysis: jsonb("gap_analysis")
       .$type<{
-        missingSkills: string[];
-        skillsToImprove: string[];
+        missingSkills: { id: string; name: string }[];
+        skillsToImprove: { id: string; name: string }[];
         estimatedDifficulty: GapDifficultyEnum;
       }>()
       .notNull(),
@@ -463,7 +463,10 @@ export const subpathModuleQuizResults = pgTable(
     ...timestamps,
   },
   (table) => [
-    index("idx_quiz_results_user_module").on(table.userId, table.moduleId),
+    uniqueIndex("idx_quiz_results_user_module").on(
+      table.userId,
+      table.moduleId,
+    ),
   ],
 );
 
