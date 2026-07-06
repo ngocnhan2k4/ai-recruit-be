@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { eq, and, isNull, inArray, ilike } from "drizzle-orm";
 import {
   ISubpathRepository,
   IOptionResourceCompletionRepository,
@@ -32,6 +32,26 @@ export class SubpathRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, subpaths);
+  }
+
+  async findSharedByNaturalKey(payload: {
+    optionName: string;
+    targetRole: string;
+    currentRole: string;
+  }): Promise<{ id: string } | null> {
+    const [row] = await this.db
+      .select({ id: subpaths.id })
+      .from(subpaths)
+      .where(
+        and(
+          ilike(subpaths.optionName, payload.optionName),
+          ilike(subpaths.targetRole, payload.targetRole),
+          ilike(subpaths.currentRole, payload.currentRole),
+          isNull(subpaths.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 
   async findByOptionId(optionId: string): Promise<SubpathWithDetails | null> {

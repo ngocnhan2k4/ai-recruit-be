@@ -1010,27 +1010,16 @@ export class LearningPathUseCase {
       },
     );
 
-    // Generate subpath inline so content is ready immediately
+    // Generate subpath inline — reuse shared template if already exists
     try {
-      const aiResult = await this.aiService.generateSubPath({
+      await this._ensureSubpathForOption({
+        optionId: result.option.id,
         optionName: dto.skillName,
         keyConcepts: [],
         targetRole: roadmap.targetRole ?? "",
         currentRole: roadmap.currentRole ?? "",
-      });
-      const shared = await this.subpathRepository.createFromAIResult(
-        {
-          optionName: dto.skillName,
-          targetRole: roadmap.targetRole ?? "",
-          currentRole: roadmap.currentRole ?? "",
-        },
-        aiResult,
-      );
-      await this.subpathRepository.cloneSharedSubpathForUser(
-        shared.id,
-        result.option.id,
         userId,
-      );
+      });
     } catch (err: any) {
       this.logger.error(
         `Failed to generate subpath for new skill: ${err.message}`,
@@ -1147,27 +1136,16 @@ export class LearningPathUseCase {
       },
     ]);
 
-    // Generate subpath inline so content is ready immediately
+    // Generate subpath inline — reuse shared template if already exists
     try {
-      const aiResult = await this.aiService.generateSubPath({
+      await this._ensureSubpathForOption({
+        optionId: option.id,
         optionName,
         keyConcepts: [],
         targetRole: roadmap.targetRole ?? "",
         currentRole: roadmap.currentRole ?? "",
-      });
-      const shared = await this.subpathRepository.createFromAIResult(
-        {
-          optionName,
-          targetRole: roadmap.targetRole ?? "",
-          currentRole: roadmap.currentRole ?? "",
-        },
-        aiResult,
-      );
-      await this.subpathRepository.cloneSharedSubpathForUser(
-        shared.id,
-        option.id,
         userId,
-      );
+      });
     } catch (err: any) {
       this.logger.error(
         `Failed to generate subpath for new option: ${err.message}`,
@@ -1220,6 +1198,47 @@ export class LearningPathUseCase {
       message: "Option removed successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
+  }
+
+  private async _ensureSubpathForOption(params: {
+    optionId: string;
+    optionName: string;
+    keyConcepts: string[];
+    targetRole: string;
+    currentRole: string;
+    userId: string;
+  }): Promise<void> {
+    const {
+      optionId,
+      optionName,
+      keyConcepts,
+      targetRole,
+      currentRole,
+      userId,
+    } = params;
+    // Check if shared template already exists — skip AI call if so
+    let shared = await this.subpathRepository.findSharedByNaturalKey({
+      optionName,
+      targetRole,
+      currentRole,
+    });
+    if (!shared) {
+      const aiResult = await this.aiService.generateSubPath({
+        optionName,
+        keyConcepts,
+        targetRole,
+        currentRole,
+      });
+      shared = await this.subpathRepository.createFromAIResult(
+        { optionName, targetRole, currentRole },
+        aiResult,
+      );
+    }
+    await this.subpathRepository.cloneSharedSubpathForUser(
+      shared.id,
+      optionId,
+      userId,
+    );
   }
 
   async removeSkillFromRoadmap(

@@ -10,6 +10,12 @@ import { IGenericRepository } from "./generic-repository.abstract";
 export abstract class ISubpathRepository extends IGenericRepository<Subpath> {
   abstract findByOptionId(optionId: string): Promise<SubpathWithDetails | null>;
 
+  abstract findSharedByNaturalKey(payload: {
+    optionName: string;
+    targetRole: string;
+    currentRole: string;
+  }): Promise<{ id: string } | null>;
+
   abstract createFromAIResult(
     payload: {
       optionName: string;
