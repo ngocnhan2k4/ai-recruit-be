@@ -181,7 +181,7 @@ def scrape_job_detail(
 
     job_title_elem = card.select_one("h3.title a") or card.select_one("h3.title")
     job_title = safe_text(job_title_elem, normalize_camel_case=False)
-    company_name = safe_text(card.select_one("a.company"))
+    company_name = safe_text(card.select_one("a.company"), normalize_camel_case=False)
 
     # salary
     salary = safe_text(card.select_one("label.title-salary"))
