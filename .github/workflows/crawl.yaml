@@ -433,7 +433,7 @@ jobs:
           python scripts/export_recent_jobs_for_extraction.py \
             --db-url "${{ secrets.DATABASE_URL }}" \
             --output-file "extract_skills/data/jobs_export.csv" \
-            --hours 48
+            --hours 12
 
           JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('extract_skills/data/jobs_export.csv')))" 2>/dev/null || echo 0)
           echo "job_count=$JOB_COUNT" >> $GITHUB_OUTPUT

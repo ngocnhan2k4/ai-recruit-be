@@ -4,6 +4,8 @@ import {
   ISkillRepository,
   ISkillService,
   ISkillsSynonymsRepository,
+  IMessageQueueService,
+  JobEventType,
 } from "@/core";
 import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import {
@@ -16,14 +18,17 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 
 @Injectable()
 export class SkillSynonymUseCases {
+  private readonly logger = new Logger(SkillSynonymUseCases.name);
   constructor(
     private readonly skillsSynonymsRepository: ISkillsSynonymsRepository,
     private readonly skillRepository: ISkillRepository,
     private readonly skillService: ISkillService,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   private normalizeAliases(aliasNames: string[]): string[] {
@@ -159,14 +164,45 @@ export class SkillSynonymUseCases {
       });
     }
 
+    // Collect affected job IDs before merging skills
+    const affectedJobIds = await this.skillRepository.getJobIdsBySkillIds([
+      targetSkillId,
+      ...sourceSkillIds,
+    ]);
+
     await this.skillRepository.mergeSkillsAndReferences(
       targetSkillId,
       sourceSkillIds,
     );
 
+    if (affectedJobIds.length > 0) {
+      await this.reindexJobs(affectedJobIds);
+    }
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
+  }
+
+  private async reindexJobs(jobIds: string[]): Promise<void> {
+    try {
+      this.logger.log(`Triggering reindex for ${jobIds.length} jobs`);
+      for (const jobId of jobIds) {
+        await this.messageQueueService
+          .addJob(
+            JobEventType.UPSERT_JOB,
+            { jobId },
+            { jobId: `job-sync-${jobId}` },
+          )
+          .catch((error) => {
+            this.logger.error(
+              `Error syncing job ${jobId} to message queue during skill merge: ${error}`,
+            );
+          });
+      }
+    } catch (e: any) {
+      this.logger.error(`Failed to trigger job reindexing: ${e.message}`);
+    }
   }
 }
