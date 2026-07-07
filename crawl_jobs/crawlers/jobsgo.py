@@ -12,7 +12,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     print(job_url)
 
     # company_name
-    company_name = safe_text(card.select_one(".company-title"))
+    company_name = safe_text(card.select_one(".company-title"), normalize_camel_case=False)
 
     # logo
     logo = card.find("img")["src"]

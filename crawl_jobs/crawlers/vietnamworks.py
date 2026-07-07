@@ -319,7 +319,7 @@ def _extract_company_name(soup, job_data):
         "a[href*='/nha-tuyen-dung/'], a[href*='/employer/'], a[href*='/company/']"
     )
     if company_links:
-        name = safe_text(company_links[0])
+        name = safe_text(company_links[0], normalize_camel_case=False)
         if name and name != "N/A":
             return name
 
