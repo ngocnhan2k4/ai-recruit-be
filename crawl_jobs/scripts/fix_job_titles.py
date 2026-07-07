@@ -59,6 +59,8 @@ def fix_job_titles():
         "Next JS": "NextJS",
         "Maria DB": "MariaDB",
         ". Net": ".Net",
+        ". NET": ".NET",
+        "ASP. NET": "ASP.NET",
         "Git Hub": "GitHub",
         "Git Lab": "GitLab",
         "Java Script": "JavaScript",
