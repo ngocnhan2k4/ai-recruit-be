@@ -17,6 +17,11 @@ export class JobSearchService implements IJobSearchService {
     filters: JobFilters,
   ): Promise<PaginatedResult<JobSearchDocument>> {
     let knnQuery: any = undefined;
+    const hasSearchOrFiltersLocal = !!(
+      filters.keyword ||
+      filters.categoryId ||
+      (filters.skillIds && filters.skillIds.length > 0)
+    );
 
     if (filters.recentInteractions && filters.recentInteractions.length > 0) {
       const jobIds = filters.recentInteractions.map((r: any) => r.jobId);
@@ -29,9 +34,9 @@ export class JobSearchService implements IJobSearchService {
         knnQuery = {
           field: "embedding",
           query_vector: avgVector,
-          k: (filters.limit ?? 20) + 50,
-          num_candidates: 100,
-          boost: 5.0,
+          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 70 : 20),
+          num_candidates: !hasSearchOrFiltersLocal ? 400 : 100,
+          boost: !hasSearchOrFiltersLocal ? 20.0 : 10.0,
         };
       }
     }
@@ -226,28 +231,52 @@ export class JobSearchService implements IJobSearchService {
 
     const shouldQueries: any[] = [];
 
-    // Boost các job mới (gần hiện tại nhất) nếu người dùng không filter theo date
     if (!fromDate && !toDate) {
       shouldQueries.push(
         {
-          distance_feature: {
-            field: "createdAt",
-            pivot: "10d",
-            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 10,
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-15d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-15d/d" } } },
+                },
+              },
+            ],
+            boost: 25.0,
           },
         },
         {
-          distance_feature: {
-            field: "datePosted",
-            pivot: "10d",
-            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 15,
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-30d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-30d/d" } } },
+                },
+              },
+            ],
+            boost: 20.0,
+          },
+        },
+        {
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-60d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-60d/d" } } },
+                },
+              },
+            ],
+            boost: 15.0,
           },
         },
       );
     }
-
     // Tích hợp Soft boost từ UserPreference
     if (filters.userPreference) {
       const prefs = filters.userPreference;
@@ -264,14 +293,19 @@ export class JobSearchService implements IJobSearchService {
     }
 
     if (keyword) {
-      shouldQueries.push(
-        { match: { title: { query: keyword, boost: 2.5 } } },
-        { match: { description: { query: keyword, boost: 1.0 } } },
-        { match: { skillNames: { query: keyword, boost: 2.0 } } },
-        { match: { organizationName: { query: keyword, boost: 2 } } },
-        { match: { categoryName: { query: keyword, boost: 1.5 } } },
-        { match: { provinceNames: { query: keyword, boost: 1.3 } } },
-      );
+      mustQueries.push({
+        bool: {
+          should: [
+            { match: { title: { query: keyword, boost: 10.0 } } },
+            { match: { description: { query: keyword, boost: 3.0 } } },
+            { match: { skillNames: { query: keyword, boost: 5.0 } } },
+            { match: { organizationName: { query: keyword, boost: 3.0 } } },
+            { match: { categoryName: { query: keyword, boost: 5.0 } } },
+            { match: { provinceNames: { query: keyword, boost: 2.0 } } },
+          ],
+          minimum_should_match: 1,
+        },
+      });
     }
 
     const mustNotQueries: any[] = [];
@@ -286,6 +320,24 @@ export class JobSearchService implements IJobSearchService {
         bool: {
           must: mustQueries,
           must_not: mustNotQueries,
+          // Freshness filter: chỉ tìm KNN candidates trong 90 ngày gần nhất
+          // Đảm bảo pool candidates vừa liên quan vừa mới
+          ...(!fromDate && !toDate
+            ? {
+                should: [
+                  { range: { datePosted: { gte: "now-90d/d" } } },
+                  {
+                    bool: {
+                      must_not: { exists: { field: "datePosted" } },
+                      filter: {
+                        range: { createdAt: { gte: "now-90d/d" } },
+                      },
+                    },
+                  },
+                ],
+                minimum_should_match: 1,
+              }
+            : {}),
         },
       };
     }
@@ -298,7 +350,6 @@ export class JobSearchService implements IJobSearchService {
             must: mustQueries,
             should: shouldQueries,
             must_not: mustNotQueries,
-            ...(keyword && { minimum_should_match: 1 }),
           },
         },
         sort: this.buildSort(sortBy, sortDirection),
@@ -319,6 +370,12 @@ export class JobSearchService implements IJobSearchService {
   ): Promise<PaginatedResult<JobSearchDocument>> {
     let knnQuery: any = undefined;
 
+    const hasSearchOrFiltersLocal = !!(
+      filters.keyword ||
+      filters.categoryId ||
+      (filters.skillIds && filters.skillIds.length > 0)
+    );
+
     if (filters.recentInteractions && filters.recentInteractions.length > 0) {
       const jobIds = filters.recentInteractions.map((r: any) => r.jobId);
       const vectorsMap = await this.getVectorsForJobs(jobIds);
@@ -330,9 +387,9 @@ export class JobSearchService implements IJobSearchService {
         knnQuery = {
           field: "embedding",
           query_vector: avgVector,
-          k: (filters.limit ?? 20) + 50,
-          num_candidates: 100,
-          boost: 0.5,
+          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 70 : 20),
+          num_candidates: !hasSearchOrFiltersLocal ? 400 : 100,
+          boost: !hasSearchOrFiltersLocal ? 20.0 : 10.0,
         };
       }
     }
@@ -629,12 +686,12 @@ export class JobSearchService implements IJobSearchService {
       mustQueries.push({
         bool: {
           should: [
-            { match: { title: { query: keyword, boost: 3.0 } } },
-            { match: { description: { query: keyword, boost: 1.0 } } },
-            { match: { skillNames: { query: keyword, boost: 2.0 } } },
-            { match: { organizationName: { query: keyword, boost: 2.5 } } },
-            { match: { categoryName: { query: keyword, boost: 1.8 } } },
-            { match: { provinceNames: { query: keyword, boost: 1.3 } } },
+            { match: { title: { query: keyword, boost: 10.0 } } },
+            { match: { description: { query: keyword, boost: 3.0 } } },
+            { match: { skillNames: { query: keyword, boost: 5.0 } } },
+            { match: { organizationName: { query: keyword, boost: 3.0 } } },
+            { match: { categoryName: { query: keyword, boost: 5.0 } } },
+            { match: { provinceNames: { query: keyword, boost: 2.0 } } },
           ],
           minimum_should_match: 1,
         },
@@ -648,7 +705,7 @@ export class JobSearchService implements IJobSearchService {
       shouldQueries.push({
         terms: {
           skillIds: skillIds,
-          boost: 2.0, // Boost cho skill matching
+          boost: 5.0, // Boost cho skill matching
         },
       });
     }
@@ -657,7 +714,7 @@ export class JobSearchService implements IJobSearchService {
       shouldQueries.push({
         terms: {
           categoryId: userCategoryIds,
-          boost: 1.5,
+          boost: 3.0,
         },
       });
     }
@@ -687,23 +744,49 @@ export class JobSearchService implements IJobSearchService {
       });
     }
 
-    // Boost các job mới (gần hiện tại nhất) nếu người dùng không filter theo date
+    // Ưu tiên job trong 1 tháng và 2 tháng
     if (!fromDate && !toDate) {
       shouldQueries.push(
         {
-          distance_feature: {
-            field: "createdAt",
-            pivot: "10d",
-            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 10,
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-15d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-15d/d" } } },
+                },
+              },
+            ],
+            boost: 25.0,
           },
         },
         {
-          distance_feature: {
-            field: "datePosted",
-            pivot: "10d",
-            origin: "now/h", // Làm tròn theo giờ để tận dụng ES Query Cache
-            boost: 15,
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-30d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-30d/d" } } },
+                },
+              },
+            ],
+            boost: 20.0,
+          },
+        },
+        {
+          bool: {
+            should: [
+              { range: { datePosted: { gte: "now-60d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-60d/d" } } },
+                },
+              },
+            ],
+            boost: 15.0,
           },
         },
       );
@@ -721,6 +804,24 @@ export class JobSearchService implements IJobSearchService {
         bool: {
           must: mustQueries,
           must_not: mustNotQueries,
+          // Freshness filter: chỉ tìm KNN candidates trong 90 ngày gần nhất
+          // Đảm bảo pool candidates vừa liên quan vừa mới
+          ...(!fromDate && !toDate
+            ? {
+                should: [
+                  { range: { datePosted: { gte: "now-90d/d" } } },
+                  {
+                    bool: {
+                      must_not: { exists: { field: "datePosted" } },
+                      filter: {
+                        range: { createdAt: { gte: "now-90d/d" } },
+                      },
+                    },
+                  },
+                ],
+                minimum_should_match: 1,
+              }
+            : {}),
         },
       };
     }
