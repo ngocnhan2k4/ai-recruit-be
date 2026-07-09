@@ -12,7 +12,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
     print(job_url)
 
     # company_name
-    company_name = safe_text(card.select_one("div.company-title"))
+    company_name = safe_text(card.select_one(".company-title"), normalize_camel_case=False)
 
     # logo
     logo = card.find("img")["src"]
@@ -45,10 +45,18 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
                 safe_text(span)
             )
 
-    resp = scraper.get(job_url)
-    soup = BeautifulSoup(resp.text, "html.parser")
+    html = fetch_page(scraper, job_url)
+    if not html:
+        print(f"    ⚠️ Failed to fetch job detail page: {job_url}")
+        return
+    soup = BeautifulSoup(html, "html.parser")
 
-    job_title = safe_text(soup.select_one("h1.job-title"))
+    if company_name == "N/A" or not company_name:
+        company_name_tag = soup.select_one("div.card-company h6") or soup.select_one("div.card-company .fw-semibold") or soup.select_one("div.media-body h2")
+        if company_name_tag:
+            company_name = safe_text(company_name_tag)
+
+    job_title = safe_text(soup.select_one("h1.job-title"), normalize_camel_case=False)
 
     body = soup.select_one("div.tab-pane")
 
@@ -108,12 +116,17 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         description = ""
 
     # --- Company page ---
-    company_url = soup.select_one("div.card-company").find("a")["href"]
-    if company_url == "javascript:void(0)":
+    company_card = soup.select_one("div.card-company")
+    company_a = company_card.find("a") if company_card else None
+    company_url = company_a["href"] if company_a else None
+    if not company_url or company_url == "javascript:void(0)":
         return
-    elif company_url:
-        comp_resp = scraper.get(company_url)
-        comp_soup = BeautifulSoup(comp_resp.text, "html.parser")
+    else:
+        comp_html = fetch_page(scraper, company_url)
+        if not comp_html:
+            print(f"    ⚠️ Failed to fetch company page: {company_url}")
+            return
+        comp_soup = BeautifulSoup(comp_html, "html.parser")
 
         # company_desc
         company_desc = safe_text(comp_soup.select_one("div#company-description"))
@@ -123,23 +136,24 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
 
         comp_info_wrap = comp_soup.select_one("ul.list-icon-box")
 
-        # Company Website
-        website_li = comp_info_wrap.find("i", class_="pb-heroicons-globe-alt")
         website_url = None
-        if website_li:
-            website_span = website_li.find_next("span")
-            if website_span and website_span.find("a"):
-                website_url = website_span.find("a")["href"]
+        comp_addr = []
 
-        # comp_addr
-        addr_li = comp_info_wrap.find("i", class_="pb-heroicons-map-pin")
-        comp_addr = None
-        if addr_li:
-            addr_span = addr_li.find_next("span")
-            if addr_span:
-                comp_addr = safe_text(addr_span, is_strip=False).split("\n")
+        if comp_info_wrap:
+            # Company Website
+            website_li = comp_info_wrap.find("i", class_="pb-heroicons-globe-alt")
+            if website_li:
+                website_span = website_li.find_next("span")
+                if website_span and website_span.find("a"):
+                    website_url = website_span.find("a")["href"]
 
-        comp_addr = [address.strip() for address in comp_addr]
+            # comp_addr
+            addr_li = comp_info_wrap.find("i", class_="pb-heroicons-map-pin")
+            if addr_li:
+                addr_span = addr_li.find_next("span")
+                if addr_span:
+                    raw_addr = safe_text(addr_span, is_strip=False).split("\n")
+                    comp_addr = [address.strip() for address in raw_addr if address.strip()]
 
     if company_name not in companies:
         companies[company_name] = {

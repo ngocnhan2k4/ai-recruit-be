@@ -11,7 +11,6 @@ import {
   ICvRepository,
   IUserRepository,
   INotificationRepository,
-  ISearchService,
   ICvSearchService,
   ICvService,
   IBloomFilterService,
@@ -86,10 +85,10 @@ import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { ConfigService } from "@nestjs/config";
 import { IFeatureService } from "@/core";
 import { MultipartFile } from "@fastify/multipart";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
+import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 
 @Injectable()
 export class JobUseCases {
@@ -104,9 +103,7 @@ export class JobUseCases {
     private readonly notificationRepository: INotificationRepository,
     private readonly cvRepository: ICvRepository,
     private readonly featureService: IFeatureService,
-    private readonly searchService: ISearchService,
     private readonly cvSearchService: ICvSearchService,
-    private readonly configService: ConfigService,
     private readonly cvService: ICvService,
     private readonly eventTrackingService: EventTrackingService,
     private readonly bloomFilterService: IBloomFilterService,
@@ -161,7 +158,9 @@ export class JobUseCases {
           (filters.skillIds && filters.skillIds.length > 0)
         );
         if (!hasSearchOrFiltersLocal) {
-          filters.excludeJobIds = recentJobs.map((r: any) => r.jobId);
+          filters.excludeJobIds = recentJobs
+            .filter((r: any) => r.eventType === EventTypeEnum.APPLY_JOB)
+            .map((r: any) => r.jobId);
         }
       }
     }

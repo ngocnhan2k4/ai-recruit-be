@@ -185,14 +185,17 @@ export function transformJobToDocument({
 }): Record<string, unknown> {
   const salaryMin = job.salaryMin ? parseFloat(job.salaryMin as any) : null;
   const salaryMax = job.salaryMax ? parseFloat(job.salaryMax as any) : null;
+  const approvedSkills = (skills || []).filter(
+    (s: any) => s.isApproved === true || s.is_approved === true,
+  );
   return {
     id: job.id,
     title: job.title,
     description: job.description || "",
     organizationId: job.organizationId,
     organizationName: organization?.name || null,
-    skillIds: (skills || []).map((s: Skill) => s.id).filter(Boolean),
-    skillNames: (skills || []).map((s: Skill) => s.name).filter(Boolean),
+    skillIds: approvedSkills.map((s: Skill) => s.id).filter(Boolean),
+    skillNames: approvedSkills.map((s: Skill) => s.name).filter(Boolean),
     categoryId: category?.id || null,
     categoryName: category?.name || null,
     provinceIds: (provinces || []).map((p: Province) => p.id).filter(Boolean),
