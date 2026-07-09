@@ -6,7 +6,7 @@ import random
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-import cloudscraper
+from curl_cffi import requests
 
 
 USER_AGENTS: List[str] = [
@@ -60,11 +60,9 @@ def fetch_page(
     return None
 
 
-def create_scraper() -> cloudscraper.CloudScraper:
-    """Create a cloudscraper instance configured for job crawling."""
-    return cloudscraper.create_scraper(
-        browser={"browser": "firefox", "platform": "windows", "mobile": False}
-    )
+def create_scraper():
+    """Create a curl_cffi Session instance configured for job crawling."""
+    return requests.Session(impersonate="chrome")
 
 
 def crawl(
