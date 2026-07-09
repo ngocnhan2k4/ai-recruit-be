@@ -13,6 +13,8 @@ import {
   RoadmapGenerateRequest,
   SubpathGenerateRequest,
   AISubpathResult,
+  RoadmapChatRequest,
+  RoadmapChatResponse,
 } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
@@ -46,4 +48,8 @@ export abstract class IAIService {
 
   abstract generateEmbedding(text: string): Promise<number[]>;
   abstract generateEmbeddings(texts: string[]): Promise<number[][]>;
+
+  abstract chatWithRoadmap(
+    request: RoadmapChatRequest,
+  ): Promise<RoadmapChatResponse>;
 }
