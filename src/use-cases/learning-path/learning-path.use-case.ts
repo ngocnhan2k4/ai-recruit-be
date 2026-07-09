@@ -50,6 +50,7 @@ import {
 } from "@/interfaces/dtos/learning-path";
 import {
   getCurrentWeekNumber,
+  getRequestLanguage,
   JitterBackoff,
   normalizeLanguageCode,
   retry,
@@ -803,7 +804,6 @@ export class LearningPathUseCase {
     roadmapId: string,
     userId: string,
     message: string,
-    acceptLanguage?: string,
     currentSkillId?: string,
     currentSkillName?: string,
     currentModuleResources?: Array<{ id: string; title: string }>,
@@ -837,7 +837,7 @@ export class LearningPathUseCase {
       })),
     );
 
-    const language = normalizeLanguageCode(acceptLanguage);
+    const language = getRequestLanguage();
 
     const aiResponse = await this.aiService.chatWithRoadmap({
       message,

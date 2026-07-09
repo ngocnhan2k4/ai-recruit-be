@@ -172,7 +172,6 @@ export class TaskWorker extends WorkerHost {
     );
 
     const CONCURRENCY = 10;
-    const MAX_OPTION_RETRIES = 2;
 
     for (let i = 0; i < allOptions.length; i += CONCURRENCY) {
       const batch = allOptions.slice(i, i + CONCURRENCY);
@@ -184,56 +183,47 @@ export class TaskWorker extends WorkerHost {
               await this.subpathRepository.findByOptionId(optionId);
             if (existing) return;
 
-            let lastErr: Error | undefined;
-            for (let attempt = 1; attempt <= MAX_OPTION_RETRIES; attempt++) {
-              try {
-                const aiResult = await this.aiService.generateSubPath({
+            try {
+              const aiResult = await this.aiService.generateSubPath({
+                optionName,
+                keyConcepts,
+                targetRole: params.targetRole,
+                currentRole: params.currentRole,
+              });
+              const shared = await this.subpathRepository.createFromAIResult(
+                {
                   optionName,
-                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                });
-                const shared = await this.subpathRepository.createFromAIResult(
-                  {
-                    optionName,
-                    targetRole: params.targetRole,
-                    currentRole: params.currentRole,
-                  },
-                  aiResult,
-                );
-                await this.subpathRepository.cloneSharedSubpathForUser(
-                  shared.id,
-                  optionId,
-                  params.userId,
-                );
-                this.webSocketGateway.sendToUser({ userId: params.userId }, {
-                  type: NotificationType.SKILL_READY,
-                  skillId,
-                  optionId,
-                  roadmapId: params.roadmapId,
-                  skillName,
-                  failed: false,
-                } as any);
-                return;
-              } catch (err: any) {
-                lastErr = err;
-                this.logger.warn(
-                  `[worker] Subpath gen attempt ${attempt}/${MAX_OPTION_RETRIES} failed for "${optionName}": ${err.message}`,
-                );
-              }
+                },
+                aiResult,
+              );
+              await this.subpathRepository.cloneSharedSubpathForUser(
+                shared.id,
+                optionId,
+                params.userId,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: false,
+              } as any);
+            } catch (err: any) {
+              this.logger.error(
+                `[worker] Subpath gen failed for "${optionName}": ${err.message}`,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: true,
+              } as any);
             }
-
-            this.logger.error(
-              `[worker] Subpath gen permanently failed for "${optionName}" after ${MAX_OPTION_RETRIES} attempts: ${lastErr?.message}`,
-            );
-            this.webSocketGateway.sendToUser({ userId: params.userId }, {
-              type: NotificationType.SKILL_READY,
-              skillId,
-              optionId,
-              roadmapId: params.roadmapId,
-              skillName,
-              failed: true,
-            } as any);
           },
         ),
       );

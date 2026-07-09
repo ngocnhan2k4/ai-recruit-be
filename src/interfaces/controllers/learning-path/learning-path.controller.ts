@@ -346,13 +346,11 @@ export class LearningPathController {
     @GetUser() user: TokenPayload,
     @Param("roadmapId") roadmapId: string,
     @Body() dto: ChatWithRoadmapDto,
-    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<RoadmapChatResponseDto>> {
     return this.learningPathUseCase.chatWithRoadmap(
       roadmapId,
       user.userId,
       dto.message,
-      acceptLanguage,
       dto.currentSkillId,
       dto.currentSkillName,
       dto.currentModuleResources,
