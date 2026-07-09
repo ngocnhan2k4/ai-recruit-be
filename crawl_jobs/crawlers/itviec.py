@@ -29,8 +29,8 @@ def scrape_job_detail(
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    job_title = safe_text(soup.find("h1"))
-    company_name = safe_text(soup.select_one(".employer-name"))
+    job_title = safe_text(soup.find("h1"), normalize_camel_case=False)
+    company_name = safe_text(soup.select_one(".employer-name"), normalize_camel_case=False)
 
     logo_tag = soup.find("img", class_="employer-logo")
     logo = (

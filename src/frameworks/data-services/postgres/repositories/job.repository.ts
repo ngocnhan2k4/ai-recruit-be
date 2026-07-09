@@ -277,7 +277,8 @@ export class JobRepository
           SELECT json_agg(
             json_build_object(
               'id', s.id,
-              'name', s.name
+              'name', s.name,
+              'isApproved', s.is_approved
             )
           ) AS skills
           FROM ${jobSkills} js
@@ -532,7 +533,8 @@ export class JobRepository
           SELECT json_agg(
             json_build_object(
               'id', s.id,
-              'name', s.name
+              'name', s.name,
+              'isApproved', s.is_approved
             )
           ) AS skills
           FROM ${jobSkills} js
