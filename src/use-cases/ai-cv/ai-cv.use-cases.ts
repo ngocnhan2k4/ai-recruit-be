@@ -282,36 +282,6 @@ export class AiCvUseCases {
     };
   }
 
-  // async createAiCv(
-  //   userId: string,
-  //   createAiCvDto: AiCvRequestDto,
-  // ): Promise<ApiResponse<AiCvDto>> {
-  //   const aiCvData: NewAiCv = {
-  //     ...createAiCvDto,
-  //     userId: userId,
-  //     isFavorite: createAiCvDto.isFavorite ?? false,
-  //     language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
-  //     template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
-  //   };
-
-  //   const newAiCv = await this.aiCvRepository.create(aiCvData);
-
-  //   const transformedAiCv: AiCvDto = {
-  //     ...newAiCv,
-  //     cvData: newAiCv.cvData as OptimizedCvDataDto,
-  //     language: newAiCv.language as CvLanguageEnum,
-  //     template: newAiCv.template as CvTemplateEnum,
-  //     createdAt: new Date(newAiCv.createdAt),
-  //     updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
-  //   };
-
-  //   return {
-  //     message: RESPONSE_MESSAGE.SUCCESS,
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: transformedAiCv,
-  //   };
-  // }
-
   async updateAiCv(
     userId: string,
     aiCvId: string,

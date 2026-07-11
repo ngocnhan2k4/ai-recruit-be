@@ -15,7 +15,7 @@ import {
   OrganizationWithDetails,
   JobRecommendationsEmailData,
 } from "@/core/entities";
-import { JobFilters, JobResponse } from "@/core/entities/job.entity";
+import { JobFilters } from "@/core/entities/job.entity";
 import { subDays } from "date-fns/subDays";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
@@ -24,6 +24,7 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
+import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 import { Dictionary, keyBy } from "lodash";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
 import { IBloomFilterService } from "@/core/abstracts";
@@ -131,8 +132,12 @@ export class JobMatchingUseCases {
     if (recentJobs && recentJobs.length > 0) {
       filters.recentInteractions = recentJobs;
 
-      // Explicitly exclude these from recommendations to avoid recommending jobs the user already interacted with
-      filters.excludeJobIds = recentJobs.map((r) => r.jobId);
+      const appliedJobIds = recentJobs
+        .filter((r) => r.eventType === EventTypeEnum.APPLY_JOB)
+        .map((r) => r.jobId);
+      if (appliedJobIds.length > 0) {
+        filters.excludeJobIds = appliedJobIds;
+      }
     }
 
     // Load user's bloom filter to avoid duplicate recommendations
@@ -172,7 +177,7 @@ export class JobMatchingUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? await this.jobRepository.getUserJobStatuses(
             filters.user?.userId,
@@ -188,22 +193,11 @@ export class JobMatchingUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs = this.convertHitToDto(
-      docs,
-      organizationMap,
-      userJobStatusMap,
-      jobMap,
-    );
+    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
 
     this.logger.log(
       `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
@@ -234,7 +228,6 @@ export class JobMatchingUseCases {
         applyId: string | null;
       }
     >,
-    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
       // Transform provinces
@@ -295,7 +288,7 @@ export class JobMatchingUseCases {
           : new Date(),
         deletedAt: null,
         questions: source.questions,
-        applyUrl: source.applyUrl || null,
+        applyUrl: source.applyUrl ?? null,
         embedding: null,
       };
 
@@ -304,7 +297,6 @@ export class JobMatchingUseCases {
         isApplied: false,
         applyStatus: null,
         applyId: null,
-        applyUrl: null,
       };
 
       return {
@@ -317,7 +309,7 @@ export class JobMatchingUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
-        applyUrl: jobMap[job.id]?.applyUrl,
+        applyUrl: source.applyUrl ?? null,
         score: typeof source.score === "number" ? source.score : 0,
       } as JobMatchResultDto;
     });
@@ -353,7 +345,7 @@ export class JobMatchingUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? await this.jobRepository.getUserJobStatuses(
             filters.user?.userId,
@@ -369,22 +361,11 @@ export class JobMatchingUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs = this.convertHitToDto(
-      docs,
-      organizationMap,
-      userJobStatusMap,
-      jobMap,
-    );
+    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
 
     this.logger.log(
       `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,

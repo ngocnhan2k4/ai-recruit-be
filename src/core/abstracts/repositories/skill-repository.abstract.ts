@@ -37,4 +37,6 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
     provinceId?: string,
     categoryId?: string,
   ): Promise<{ name: string; jobCount: number }[]>;
+
+  abstract getJobIdsBySkillIds(skillIds: string[]): Promise<string[]>;
 }

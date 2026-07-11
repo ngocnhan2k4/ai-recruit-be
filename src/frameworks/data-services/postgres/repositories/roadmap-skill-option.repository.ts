@@ -1,8 +1,8 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { IRoadmapSkillOptionRepository } from "@/core/abstracts";
 import { RoadmapSkillOption } from "@/core";
-import { roadmapSkillOptions } from "../models";
+import { roadmapSkillOptions, roadmapSkills, roadmapPhases } from "../models";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 
@@ -63,5 +63,58 @@ export class RoadmapSkillOptionRepository
       )
       .limit(1);
     return option || null;
+  }
+
+  async getOptionsBySkillIds(
+    skillIds: string[],
+  ): Promise<RoadmapSkillOption[]> {
+    if (skillIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(roadmapSkillOptions)
+      .where(
+        and(
+          inArray(roadmapSkillOptions.roadmapSkillId, skillIds),
+          isNull(roadmapSkillOptions.deletedAt),
+        ),
+      );
+  }
+
+  async findOptionWithSkillAndPhase(optionId: string): Promise<{
+    option: RoadmapSkillOption;
+    skillId: string;
+    skillPrerequisites: string[];
+    phaseId: string;
+  } | null> {
+    const rows = await this.db
+      .select({
+        option: roadmapSkillOptions,
+        skillId: roadmapSkills.id,
+        skillPrerequisites: roadmapSkills.prerequisites,
+        phaseId: roadmapPhases.id,
+      })
+      .from(roadmapSkillOptions)
+      .innerJoin(
+        roadmapSkills,
+        eq(roadmapSkillOptions.roadmapSkillId, roadmapSkills.id),
+      )
+      .innerJoin(roadmapPhases, eq(roadmapSkills.phaseId, roadmapPhases.id))
+      .where(
+        and(
+          eq(roadmapSkillOptions.id, optionId),
+          isNull(roadmapSkillOptions.deletedAt),
+          isNull(roadmapSkills.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!rows.length) return null;
+    const row = rows[0];
+    return {
+      option: row.option,
+      skillId: row.skillId,
+      skillPrerequisites: row.skillPrerequisites ?? [],
+      phaseId: row.phaseId,
+    };
   }
 }

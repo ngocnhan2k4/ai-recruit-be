@@ -186,6 +186,12 @@ export class SkillRepository
       )`);
     }
 
+    if (query.minQuestionCount != null && query.minQuestionCount > 0) {
+      whereConditions.push(
+        sql`(SELECT COUNT(*)::int FROM ${questions} WHERE ${questions.skillId} = ${skills.id}) >= ${query.minQuestionCount}`,
+      );
+    }
+
     if ((query.exactNames?.length || 0) > 0) {
       whereConditions.push(inArray(skills.name, query.exactNames as string[]));
     }
@@ -513,5 +519,14 @@ export class SkillRepository
 
     await this.cacheManager.del(CACHE_KEYS.skill.getAll());
     await this.cacheManager.del(CACHE_KEYS.skillSynonym.getAll());
+  }
+
+  async getJobIdsBySkillIds(skillIds: string[]): Promise<string[]> {
+    if (skillIds.length === 0) return [];
+    const result = await this.db
+      .select({ jobId: jobSkills.jobId })
+      .from(jobSkills)
+      .where(inArray(jobSkills.skillId, skillIds));
+    return [...new Set(result.map((r) => r.jobId).filter(Boolean))];
   }
 }
