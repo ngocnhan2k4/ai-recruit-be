@@ -30,6 +30,8 @@ import {
   AILearningRoadmapResult,
   SubpathGenerateRequest,
   AISubpathResult,
+  RoadmapChatRequest,
+  RoadmapChatResponse,
 } from "@/core/entities/learning-path.entity";
 
 @Injectable()
@@ -312,6 +314,19 @@ export class AIClientService implements IAIService {
       url,
       body: request,
       errorContext: "AI Service CV extraction failed",
+    });
+  }
+
+  async chatWithRoadmap(
+    request: RoadmapChatRequest,
+  ): Promise<RoadmapChatResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/roadmap/chat`;
+
+    return this.postWithRetry<RoadmapChatRequest, RoadmapChatResponse>({
+      url,
+      body: request,
+      errorContext: "AI Service roadmap chat failed",
+      timeoutMs: 30000,
     });
   }
 
