@@ -68,3 +68,5 @@ artifacts/
 crawl_jobs/skills/
 
 .cursor
+
+load-test
