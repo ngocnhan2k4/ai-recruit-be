@@ -87,8 +87,20 @@ import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
+import { RoadmapChatMessageRepository } from "./repositories/roadmap-chat-message.repository";
+import { IRoadmapChatMessageRepository } from "@/core/abstracts/repositories/roadmap-chat-message-repository.abstract";
+import {
+  ISubpathRepository,
+  IOptionResourceCompletionRepository,
+  ISubpathModuleQuizResultRepository,
+} from "@/core/abstracts";
+import {
+  SubpathRepository,
+  OptionResourceCompletionRepository,
+  SubpathModuleQuizResultRepository,
+} from "./repositories/subpath.repository";
 import { RedisModule } from "@/frameworks/redis/redis.module";
-import { createLoggerQuery } from "@/common/utils";
+import { createLoggerQuery, retry } from "@/common/utils";
 
 @Global()
 @Module({
@@ -113,31 +125,26 @@ import { createLoggerQuery } from "@/common/utils";
 
           (pool as any).query = createLoggerQuery(pool, { logger });
 
-          // Wrap pool để log SQL queries
-          const maxRetries = 3;
           let attempt = 0;
-          let connected = false;
-
-          while (!connected && attempt < maxRetries) {
-            attempt++;
-            try {
-              await pool.query("SELECT 1");
-              connected = true;
-              logger.log(
-                `Database connection established successfully (attempt ${attempt}).`,
-              );
-            } catch (err) {
-              logger.error(
-                `Database connection attempt ${attempt} failed:`,
-                err,
-              );
-              if (attempt < maxRetries) {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-              } else {
-                throw err; // hết retry thì throw
+          await retry(
+            async () => {
+              attempt++;
+              try {
+                await pool.query("SELECT 1");
+              } catch (err) {
+                logger.error(
+                  `Database connection attempt ${attempt} failed:`,
+                  err,
+                );
+                throw err;
               }
-            }
-          }
+            },
+            { retries: 3, interval: 1000 },
+          );
+          logger.log(
+            `Database connection established successfully (attempt ${attempt}).`,
+          );
+
           const db = drizzle(pool, {
             casing: "snake_case",
             // logger: true,
@@ -314,6 +321,22 @@ import { createLoggerQuery } from "@/common/utils";
       provide: ISkillNoteRepository,
       useClass: SkillNoteRepository,
     },
+    {
+      provide: ISubpathRepository,
+      useClass: SubpathRepository,
+    },
+    {
+      provide: IOptionResourceCompletionRepository,
+      useClass: OptionResourceCompletionRepository,
+    },
+    {
+      provide: ISubpathModuleQuizResultRepository,
+      useClass: SubpathModuleQuizResultRepository,
+    },
+    {
+      provide: IRoadmapChatMessageRepository,
+      useClass: RoadmapChatMessageRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -358,6 +381,10 @@ import { createLoggerQuery } from "@/common/utils";
     IUserActionRepository,
     ICommentRepository,
     ISkillNoteRepository,
+    ISubpathRepository,
+    IOptionResourceCompletionRepository,
+    ISubpathModuleQuizResultRepository,
+    IRoadmapChatMessageRepository,
   ],
 })
 export class PostgresDataServicesModule {}

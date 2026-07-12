@@ -94,6 +94,19 @@ export class EnvironmentVariables {
   @IsNumber()
   AI_SERVICE_MAX_RETRIES: number;
 
+  @IsOptional()
+  @IsString()
+  AI_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  AI_BLOG_AUTHOR_ID: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  AI_BLOG_RANGE_DAYS: number = 7;
+
   @IsString()
   FRONTEND_URL: string;
 
@@ -198,6 +211,24 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
   TIME_TO_DELETE_ACCOUNT_DAYS: number = 30;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_BASE_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_TIMEOUT: number = 10000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_MAX_RETRIES: number = 2;
 }
 
 export const validateConfig = (

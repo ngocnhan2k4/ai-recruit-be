@@ -112,6 +112,9 @@ export const userExperiences = pgTable(
     endDate: date("end_date"),
     jobTitle: varchar("job_title", { length: 255 }).notNull(),
     description: text("description"),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
     ...timestamps,
   },
   (table) => [
@@ -161,6 +164,9 @@ export const userOnboardings = pgTable(
     categoryIds: uuid("category_ids").array(),
     expectedSalary: numeric("expected_salary", { precision: 12, scale: 2 }),
     isSeekingJob: boolean("is_seeking_job").notNull().default(false),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
   },
   (table) => [
     index("idx_user_onboardings_skills_gin").using("gin", table.skills),
@@ -191,6 +197,9 @@ export const userEducations = pgTable(
     major: varchar("major", { length: 255 }),
     gpa: varchar("gpa", { length: 10 }),
     description: text("description"),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
     ...timestamps,
   },
   (table) => [

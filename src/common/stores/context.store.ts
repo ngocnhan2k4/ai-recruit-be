@@ -1,23 +1,17 @@
-import { Injectable } from "@nestjs/common";
 import { AsyncLocalStorage } from "async_hooks";
 
-@Injectable()
-export class ContextStorage {
-  private readonly als = new AsyncLocalStorage<Map<string, any>>();
+export const CONTEXT_KEYS = {
+  REQUEST_LANGUAGE: "requestLanguage",
+  FALLBACK_LANGUAGE: "fallbackLanguage",
+} as const;
 
-  run(fn: () => void) {
-    this.als.run(new Map(), fn);
-  }
+const als = new AsyncLocalStorage<Map<string, unknown>>();
 
-  set(key: string, value: any) {
-    this.als.getStore()?.set(key, value);
-  }
+export const runContext = <T>(fn: () => T): T => als.run(new Map(), fn);
 
-  get(key: string) {
-    return this.als.getStore()?.get(key);
-  }
+export const setContext = (key: string, value: unknown) =>
+  als.getStore()?.set(key, value);
 
-  getAll() {
-    return this.als.getStore();
-  }
-}
+export const getContext = (key: string) => als.getStore()?.get(key);
+
+export const getAllContext = () => als.getStore();

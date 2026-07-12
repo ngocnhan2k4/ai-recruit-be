@@ -12,6 +12,8 @@ import {
   Get,
   Delete,
   Put,
+  Patch,
+  Headers,
   Param,
   Query,
   UseGuards,
@@ -21,7 +23,6 @@ import { JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import { ApiResponse, PaginatedResultDto } from "../../dtos";
 import { GetUser } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
-import { Logger } from "@nestjs/common";
 
 import {
   PreviewRoadmapDto,
@@ -32,11 +33,22 @@ import {
   UpsertSkillNoteDto,
   SkillNoteDto,
   SkillNoteForStudyGuideDto,
+  SaveQuizResultDto,
+  ChatWithRoadmapDto,
+  AddSkillToRoadmapDto,
+  AddResourcesToSkillDto,
+  AddOptionToSkillDto,
+  MoveSkillToPhaseDto,
+  AddModuleDto,
+  RoadmapChatResponseDto,
+  AddedSkillDto,
 } from "@/interfaces/dtos/learning-path";
 import {
   LearningRoadmap,
   LearningRoadmapWithDetails,
   WeeklyProgress,
+  SubpathWithDetails,
+  SubpathModuleQuizResult,
 } from "@/core";
 
 @ApiTags("Learning Path")
@@ -44,8 +56,6 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class LearningPathController {
-  private readonly logger = new Logger(LearningPathController.name);
-
   constructor(private readonly learningPathUseCase: LearningPathUseCase) {}
 
   @Post()
@@ -57,8 +67,13 @@ export class LearningPathController {
   createRoadmap(
     @Body() dto: PreviewRoadmapDto,
     @GetUser() user: TokenPayload,
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<ApiResponse<{ taskId: string }>> {
-    return this.learningPathUseCase.createRoadmap(dto, user.userId);
+    return this.learningPathUseCase.createRoadmap(
+      dto,
+      user.userId,
+      acceptLanguage,
+    );
   }
 
   // @Post()
@@ -280,6 +295,274 @@ export class LearningPathController {
   ): Promise<ApiResponse<SkillNoteForStudyGuideDto[]>> {
     return await this.learningPathUseCase.getStudyGuideNotes(
       roadmapId,
+      user.userId,
+    );
+  }
+
+  @Get(":roadmapId/options/:optionId/subpath")
+  @ApiOperation({
+    summary: "Get or generate subpath for an option",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "optionId", description: "Skill option ID" })
+  async getSubPath(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("optionId") optionId: string,
+  ): Promise<ApiResponse<SubpathWithDetails>> {
+    return await this.learningPathUseCase.getSubPath(
+      roadmapId,
+      optionId,
+      user.userId,
+    );
+  }
+
+  @Put(":roadmapId/resources/:resourceId/toggle")
+  @ApiOperation({
+    summary: "Toggle resource completion",
+    description: "Mark a learning resource as completed or uncompleted.",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "resourceId", description: "Resource ID" })
+  async toggleResourceCompletion(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("resourceId") resourceId: string,
+  ): Promise<ApiResponse<{ completed: boolean }>> {
+    return await this.learningPathUseCase.toggleResourceCompletion(
+      roadmapId,
+      resourceId,
+      user.userId,
+    );
+  }
+
+  @Post(":roadmapId/chat")
+  @ApiOperation({
+    summary: "Chat with AI about the roadmap",
+    description: "Send a message to the AI assistant",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  async chatWithRoadmap(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Body() dto: ChatWithRoadmapDto,
+  ): Promise<ApiResponse<RoadmapChatResponseDto>> {
+    return this.learningPathUseCase.chatWithRoadmap(
+      roadmapId,
+      user.userId,
+      dto.message,
+      dto.currentSkillId,
+      dto.currentSkillName,
+      dto.currentModuleResources,
+      dto.currentSkillOptions,
+      dto.currentModules,
+    );
+  }
+
+  @Get(":roadmapId/chat/history")
+  @ApiOperation({ summary: "Get chat history for a roadmap" })
+  async getChatHistory(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+  ) {
+    return this.learningPathUseCase.getChatHistory(roadmapId, user.userId);
+  }
+
+  @Patch(":roadmapId/chat/messages/:messageId/proposal-status")
+  @ApiOperation({ summary: "Update proposal status (applied/dismissed)" })
+  async updateChatProposalStatus(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("messageId") messageId: string,
+    @Body() dto: { status: "applied" | "dismissed" },
+  ) {
+    return this.learningPathUseCase.updateChatProposalStatus(
+      roadmapId,
+      messageId,
+      user.userId,
+      dto.status,
+    );
+  }
+
+  @Delete(":roadmapId/chat/history")
+  @ApiOperation({ summary: "Clear chat history for a roadmap" })
+  async clearChatHistory(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+  ) {
+    return this.learningPathUseCase.clearChatHistory(roadmapId, user.userId);
+  }
+
+  @Post(":roadmapId/skills")
+  @ApiOperation({
+    summary: "Add a skill to the roadmap",
+    description:
+      "Add a new skill to a specific phase of the roadmap. Subpath content will be generated asynchronously.",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  async addSkillToRoadmap(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Body() dto: AddSkillToRoadmapDto,
+  ): Promise<ApiResponse<AddedSkillDto>> {
+    return this.learningPathUseCase.addSkillToRoadmap(
+      roadmapId,
+      user.userId,
+      dto,
+    );
+  }
+
+  @Post(":roadmapId/skills/:skillId/options")
+  @ApiOperation({ summary: "Add a new option to an existing skill" })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "skillId", description: "Skill ID" })
+  async addOptionToSkill(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("skillId") skillId: string,
+    @Body() dto: AddOptionToSkillDto,
+  ): Promise<ApiResponse<AddedSkillDto>> {
+    return this.learningPathUseCase.addOptionToSkill(
+      roadmapId,
+      skillId,
+      user.userId,
+      dto.optionName,
+    );
+  }
+
+  @Delete(":roadmapId/options/:optionId")
+  @ApiOperation({ summary: "Remove an option from a skill" })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "optionId", description: "Option ID to remove" })
+  async removeOptionFromSkill(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("optionId") optionId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.removeOptionFromSkill(
+      roadmapId,
+      optionId,
+      user.userId,
+    );
+  }
+
+  @Delete(":roadmapId/skills/:skillId")
+  @ApiOperation({
+    summary: "Remove a skill from the roadmap",
+    description: "Remove a non-completed skill from the roadmap.",
+  })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "skillId", description: "Skill ID to remove" })
+  async removeSkillFromRoadmap(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("skillId") skillId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.removeSkillFromRoadmap(
+      roadmapId,
+      skillId,
+      user.userId,
+    );
+  }
+
+  @Delete(":roadmapId/resources/:resourceId")
+  @ApiOperation({ summary: "Delete a resource from a subpath module" })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "resourceId", description: "Resource ID to delete" })
+  async deleteResource(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("resourceId") resourceId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.deleteResource(
+      roadmapId,
+      resourceId,
+      user.userId,
+    );
+  }
+
+  @Post(":roadmapId/modules/:moduleId/resources")
+  @ApiOperation({ summary: "Add AI-suggested resources to a specific module" })
+  async addResourcesToModule(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("moduleId") moduleId: string,
+    @Body() dto: AddResourcesToSkillDto,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.addResourcesToModule(
+      roadmapId,
+      moduleId,
+      user.userId,
+      dto.resources,
+    );
+  }
+
+  @Delete(":roadmapId/modules/:moduleId")
+  @ApiOperation({ summary: "Remove a module from a subpath" })
+  async removeModule(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("moduleId") moduleId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.removeModule(
+      roadmapId,
+      moduleId,
+      user.userId,
+    );
+  }
+
+  @Patch(":roadmapId/skills/:skillId/phase")
+  @ApiOperation({ summary: "Move a skill to a different phase" })
+  async moveSkillToPhase(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("skillId") skillId: string,
+    @Body() dto: MoveSkillToPhaseDto,
+  ): Promise<ApiResponse<void>> {
+    return this.learningPathUseCase.moveSkillToPhase(
+      roadmapId,
+      skillId,
+      dto.targetPhaseId,
+      user.userId,
+    );
+  }
+
+  @Post(":roadmapId/options/:optionId/modules")
+  @ApiOperation({ summary: "Add a new module to a subpath" })
+  async addModuleToSubpath(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("optionId") optionId: string,
+    @Body() dto: AddModuleDto,
+  ): Promise<ApiResponse<{ id: string; title: string }>> {
+    return this.learningPathUseCase.addModuleToSubpath(
+      roadmapId,
+      optionId,
+      user.userId,
+      {
+        title: dto.title,
+        description: dto.description ?? "",
+        duration: dto.duration ?? "",
+        concepts: dto.concepts ?? [],
+      },
+    );
+  }
+
+  @Post(":roadmapId/modules/:moduleId/quiz-result")
+  @ApiOperation({ summary: "Save quiz result for a module" })
+  @ApiParam({ name: "roadmapId", description: "Roadmap ID" })
+  @ApiParam({ name: "moduleId", description: "Subpath module ID" })
+  async saveModuleQuizResult(
+    @GetUser() user: TokenPayload,
+    @Param("roadmapId") roadmapId: string,
+    @Param("moduleId") moduleId: string,
+    @Body() dto: SaveQuizResultDto,
+  ): Promise<ApiResponse<SubpathModuleQuizResult>> {
+    return await this.learningPathUseCase.saveModuleQuizResult(
+      roadmapId,
+      moduleId,
+      dto.score,
+      dto.totalQuestions,
       user.userId,
     );
   }

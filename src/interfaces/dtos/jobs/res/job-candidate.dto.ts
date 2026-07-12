@@ -29,5 +29,5 @@ export class JobCandidateRecommendationDto {
   @ApiProperty({
     description: "The user who the CV belongs to",
   })
-  user?: Pick<UserDto, "id" | "email" | "name" | "avatarUrl" | "username">;
+  user: Pick<UserDto, "id" | "email" | "name" | "avatarUrl" | "username">;
 }

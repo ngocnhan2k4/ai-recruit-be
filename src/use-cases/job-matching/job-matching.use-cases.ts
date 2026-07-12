@@ -15,7 +15,7 @@ import {
   OrganizationWithDetails,
   JobRecommendationsEmailData,
 } from "@/core/entities";
-import { JobFilters, JobResponse } from "@/core/entities/job.entity";
+import { JobFilters } from "@/core/entities/job.entity";
 import { subDays } from "date-fns/subDays";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
@@ -24,7 +24,10 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
+import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 import { Dictionary, keyBy } from "lodash";
+import { EventTrackingService } from "../event-tracking/event-tracking.service";
+import { IBloomFilterService } from "@/core/abstracts";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -36,6 +39,8 @@ export class JobMatchingUseCases {
     private readonly userRepository: IUserRepository,
     private readonly jobSearchService: IJobSearchService,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly eventTrackingService: EventTrackingService,
+    private readonly bloomFilterService: IBloomFilterService,
   ) {}
 
   async sendJobRecommendationsToUsers(): Promise<void> {
@@ -117,10 +122,47 @@ export class JobMatchingUseCases {
       });
     }
 
+    // Tích hợp Soft boost từ sở thích người dùng và lịch sử
+    const prefs = await this.eventTrackingService.getUserPreference(userId);
+    if (prefs) {
+      filters.userPreference = prefs;
+    }
+    const recentJobs =
+      await this.eventTrackingService.getUserRecentInteractedJobs(userId);
+    if (recentJobs && recentJobs.length > 0) {
+      filters.recentInteractions = recentJobs;
+
+      const appliedJobIds = recentJobs
+        .filter((r) => r.eventType === EventTypeEnum.APPLY_JOB)
+        .map((r) => r.jobId);
+      if (appliedJobIds.length > 0) {
+        filters.excludeJobIds = appliedJobIds;
+      }
+    }
+
+    // Load user's bloom filter to avoid duplicate recommendations
+    const bloomKey = `user_seen_jobs:${userId}`;
+    await this.bloomFilterService.loadFromRedis(bloomKey);
+
     const {
-      data: docs,
+      data: rawDocs,
       pagination: { nextCursor, hasNextPage: hasMore },
     } = await this.jobSearchService.matchJobs(userProfile, filters);
+
+    // Filter out jobs the user has already seen
+    const docs = rawDocs.filter((doc) => {
+      if (!doc?.id) return false;
+      return !this.bloomFilterService.mightContain(bloomKey, doc.id);
+    });
+
+    // Add newly recommended jobs to bloom filter
+    for (const doc of docs) {
+      if (doc?.id) {
+        this.bloomFilterService.add(bloomKey, doc.id);
+      }
+    }
+    // Khắc phục Race Condition: Lưu liền tay xuống Redis nhưng không dùng await để tránh block API
+    this.bloomFilterService.syncKeyToRedis(bloomKey).catch(() => {});
 
     // Extract job IDs for batch query
     const jobIds: string[] = [];
@@ -135,7 +177,7 @@ export class JobMatchingUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? await this.jobRepository.getUserJobStatuses(
             filters.user?.userId,
@@ -151,22 +193,11 @@ export class JobMatchingUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs = this.convertHitToDto(
-      docs,
-      organizationMap,
-      userJobStatusMap,
-      jobMap,
-    );
+    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
 
     this.logger.log(
       `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
@@ -197,7 +228,6 @@ export class JobMatchingUseCases {
         applyId: string | null;
       }
     >,
-    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
       // Transform provinces
@@ -258,7 +288,8 @@ export class JobMatchingUseCases {
           : new Date(),
         deletedAt: null,
         questions: source.questions,
-        applyUrl: source.applyUrl || null,
+        applyUrl: source.applyUrl ?? null,
+        embedding: null,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -266,7 +297,6 @@ export class JobMatchingUseCases {
         isApplied: false,
         applyStatus: null,
         applyId: null,
-        applyUrl: null,
       };
 
       return {
@@ -279,9 +309,78 @@ export class JobMatchingUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
-        applyUrl: jobMap[job.id]?.applyUrl,
+        applyUrl: source.applyUrl ?? null,
         score: typeof source.score === "number" ? source.score : 0,
       } as JobMatchResultDto;
     });
+  }
+
+  async getMatchedJobsWithScoresLegacy(
+    userId: string,
+    filters: JobFilters,
+  ): Promise<ApiResponse<PaginatedResult<JobMatchResultDto>>> {
+    const userProfile = await this.userRepository.getUserProfile(userId);
+    if (!userProfile) {
+      throw new NotFoundException({
+        message: `User ${userId} not found`,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    const {
+      data: docs,
+      pagination: { nextCursor, hasNextPage: hasMore },
+    } = await this.jobSearchService.matchJobsLegacy(userProfile, filters);
+
+    // Extract job IDs for batch query
+    const jobIds: string[] = [];
+    const orgIds: string[] = [];
+
+    for (const doc of docs) {
+      if (!doc?.id) continue;
+      jobIds.push(doc.id);
+      const orgId = doc.organizationId;
+      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
+    }
+
+    const uniqueOrgIds = [...new Set<string>(orgIds)];
+
+    const [userJobStatusMap, organizations] = await Promise.all([
+      jobIds.length > 0 && filters.user?.userId
+        ? await this.jobRepository.getUserJobStatuses(
+            filters.user?.userId,
+            jobIds,
+          )
+        : Promise.resolve(new Map()),
+      this.organizationRepository.getByIds(uniqueOrgIds, [
+        "id",
+        "name",
+        "description",
+        "websiteUrl",
+        "employeesMin",
+        "employeesMax",
+        "logoUrl",
+      ]),
+    ]);
+    const organizationMap = keyBy(organizations, "id");
+
+    // Transform ES results to JobMatchResult (extends JobResponse)
+    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
+
+    this.logger.log(
+      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
+    );
+
+    return {
+      data: {
+        data: jobs,
+        pagination: {
+          nextCursor,
+          hasNextPage: hasMore,
+        },
+      },
+      message: "Successfully retrieved matched jobs",
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 }

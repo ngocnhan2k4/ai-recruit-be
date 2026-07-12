@@ -9,4 +9,6 @@ export abstract class IRoadmapSkillRepository extends IGenericRepository<Roadmap
   abstract getUnlockedSkills(roadmapId: string): Promise<RoadmapSkill[]>;
 
   abstract checkPrerequisitesCompleted(skillId: string): Promise<boolean>;
+
+  abstract moveToPhase(skillId: string, targetPhaseId: string): Promise<void>;
 }

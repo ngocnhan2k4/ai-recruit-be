@@ -32,7 +32,7 @@ export class CvIndexWorker extends WorkerHost {
       await this.processEvent(job.name as CvEventType, job.data as CvIndexData);
     } catch (error: any) {
       this.logger.error(
-        `[process] Failed to process cv ${job.id}: ${error}`,
+        `[worker.cv-index.process] Failed to process cv ${job.id}: ${error}`,
         error.stack,
       );
       throw error;
@@ -46,6 +46,10 @@ export class CvIndexWorker extends WorkerHost {
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
+
+    this.logger.log(
+      `[processEvent] Processing event ${type} for cv ${JSON.stringify(data)}`,
+    );
 
     switch (type) {
       case CvEventType.UPSERT_CV: {

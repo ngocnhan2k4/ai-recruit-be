@@ -1,7 +1,6 @@
 # compiled output
 /dist
 /node_modules
-/build
 
 # Logs
 logs
@@ -68,5 +67,9 @@ artifacts/
 crawl_jobs/skills/
 
 .cursor
+# blog-crawler
+/blog-crawler/dist/
+/blog-crawler/node_modules/
+/blog-crawler/.env
 
-load-test
+/test/load-test

@@ -1,8 +1,56 @@
 import {
+  ONE_DAY_MS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+  USER_FOLDER,
+} from "@/common/constants";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import {
+  buildDeletedEmail,
+  buildDeletedFirebaseUid,
+  buildDeletedPhone,
+  getRequestLanguage,
+  normalizeLanguageCode,
+} from "@/common/utils";
+import {
+  getFirebaseProviderKey,
+  normalizeProvider,
+} from "@/common/utils/firebase";
+import { IOrganizationRepository, UserOnboarding, UserSkill } from "@/core";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
+import { GetAllUserResponse, GetUserQuery } from "@/core/entities/user.entity";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import {
+  AdminUpdateUserRequestDto,
+  ApiResponse,
+  CreateUserEducationDto,
+  CreateUserExperienceRequestDto,
+  GetUserResponseDto,
+  TypeAvatar,
+  UpdateUserEducationDto,
+  UpdateUserRequestDto,
+  UserEducationResponseDto,
+  UserExperiencesResponseDto,
+  UserOnboardingDto,
+  UserPublicResponseDto,
+  UserTrendsQueryDto,
+  UserTrendsResponseDto,
+} from "@/interfaces/dtos";
+import { MultipartFile } from "@fastify/multipart";
+import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
+  UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config/dist/config.service";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { addDays } from "date-fns";
 import {
   EducationLevelEnum,
   GenderEnum,
@@ -16,56 +64,14 @@ import {
 } from "../../core";
 import {
   IAuthRepository,
-  IBloomFilterService,
-  IUserRepository,
-  IUserExperienceRepository,
-  IUserSkillRepository,
-  IUserOnboardingRepository,
   IAuthService,
+  IBloomFilterService,
   ISkillRepository,
+  IUserExperienceRepository,
+  IUserOnboardingRepository,
+  IUserRepository,
+  IUserSkillRepository,
 } from "../../core/abstracts";
-import { Logger, OnModuleInit } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
-import {
-  RESPONSE_CODE,
-  RESPONSE_MESSAGE,
-  USER_FOLDER,
-} from "@/common/constants";
-import {
-  ApiResponse,
-  GetUserResponseDto,
-  TypeAvatar,
-  UpdateUserRequestDto,
-  UserPublicResponseDto,
-  UserOnboardingDto,
-  AdminUpdateUserRequestDto,
-  UserTrendsResponseDto,
-  UserTrendsQueryDto,
-} from "@/interfaces/dtos";
-import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { PaginatedResult, TokenPayload } from "@/common/types";
-import { MultipartFile } from "@fastify/multipart";
-import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
-import {
-  CreateUserExperienceRequestDto,
-  UserExperiencesResponseDto,
-} from "@/interfaces/dtos";
-import { GetAllUserResponse, GetUserQuery } from "@/core/entities/user.entity";
-import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
-import { RoleEnum } from "@/common/constants";
-import {
-  CreateUserEducationDto,
-  UpdateUserEducationDto,
-  UserEducationResponseDto,
-} from "@/interfaces/dtos";
-import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
-import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
-import { ONE_DAY_MS } from "@/common/constants";
-import { addDays } from "date-fns";
-import { buildDeletedEmail } from "@/common/utils";
-import { buildDeletedPhone } from "@/common/utils";
-import { buildDeletedFirebaseUid } from "@/common/utils";
-import { ConfigService } from "@nestjs/config/dist/config.service";
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -176,7 +182,7 @@ export class UserUseCases implements OnModuleInit {
       const users = await this.userRepository.getAll(["username"]);
       const usernames = users.map((user) => user.username);
 
-      this.bloomFilterService.initialize(usernames);
+      this.bloomFilterService.initialize("global_usernames", usernames);
 
       this.logger.log(
         `[UserUseCases] [initializeBloomFilter] Bloom filter refreshed with ${usernames.length} usernames`,
@@ -343,6 +349,55 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  async linkProvider(
+    userId: string,
+    idToken: string,
+  ): Promise<ApiResponse<void>> {
+    const decode = await this.authService.verifyIdToken(idToken).catch(() => {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    });
+
+    const user = await this.userRepository.get(userId);
+    if (user?.firebaseUid !== decode.uid) {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    }
+
+    const currentProvider = normalizeProvider(
+      decode.provider_id || ProviderEnum.EMAIL,
+    );
+
+    if (currentProvider === ProviderEnum.EMAIL) {
+      throw new ConflictException({
+        message: "Cannot link email/password provider this way",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
+    const profiles = await this.authService.getUserProviderProfiles(decode.uid);
+    const profile = profiles.find((p) => p.providerId === firebaseProviderKey);
+
+    await this.userRepository.addUserIdentity({
+      userId,
+      provider: currentProvider,
+      providerUserId: profile?.providerUserId ?? undefined,
+      providerEmail: profile?.email ?? null,
+      providerName: profile?.name ?? null,
+      providerPicture: profile?.picture ?? null,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
   async getUserByUsername(
     username: string,
     currentUserId?: string,
@@ -502,6 +557,7 @@ export class UserUseCases implements OnModuleInit {
         if (skills !== undefined) {
           preferencesUpdate.skills = skills;
         }
+        preferencesUpdate.languageCode = getRequestLanguage();
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
@@ -579,10 +635,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
         userId,
-        createUserExperienceDto,
+        { ...createUserExperienceDto, languageCode },
       );
     if (!result) {
       throw new NotFoundException({
@@ -602,11 +659,12 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-        updateUserExperienceDto,
+        { ...updateUserExperienceDto, languageCode },
       );
 
     if (!result) {
@@ -775,7 +833,10 @@ export class UserUseCases implements OnModuleInit {
     username: string,
   ): Promise<ApiResponse<{ exists: boolean }>> {
     // Step 1: check bloom filter
-    const mightExist = this.bloomFilterService.mightContain(username);
+    const mightExist = this.bloomFilterService.mightContain(
+      "global_usernames",
+      username,
+    );
     if (!mightExist) {
       return {
         data: { exists: false },
@@ -832,6 +893,7 @@ export class UserUseCases implements OnModuleInit {
     const newOnboarding = {
       ...onboarding,
       userId,
+      languageCode: getRequestLanguage(),
     } as Partial<UserOnboarding>;
 
     const user = await this.userRepository.get(userId);
@@ -971,9 +1033,8 @@ export class UserUseCases implements OnModuleInit {
   async getUserEducations(
     userId: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    const userEducations = await this.userEducationRepository.getByField({
-      userId,
-    });
+    const userEducations =
+      await this.userEducationRepository.getUserEducationsByUserId(userId);
 
     const universities =
       await this.organizationRepository.getOrganizationsByTypes([
@@ -1024,6 +1085,9 @@ export class UserUseCases implements OnModuleInit {
     const newEducation = await this.userEducationRepository.create({
       ...createUserEducationDto,
       userId,
+      languageCode: createUserEducationDto.languageCode
+        ? normalizeLanguageCode(createUserEducationDto.languageCode)
+        : getRequestLanguage(),
     });
 
     return {
@@ -1047,9 +1111,11 @@ export class UserUseCases implements OnModuleInit {
     educationId: string,
     updateUserEducationDto: UpdateUserEducationDto,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const languageCode = getRequestLanguage();
     const userEducation = await this.userEducationRepository.getByField({
       schoolId: educationId,
       userId,
+      languageCode,
     });
 
     if (!userEducation || userEducation.length === 0) {

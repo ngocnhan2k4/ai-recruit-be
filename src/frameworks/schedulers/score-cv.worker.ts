@@ -31,7 +31,15 @@ export class ScoreCvWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    return this.processCvScoring(job.data as ScoreCvApplyData);
+    try {
+      return this.processCvScoring(job.data as ScoreCvApplyData);
+    } catch (error) {
+      this.logger.error(
+        `[worker.score-cv.process] Failed to process cv scoring: ${error}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   private async processCvScoring(data: ScoreCvApplyData): Promise<void> {
@@ -58,7 +66,7 @@ export class ScoreCvWorker extends WorkerHost {
     await this.jobRepository.updateMatchingScore(applyId, score, criteria);
 
     this.logger.log(
-      `[processCvScoring] done applyId=${applyId} score=${score.toFixed(2)}`,
+      `[processCvScoring] done applyId=${applyId} score=${score === null ? "null" : score.toFixed(2)}`,
     );
   }
 }

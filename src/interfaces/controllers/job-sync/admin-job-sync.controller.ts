@@ -82,4 +82,17 @@ export class AdminJobSyncController {
   ): Promise<ApiResponse<{ message: string }>> {
     return await this.jobSyncUseCases.deleteJob(jobId);
   }
+
+  @ApiOperation({
+    summary: "Sync all active jobs' embeddings",
+    description:
+      "Manually trigger a sync of embeddings for all active jobs. Only jobs missing embeddings in Elasticsearch will be processed.",
+  })
+  @ApiResponseDto("string")
+  @Post("sync-all-embeddings")
+  async syncAllJobEmbeddings(): Promise<
+    ApiResponse<{ totalSynced: number; message: string }>
+  > {
+    return await this.jobSyncUseCases.syncAllJobEmbeddings();
+  }
 }

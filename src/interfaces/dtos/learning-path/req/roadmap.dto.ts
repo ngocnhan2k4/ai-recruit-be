@@ -116,16 +116,7 @@ export class SaveRoadmapDto {
       "Preview roadmap response from /preview endpoint (complete JSON)",
   })
   @IsNotEmpty()
-  previewData: any; // Will accept the full PreviewRoadmapResponse
+  previewData: any;
 }
 
 export class GetRoadmapsQueryDto extends GeneralQueryDto {}
-
-export class CompleteSkillDto {
-  @ApiProperty({
-    description: "Skill option ID to mark as completed",
-    example: "550e8400-e29b-41d4-a716-446655440000",
-  })
-  @IsUUID()
-  optionId: string;
-}

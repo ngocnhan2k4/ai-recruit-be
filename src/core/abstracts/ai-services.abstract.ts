@@ -3,10 +3,19 @@ import {
   OptimizeAtsResponse,
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  GenerateJobBlogPostRequest,
+  GenerateJobBlogPostResponse,
   ExtractCvRequest,
   ExtractCvResponse,
 } from "../entities";
-import { RoadmapGenerateRequest } from "../entities/learning-path.entity";
+import {
+  AILearningRoadmapResult,
+  RoadmapGenerateRequest,
+  SubpathGenerateRequest,
+  AISubpathResult,
+  RoadmapChatRequest,
+  RoadmapChatResponse,
+} from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
 
@@ -14,6 +23,14 @@ export abstract class IAIService {
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Observable<MessageEvent>;
+
+  abstract generateRoadmapV2(
+    request: RoadmapGenerateRequest,
+  ): Promise<AILearningRoadmapResult>;
+
+  abstract generateSubPath(
+    request: SubpathGenerateRequest,
+  ): Promise<AISubpathResult>;
 
   abstract optimizeCvAts(
     request: OptimizeAtsRequest,
@@ -23,5 +40,16 @@ export abstract class IAIService {
     request: CvFieldSuggestionRequest,
   ): Promise<CvFieldSuggestionResponse>;
 
+  abstract generateJobBlogPost(
+    request: GenerateJobBlogPostRequest,
+  ): Promise<GenerateJobBlogPostResponse>;
+
   abstract extractCv(request: ExtractCvRequest): Promise<ExtractCvResponse>;
+
+  abstract generateEmbedding(text: string): Promise<number[]>;
+  abstract generateEmbeddings(texts: string[]): Promise<number[][]>;
+
+  abstract chatWithRoadmap(
+    request: RoadmapChatRequest,
+  ): Promise<RoadmapChatResponse>;
 }

@@ -7,18 +7,19 @@ import {
   JOB_INDEX_QUEUE,
   SCORE_CV_QUEUE,
   TASK_QUEUE,
+  TRANSLATION_QUEUE,
 } from "@/common/constants";
 import { JobsOptions, Queue, FlowProducer } from "bullmq";
 import { InjectFlowProducer, InjectQueue } from "@nestjs/bullmq";
 import { CvEventType } from "@/core";
 import { TASK_EVENT } from "@/common/constants";
-
 @Injectable()
 export class MessageQueueService implements IMessageQueueService {
   constructor(
     @InjectQueue(JOB_INDEX_QUEUE) private readonly queueJob: Queue,
     @InjectQueue(TASK_QUEUE) private readonly queueTask: Queue,
     @InjectQueue(EMAIL_QUEUE) private readonly queueEmail: Queue,
+    @InjectQueue(TRANSLATION_QUEUE) private readonly queueTranslation: Queue,
     @InjectQueue(CV_INDEX_QUEUE) private readonly queueCv: Queue,
     @InjectQueue(SCORE_CV_QUEUE) private readonly queueScoreCv: Queue,
     @InjectQueue(ACTIVITY_LOG_QUEUE) private readonly queueActivityLog: Queue,
@@ -56,6 +57,19 @@ export class MessageQueueService implements IMessageQueueService {
     await this.queueEmail.add(name, data, {
       removeOnComplete: true,
       removeOnFail: false,
+      ...opts,
+    } as JobsOptions);
+  }
+
+  async addTranslation(name: string, data: any, opts?: any): Promise<void> {
+    await this.queueTranslation.add(name, data, {
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
       ...opts,
     } as JobsOptions);
   }

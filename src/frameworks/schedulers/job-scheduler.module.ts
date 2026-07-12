@@ -6,6 +6,7 @@ import { JobIndexWorker } from "./job-index.worker";
 import { TaskWorker } from "./task.worker";
 import { ScoreCvWorker } from "./score-cv.worker";
 import { EmailWorker } from "./email.worker";
+import { TranslationWorker } from "./translation.worker";
 import { CvIndexWorker } from "./cv-index.worker";
 import { LoggerServiceModule } from "../logger-services/logger.module";
 import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching.use-cases.module";
@@ -20,6 +21,7 @@ import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
 import { ActivityLogWorker } from "./activity-log.worker";
+import { TranslationModule } from "@/frameworks/translation/translation.module";
 
 @Module({
   imports: [
@@ -35,6 +37,7 @@ import { ActivityLogWorker } from "./activity-log.worker";
     CvModule,
     UserUseCasesModule,
     RedisModule,
+    TranslationModule,
   ],
   providers: [
     JobMatchingScheduler,
@@ -43,8 +46,7 @@ import { ActivityLogWorker } from "./activity-log.worker";
     TaskWorker,
     ScoreCvWorker,
     EmailWorker,
-    TaskWorker,
-    EmailWorker,
+    TranslationWorker,
     UserScheduler,
     BlogScheduler,
     ActivityLogWorker,

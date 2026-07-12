@@ -1,8 +1,10 @@
+import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 import { GeneralQueryDto } from "@/interfaces/dtos";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsArray,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -10,9 +12,38 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
-  IsEnum,
 } from "class-validator";
-import { BlogPostStatus, BlogSourceType } from "@/core/entities";
+
+export class BlogLocaleContentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  summary?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  content?: string;
+}
+
+export class BlogLocalesDto {
+  @ApiPropertyOptional({ type: BlogLocaleContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocaleContentDto)
+  vi?: BlogLocaleContentDto;
+
+  @ApiPropertyOptional({ type: BlogLocaleContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocaleContentDto)
+  en?: BlogLocaleContentDto;
+}
 
 export class BlogPostTagInputDto {
   @ApiPropertyOptional({ format: "uuid" })
@@ -46,25 +77,37 @@ export class QueryBlogsDto extends GeneralQueryDto {
   status?: BlogPostStatus;
 
   @ApiPropertyOptional({
-    description: "Filter by source type",
+    description:
+      "Filter by source type (ADMIN = manually by admin, AI = AI-generated, CRAWLED = crawled)",
     enum: BlogSourceType,
   })
   @IsOptional()
   @IsEnum(BlogSourceType)
   sourceType?: BlogSourceType;
+
+  @ApiPropertyOptional({
+    description:
+      "Filter by skill IDs (comma-separated UUIDs) — returns posts tagged with any of these skills",
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: string }) =>
+    typeof value === "string" ? value.split(",").filter(Boolean) : value,
+  )
+  skillIds?: string[];
 }
 
 export class CreateBlogPostDto {
-  @ApiPropertyOptional({ format: "uuid" })
-  @IsOptional()
-  @IsUUID("4")
-  postId?: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   title: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
 
   @ApiProperty()
   @IsString()
@@ -101,6 +144,12 @@ export class SaveDraftBlogPostDto {
   @MaxLength(255)
   title?: string;
 
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -135,6 +184,12 @@ export class UpdateBlogPostDto {
   @IsString()
   @MaxLength(255)
   title?: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BlogLocalesDto)
+  locales?: BlogLocalesDto;
 
   @ApiPropertyOptional()
   @IsOptional()

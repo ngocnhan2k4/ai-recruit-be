@@ -125,7 +125,7 @@ export class EmailWorker extends WorkerHost {
       }
     } catch (error) {
       this.logger.error(
-        `[email.worker] [processEmailTask] Failed to process email task of type ${type} with data ${JSON.stringify(
+        `[worker.email] [processEmailTask] Failed to process email task of type ${type} with data ${JSON.stringify(
           data,
         )}. Error: ${error.message}`,
       );

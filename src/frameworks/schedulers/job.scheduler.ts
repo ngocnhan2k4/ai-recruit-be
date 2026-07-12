@@ -20,7 +20,7 @@ export class JobMatchingScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to send job recommendations: ${err.message}`,
+        `[scheduler.job] Failed to send job recommendations: ${err.message}`,
         err.stack,
       );
     }

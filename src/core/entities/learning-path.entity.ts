@@ -5,6 +5,12 @@ import {
   roadmapSkills,
   roadmapSkillOptions,
   weeklyProgress,
+  subpaths,
+  subpathModules,
+  subpathResources,
+  subpathQuizQuestions,
+  optionResourceCompletions,
+  subpathModuleQuizResults,
 } from "@/frameworks/data-services/postgres/models";
 import {
   SkillLevelEnum,
@@ -31,20 +37,7 @@ export type WeeklyProgress = InferSelectModel<typeof weeklyProgress>;
 
 export interface RoadmapSkillOptionWithName extends RoadmapSkillOption {
   optionName: string;
-  proficiencyLevels: {
-    beginner?: {
-      summary: string;
-      criteria: string[];
-    };
-    intermediate?: {
-      summary: string;
-      criteria: string[];
-    };
-    advanced?: {
-      summary: string;
-      criteria: string[];
-    };
-  } | null;
+  hasSubpath: boolean;
 }
 
 export interface SkillLevel {
@@ -60,9 +53,14 @@ export interface Resource {
   isFree: boolean;
 }
 
+export interface GapAnalysisSkillRef {
+  id: string;
+  name: string;
+}
+
 export interface GapAnalysis {
-  missingSkills: string[];
-  skillsToImprove: string[];
+  missingSkills: GapAnalysisSkillRef[];
+  skillsToImprove: GapAnalysisSkillRef[];
   estimatedDifficulty: GapDifficultyEnum;
 }
 
@@ -71,6 +69,7 @@ export interface RoadmapGenerateRequest {
   targetRole: string;
   timeCommitmentHoursPerWeek: number;
   currentSkills?: SkillLevel[];
+  language?: "vi" | "en";
 }
 
 export interface SkillOption {
@@ -138,4 +137,154 @@ export interface AILearningRoadmapResult {
   previewData: PreviewRoadmapData;
   currentSkills: SkillLevel[];
   timeCommitmentHoursPerWeek: number;
+}
+
+export type Subpath = InferSelectModel<typeof subpaths>;
+export type SubpathModule = InferSelectModel<typeof subpathModules>;
+export type SubpathResource = InferSelectModel<typeof subpathResources>;
+export type SubpathQuizQuestion = InferSelectModel<typeof subpathQuizQuestions>;
+export type OptionResourceCompletion = InferSelectModel<
+  typeof optionResourceCompletions
+>;
+export type SubpathModuleQuizResult = InferSelectModel<
+  typeof subpathModuleQuizResults
+>;
+
+export interface SubpathWithDetails extends Subpath {
+  subNodes: Array<
+    SubpathModule & {
+      resources: SubpathResource[];
+      quizQuestions: SubpathQuizQuestion[];
+    }
+  >;
+  completedResourceIds?: string[];
+  masteredModuleIds?: string[];
+}
+
+export interface SubpathGenerateRequest {
+  optionName: string;
+  optionReason?: string;
+  keyConcepts: string[];
+  targetRole: string;
+  currentRole?: string;
+}
+
+export type RoadmapChatIntent =
+  | "add_skill"
+  | "remove_skill"
+  | "add_option"
+  | "remove_option"
+  | "suggest_resource"
+  | "delete_resource"
+  | "remove_module"
+  | "add_module"
+  | "move_skill"
+  | "already_exists"
+  | "rejected"
+  | "general";
+
+export interface RoadmapChatSkillContext {
+  id: string;
+  name: string;
+  phaseId: string;
+  phaseName: string;
+  isCompleted: boolean;
+  options?: Array<{ id: string; optionName: string }>;
+}
+
+export interface RoadmapChatPhaseContext {
+  id: string;
+  name: string;
+  orderIndex: number;
+}
+
+export interface RoadmapChatRequest {
+  message: string;
+  targetRole: string;
+  currentRole?: string;
+  phases: RoadmapChatPhaseContext[];
+  skills: RoadmapChatSkillContext[];
+  language?: string;
+  currentSkillId?: string;
+  currentSkillName?: string;
+  currentModuleResources?: Array<{ id: string; title: string }>;
+  currentSkillOptions?: Array<{ id: string; optionName: string }>;
+  currentModules?: Array<{ id: string; title: string }>;
+}
+
+export interface RoadmapChatProposal {
+  action: string;
+  skillName?: string;
+  phaseId?: string;
+  phaseName?: string;
+  existingSkillId?: string;
+  resources?: Array<{
+    title: string;
+    url: string;
+    type: "video" | "article" | "course" | "docs";
+    isFree?: boolean;
+  }>;
+  resourceId?: string;
+  resourceName?: string;
+  optionName?: string;
+  optionId?: string;
+  moduleId?: string;
+  moduleName?: string;
+  moduleDescription?: string;
+  skillId?: string;
+  targetPhaseId?: string;
+  targetPhaseName?: string;
+}
+
+export interface RoadmapChatResponse {
+  intent: RoadmapChatIntent;
+  reply: string;
+  proposal?: RoadmapChatProposal;
+}
+
+export interface AISubpathResult {
+  title: string;
+  description: string;
+  duration: string;
+  tags: string[];
+  subNodes: Array<{
+    title: string;
+    description: string;
+    duration: string;
+    concepts: string[];
+    orderIndex: number;
+    resources: Array<{
+      title: string;
+      url: string;
+      type: string;
+      description: string;
+      isFree: boolean;
+      orderIndex: number;
+      quickCheck: Array<{
+        question: string;
+        options: string[];
+        correctAnswerIndex: number;
+        explanation: string;
+      }>;
+    }>;
+    quiz: Array<{
+      question: string;
+      options: string[];
+      correctAnswerIndex: number;
+      explanation: string;
+      orderIndex: number;
+    }>;
+  }>;
+}
+
+export interface RoadmapChatMessage {
+  id: string;
+  roadmapId: string;
+  userId: string;
+  role: "user" | "assistant";
+  text: string;
+  intent?: string;
+  proposal?: RoadmapChatProposal;
+  proposalStatus?: "applied" | "dismissed" | null;
+  createdAt: Date;
 }

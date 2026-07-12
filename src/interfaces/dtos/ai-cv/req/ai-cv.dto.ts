@@ -1,5 +1,5 @@
 import { CvLanguageEnum, CvTemplateEnum } from "@/core";
-import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -126,5 +126,3 @@ export class AiCvRequestDto {
   @IsOptional()
   template?: CvTemplateEnum;
 }
-
-export class UpdateAiCvDto extends PartialType(AiCvRequestDto) {}

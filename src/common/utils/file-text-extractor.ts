@@ -54,7 +54,7 @@ export class FileTextExtractor {
       }
 
       return text;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`CV Processing Failed: ${error.message}`);
     }
   }
