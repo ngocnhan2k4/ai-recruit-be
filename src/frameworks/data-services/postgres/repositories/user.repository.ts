@@ -1,61 +1,63 @@
-import { GenericRepository } from "./generic-repository";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import {
-  users,
-  userSkills,
-  userExperiences,
-  userOnboardings,
-  userEducations,
-  skills,
-  userIdentities,
-  subscriptions,
-  userSubscriptions,
-} from "../models";
-import { organizations } from "../models/organization.model";
-import {
-  User,
-  UserProfile,
-  UserCvData,
-  NewUserIdentity,
-  GetAllUserResponse,
-} from "@/core/entities";
-import {
-  ilike,
-  or,
-  eq,
-  isNotNull,
-  isNull,
-  and,
-  sql,
-  SQL,
-  not,
-  arrayOverlaps,
-  gte,
-  lte,
-  countDistinct,
-  asc,
-  inArray,
-} from "drizzle-orm";
-import { PaginatedResult, SortDirection } from "@/common/types";
-import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
-import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
-import { differenceInYears, endOfDay, startOfDay } from "date-fns";
+import { PaginatedResult, SortDirection } from "@/common/types";
 import {
   cacheWithDedup,
   convertDateToStr,
   getFallbackLanguage,
   getRequestLanguage,
 } from "@/common/utils";
+import { buildSort } from "@/common/utils/db";
 import {
   ProviderEnum,
   UserStatusEnum,
   UserSubscriptionStatusEnum,
 } from "@/core";
+import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import {
+  GetAllUserResponse,
+  GetUserQuery,
+  NewUserIdentity,
+  User,
+  UserCvData,
+  UserProfile,
+  UserTrends,
+  UserTrendsQuery,
+} from "@/core/entities";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { Cache } from "cache-manager";
-import { buildSort } from "@/common/utils/db";
+import { differenceInYears, endOfDay, startOfDay } from "date-fns";
+import {
+  and,
+  arrayOverlaps,
+  asc,
+  countDistinct,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  not,
+  or,
+  sql,
+  SQL,
+} from "drizzle-orm";
+import {
+  skills,
+  subscriptions,
+  userEducations,
+  userExperiences,
+  userIdentities,
+  userOnboardings,
+  users,
+  userSkills,
+  userSubscriptions,
+} from "../models";
+import { organizations } from "../models/organization.model";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class UserRepository
@@ -190,8 +192,10 @@ export class UserRepository
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
   ): Promise<void> {
+    const now = new Date();
     const set: Record<string, any> = {
-      updatedAt: new Date(),
+      updatedAt: now,
+      deletedAt: null,
     };
     if (identity.providerUserId !== undefined)
       set.providerUserId = identity.providerUserId;
@@ -202,7 +206,9 @@ export class UserRepository
     if (identity.providerPicture !== undefined)
       set.providerPicture = identity.providerPicture;
 
-    await (tx || this.db)
+    const dbClient = tx || this.db;
+
+    await dbClient
       .insert(userIdentities)
       .values(identity)
       .onConflictDoUpdate({

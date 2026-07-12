@@ -288,10 +288,23 @@ export class AuthUseCases {
     }
 
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
+    const loginMethods = await this.userRepository.getUserLoginMethods(user.id);
+    const otherProviders = loginMethods
+      .filter((m) => m.provider !== user.provider)
+      .map((m) => ({
+        provider: m.provider as any,
+        createdAt: m.createdAt,
+        providerUserId: m.providerUserId ?? null,
+        providerEmail: m.providerEmail ?? null,
+        providerName: m.providerName ?? null,
+        providerPicture: m.providerPicture ?? null,
+      }));
+
     const userDto = GetUserResponseDto.from({
       ...user,
       provider: user.provider as ProviderEnum,
       roles: user.roles as RoleEnum[],
+      otherProviders,
     });
 
     // const customToken = await this.authService.customTokenWithClaims(
