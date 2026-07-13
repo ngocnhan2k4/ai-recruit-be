@@ -163,7 +163,7 @@ export class JobRepository
     if (sortBy === "salary") {
       return direction(this.getAverageSalaryExpr());
     }
-    if (sortBy === "date_posted") {
+    if (sortBy === "datePosted") {
       return direction(this.getEffectivePostedDateExpr());
     }
     return null;
