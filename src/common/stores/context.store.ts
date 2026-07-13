@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "async_hooks";
 export const CONTEXT_KEYS = {
   REQUEST_LANGUAGE: "requestLanguage",
   FALLBACK_LANGUAGE: "fallbackLanguage",
+  REQUEST_ID: "requestId",
 } as const;
 
 const als = new AsyncLocalStorage<Map<string, unknown>>();

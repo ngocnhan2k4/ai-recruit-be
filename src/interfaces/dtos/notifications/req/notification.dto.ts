@@ -1,12 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
-import { IsArray, IsEnum, IsOptional, IsString } from "class-validator";
+import { IsArray, IsEnum, IsOptional, IsString, IsUUID } from "class-validator";
 import { NotiGroupTypeEnum, NotificationStatusEnum } from "@/core";
 
 export class GetNotificationRequestDto extends GeneralQueryDto {
-  @ApiProperty()
+  @ApiProperty({ required: false, format: "uuid" })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   organizationId?: string;
 
   @ApiProperty({
