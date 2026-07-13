@@ -140,6 +140,10 @@ export class EnvironmentVariables {
   ELASTICSEARCH_INDEX_CVS: string;
 
   @IsOptional()
+  @IsString()
+  ELASTICSEARCH_INDEX_EVENT_TRACKING: string;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;

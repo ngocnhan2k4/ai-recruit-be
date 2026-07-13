@@ -142,7 +142,13 @@ export class JobMatchingUseCases {
 
     // Load user's bloom filter to avoid duplicate recommendations
     const bloomKey = `user_seen_jobs:${userId}`;
-    await this.bloomFilterService.loadFromRedis(bloomKey);
+    if (!filters.cursor) {
+      // First page should start fresh so old recommendation history does not
+      // wipe out the entire result set.
+      this.bloomFilterService.clear(bloomKey);
+    } else {
+      await this.bloomFilterService.loadFromRedis(bloomKey);
+    }
 
     const {
       data: rawDocs,
