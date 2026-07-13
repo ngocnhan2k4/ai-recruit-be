@@ -75,7 +75,7 @@ def scrape_job_detail(scraper, card, job_url: str, companies: dict):
         if skill_container:
             skill_links = skill_container.find_all("a")
             for skill_link in skill_links:
-                skill_text = safe_text(skill_link)
+                skill_text = safe_text(skill_link, normalize_camel_case=False)
                 # Filter out provinces and invalid skills
                 if (
                     skill_text
