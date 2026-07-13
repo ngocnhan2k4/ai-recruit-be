@@ -39,7 +39,7 @@ export class NotificationService implements INotificationService {
           ],
         );
 
-      this.sendNotification(notification);
+      await this.sendNotification(notification);
 
       return { success: true, notification };
     } catch (error) {
@@ -70,7 +70,7 @@ export class NotificationService implements INotificationService {
         await this.notificationRepository.upsertAggregatedNotification(params);
 
       if (notification) {
-        this.sendNotification({
+        await this.sendNotification({
           ...notification,
           receiverId: params.recipientId,
         });
@@ -86,7 +86,7 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  sendNotification(notification: Notification): boolean {
+  sendNotification(notification: Notification): Promise<boolean> {
     const sent = this.webSocketGateway.sendToUser(
       {
         userId: notification.receiverId,
@@ -105,6 +105,6 @@ export class NotificationService implements INotificationService {
       );
     }
 
-    return sent;
+    return Promise.resolve(sent);
   }
 }
