@@ -62,7 +62,7 @@ def scrape_job_detail(
     def _collect_itag_skills(container):
         result = []
         for a in container.find_all("a", class_="itag"):
-            t = safe_text(a)
+            t = safe_text(a, normalize_camel_case=False)
             if t and t != "N/A" and t not in locations and not is_likely_province(t):
                 result.append(t)
         return result

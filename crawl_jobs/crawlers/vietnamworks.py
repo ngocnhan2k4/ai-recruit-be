@@ -329,7 +329,7 @@ def _extract_company_name(soup, job_data):
     )
     if header_section:
         for link in header_section.select("a"):
-            text = safe_text(link)
+            text = safe_text(link, normalize_camel_case=False)
             if text and text != "N/A" and 2 < len(text) < 100:
                 return text
 
@@ -421,7 +421,7 @@ def _extract_skills_from_sections(soup, locations):
         sibling = header.find_next_sibling()
         if sibling:
             for item in sibling.select("li")[:10]:
-                skill_text = safe_text(item)
+                skill_text = safe_text(item, normalize_camel_case=False)
                 if len(skill_text) > 50:
                     skill_text = skill_text.split(",")[0].strip()
 
