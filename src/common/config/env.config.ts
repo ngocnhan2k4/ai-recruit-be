@@ -152,6 +152,16 @@ export class EnvironmentVariables {
   CORS_ORIGINS: string[];
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      return !["false", "0", "off", "no"].includes(value.toLowerCase());
+    }
+    return true;
+  })
+  RATE_LIMIT_ENABLED: boolean = true;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   RATE_LIMIT_CAPACITY: number = 60;
