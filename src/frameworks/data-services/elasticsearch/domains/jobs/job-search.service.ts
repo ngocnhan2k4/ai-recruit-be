@@ -487,7 +487,7 @@ export class JobSearchService implements IJobSearchService {
       ];
     }
 
-    if (mappedSortField === "date_posted") {
+    if (mappedSortField === "datePosted") {
       return [
         {
           _script: {

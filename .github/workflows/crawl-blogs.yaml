@@ -12,7 +12,6 @@ jobs:
         env: [dev, prod]
       max-parallel: 1
 
-    environment: ${{ matrix.env }}
     runs-on: ubuntu-latest
 
     steps:
@@ -34,7 +33,7 @@ jobs:
       - name: Run Blog Crawler
         working-directory: ./blog-crawler
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ matrix.env == 'prod' && secrets.PROD_DATABASE_URL || secrets.DEV_DATABASE_URL }}
           DEV_TO_FEED_URL: https://dev.to/feed
           DEFAULT_CATEGORY_NAME: Technology
         run: |

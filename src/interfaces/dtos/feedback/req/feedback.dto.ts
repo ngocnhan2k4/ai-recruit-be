@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateIf,
 } from "class-validator";
 import {
@@ -139,4 +140,14 @@ export class UpdateFeedbackRequestDto {
   )
   @IsUUID()
   assignedToUserId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Optional note included in the resolved email to the user. Not persisted.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  resolutionNote?: string;
 }
