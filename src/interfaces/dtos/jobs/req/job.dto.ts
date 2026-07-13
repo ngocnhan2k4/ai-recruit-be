@@ -18,20 +18,6 @@ import { GeneralQueryDto } from "../../common/query";
 
 export class QueryJobDto extends GeneralQueryDto {
   @ApiProperty({
-    required: false,
-    description: "Sort direction (asc or desc)",
-    default: "desc",
-  })
-  @Transform(({ value }: { value: string }) => {
-    if (!value) return "desc";
-    const val = value.toLowerCase();
-    return val === "asc" || val === "desc" ? val : "desc";
-  })
-  @IsOptional()
-  @IsString()
-  sortDirection?: "asc" | "desc" = "desc";
-
-  @ApiProperty({
     example: 15000000,
     required: false,
     description: "Minimum salary",

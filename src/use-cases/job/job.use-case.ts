@@ -113,11 +113,6 @@ export class JobUseCases {
     filters: JobFilters,
     isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
-    console.log(filters.sortDirection);
-
-    filters.sortBy = filters.sortBy || "datePosted";
-    filters.sortDirection = filters.sortDirection || "desc";
-
     if (filters.cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)
