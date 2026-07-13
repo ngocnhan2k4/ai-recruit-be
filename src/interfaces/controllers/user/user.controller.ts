@@ -28,6 +28,7 @@ import {
   ApiResponseDto,
   CheckUsernameResponseDto,
   UpdateUserRequestDto,
+  UpdatePreferredLanguageRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
   UserPublicResponseDto,
@@ -194,6 +195,20 @@ export class UserController {
     return await this.userUseCases.updateUserProfile(
       user.userId,
       updateUserDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Update preferred language" })
+  @ApiBody({ type: UpdatePreferredLanguageRequestDto })
+  @Patch("preferences/language")
+  async updatePreferredLanguage(
+    @GetUser() user: TokenPayload,
+    @Body() body: UpdatePreferredLanguageRequestDto,
+  ): Promise<ApiResponse<void>> {
+    return this.userUseCases.updatePreferredLanguage(
+      user.userId,
+      body.preferredLanguage,
     );
   }
 

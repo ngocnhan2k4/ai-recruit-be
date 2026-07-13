@@ -23,7 +23,7 @@ inserted_user_subscriptions AS (
   SELECT
     u.id,
     fs.id,
-    'active'::user_subscription_status,
+    'active',
     NOW(),
     NOW(),
     NOW()
@@ -31,7 +31,7 @@ inserted_user_subscriptions AS (
   JOIN free_subscription fs ON TRUE
   LEFT JOIN user_subscriptions us
     ON us.user_id = u.id
-   AND us.status = 'active'::user_subscription_status
+   AND us.status::text = 'active'
    AND us.deleted_at IS NULL
   WHERE u.deleted_at IS NULL
     AND us.user_id IS NULL

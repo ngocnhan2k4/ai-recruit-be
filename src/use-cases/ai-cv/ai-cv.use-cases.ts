@@ -37,6 +37,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
@@ -51,6 +52,7 @@ export class AiCvUseCases {
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
+    private readonly notificationService: INotificationService,
     private readonly messageQueueService: IMessageQueueService,
   ) {}
 
@@ -465,6 +467,8 @@ export class AiCvUseCases {
               title: "CV của bạn đang được tối ưu",
               message:
                 "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              templateKey: "system_cv_generation_pending",
+              templateData: {},
               type: NotificationType.SYSTEM,
               payload: {
                 taskId: task.id,
@@ -479,7 +483,7 @@ export class AiCvUseCases {
       },
     );
 
-    this.webSocketGateway.sendToUser({ userId }, result.notification);
+    await this.notificationService.sendNotification(result.notification);
 
     await retry(
       async () => {

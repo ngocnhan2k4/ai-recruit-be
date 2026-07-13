@@ -21,8 +21,13 @@ export abstract class INotificationService {
     type: NotificationType;
     title: string;
     buildMessage: (actorNames: string[], actorCount: number) => string;
+    templateKey?: string;
+    buildTemplateData?: (
+      actorNames: string[],
+      actorCount: number,
+    ) => Record<string, any>;
     payload: Record<string, any>;
   }): Promise<{ success: boolean }>;
 
-  abstract sendNotification(notification: Notification): boolean;
+  abstract sendNotification(notification: Notification): Promise<boolean>;
 }

@@ -125,6 +125,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
+    displayLanguage?: string | null;
     task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
     sender?: {
       name?: string | null;

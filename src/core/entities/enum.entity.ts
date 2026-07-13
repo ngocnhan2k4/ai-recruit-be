@@ -57,7 +57,7 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
-  ORGANIZATION_INVITED = "organization_invited",
+  ORGANIZATION_INVITATION = "organization_invitation",
   SYSTEM = "system",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   BLOG_COMMENT = "blog_comment",

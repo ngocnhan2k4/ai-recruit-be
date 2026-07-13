@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -29,6 +30,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
+  SUPPORTED_LANGUAGE_CODES,
   USER_FOLDER,
 } from "@/common/constants";
 import {
@@ -66,7 +68,10 @@ import { buildDeletedEmail } from "@/common/utils";
 import { buildDeletedPhone } from "@/common/utils";
 import { buildDeletedFirebaseUid } from "@/common/utils";
 import { getRequestLanguage, normalizeLanguageCode } from "@/common/utils";
+import { parseSupportedLanguageCode } from "@/common/utils";
 import { ConfigService } from "@nestjs/config/dist/config.service";
+
+type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -413,6 +418,7 @@ export class UserUseCases implements OnModuleInit {
       }
       response.email = user.email || null;
       response.phone = user.phone || null;
+      response.preferredLanguage = user.preferredLanguage || "vi";
     }
 
     return {
@@ -443,11 +449,31 @@ export class UserUseCases implements OnModuleInit {
       experienceYears,
       currentGoal,
       skills,
+      preferredLanguage,
       ...userUpdateData
     } = updateUserDto;
 
+    let normalizedPreferredLanguage: SupportedLanguageCode | undefined;
+    if (preferredLanguage !== undefined) {
+      const parsedPreferredLanguage =
+        parseSupportedLanguageCode(preferredLanguage);
+      if (!parsedPreferredLanguage) {
+        throw new BadRequestException({
+          message: "Unsupported preferred language",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+      normalizedPreferredLanguage =
+        parsedPreferredLanguage as SupportedLanguageCode;
+    }
+
     const normalizedUserUpdateData = {
       ...userUpdateData,
+      ...(preferredLanguage !== undefined
+        ? {
+            preferredLanguage: normalizedPreferredLanguage,
+          }
+        : {}),
       ...(userUpdateData.dob !== undefined
         ? { dob: userUpdateData.dob || null }
         : {}),
@@ -536,6 +562,39 @@ export class UserUseCases implements OnModuleInit {
       }
       throw error;
     }
+  }
+
+  async updatePreferredLanguage(
+    userId: string,
+    preferredLanguage: string,
+  ): Promise<ApiResponse<void>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
+    }
+
+    const normalized = parseSupportedLanguageCode(preferredLanguage);
+    if (!normalized) {
+      throw new BadRequestException({
+        message: "Unsupported preferred language",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    await this.userRepository.update(
+      { id: userId },
+      {
+        preferredLanguage: normalized as SupportedLanguageCode,
+      },
+    );
+
+    return {
+      message: "Preferred language updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 
   async getUserExperiences(

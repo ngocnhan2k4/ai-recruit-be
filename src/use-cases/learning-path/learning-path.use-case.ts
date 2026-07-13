@@ -19,6 +19,7 @@ import {
   IOptionResourceCompletionRepository,
   ISubpathModuleQuizResultRepository,
 } from "@/core/abstracts";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAIService } from "@/core/abstracts/ai-services.abstract";
 import {
@@ -63,6 +64,7 @@ export class LearningPathUseCase {
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
+    private readonly notificationService: INotificationService,
     private readonly messageQueueService: IMessageQueueService,
     private readonly featureService: IFeatureService,
     private readonly skillNoteRepository: ISkillNoteRepository,
@@ -259,6 +261,8 @@ export class LearningPathUseCase {
               title: `Lộ trình học tập cho vai trò ${request.targetRole}`,
               message:
                 "Đang tạo lộ trình học tập dựa trên vai trò mục tiêu của bạn. Vui lòng chờ trong giây lát!",
+              templateKey: "system_learning_path_pending",
+              templateData: {},
               type: NotificationType.SYSTEM,
               payload: {
                 taskId: task.id,
@@ -274,7 +278,7 @@ export class LearningPathUseCase {
     );
 
     // Emit the created notification once (only notification record)
-    this.webSocketGateway.sendToUser({ userId }, result.notification);
+    await this.notificationService.sendNotification(result.notification);
 
     // [TODO] Implement outbox pattern to ensure message queue is reliable
     await retry(
