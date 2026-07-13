@@ -111,6 +111,7 @@ export class EmailWorker extends WorkerHost {
             feedbackResolved.to,
             feedbackResolved.recipientName ?? "bạn",
             feedbackResolved.feedbackSubject,
+            feedbackResolved.resolutionNote,
           );
 
           this.logger.log(
