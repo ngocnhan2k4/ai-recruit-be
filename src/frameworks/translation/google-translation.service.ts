@@ -3,6 +3,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AxiosError, AxiosResponse } from "axios";
 import { firstValueFrom, map, retry, timeout } from "rxjs";
+import {
+  extractExternalErrorInfo,
+  wrapExternalError,
+} from "@/common/utils/external-error";
 
 interface GoogleTranslateApiResponse {
   data: {
@@ -106,8 +110,10 @@ export class GoogleTranslationService {
       const googleMessage = axiosError.response?.data?.error?.message;
       const message = googleMessage || axiosError.message || "Unknown error";
 
-      this.logger.error(`Google Translate API failed: ${message}`);
-      throw new Error(`Google Translate API failed: ${message}`);
+      this.logger.error(
+        `Google Translate API failed: ${message} | externalError=${JSON.stringify(extractExternalErrorInfo(error))}`,
+      );
+      throw wrapExternalError(`Google Translate API failed: ${message}`, error);
     }
   }
 }

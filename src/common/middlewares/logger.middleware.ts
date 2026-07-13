@@ -1,26 +1,38 @@
 import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { FastifyReply, FastifyRequest } from "fastify";
+import {
+  REQUEST_ID_HEADER,
+  createRequestId,
+  serializeRequestPayload,
+  setResponseHeader,
+} from "@/common/utils/request-log";
+
+type RequestWithMeta = FastifyRequest & { requestId?: string };
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
   private readonly logger = new Logger(LoggerMiddleware.name);
 
-  constructor(private readonly configService: ConfigService) {}
-
-  use(req: FastifyRequest, res: FastifyReply, next: () => void) {
+  use(req: RequestWithMeta, res: FastifyReply, next: () => void) {
     req["startTime"] = performance.now();
 
-    let bodyMsg: string = "";
-    const { method, originalUrl, body } = req;
-    if (
-      Object.keys((body || {}) as Record<string, any>).length > 0 &&
-      this.configService.get<string>("NODE_ENV") === "local"
-    ) {
-      bodyMsg = `-> BODY: ${JSON.stringify(body)}`;
-      console.log("bodyMsg", bodyMsg);
-    }
-    this.logger.log(`${method} ${originalUrl} ${bodyMsg || ""}`);
+    const requestId =
+      req.requestId || createRequestId(req.headers[REQUEST_ID_HEADER]);
+    req.requestId = requestId;
+    setResponseHeader(res, REQUEST_ID_HEADER, requestId);
+
+    const { method, originalUrl } = req;
+    const body = serializeRequestPayload(req.body);
+    const query = serializeRequestPayload(req.query);
+
+    const parts = [
+      method,
+      originalUrl,
+      query ? `query=${query}` : null,
+      body ? `body=${body}` : null,
+    ].filter(Boolean);
+
+    this.logger.log(parts.join(" "));
 
     next();
   }
