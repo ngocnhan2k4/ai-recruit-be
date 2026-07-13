@@ -171,6 +171,7 @@ export class AIClientService implements IAIService {
       body: request,
       errorContext: "AI Service roadmap generation failed",
       timeoutMs: this.aiServiceTimeout * 5,
+      retryCount: 0,
     });
   }
 
@@ -269,12 +270,14 @@ export class AIClientService implements IAIService {
     body: TRequest;
     errorContext: string;
     timeoutMs?: number;
+    retryCount?: number;
   }): Promise<TResponse> {
     const {
       url,
       body,
       errorContext,
       timeoutMs = this.aiServiceTimeout,
+      retryCount = this.maxRetries,
     } = params;
 
     return firstValueFrom(
@@ -288,7 +291,7 @@ export class AIClientService implements IAIService {
         .pipe(
           timeout(timeoutMs),
           retry({
-            count: this.maxRetries,
+            count: retryCount,
             delay: (_, retryCount) => {
               const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
               return new Promise((resolve) => setTimeout(resolve, delayMs));

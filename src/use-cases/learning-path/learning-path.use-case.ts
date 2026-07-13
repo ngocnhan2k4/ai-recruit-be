@@ -304,6 +304,7 @@ export class LearningPathUseCase {
           },
           {
             jobId: `task-async-${result.task.id}`,
+            attempts: 1,
           },
         );
         this.logger.log(

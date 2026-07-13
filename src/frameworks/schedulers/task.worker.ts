@@ -625,16 +625,18 @@ export class TaskWorker extends WorkerHost {
     data: TaskData,
     options?: { attemptsMade?: number; maxAttempts?: number },
   ) {
+    const isFinalAttempt =
+      (options?.attemptsMade ?? 0) + 1 >= (options?.maxAttempts ?? 1);
+
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.LEARNING_PATH_GENERATION,
       {
         inProgress: "Đang tạo lộ trình học tập của bạn...",
         completed: "Lộ trình học tập của bạn đã sẵn sàng.",
-        failed:
-          options?.attemptsMade === options?.maxAttempts
-            ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
-            : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
+        failed: isFinalAttempt
+          ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
+          : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
       },
       async (task, request: PreviewRoadmapDto) => {
         const sourceLanguage =
