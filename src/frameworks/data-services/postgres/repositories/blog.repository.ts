@@ -57,6 +57,7 @@ const resolveSortExpr = (sortBy?: string): SQL => {
     case "viewCount":
       return sql`${blogPosts.viewCount}`;
     case "createdAt":
+      return sql`${blogPosts.createdAt}`;
     default:
       return sql`${blogPosts.updatedAt}`;
   }
@@ -391,13 +392,20 @@ export class BlogRepository
   private buildPostWhere(
     filters: Pick<
       BlogPostFilters,
-      "keyword" | "category" | "status" | "excludeStatus" | "sourceType"
+      | "keyword"
+      | "category"
+      | "status"
+      | "excludeStatus"
+      | "sourceType"
+      | "skillIds"
     >,
   ) {
     const conditions: SQL[] = [isNull(blogPosts.deletedAt)];
 
     if (filters.keyword) {
-      conditions.push(ilike(blogPosts.title, `%${filters.keyword}%`));
+      conditions.push(
+        sql`unaccent(${blogPosts.title}) ILIKE unaccent(${"%" + filters.keyword + "%"})`,
+      );
     }
 
     if (filters.category) {
@@ -414,6 +422,19 @@ export class BlogRepository
 
     if (filters.sourceType) {
       conditions.push(eq(blogPosts.sourceType, filters.sourceType));
+    }
+
+    if (filters.skillIds && filters.skillIds.length > 0) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${blogPostTags}
+          WHERE ${blogPostTags.postId} = ${blogPosts.id}
+          AND ${blogPostTags.skillId} = ANY(ARRAY[${sql.join(
+            filters.skillIds.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )}])
+        )`,
+      );
     }
 
     return and(...conditions);
@@ -460,6 +481,7 @@ export class BlogRepository
     const limit = Math.min(filters.limit ?? 10, 50);
     const page = Math.max(filters.page ?? 1, 1);
     const offset = (page - 1) * limit;
+
     const orderBy = buildOrderBy(filters.sortBy, filters.sortDirection);
 
     const [rows, totalRows] = await Promise.all([

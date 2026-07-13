@@ -147,23 +147,10 @@ export class AiCvController {
   @Get(":id")
   async getAiCvById(
     @Param("id") aiCvId: string,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<AiCvDto>> {
-    return this.aiCvUseCases.getAiCvById(aiCvId);
+    return this.aiCvUseCases.getAiCvById(aiCvId, user.userId);
   }
-
-  // @ApiOperation({
-  //   summary: "Create new AI CV",
-  //   description: "Save a new AI-generated CV",
-  // })
-  // @ApiBody({ type: AiCvRequestDto })
-  // @ApiResponseDto(AiCvDto)
-  // @Post()
-  // async createAiCv(
-  //   @GetUser() user: TokenPayload,
-  //   @Body() createAiCvDto: AiCvRequestDto,
-  // ) {
-  //   return this.aiCvUseCases.createAiCv(user.userId, createAiCvDto);
-  // }
 
   @ApiOperation({
     summary: "Update AI CV",

@@ -259,10 +259,13 @@ export class AiCvUseCases {
     };
   }
 
-  async getAiCvById(aiCvId: string): Promise<ApiResponse<AiCvDto>> {
+  async getAiCvById(
+    aiCvId: string,
+    userId: string,
+  ): Promise<ApiResponse<AiCvDto>> {
     this.logger.log(`[getAiCvById] [get] Getting AI CV by id ${aiCvId}`);
     const aiCv = await this.aiCvRepository.get(aiCvId);
-    if (!aiCv) {
+    if (!aiCv || aiCv.userId !== userId) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
         code: RESPONSE_CODE.AI_CV_NOT_FOUND,
@@ -281,36 +284,6 @@ export class AiCvUseCases {
       data: aiCvDto,
     };
   }
-
-  // async createAiCv(
-  //   userId: string,
-  //   createAiCvDto: AiCvRequestDto,
-  // ): Promise<ApiResponse<AiCvDto>> {
-  //   const aiCvData: NewAiCv = {
-  //     ...createAiCvDto,
-  //     userId: userId,
-  //     isFavorite: createAiCvDto.isFavorite ?? false,
-  //     language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
-  //     template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
-  //   };
-
-  //   const newAiCv = await this.aiCvRepository.create(aiCvData);
-
-  //   const transformedAiCv: AiCvDto = {
-  //     ...newAiCv,
-  //     cvData: newAiCv.cvData as OptimizedCvDataDto,
-  //     language: newAiCv.language as CvLanguageEnum,
-  //     template: newAiCv.template as CvTemplateEnum,
-  //     createdAt: new Date(newAiCv.createdAt),
-  //     updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
-  //   };
-
-  //   return {
-  //     message: RESPONSE_MESSAGE.SUCCESS,
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: transformedAiCv,
-  //   };
-  // }
 
   async updateAiCv(
     userId: string,

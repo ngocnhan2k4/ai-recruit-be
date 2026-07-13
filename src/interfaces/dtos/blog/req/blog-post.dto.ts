@@ -1,7 +1,7 @@
 import { BlogPostStatus, BlogSourceType } from "@/core/entities";
 import { GeneralQueryDto } from "@/interfaces/dtos";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsArray,
   IsEnum,
@@ -84,6 +84,16 @@ export class QueryBlogsDto extends GeneralQueryDto {
   @IsOptional()
   @IsEnum(BlogSourceType)
   sourceType?: BlogSourceType;
+
+  @ApiPropertyOptional({
+    description:
+      "Filter by skill IDs (comma-separated UUIDs) — returns posts tagged with any of these skills",
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: string }) =>
+    typeof value === "string" ? value.split(",").filter(Boolean) : value,
+  )
+  skillIds?: string[];
 }
 
 export class CreateBlogPostDto {

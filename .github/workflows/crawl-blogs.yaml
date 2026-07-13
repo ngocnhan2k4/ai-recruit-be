@@ -12,7 +12,6 @@ jobs:
         env: [dev, prod]
       max-parallel: 1
 
-    environment: ${{ matrix.env }}
     runs-on: ubuntu-latest
 
     steps:
@@ -22,19 +21,19 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
-          cache-dependency-path: ai-recruit-be/blog-crawler/package-lock.json
+          cache-dependency-path: blog-crawler/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./ai-recruit-be/blog-crawler
+        working-directory: ./blog-crawler
         run: |
           npm ci
 
       - name: Run Blog Crawler
-        working-directory: ./ai-recruit-be/blog-crawler
+        working-directory: ./blog-crawler
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ matrix.env == 'prod' && secrets.PROD_DATABASE_URL || secrets.DEV_DATABASE_URL }}
           DEV_TO_FEED_URL: https://dev.to/feed
           DEFAULT_CATEGORY_NAME: Technology
         run: |

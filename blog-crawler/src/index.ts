@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
+import { DevToAdapter } from "./adapters/dev-to.adapter";
 import { Database } from "./database/db";
 import { BlogCrawlerService } from "./services/blog-crawler.service";
-import { DevToAdapter } from "./adapters/dev-to.adapter";
 import { LocalTagNormalizer } from "./strategies/local-tag-normalizer.strategy";
 
 dotenv.config();
@@ -15,12 +15,16 @@ async function run() {
 
   try {
     await crawlerService.syncAll();
-    console.log("Synchronized successfully");
+    console.log("Blog crawler synchronized successfully");
   } catch (error) {
     console.error("Execution failed:", error);
+    process.exit(1);
   } finally {
     await db.close();
   }
 }
 
-run();
+run().catch((error) => {
+  console.error("Unhandled execution error:", error);
+  process.exit(1);
+});
