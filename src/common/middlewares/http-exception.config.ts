@@ -129,7 +129,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
     this.logger.error(
-      `${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
+      `API Error: ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
     );
 
     Sentry.setTag("requestId", requestId);
