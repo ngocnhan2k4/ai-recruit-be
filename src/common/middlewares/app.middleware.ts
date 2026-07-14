@@ -8,8 +8,6 @@ import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-import { LoggerMiddleware } from "./logger.middleware";
-
 export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
   app.register(fastifyCors, {
@@ -33,10 +31,6 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
     },
   };
   app.register(fastifyMultipart, multipartOptions);
-
-  // Add logger middleware
-  const loggerMiddleware = new LoggerMiddleware();
-  app.use(loggerMiddleware.use.bind(loggerMiddleware));
 
   app.useGlobalPipes(
     new ValidationPipe({

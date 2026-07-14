@@ -4,7 +4,7 @@ import { Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common";
 import type { ArgumentsHost } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
-import { RESPONSE_CODE } from "@/common/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "@/common/config";
 import { DrizzleQueryError } from "drizzle-orm";
@@ -17,6 +17,8 @@ import {
 } from "@/common/utils/db-error";
 import {
   REQUEST_ID_HEADER,
+  serializeRequestCookies,
+  serializeRequestHeaders,
   serializeRequestPayload,
   setResponseHeader,
   truncateStack,
@@ -28,6 +30,7 @@ type RequestWithMeta = FastifyRequest & {
   requestId?: string;
   user?: { sub?: string; userId?: string };
   params?: Record<string, unknown>;
+  cookies?: Record<string, unknown>;
 };
 
 @Catch()
@@ -58,6 +61,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const query = serializeRequestPayload(request.query);
     const params = serializeRequestPayload(request.params);
     const body = serializeRequestPayload(request.body);
+    const headers = serializeRequestHeaders(
+      request.headers as Record<string, unknown>,
+    );
+    const cookies = serializeRequestCookies(request.cookies);
 
     const name = (exception as Error)?.name ?? "Error";
     let resContent: ApiResponse<any>;
@@ -79,12 +86,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof DrizzleQueryError ||
       isDbQueryError(exception)
     ) {
-      code = RESPONSE_CODE.BAD_REQUEST;
+      code = RESPONSE_CODE.SERVER_ERROR;
       message = formatDbErrorMessage(exception);
       dbErrorInfo = extractDbErrorInfo(exception);
 
       resContent = {
-        message: message,
+        message: RESPONSE_MESSAGE.SERVER_ERROR,
         code: code,
       };
     } else {
@@ -118,6 +125,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       query,
       params,
       body,
+      headers,
+      cookies,
+      ip: request.ip,
       stack,
       causeStack,
       ...(dbErrorInfo?.params
@@ -129,7 +139,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
     this.logger.error(
-      `${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
+      `API Error: ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
     );
 
     Sentry.setTag("requestId", requestId);
@@ -142,6 +152,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       query,
       params,
       body,
+      headers,
+      cookies,
+      ip: request.ip,
     });
     if (dbErrorInfo) {
       Sentry.setContext("dbError", dbErrorInfo);

@@ -18,6 +18,7 @@ import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
 import { type FastifyRequest, type FastifyReply } from "fastify";
 import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import { ConfigService } from "@nestjs/config";
+import { Environment } from "@/common/config";
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
@@ -51,8 +52,11 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Set to true in production with HTTPS
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically in dev
     });
@@ -92,8 +96,11 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.refreshToken, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Set to true in production with HTTPS
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically
     });
@@ -126,8 +133,11 @@ export class AuthController {
     }
     res.clearCookie(REFRESH_TOKEN, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Must match the original cookie settings
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Must match the original cookie settings
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Must match the original cookie settings
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Must match the original cookie settings
       path: "/",
       domain: undefined, // Must match the original cookie settings
     });

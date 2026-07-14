@@ -11,10 +11,18 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { Observable, tap } from "rxjs";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "../config/env.config";
-import { REQUEST_ID_HEADER } from "@/common/utils/request-log";
-import { getRequestId } from "../utils";
+import {
+  REQUEST_ID_HEADER,
+  serializeRequestCookies,
+  serializeRequestHeaders,
+  serializeRequestPayload,
+} from "@/common/utils/request-log";
+import { getRequestId, getRequestStartTime } from "../utils";
 
-type RequestWithMeta = FastifyRequest & { requestId?: string };
+type RequestWithMeta = FastifyRequest & {
+  requestId?: string;
+  cookies?: Record<string, unknown>;
+};
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -37,12 +45,14 @@ export class LoggingInterceptor implements NestInterceptor {
     const req = ctx.getRequest<RequestWithMeta>();
     const res = ctx.getResponse<FastifyReply>();
     const { method, originalUrl } = req;
-    const start = req.raw["startTime"] ?? performance.now();
+    const start = getRequestStartTime() ?? performance.now();
     const requestId =
       getRequestId() ||
       req.requestId ||
       (req.headers[REQUEST_ID_HEADER] as string | undefined) ||
       "-";
+
+    this.logIncoming(req);
 
     return next.handle().pipe(
       tap({
@@ -63,6 +73,26 @@ export class LoggingInterceptor implements NestInterceptor {
         },
       }),
     );
+  }
+
+  private logIncoming(req: RequestWithMeta): void {
+    const serializedQuery = serializeRequestPayload(req.query);
+    const serializedBody = serializeRequestPayload(req.body);
+    const serializedHeaders = serializeRequestHeaders(
+      req.headers as Record<string, unknown>,
+    );
+    const serializedCookies = serializeRequestCookies(req.cookies);
+    const parts = [
+      "[INFO] API Request:",
+      req.method,
+      req.originalUrl,
+      serializedQuery ? `query=${serializedQuery}` : null,
+      serializedBody ? `body=${serializedBody}` : null,
+      serializedHeaders ? `headers=${serializedHeaders}` : null,
+      serializedCookies ? `cookies=${serializedCookies}` : null,
+    ].filter(Boolean);
+
+    this.logger.log(parts.join(" "));
   }
 
   private logRequest(
