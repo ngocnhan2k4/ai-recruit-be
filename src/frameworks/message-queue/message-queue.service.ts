@@ -12,6 +12,8 @@ import { JobsOptions, Queue, FlowProducer } from "bullmq";
 import { InjectFlowProducer, InjectQueue } from "@nestjs/bullmq";
 import { CvEventType } from "@/core";
 import { TASK_EVENT } from "@/common/constants";
+import { withQueueTrace } from "@/common/utils/job-context";
+
 @Injectable()
 export class MessageQueueService implements IMessageQueueService {
   constructor(
@@ -26,7 +28,7 @@ export class MessageQueueService implements IMessageQueueService {
   ) {}
 
   async addJob(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueJob.add(name, data, {
+    await this.queueJob.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 3,
@@ -39,7 +41,7 @@ export class MessageQueueService implements IMessageQueueService {
   }
 
   async addTask(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueTask.add(name, data, {
+    await this.queueTask.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 3,
@@ -52,7 +54,7 @@ export class MessageQueueService implements IMessageQueueService {
   }
 
   async addEmail(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueEmail.add(name, data, {
+    await this.queueEmail.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       ...opts,
@@ -60,7 +62,7 @@ export class MessageQueueService implements IMessageQueueService {
   }
 
   async addTranslation(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueTranslation.add(name, data, {
+    await this.queueTranslation.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 3,
@@ -73,7 +75,7 @@ export class MessageQueueService implements IMessageQueueService {
   }
 
   async addCv(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueCv.add(name, data, {
+    await this.queueCv.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 3,
@@ -86,7 +88,7 @@ export class MessageQueueService implements IMessageQueueService {
   }
 
   async addScoreCv(name: string, data: any, opts?: any): Promise<void> {
-    await this.queueScoreCv.add(name, data, {
+    await this.queueScoreCv.add(name, withQueueTrace(data), {
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 3,
@@ -105,7 +107,7 @@ export class MessageQueueService implements IMessageQueueService {
     await this.flowProducer.add({
       name: TASK_EVENT.SCORE_CV_APPLY,
       queueName: SCORE_CV_QUEUE,
-      data: scoreData,
+      data: withQueueTrace(scoreData),
       opts: {
         removeOnComplete: true,
         removeOnFail: false,
@@ -116,7 +118,7 @@ export class MessageQueueService implements IMessageQueueService {
         {
           name: CvEventType.UPSERT_CV,
           queueName: CV_INDEX_QUEUE,
-          data: cvData,
+          data: withQueueTrace(cvData),
           opts: {
             removeOnComplete: true,
             removeOnFail: false,

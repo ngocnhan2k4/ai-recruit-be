@@ -159,24 +159,11 @@ export class LearningRoadmapRepository
                 )
             : [];
 
-        // Batch fetch skill names for all optionIds
-        const optionIds = [...new Set(allOptions.map((o) => o.optionId))];
-        const skillNameMap = new Map<string, string>();
-        if (optionIds.length > 0) {
-          const skillRows = await this.db
-            .select({ id: skills.id, name: skills.name })
-            .from(skills)
-            .where(inArray(skills.id, optionIds));
-          for (const row of skillRows) skillNameMap.set(row.id, row.name);
-        }
-
         // Batch check which (optionName, targetRole, currentRole) tuples have subpaths
         const targetRole = roadmap[0].targetRole;
         const currentRole = roadmap[0].currentRole ?? "";
         const allOptionNames = [
-          ...new Set(
-            allOptions.map((o) => skillNameMap.get(o.optionId) ?? o.optionId),
-          ),
+          ...new Set(allOptions.map((o) => o.optionName || o.optionId)),
         ];
         const existingSubpathNames = new Set<string>();
         if (allOptionNames.length > 0) {
@@ -206,8 +193,7 @@ export class LearningRoadmapRepository
         const skillsWithOptions = phaseSkills.map((skill) => {
           const options = optionsBySkill.get(skill.id) ?? [];
           const enrichedOptions = options.map((option) => {
-            const optionName =
-              skillNameMap.get(option.optionId) ?? option.optionId;
+            const optionName = option.optionName || option.optionId;
             return {
               ...option,
               optionName,
@@ -273,29 +259,31 @@ export class LearningRoadmapRepository
 
     const totalSkills = allSkills.length;
 
-    // For each skill, check if any option has been completed
-    const completedSkillsCount: number[] = await Promise.all(
-      allSkills.map(async (skillRow) => {
-        const skill = skillRow.roadmap_skills;
-        const completedOptions = await this.db
-          .select()
-          .from(roadmapSkillOptions)
-          .where(
-            and(
-              eq(roadmapSkillOptions.roadmapSkillId, skill.id),
-              isNull(roadmapSkillOptions.deletedAt),
-            ),
-          );
+    // Batch fetch all options for all skills in one query
+    const skillIds = allSkills.map((r) => r.roadmap_skills.id);
+    const allOptions =
+      skillIds.length > 0
+        ? await this.db
+            .select({
+              roadmapSkillId: roadmapSkillOptions.roadmapSkillId,
+              completedAt: roadmapSkillOptions.completedAt,
+            })
+            .from(roadmapSkillOptions)
+            .where(
+              and(
+                inArray(roadmapSkillOptions.roadmapSkillId, skillIds),
+                isNull(roadmapSkillOptions.deletedAt),
+              ),
+            )
+        : [];
 
-        // Skill is completed if any option is completed
-        return completedOptions.some((opt) => opt.completedAt !== null) ? 1 : 0;
-      }),
+    // Skill is completed if at least one of its options has completedAt set
+    const completedSkillIds = new Set(
+      allOptions
+        .filter((o) => o.completedAt !== null)
+        .map((o) => o.roadmapSkillId),
     );
-
-    const completedSkills = completedSkillsCount.reduce<number>(
-      (sum, count) => sum + count,
-      0,
-    );
+    const completedSkills = completedSkillIds.size;
 
     const overallProgress =
       totalSkills > 0 ? (completedSkills / totalSkills) * 100 : 0;
@@ -348,22 +336,18 @@ export class LearningRoadmapRepository
       return [];
     }
 
-    const enriched = await Promise.all(
-      currentSkills.map(async (cs) => {
-        const skillResult = await this.db
-          .select({ name: skills.name })
-          .from(skills)
-          .where(eq(skills.id, cs.skillId))
-          .limit(1);
+    const skillIds = currentSkills.map((cs) => cs.skillId);
+    const skillRows = await this.db
+      .select({ id: skills.id, name: skills.name })
+      .from(skills)
+      .where(inArray(skills.id, skillIds));
 
-        return {
-          ...cs,
-          skillName: skillResult[0]?.name || "",
-        };
-      }),
-    );
+    const nameMap = new Map(skillRows.map((r) => [r.id, r.name]));
 
-    return enriched;
+    return currentSkills.map((cs) => ({
+      ...cs,
+      skillName: nameMap.get(cs.skillId) ?? "",
+    }));
   }
 
   private async getRoadmapPhaseTranslationsMap(

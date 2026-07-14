@@ -19,3 +19,9 @@ export const getRequestLanguage = (): string =>
 export const getFallbackLanguage = (): string =>
   (getContext(CONTEXT_KEYS.FALLBACK_LANGUAGE) as string | undefined) ??
   DEFAULT_LANGUAGE_CODE;
+
+export const getRequestId = (): string | undefined =>
+  getContext(CONTEXT_KEYS.REQUEST_ID) as string | undefined;
+
+export const getRequestStartTime = (): number | undefined =>
+  getContext(CONTEXT_KEYS.START_TIME) as number | undefined;

@@ -1,6 +1,7 @@
 // IMPORTANT: instrument.ts must be imported before everything else so Sentry
 // can instrument all modules (NestJS, database, HTTP, etc.) at startup.
 import "./instrument";
+import * as Sentry from "@sentry/nestjs";
 import * as dns from "dns";
 dns.setDefaultResultOrder("ipv4first");
 
@@ -14,6 +15,7 @@ import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
 import { loadVaultIntoEnv } from "./common/config";
+import { RequestContextLogger } from "./common/logger/request-context.logger";
 
 async function bootstrap() {
   await loadVaultIntoEnv();
@@ -23,18 +25,12 @@ async function bootstrap() {
     new FastifyAdapter({
       maxParamLength: 256,
     }),
+    {
+      logger: new RequestContextLogger(),
+    },
   );
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
-
-  try {
-    // app.get will return the provider instance if it is available in DI
-    // Note: if the provider is not yet available this will throw; we catch
-    // and ignore to fallback to console logging.
-    // globalLoggerService = app.get(LoggerService);
-  } catch (e) {
-    logger.error("[main] [bootstrap] Failed to get LoggerService", e);
-  }
 
   enableAppMiddleware(app);
   enableSwaggerDoc(app);
@@ -56,32 +52,10 @@ process.on("uncaughtException", (error) => {
   handleError("uncaughtException", error);
 });
 
-// let globalLoggerService: LoggerService | null = null;
-
-function handleError(type: string, error: any) {
-  console.log("[main] error crash server:", type, error);
-  // try {
-  //   if (globalLoggerService) {
-  //     globalLoggerService
-  //       .logError({
-  //         type,
-  //         content: JSON.stringify(error),
-  //         note: "It caused server crashes",
-  //       })
-  //       .catch((e) =>
-  //         console.error(
-  //           "[main] [handleError]",
-  //           "Failed to send error to logger service",
-  //           e,
-  //         ),
-  //       );
-  //   } else {
-  //     console.error("[main] [handleError]", type, error);
-  //   }
-  // } catch (e) {
-  //   // As a last resort, print to stderr
-  //   console.error("[main] [handleError]", type, error);
-  //   console.error("[main] [handleError] Error while handling error:", e);
-  // }
+function handleError(type: string, error: unknown) {
+  console.error(`[main] fatal ${type}:`, error);
+  Sentry.captureException(error, { tags: { fatal: type } });
+  // Give Sentry a moment to flush before the process may exit.
+  void Sentry.flush(2000);
 }
 bootstrap();

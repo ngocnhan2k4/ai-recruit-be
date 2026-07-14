@@ -25,6 +25,23 @@
       đã được đội ngũ của chúng tôi xử lý xong. Cảm ơn bạn đã dành thời gian gửi phản hồi, điều đó giúp chúng tôi cải thiện dịch vụ tốt hơn mỗi ngày.
     </p>
 
+    {{#if resolutionNote}}
+    <div
+      style="margin: 20px 0; padding: 16px; background-color: #f8f9fa; border-left: 4px solid #4CAF50; border-radius: 4px;"
+    >
+      <p
+        style="color: #333; font-weight: 600; margin: 0 0 8px 0; font-size: 14px;"
+      >
+        Ghi chú từ đội ngũ hỗ trợ:
+      </p>
+      <p
+        style="color: #555; line-height: 1.6; margin: 0; white-space: pre-wrap;"
+      >
+        {{resolutionNote}}
+      </p>
+    </div>
+    {{/if}}
+
     <p style="color: #555; line-height: 1.6;">
       Bạn có thể quay lại trang web của chúng tôi để tiếp tục trải nghiệm.
     </p>

@@ -29,8 +29,8 @@ def scrape_job_detail(
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    job_title = safe_text(soup.find("h1"))
-    company_name = safe_text(soup.select_one(".employer-name"))
+    job_title = safe_text(soup.find("h1"), normalize_camel_case=False)
+    company_name = safe_text(soup.select_one(".employer-name"), normalize_camel_case=False)
 
     logo_tag = soup.find("img", class_="employer-logo")
     logo = (
@@ -62,7 +62,7 @@ def scrape_job_detail(
     def _collect_itag_skills(container):
         result = []
         for a in container.find_all("a", class_="itag"):
-            t = safe_text(a)
+            t = safe_text(a, normalize_camel_case=False)
             if t and t != "N/A" and t not in locations and not is_likely_province(t):
                 result.append(t)
         return result

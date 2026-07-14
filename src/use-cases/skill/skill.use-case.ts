@@ -1,5 +1,11 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { ISkillRepository, ISkillsSynonymsRepository, Skill } from "@/core";
+import {
+  ISkillRepository,
+  ISkillsSynonymsRepository,
+  Skill,
+  IMessageQueueService,
+  JobEventType,
+} from "@/core";
 import {
   ApiResponse,
   BulkReviewSkillDto,
@@ -22,6 +28,7 @@ export class SkillUseCases {
   constructor(
     private readonly skillRepository: ISkillRepository,
     private readonly skillsSynonymsRepository: ISkillsSynonymsRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   async createMany(
@@ -92,11 +99,18 @@ export class SkillUseCases {
   }
 
   async bulkReviewSkills(dto: BulkReviewSkillDto): Promise<ApiResponse<void>> {
+    // Collect job IDs before reviewing/deleting skills
+    const jobIds = await this.skillRepository.getJobIdsBySkillIds(dto.ids);
+
     await this.skillRepository.bulkReviewSkills(dto.ids, dto.status);
 
     this.logger.log(
       `Bulk reviewed skills with IDs: ${dto.ids.join(", ")} and status: ${dto.status}`,
     );
+
+    if (jobIds.length > 0) {
+      await this.reindexJobs(jobIds);
+    }
 
     return {
       message: "Skills reviewed successfully",
@@ -109,7 +123,14 @@ export class SkillUseCases {
       ? dto.skillIds
       : [dto.skillIds];
 
+    // Collect job IDs before deleting references
+    const jobIds = await this.skillRepository.getJobIdsBySkillIds(skillIds);
+
     await this.skillRepository.deleteSkillAndReferences(skillIds);
+
+    if (jobIds.length > 0) {
+      await this.reindexJobs(jobIds);
+    }
 
     return {
       message: "Skills deleted successfully",
@@ -128,12 +149,19 @@ export class SkillUseCases {
 
     const nextName = dto.name.trim();
 
+    // Collect job IDs before name update
+    const jobIds = await this.skillRepository.getJobIdsBySkillIds([id]);
+
     await this.skillRepository.update(
       { id },
       {
         name: nextName,
       },
     );
+
+    if (jobIds.length > 0) {
+      await this.reindexJobs(jobIds);
+    }
 
     return {
       message: "Skill name updated successfully",
@@ -145,13 +173,14 @@ export class SkillUseCases {
     query: GetTopDemandedSkillsQueryDto,
   ): Promise<ApiResponse<TopDemandedSkillItemDto[]>> {
     const limit = query.limit ?? 10;
-    const { fromDate, toDate, provinceId } = query;
+    const { fromDate, toDate, provinceId, categoryId } = query;
 
     const data = await this.skillRepository.getTopDemandedSkills(
       limit,
       fromDate,
       toDate,
       provinceId,
+      categoryId,
     );
     this.logger.log(`Fetched top ${limit} demanded skills`);
 
@@ -160,5 +189,26 @@ export class SkillUseCases {
       code: RESPONSE_CODE.SUCCESS,
       data,
     };
+  }
+
+  private async reindexJobs(jobIds: string[]): Promise<void> {
+    try {
+      this.logger.log(`Triggering reindex for ${jobIds.length} jobs`);
+      for (const jobId of jobIds) {
+        await this.messageQueueService
+          .addJob(
+            JobEventType.UPSERT_JOB,
+            { jobId },
+            { jobId: `job-sync-${jobId}` },
+          )
+          .catch((error) => {
+            this.logger.error(
+              `Error syncing job ${jobId} to message queue during skill change: ${error}`,
+            );
+          });
+      }
+    } catch (e: any) {
+      this.logger.error(`Failed to trigger job reindexing: ${e.message}`);
+    }
   }
 }

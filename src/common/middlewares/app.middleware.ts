@@ -8,17 +8,14 @@ import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-import { LoggerMiddleware } from "./logger.middleware";
-import { ConfigService } from "@nestjs/config";
-
 export const enableAppMiddleware = (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
   app.register(fastifyCors, {
     origin: appConfigs.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-    exposedHeaders: ["Set-Cookie"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie", "x-request-id"],
+    exposedHeaders: ["Set-Cookie", "x-request-id"],
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
@@ -34,10 +31,6 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
     },
   };
   app.register(fastifyMultipart, multipartOptions);
-
-  // Add logger middleware
-  const loggerMiddleware = new LoggerMiddleware(new ConfigService());
-  app.use(loggerMiddleware.use.bind(loggerMiddleware));
 
   app.useGlobalPipes(
     new ValidationPipe({

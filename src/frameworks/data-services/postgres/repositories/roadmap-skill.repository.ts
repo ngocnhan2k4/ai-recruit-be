@@ -3,7 +3,7 @@ import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
 import { roadmapSkills, roadmapPhases, roadmapSkillOptions } from "../models";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 
 @Injectable()
 export class RoadmapSkillRepository
@@ -44,84 +44,80 @@ export class RoadmapSkillRepository
 
   async getUnlockedSkills(roadmapId: string): Promise<RoadmapSkill[]> {
     const allSkills = await this.getSkillsByRoadmapId(roadmapId);
+    if (allSkills.length === 0) return [];
 
-    const unlockedSkills: RoadmapSkill[] = [];
+    const allSkillIds = allSkills.map((s) => s.id);
 
-    for (const skill of allSkills) {
-      // Check if this skill has any completed option
-      const completedOptions = await this.db
-        .select()
-        .from(roadmapSkillOptions)
-        .where(
-          and(
-            eq(roadmapSkillOptions.roadmapSkillId, skill.id),
-            isNull(roadmapSkillOptions.deletedAt),
-          ),
-        );
-
-      const isSkillCompleted = completedOptions.some(
-        (opt) => opt.completedAt !== null,
+    // Batch fetch all options for all skills in one query
+    const allOptions = await this.db
+      .select({
+        roadmapSkillId: roadmapSkillOptions.roadmapSkillId,
+        completedAt: roadmapSkillOptions.completedAt,
+      })
+      .from(roadmapSkillOptions)
+      .where(
+        and(
+          inArray(roadmapSkillOptions.roadmapSkillId, allSkillIds),
+          isNull(roadmapSkillOptions.deletedAt),
+        ),
       );
 
-      if (isSkillCompleted) continue; // Skip already completed
+    // Build set of skill IDs that have at least one completed option
+    const completedSkillIds = new Set(
+      allOptions
+        .filter((o) => o.completedAt !== null)
+        .map((o) => o.roadmapSkillId),
+    );
 
-      const prerequisites = skill.prerequisites;
-      if (!prerequisites || prerequisites.length === 0) {
-        unlockedSkills.push(skill);
-        continue;
-      }
+    return allSkills.filter((skill) => {
+      if (completedSkillIds.has(skill.id)) return false; // already done
 
-      // Check if all prerequisite skills are completed (each prerequisite skill has at least one completed option)
-      const prerequisiteSkillsCompleted = await Promise.all(
-        prerequisites.map(async (prereqSkillId) => {
-          const options = await this.db
-            .select()
-            .from(roadmapSkillOptions)
-            .where(
-              and(
-                eq(roadmapSkillOptions.roadmapSkillId, prereqSkillId),
-                isNull(roadmapSkillOptions.deletedAt),
-              ),
-            );
-          return options.some((opt) => opt.completedAt !== null);
-        }),
-      );
+      const prereqs = skill.prerequisites as string[] | null;
+      if (!prereqs || prereqs.length === 0) return true;
 
-      if (prerequisiteSkillsCompleted.every((completed) => completed)) {
-        unlockedSkills.push(skill);
-      }
-    }
+      return prereqs.every((prereqId) => completedSkillIds.has(prereqId));
+    });
+  }
 
-    return unlockedSkills;
+  async moveToPhase(skillId: string, targetPhaseId: string): Promise<void> {
+    await this.db
+      .update(roadmapSkills)
+      .set({ phaseId: targetPhaseId })
+      .where(eq(roadmapSkills.id, skillId));
   }
 
   async checkPrerequisitesCompleted(skillId: string): Promise<boolean> {
-    const skill = await this.db
-      .select()
+    const [skill] = await this.db
+      .select({ prerequisites: roadmapSkills.prerequisites })
       .from(roadmapSkills)
       .where(eq(roadmapSkills.id, skillId))
       .limit(1);
 
-    if (!skill || skill.length === 0) return false;
+    if (!skill) return false;
 
-    const prerequisites = skill[0].prerequisites;
+    const prerequisites = skill.prerequisites as string[] | null;
     if (!prerequisites || prerequisites.length === 0) return true;
 
-    const prerequisiteChecks = await Promise.all(
-      prerequisites.map(async (prereqSkillId) => {
-        const options = await this.db
-          .select()
-          .from(roadmapSkillOptions)
-          .where(
-            and(
-              eq(roadmapSkillOptions.roadmapSkillId, prereqSkillId),
-              isNull(roadmapSkillOptions.deletedAt),
-            ),
-          );
-        return options.some((opt) => opt.completedAt !== null);
-      }),
+    // Batch fetch options for all prerequisite skills, check which have completedAt
+    const prereqOptions = await this.db
+      .select({
+        roadmapSkillId: roadmapSkillOptions.roadmapSkillId,
+        completedAt: roadmapSkillOptions.completedAt,
+      })
+      .from(roadmapSkillOptions)
+      .where(
+        and(
+          inArray(roadmapSkillOptions.roadmapSkillId, prerequisites),
+          isNull(roadmapSkillOptions.deletedAt),
+        ),
+      );
+
+    const metPrereqIds = new Set(
+      prereqOptions
+        .filter((o) => o.completedAt !== null)
+        .map((o) => o.roadmapSkillId),
     );
 
-    return prerequisiteChecks.every((completed) => completed);
+    return prerequisites.every((prereqId) => metPrereqIds.has(prereqId));
   }
 }

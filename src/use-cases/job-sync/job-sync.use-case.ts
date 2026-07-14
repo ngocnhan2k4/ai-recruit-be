@@ -61,7 +61,8 @@ export class JobSyncUseCases {
   > {
     this.logger.log("Starting manual sync of all active jobs...");
 
-    const batchSize = 30;
+    // Keep page size modest: each doc includes dense_vector (1536 dims) + description
+    const batchSize = 20;
     let page = 1;
     let hasMore = true;
     let totalSynced = 0;
@@ -230,7 +231,7 @@ export class JobSyncUseCases {
   > {
     this.logger.log("Starting manual sync of all active jobs' embeddings...");
 
-    const batchSize = 30;
+    const batchSize = 20;
     let page = 1;
     let hasMore = true;
     let totalSynced = 0;
