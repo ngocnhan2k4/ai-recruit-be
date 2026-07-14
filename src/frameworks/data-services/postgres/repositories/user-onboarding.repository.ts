@@ -17,28 +17,28 @@ export class UserOnboardingRepository
   async createOnboardingForUser(
     userId: string,
     onboardingData: UserOnboarding,
-    userData: Pick<User, "name" | "gender" | "dob">,
+    userData: Partial<Pick<User, "name" | "gender" | "dob">>,
   ): Promise<void> {
-    try {
-      await this.db.transaction(async (tx) => {
-        const insertPromise = tx.insert(userOnboardings).values(onboardingData);
+    await this.db.transaction(async (tx) => {
+      const { userId: _userId, ...onboardingUpdate } = onboardingData;
 
-        const updatePromise = tx
-          .update(users)
-          .set({
-            name: userData.name,
-            gender: userData.gender,
-            dob: userData.dob,
-          })
-          .where(eq(users.id, userId));
+      await tx
+        .insert(userOnboardings)
+        .values(onboardingData)
+        .onConflictDoUpdate({
+          target: [userOnboardings.userId],
+          set: onboardingUpdate,
+        });
 
-        await Promise.all([insertPromise, updatePromise]);
-      });
-    } catch (error) {
-      throw new Error(
-        "[Onboarding]Transaction failed: " + (error as Error).message,
-      );
-    }
+      const userUpdate: Partial<Pick<User, "name" | "gender" | "dob">> = {};
+      if (userData.name !== undefined) userUpdate.name = userData.name;
+      if (userData.gender !== undefined) userUpdate.gender = userData.gender;
+      if (userData.dob !== undefined) userUpdate.dob = userData.dob;
+
+      if (Object.keys(userUpdate).length > 0) {
+        await tx.update(users).set(userUpdate).where(eq(users.id, userId));
+      }
+    });
   }
 
   async upsert(
