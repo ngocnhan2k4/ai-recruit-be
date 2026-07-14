@@ -35,6 +35,12 @@ import {
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
+import {
+  formatTrackedErrorLog,
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
+import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
@@ -66,29 +72,28 @@ export class TaskWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    const runOptions = {
-      attemptsMade: job.attemptsMade,
-      maxAttempts: job.opts.attempts,
-    };
-    try {
-      if (
-        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
-      ) {
-        return this.processLearningPath(job.data as TaskData, runOptions);
-      }
+    return runJobWithContext(job, async () => {
+      const runOptions = {
+        attemptsMade: job.attemptsMade,
+        maxAttempts: job.opts.attempts,
+      };
+      try {
+        if (
+          (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+        ) {
+          return this.processLearningPath(job.data as TaskData, runOptions);
+        }
 
-      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-        return this.processOptimizeCv(job.data as TaskData, runOptions);
-      }
+        if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+          return this.processOptimizeCv(job.data as TaskData, runOptions);
+        }
 
-      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-    } catch (error) {
-      this.logger.error(
-        `[worker.task.process] Failed to process task: ${error}`,
-        error.stack,
-      );
-      throw error;
-    }
+        this.logger.warn(`[process] Unknown task job name: ${job.name}`);
+      } catch (error) {
+        this.logger.error(formatWorkerErrorLog("task.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async emitAndPersistTask(params: {
@@ -614,8 +619,16 @@ export class TaskWorker extends WorkerHost {
         });
       }
       this.logger.error(
-        `[${taskType}] Failed task ${taskId}: ${error}`,
-        error?.stack,
+        formatTrackedErrorLog({
+          worker: "task.worker",
+          requestId: getRequestId(),
+          queue: TASK_QUEUE,
+          jobId: taskId,
+          jobName: taskType,
+          attemptsMade: options?.attemptsMade,
+          data,
+          error,
+        }),
       );
       throw error;
     }

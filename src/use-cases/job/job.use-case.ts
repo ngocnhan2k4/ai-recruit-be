@@ -1893,6 +1893,8 @@ export class JobUseCases {
   async getJobsV2(
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    filters.sortBy = filters.sortBy || "datePosted";
+    filters.sortDirection = filters.sortDirection || "desc";
     const result = await this.jobRepository.getJobs(filters);
 
     this.logger.log(`Fetched ${result.data.length} jobs`);
@@ -1923,6 +1925,8 @@ export class JobUseCases {
     filters: JobFilters,
     isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    filters.sortBy = filters.sortBy || "datePosted";
+    filters.sortDirection = filters.sortDirection || "desc";
     if (filters.cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)

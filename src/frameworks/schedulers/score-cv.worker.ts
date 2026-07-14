@@ -8,6 +8,10 @@ import {
   IJobSearchService,
   ICvService,
 } from "@/core/abstracts";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type ScoreCvApplyData = {
   applyId: string;
@@ -31,15 +35,14 @@ export class ScoreCvWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    try {
-      return this.processCvScoring(job.data as ScoreCvApplyData);
-    } catch (error) {
-      this.logger.error(
-        `[worker.score-cv.process] Failed to process cv scoring: ${error}`,
-        error.stack,
-      );
-      throw error;
-    }
+    return runJobWithContext(job, async () => {
+      try {
+        return await this.processCvScoring(job.data as ScoreCvApplyData);
+      } catch (error) {
+        this.logger.error(formatWorkerErrorLog("score-cv.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processCvScoring(data: ScoreCvApplyData): Promise<void> {

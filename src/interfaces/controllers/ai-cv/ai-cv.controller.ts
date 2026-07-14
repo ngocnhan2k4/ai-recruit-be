@@ -147,8 +147,9 @@ export class AiCvController {
   @Get(":id")
   async getAiCvById(
     @Param("id") aiCvId: string,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<AiCvDto>> {
-    return this.aiCvUseCases.getAiCvById(aiCvId);
+    return this.aiCvUseCases.getAiCvById(aiCvId, user.userId);
   }
 
   @ApiOperation({
