@@ -259,10 +259,13 @@ export class AiCvUseCases {
     };
   }
 
-  async getAiCvById(aiCvId: string): Promise<ApiResponse<AiCvDto>> {
+  async getAiCvById(
+    aiCvId: string,
+    userId: string,
+  ): Promise<ApiResponse<AiCvDto>> {
     this.logger.log(`[getAiCvById] [get] Getting AI CV by id ${aiCvId}`);
     const aiCv = await this.aiCvRepository.get(aiCvId);
-    if (!aiCv) {
+    if (!aiCv || aiCv.userId !== userId) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
         code: RESPONSE_CODE.AI_CV_NOT_FOUND,

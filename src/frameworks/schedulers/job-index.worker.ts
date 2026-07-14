@@ -6,6 +6,10 @@ import { JOB_INDEX_QUEUE } from "@/common/constants";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { JobEventType, JobStatusEnum } from "@/core";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type JobIndexData = {
   jobId: string;
@@ -29,23 +33,17 @@ export class JobIndexWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    try {
-      await this.processEvent(
-        job.name as JobEventType,
-        job.data as JobIndexData,
-      );
-    } catch (error: any) {
-      this.logger.error(
-        `[worker.job-index.process] Failed to process job ${job.id}: ${error}`,
-        error.stack,
-      );
-      // await this.loggerService.logError({
-      //   type: "error",
-      //   content: `[process] Failed to process job ${job.id}: ${error}`,
-      //   note: error.stack,
-      // });
-      throw error;
-    }
+    return runJobWithContext(job, async () => {
+      try {
+        await this.processEvent(
+          job.name as JobEventType,
+          job.data as JobIndexData,
+        );
+      } catch (error: any) {
+        this.logger.error(formatWorkerErrorLog("job-index.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processEvent(

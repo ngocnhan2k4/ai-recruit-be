@@ -97,7 +97,10 @@ export class FeatureService implements IFeatureService {
       if (consumed) return;
 
       if (isSkipRefill) {
-        throw new ForbiddenException(`Exceeded limit for ${featureCode}`);
+        throw new ForbiddenException({
+          message: "Exceeded limit for saved jobs",
+          code: RESPONSE_CODE.MAX_SAVED_JOBS_LIMIT,
+        });
       }
 
       const lastRefillAt =

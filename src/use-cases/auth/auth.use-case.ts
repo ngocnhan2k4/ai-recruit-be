@@ -1,8 +1,26 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import {
+  REFRESH_ROTATION_GRACE_SECONDS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+} from "@/common/constants";
+import { TokenPayload } from "@/common/types";
+import {
+  buildDeletedEmail,
+  buildDeletedFirebaseUid,
+  buildDeletedPhone,
+  generateUsername,
+} from "@/common/utils";
+import {
+  getFirebaseProviderKey,
+  normalizeProvider,
+} from "@/common/utils/firebase";
+import {
+  IAuthRepository,
   IAuthService,
   ISubscriptionRepository,
   IUserFeatureUsageRepository,
+  IUserRepository,
   NewUser,
   ProviderEnum,
   SubscriptionEnum,
@@ -10,24 +28,13 @@ import {
   UserStatusEnum,
   UserSubscriptionStatusEnum,
 } from "@/core";
-import { IAuthRepository, IUserRepository } from "@/core";
-import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
-import { RoleEnum } from "@/common/constants";
-import { randomBytes } from "crypto";
-import { ConfigService } from "@nestjs/config";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { TokenPayload } from "@/common/types";
-import { generateUsername } from "@/common/utils";
-import {
-  getFirebaseProviderKey,
-  normalizeProvider,
-} from "@/common/utils/firebase";
-import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { IUserSubscriptionRepository } from "@/core/abstracts/repositories/user-subscription-repository.abstract";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
-import { buildDeletedEmail } from "@/common/utils";
-import { buildDeletedPhone } from "@/common/utils";
-import { buildDeletedFirebaseUid } from "@/common/utils";
+import { ApiResponse, GetUserResponseDto } from "@/interfaces/dtos";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { randomBytes } from "crypto";
 
 @Injectable()
 export class AuthUseCases {
@@ -375,7 +382,13 @@ export class AuthUseCases {
     }
     this.assertUserCanRefresh(user);
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    await this.authRepository.revoke(oldRefreshToken);
+    // Keep the old token valid for a short grace window instead of revoking it
+    // immediately, so concurrent refreshes (multi-tab / retries) don't 401.
+    const graceSeconds = REFRESH_ROTATION_GRACE_SECONDS;
+    await this.authRepository.retireWithGrace(
+      oldRefreshToken,
+      new Date(Date.now() + graceSeconds * 1000),
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,

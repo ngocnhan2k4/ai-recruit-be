@@ -7,6 +7,10 @@ import { ICvService, ISearchService } from "@/core/abstracts";
 import { ICvRepository } from "@/core/abstracts";
 import { transformCvToDocument } from "@/frameworks/data-services/elasticsearch/indices/cv.index";
 import { CvEventType } from "@/core";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type CvIndexData = {
   cvId: string;
@@ -28,15 +32,17 @@ export class CvIndexWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    try {
-      await this.processEvent(job.name as CvEventType, job.data as CvIndexData);
-    } catch (error: any) {
-      this.logger.error(
-        `[worker.cv-index.process] Failed to process cv ${job.id}: ${error}`,
-        error.stack,
-      );
-      throw error;
-    }
+    return runJobWithContext(job, async () => {
+      try {
+        await this.processEvent(
+          job.name as CvEventType,
+          job.data as CvIndexData,
+        );
+      } catch (error: any) {
+        this.logger.error(formatWorkerErrorLog("cv-index.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processEvent(

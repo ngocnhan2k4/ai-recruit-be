@@ -1,4 +1,8 @@
 import { Pool } from "pg";
+import {
+  formatDbErrorMessage,
+  extractDbErrorInfo,
+} from "@/common/utils/db-error";
 
 const TIME_SLOW_QUERY_MS = 2000;
 
@@ -27,6 +31,14 @@ export const createLoggerQuery = (
   const originalQuery = pool.query.bind(pool);
   const log = options?.logger || console;
 
+  const logSqlError = (duration: number, sql: string, err: unknown) => {
+    const cause = formatDbErrorMessage(err);
+    const info = extractDbErrorInfo(err);
+    log.error(
+      `[SQL ERROR] ${duration.toFixed(2)}ms | ${cause} | Query: ${sql} | dbError=${JSON.stringify(info)}`,
+    );
+  };
+
   return (...args: any[]) => {
     const start = performance.now();
     const lastArg = args[args.length - 1];
@@ -40,7 +52,7 @@ export const createLoggerQuery = (
       args[args.length - 1] = (err: any, result: any) => {
         const duration = performance.now() - start;
         if (err) {
-          log.error(`[SQL ERROR] ${duration.toFixed(2)}ms | Query: ${sql}`);
+          logSqlError(duration, sql, err);
         } else if (duration > TIME_SLOW_QUERY_MS) {
           log.warn(`[SLOW SQL] ${duration.toFixed(2)}ms | Query: ${sql}`);
         }
@@ -59,7 +71,7 @@ export const createLoggerQuery = (
       })
       .catch((err: any) => {
         const duration = performance.now() - start;
-        log.error(`[SQL ERROR] ${duration.toFixed(2)}ms | Query: ${sql}`);
+        logSqlError(duration, sql, err);
         throw err;
       });
   };

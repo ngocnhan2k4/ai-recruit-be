@@ -19,6 +19,10 @@ import {
   roadmapSkillTranslation,
 } from "@/frameworks/data-services/postgres/models";
 import { GoogleTranslationService } from "@/frameworks/translation/google-translation.service";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 @Processor(TRANSLATION_QUEUE, {
   concurrency: 2,
@@ -34,43 +38,44 @@ export class TranslationWorker extends WorkerHost {
   }
 
   async process(job: Job<TranslationJobData, void, TranslationJobType>) {
-    try {
-      const type = job.name;
-      const jobName = String(job.name);
-      const data = job.data;
-      const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
+    return runJobWithContext(job, async () => {
+      try {
+        const type = job.name;
+        const jobName = String(job.name);
+        const data = job.data;
+        const { sourceLanguage, targetLanguages } = this.resolveLanguages(data);
 
-      switch (type) {
-        case TranslationJobType.QUESTION:
-          return this.processQuestion(
-            data as TranslationJobDataMap[TranslationJobType.QUESTION],
-            sourceLanguage,
-            targetLanguages,
-          );
-        case TranslationJobType.ROADMAP_PHASE:
-          return this.processRoadmapPhase(
-            data as TranslationJobDataMap[TranslationJobType.ROADMAP_PHASE],
-            sourceLanguage,
-            targetLanguages,
-          );
-        case TranslationJobType.ROADMAP_SKILL:
-          return this.processRoadmapSkill(
-            data as TranslationJobDataMap[TranslationJobType.ROADMAP_SKILL],
-            sourceLanguage,
-            targetLanguages,
-          );
-        default:
-          this.logger.warn(
-            `[translation.worker] Unknown translation job: ${jobName}`,
-          );
+        switch (type) {
+          case TranslationJobType.QUESTION:
+            return this.processQuestion(
+              data as TranslationJobDataMap[TranslationJobType.QUESTION],
+              sourceLanguage,
+              targetLanguages,
+            );
+          case TranslationJobType.ROADMAP_PHASE:
+            return this.processRoadmapPhase(
+              data as TranslationJobDataMap[TranslationJobType.ROADMAP_PHASE],
+              sourceLanguage,
+              targetLanguages,
+            );
+          case TranslationJobType.ROADMAP_SKILL:
+            return this.processRoadmapSkill(
+              data as TranslationJobDataMap[TranslationJobType.ROADMAP_SKILL],
+              sourceLanguage,
+              targetLanguages,
+            );
+          default:
+            this.logger.warn(
+              `[translation.worker] Unknown translation job: ${jobName}`,
+            );
+        }
+      } catch (error) {
+        this.logger.error(
+          formatWorkerErrorLog("translation.worker", job, error),
+        );
+        throw error;
       }
-    } catch (error) {
-      this.logger.error(
-        `[worker.translation.process] Failed to process translation: ${error}`,
-        error.stack,
-      );
-      throw error;
-    }
+    });
   }
 
   private resolveLanguages(data: TranslationPayloadBase) {

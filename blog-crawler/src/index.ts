@@ -18,9 +18,13 @@ async function run() {
     console.log("Blog crawler synchronized successfully");
   } catch (error) {
     console.error("Execution failed:", error);
+    process.exit(1);
   } finally {
     await db.close();
   }
 }
 
-run();
+run().catch((error) => {
+  console.error("Unhandled execution error:", error);
+  process.exit(1);
+});

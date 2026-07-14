@@ -9,6 +9,7 @@ import { InjectMetric } from "@willsoto/nestjs-prometheus";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { Counter, Histogram } from "prom-client";
 import { Observable, tap } from "rxjs";
+import { getRequestStartTime } from "../utils";
 
 // Normalizes dynamic path segments so metrics are not high-cardinality.
 // e.g. /api/v1/users/123/profile -> /api/v1/users/:id/profile
@@ -37,7 +38,7 @@ export class PrometheusMetricsInterceptor implements NestInterceptor {
     const res = ctx.getResponse<FastifyReply>();
     const { method } = req;
     const route = normalizePath(req.originalUrl ?? req.url);
-    const start = req.raw["startTime"] ?? performance.now();
+    const start = getRequestStartTime() ?? performance.now();
 
     return next.handle().pipe(
       tap({

@@ -13,6 +13,11 @@ import {
 } from "rxjs";
 import { AxiosError, AxiosResponse } from "axios";
 import OpenAI from "openai";
+import {
+  extractExternalErrorInfo,
+  wrapExternalError,
+} from "@/common/utils/external-error";
+import { serializeRequestPayload } from "@/common/utils/request-log";
 
 import {
   ExtractCvResponse,
@@ -171,6 +176,7 @@ export class AIClientService implements IAIService {
       body: request,
       errorContext: "AI Service roadmap generation failed",
       timeoutMs: this.aiServiceTimeout * 5,
+      retryCount: 0,
     });
   }
 
@@ -200,12 +206,12 @@ export class AIClientService implements IAIService {
           catchError((error: AxiosError) => {
             const errorMsg = this.formatAxiosErrorMessage(error);
             this.logger.error(
-              `AI Service subpath generation failed: ${errorMsg}`,
-              error.stack,
+              `[AIClientService] [generateSubPath] AI Service subpath generation failed: ${errorMsg} | externalError=${JSON.stringify(extractExternalErrorInfo(error))} | body=${serializeRequestPayload(request)}`,
             );
 
-            throw new Error(
+            throw wrapExternalError(
               `AI Service subpath generation failed: ${errorMsg}`,
+              error,
             );
           }),
           map(
@@ -269,12 +275,14 @@ export class AIClientService implements IAIService {
     body: TRequest;
     errorContext: string;
     timeoutMs?: number;
+    retryCount?: number;
   }): Promise<TResponse> {
     const {
       url,
       body,
       errorContext,
       timeoutMs = this.aiServiceTimeout,
+      retryCount = this.maxRetries,
     } = params;
 
     return firstValueFrom(
@@ -288,7 +296,7 @@ export class AIClientService implements IAIService {
         .pipe(
           timeout(timeoutMs),
           retry({
-            count: this.maxRetries,
+            count: retryCount,
             delay: (_, retryCount) => {
               const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
               return new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -298,9 +306,11 @@ export class AIClientService implements IAIService {
           catchError((error: AxiosError) => {
             const errorMsg = this.formatAxiosErrorMessage(error);
 
-            this.logger.error(`${errorContext}: ${errorMsg}`, error.stack);
+            this.logger.error(
+              `${errorContext}: ${errorMsg} | externalError=${JSON.stringify(extractExternalErrorInfo(error))} | body=${serializeRequestPayload(body)}`,
+            );
 
-            throw new Error(`${errorContext}: ${errorMsg}`);
+            throw wrapExternalError(`${errorContext}: ${errorMsg}`, error);
           }),
           map((response: AxiosResponse<TResponse>): TResponse => response.data),
         ),
@@ -340,8 +350,13 @@ export class AIClientService implements IAIService {
 
       return response.data[0].embedding;
     } catch (error: any) {
-      this.logger.error(`Failed to generate embedding: ${error.message}`);
-      throw new Error(`Embedding generation failed: ${error.message}`);
+      this.logger.error(
+        `[generateEmbedding] [create] Failed to generate embedding: ${error.message}`,
+      );
+      throw wrapExternalError(
+        `Embedding generation failed: ${error.message}`,
+        error,
+      );
     }
   }
 
@@ -356,8 +371,13 @@ export class AIClientService implements IAIService {
 
       return response.data.map((d) => d.embedding);
     } catch (error: any) {
-      this.logger.error(`Failed to generate embeddings: ${error.message}`);
-      throw new Error(`Embeddings generation failed: ${error.message}`);
+      this.logger.error(
+        `[generateEmbeddings] [create] Failed to generate embeddings: ${error.message}`,
+      );
+      throw wrapExternalError(
+        `Embeddings generation failed: ${error.message}`,
+        error,
+      );
     }
   }
 }

@@ -209,7 +209,7 @@ def scrape_job_detail(
     if skill_wrap:
         skill_items = skill_wrap.select("label.item")
         for item in skill_items:
-            skill = safe_text(item)
+            skill = safe_text(item, normalize_camel_case=False)
             if skill:
                 if not re.fullmatch(r"^\d+\+$", skill):
                     skills.append(skill)
@@ -319,7 +319,7 @@ def scrape_job_detail(
         if skill_container:
             skill_items = skill_container.find_all(["a", "span", "label"])
             for item in skill_items:
-                skill_text = safe_text(item)
+                skill_text = safe_text(item, normalize_camel_case=False)
                 if (
                     skill_text
                     and len(skill_text) > 1

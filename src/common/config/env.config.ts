@@ -32,6 +32,10 @@ export class EnvironmentVariables {
   @IsString()
   GLOBAL_PREFIX: string = "/api/v1";
 
+  @IsOptional()
+  @IsString()
+  TIMEZONE: string = "Asia/Ho_Chi_Minh";
+
   @IsString()
   DATABASE_URL: string;
 
@@ -140,6 +144,10 @@ export class EnvironmentVariables {
   ELASTICSEARCH_INDEX_CVS: string;
 
   @IsOptional()
+  @IsString()
+  ELASTICSEARCH_INDEX_EVENT_TRACKING: string;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
@@ -150,6 +158,16 @@ export class EnvironmentVariables {
     Array.isArray(value) ? value : value.split(",").map((o) => o.trim()),
   )
   CORS_ORIGINS: string[];
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      return !["false", "0", "off", "no"].includes(value.toLowerCase());
+    }
+    return true;
+  })
+  RATE_LIMIT_ENABLED: boolean = true;
 
   @IsOptional()
   @IsNumber()

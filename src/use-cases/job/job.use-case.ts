@@ -155,7 +155,8 @@ export class JobUseCases {
           filters.keyword ||
           filters.categoryId ||
           filters.provinceId ||
-          (filters.skillIds && filters.skillIds.length > 0)
+          (filters.skillIds && filters.skillIds.length > 0) ||
+          filters.organizationId
         );
         if (!hasSearchOrFiltersLocal) {
           filters.excludeJobIds = recentJobs
@@ -679,6 +680,35 @@ export class JobUseCases {
       });
     }
 
+    const isApplyingExternally = !!job.applyUrl || !!job.jobRawId;
+
+    // If not a crawled job and user did not provide a CV, reject early
+    if (!isApplyingExternally && !applyJobDto.cvId && !cvFile) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.CV_REQUIRED_FOR_JOB,
+        code: RESPONSE_CODE.CV_REQUIRED_FOR_JOB,
+      });
+    }
+
+    const jobStatuses = await this.jobRepository.getUserJobStatuses(userId, [
+      applyJobDto.jobId,
+    ]);
+    const jobStatus = jobStatuses.get(applyJobDto.jobId);
+
+    if (jobStatus?.isApplied) {
+      if (isApplyingExternally) {
+        return {
+          message: RESPONSE_CODE.SUCCESS,
+          code: RESPONSE_CODE.SUCCESS,
+          data: { id: jobStatus.applyId! } as any,
+        };
+      }
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.ALREADY_APPLIED,
+        code: RESPONSE_CODE.ALREADY_APPLIED,
+      });
+    }
+
     if (existingCvMimeType && existingCvMimeType !== "application/pdf") {
       throw new BadRequestException({
         message: RESPONSE_MESSAGE.INVALID_FILE_TYPE,
@@ -702,13 +732,15 @@ export class JobUseCases {
       answers: applyJobDto.answers,
     });
 
-    this.handleAfterApplyJob({
-      cvId: applyJobDto.cvId,
-      userId: userId,
-      jobId: applyJobDto.jobId,
-      applicationId: repoResult.id,
-      answers: applyJobDto.answers,
-    });
+    if (!isApplyingExternally) {
+      this.handleAfterApplyJob({
+        cvId: applyJobDto.cvId,
+        userId: userId,
+        jobId: applyJobDto.jobId,
+        applicationId: repoResult.id,
+        answers: applyJobDto.answers,
+      });
+    }
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -1893,6 +1925,8 @@ export class JobUseCases {
   async getJobsV2(
     filters: JobFilters,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    filters.sortBy = filters.sortBy || "datePosted";
+    filters.sortDirection = filters.sortDirection || "desc";
     const result = await this.jobRepository.getJobs(filters);
 
     this.logger.log(`Fetched ${result.data.length} jobs`);
@@ -1923,6 +1957,8 @@ export class JobUseCases {
     filters: JobFilters,
     isOrg?: boolean,
   ): Promise<ApiResponse<PaginatedResult<JobResponseDto>>> {
+    filters.sortBy = filters.sortBy || "datePosted";
+    filters.sortDirection = filters.sortDirection || "desc";
     if (filters.cursor) {
       // return empty array if user not logged in
       if (!filters?.user?.userId)

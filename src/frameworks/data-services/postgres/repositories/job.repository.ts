@@ -16,12 +16,7 @@ import {
   inArray,
   lt,
 } from "drizzle-orm";
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   jobs,
   skills,
@@ -83,7 +78,6 @@ import {
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
-import { RESPONSE_CODE } from "@/common/constants";
 import { ICacheService } from "@/core";
 
 @Injectable()
@@ -163,7 +157,7 @@ export class JobRepository
     if (sortBy === "salary") {
       return direction(this.getAverageSalaryExpr());
     }
-    if (sortBy === "date_posted") {
+    if (sortBy === "datePosted") {
       return direction(this.getEffectivePostedDateExpr());
     }
     return null;
@@ -1184,30 +1178,17 @@ export class JobRepository
     answers,
   }: {
     jobId: string;
-    userCvId: string;
+    userCvId?: string;
     senderUserId: string;
     answers?: JobAnswer[];
   }): Promise<ApplyJobResponse> {
     const newApplication = await this.executeWithTransaction(async (tx) => {
-      const existingApplication = await tx
-        .select({ id: applyJobs.id })
-        .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)))
-        .limit(1);
-
-      if (existingApplication.length > 0) {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.ALREADY_APPLIED,
-          message: "User has already applied for this job",
-        });
-      }
-
       const [inserted] = await tx
         .insert(applyJobs)
         .values({
           jobId,
           cvId: userCvId,
+          userId: senderUserId,
           answers,
           status: ApplyStatusEnum.PENDING,
         })
@@ -1818,9 +1799,14 @@ export class JobRepository
         count: sql`COUNT(*)`.as("count"),
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)));
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      );
     return Number(result[0]?.count ?? 0);
   }
   async getAllAppliedJobs(
@@ -1866,10 +1852,15 @@ export class JobRepository
         applyStatus: applyJobs.status,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      )
       .orderBy(
         query.sortDirection === "desc"
           ? desc(jobs.createdAt)
@@ -1909,7 +1900,7 @@ export class JobRepository
   > {
     const result = await this.db
       .select({
-        userId: cvs.userId,
+        userId: sql<string>`COALESCE(${applyJobs.userId}, ${cvs.userId})`,
         email: users.email,
         name: users.name,
         jobId: applyJobs.jobId,
@@ -1917,10 +1908,13 @@ export class JobRepository
         categoryId: jobs.categoryId,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(
         users,
-        and(eq(cvs.userId, users.id), eq(users.status, UserStatusEnum.ACTIVE)),
+        and(
+          eq(sql`COALESCE(${applyJobs.userId}, ${cvs.userId})`, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
       )
       .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
       .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
@@ -2105,8 +2099,13 @@ export class JobRepository
           applyId: applyJobs.id,
         })
         .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, userId), inArray(applyJobs.jobId, jobIds))),
+        .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(
+          and(
+            inArray(applyJobs.jobId, jobIds),
+            or(eq(applyJobs.userId, userId), eq(cvs.userId, userId)),
+          ),
+        ),
     ]);
 
     // Update saved status
