@@ -387,9 +387,9 @@ export class JobSearchService implements IJobSearchService {
         knnQuery = {
           field: "embedding",
           query_vector: avgVector,
-          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 70 : 20),
-          num_candidates: !hasSearchOrFiltersLocal ? 400 : 100,
-          boost: !hasSearchOrFiltersLocal ? 20.0 : 10.0,
+          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 30 : 10),
+          num_candidates: !hasSearchOrFiltersLocal ? 150 : 70,
+          boost: !hasSearchOrFiltersLocal ? 15.0 : 8.0,
         };
       }
     }

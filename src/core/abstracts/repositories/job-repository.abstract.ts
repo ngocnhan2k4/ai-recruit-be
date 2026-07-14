@@ -114,7 +114,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     answers,
   }: {
     jobId: string;
-    userCvId: string;
+    userCvId?: string;
     senderUserId: string;
     answers?: JobAnswer[];
   }): Promise<ApplyJobResponse>;
