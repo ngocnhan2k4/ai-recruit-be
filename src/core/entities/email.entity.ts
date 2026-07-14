@@ -54,4 +54,5 @@ export class FeedbackResolvedEmailData {
   to: string;
   recipientName: string;
   feedbackSubject: string;
+  resolutionNote?: string;
 }

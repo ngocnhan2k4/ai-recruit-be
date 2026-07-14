@@ -36,7 +36,12 @@ import {
 } from "@/core";
 import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
-import pLimit from "p-limit";
+import {
+  formatTrackedErrorLog,
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
+import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
@@ -69,29 +74,28 @@ export class TaskWorker extends WorkerHost {
   }
 
   async process(job: Job) {
-    const runOptions = {
-      attemptsMade: job.attemptsMade,
-      maxAttempts: job.opts.attempts,
-    };
-    try {
-      if (
-        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
-      ) {
-        return this.processLearningPath(job.data as TaskData, runOptions);
-      }
+    return runJobWithContext(job, async () => {
+      const runOptions = {
+        attemptsMade: job.attemptsMade,
+        maxAttempts: job.opts.attempts,
+      };
+      try {
+        if (
+          (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+        ) {
+          return this.processLearningPath(job.data as TaskData, runOptions);
+        }
 
-      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-        return this.processOptimizeCv(job.data as TaskData, runOptions);
-      }
+        if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+          return this.processOptimizeCv(job.data as TaskData, runOptions);
+        }
 
-      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-    } catch (error) {
-      this.logger.error(
-        `[worker.task.process] Failed to process task: ${error}`,
-        error.stack,
-      );
-      throw error;
-    }
+        this.logger.warn(`[process] Unknown task job name: ${job.name}`);
+      } catch (error) {
+        this.logger.error(formatWorkerErrorLog("task.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async emitAndPersistTask(params: {
@@ -193,6 +197,151 @@ export class TaskWorker extends WorkerHost {
 
   private resolveTranslationTargets() {
     return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  }
+
+  private async generateAllSubpathsForRoadmap(params: {
+    roadmapId: string;
+    userId: string;
+    targetRole: string;
+    currentRole: string;
+  }) {
+    const roadmapWithDetails =
+      await this.roadmapRepository.getRoadmapWithDetails(params.roadmapId);
+
+    if (!roadmapWithDetails) return;
+
+    const allOptions = roadmapWithDetails.phases.flatMap((phase) =>
+      phase.skills.flatMap((skill) =>
+        skill.options.map((option) => ({
+          skillId: skill.id,
+          skillName: skill.skill,
+          optionId: option.id,
+          optionName: (option as any).optionName ?? skill.skill,
+          keyConcepts: (option as any).keyConcepts ?? [],
+        })),
+      ),
+    );
+
+    const CONCURRENCY = 10;
+
+    for (let i = 0; i < allOptions.length; i += CONCURRENCY) {
+      const batch = allOptions.slice(i, i + CONCURRENCY);
+
+      await Promise.all(
+        batch.map(
+          async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
+            const existing =
+              await this.subpathRepository.findByOptionId(optionId);
+            if (existing) return;
+
+            try {
+              const aiResult = await this.aiService.generateSubPath({
+                optionName,
+                keyConcepts,
+                targetRole: params.targetRole,
+                currentRole: params.currentRole,
+              });
+              const shared = await this.subpathRepository.createFromAIResult(
+                {
+                  optionName,
+                  targetRole: params.targetRole,
+                  currentRole: params.currentRole,
+                },
+                aiResult,
+              );
+              await this.subpathRepository.cloneSharedSubpathForUser(
+                shared.id,
+                optionId,
+                params.userId,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: false,
+              } as any);
+            } catch (err: any) {
+              this.logger.error(
+                `[worker] Subpath gen failed for "${optionName}": ${err.message}`,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: true,
+              } as any);
+            }
+          },
+        ),
+      );
+    }
+
+    const missing = (
+      await Promise.all(
+        allOptions.map(async (o) => {
+          const exists = await this.subpathRepository.findByOptionId(
+            o.optionId,
+          );
+          return exists ? null : o;
+        }),
+      )
+    ).filter(Boolean) as typeof allOptions;
+
+    if (missing.length > 0) {
+      this.logger.warn(
+        `[worker] Verification pass: ${missing.length} options still missing snapshots — retrying`,
+      );
+      await Promise.all(
+        missing.map(
+          async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
+            try {
+              const aiResult = await this.aiService.generateSubPath({
+                optionName,
+                keyConcepts,
+                targetRole: params.targetRole,
+                currentRole: params.currentRole,
+              });
+              const shared = await this.subpathRepository.createFromAIResult(
+                {
+                  optionName,
+                  targetRole: params.targetRole,
+                  currentRole: params.currentRole,
+                },
+                aiResult,
+              );
+              await this.subpathRepository.cloneSharedSubpathForUser(
+                shared.id,
+                optionId,
+                params.userId,
+              );
+              this.webSocketGateway.sendToUser({ userId: params.userId }, {
+                type: NotificationType.SKILL_READY,
+                skillId,
+                optionId,
+                roadmapId: params.roadmapId,
+                skillName,
+                failed: false,
+              } as any);
+              this.logger.log(
+                `[worker] Verification pass recovered "${optionName}"`,
+              );
+            } catch (err: any) {
+              this.logger.error(
+                `[worker] Verification pass also failed for "${optionName}": ${err.message}`,
+              );
+            }
+          },
+        ),
+      );
+    }
+
+    this.logger.log(
+      `[worker] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+    );
   }
 
   private async enqueueRoadmapTranslationJobs(params: {
@@ -374,6 +523,7 @@ export class TaskWorker extends WorkerHost {
                   return (skill.options || []).map((option: SkillOption) => ({
                     roadmapSkillId: matchedSkill.id,
                     optionId: option.optionId,
+                    optionName: option.optionName ?? "",
                     resources: option.resources || [],
                     keyConcepts: option.keyConcepts || [],
                   }));
@@ -393,9 +543,15 @@ export class TaskWorker extends WorkerHost {
                 if (dbSkillId) {
                   // Map AI skillIds to database skillIds
                   const mappedPrerequisites = skillData.prerequisites
-                    .map((prereqSkillId: string) =>
-                      skillIdMap.get(prereqSkillId),
-                    )
+                    .map((prereqSkillId: string) => {
+                      const mapped = skillIdMap.get(prereqSkillId);
+                      if (!mapped) {
+                        this.logger.warn(
+                          `[worker.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                        );
+                      }
+                      return mapped;
+                    })
                     .filter(
                       (id: string | undefined): id is string =>
                         id !== undefined,
@@ -427,62 +583,7 @@ export class TaskWorker extends WorkerHost {
       sourceLanguage,
     });
 
-    // Eager gen subpaths so clients receive ready-to-use roadmap options.
-    await this.generateSubpaths(phases, request);
-
     return persisted.roadmap;
-  }
-
-  private async generateSubpaths(
-    phases: Array<{ skills?: RoadmapSkillData[] }>,
-    request: PreviewRoadmapDto,
-  ): Promise<void> {
-    const targetRole = request.targetRole ?? "";
-    const currentRole = request.currentRole ?? "";
-
-    const allOptions: SkillOption[] = phases.flatMap(
-      (phase) =>
-        phase.skills?.flatMap(
-          (skill: RoadmapSkillData) => skill.options || [],
-        ) ?? [],
-    );
-
-    const limit = pLimit(3);
-
-    await Promise.all(
-      allOptions.map((option) =>
-        limit(async () => {
-          const optionName = option.optionName;
-          if (!optionName) return;
-
-          const existing = await this.subpathRepository.findByKey(
-            optionName,
-            targetRole,
-            currentRole,
-          );
-          if (existing) return;
-
-          try {
-            const aiResult = await this.aiService.generateSubPath({
-              optionName,
-              keyConcepts: option.keyConcepts ?? [],
-              targetRole,
-              currentRole,
-            });
-
-            await this.subpathRepository.createFromAIResult(
-              { optionName, targetRole, currentRole },
-              aiResult,
-            );
-            this.logger.log(`Subpath generated for "${optionName}"`);
-          } catch (err: any) {
-            this.logger.warn(
-              `Subpath gen failed for "${optionName}": ${err.message}`,
-            );
-          }
-        }),
-      ),
-    );
   }
 
   private async withTaskLifecycle<TResult>(
@@ -564,8 +665,16 @@ export class TaskWorker extends WorkerHost {
         });
       }
       this.logger.error(
-        `[${taskType}] Failed task ${taskId}: ${error}`,
-        error?.stack,
+        formatTrackedErrorLog({
+          worker: "task.worker",
+          requestId: getRequestId(),
+          queue: TASK_QUEUE,
+          jobId: taskId,
+          jobName: taskType,
+          attemptsMade: options?.attemptsMade,
+          data,
+          error,
+        }),
       );
       throw error;
     }
@@ -575,16 +684,18 @@ export class TaskWorker extends WorkerHost {
     data: TaskData,
     options?: { attemptsMade?: number; maxAttempts?: number },
   ) {
+    const isFinalAttempt =
+      (options?.attemptsMade ?? 0) + 1 >= (options?.maxAttempts ?? 1);
+
     return this.withTaskLifecycle(
       data,
       TaskTypeEnum.LEARNING_PATH_GENERATION,
       {
         inProgress: "Đang tạo lộ trình học tập của bạn...",
         completed: "Lộ trình học tập của bạn đã sẵn sàng.",
-        failed:
-          options?.attemptsMade === options?.maxAttempts
-            ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
-            : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
+        failed: isFinalAttempt
+          ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
+          : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
       },
       async (task, request: PreviewRoadmapDto) => {
         const sourceLanguage =
@@ -606,6 +717,14 @@ export class TaskWorker extends WorkerHost {
           request,
           result: resultData,
           sourceLanguage,
+        });
+
+        // Generate all subpaths before notifying user so content is ready on first open
+        await this.generateAllSubpathsForRoadmap({
+          roadmapId: roadmap.id,
+          userId: task.userId,
+          targetRole: roadmap.targetRole ?? "",
+          currentRole: roadmap.currentRole ?? "",
         });
 
         return { roadmapId: roadmap.id, data: resultData };

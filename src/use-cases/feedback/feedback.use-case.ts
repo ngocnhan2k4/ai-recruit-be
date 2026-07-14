@@ -136,6 +136,8 @@ export class FeedbackUseCase {
     const statusChangedToResolved =
       data.status === FeedbackStatusEnum.RESOLVED &&
       existing.status !== "resolved";
+    const resolutionNote = data.resolutionNote?.trim() || undefined;
+    const { resolutionNote: _resolutionNote, ...updatePayload } = data;
 
     let assignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
     if (data.assignedToUserId != null) {
@@ -152,7 +154,10 @@ export class FeedbackUseCase {
       data.assignedToUserId !== previousAssigneeId;
 
     if (!assigneeChanged) {
-      const updatedRows = await this.feedbackRepository.update({ id }, data);
+      const updatedRows = await this.feedbackRepository.update(
+        { id },
+        updatePayload,
+      );
       if (updatedRows.length === 0) {
         return {
           code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
@@ -168,6 +173,7 @@ export class FeedbackUseCase {
               to: existing.email,
               recipientName: existing.name,
               feedbackSubject: existing.subject,
+              resolutionNote,
             } as FeedbackResolvedEmailData,
             {
               attempts: 3,
@@ -191,7 +197,7 @@ export class FeedbackUseCase {
     await this.feedbackRepository.executeWithTransaction(async (tx) => {
       const updatedRows = await this.feedbackRepository.update(
         { id },
-        data,
+        updatePayload,
         tx,
       );
       if (updatedRows.length === 0) {
@@ -259,6 +265,7 @@ export class FeedbackUseCase {
             to: existing.email,
             recipientName: existing.name,
             feedbackSubject: feedbackSubjectForEmail,
+            resolutionNote,
           } as FeedbackResolvedEmailData,
           {
             attempts: 3,

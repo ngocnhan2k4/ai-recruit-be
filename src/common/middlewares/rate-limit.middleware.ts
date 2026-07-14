@@ -15,6 +15,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "../constants";
 export class RateLimitMiddleware implements NestMiddleware {
   private readonly logger = new Logger(RateLimitMiddleware.name);
 
+  private readonly enabled: boolean;
   private readonly capacity: number;
   private readonly refillRate: number;
   private readonly ttlSeconds: number;
@@ -23,6 +24,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     configService: ConfigService,
     @Inject(ICacheService) private readonly cacheService: ICacheService,
   ) {
+    this.enabled = configService.get<boolean>("RATE_LIMIT_ENABLED", true);
     this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 60);
     this.refillRate = configService.get<number>("RATE_LIMIT_REFILL_RATE", 1);
     this.ttlSeconds = Math.ceil((this.capacity / this.refillRate) * 2);
@@ -33,7 +35,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     _: FastifyReply,
     next: () => void,
   ): Promise<void> {
-    if (req.method === "OPTIONS") {
+    if (!this.enabled || req.method === "OPTIONS") {
       return next();
     }
 

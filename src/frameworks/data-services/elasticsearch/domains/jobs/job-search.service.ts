@@ -17,6 +17,11 @@ export class JobSearchService implements IJobSearchService {
     filters: JobFilters,
   ): Promise<PaginatedResult<JobSearchDocument>> {
     let knnQuery: any = undefined;
+    const hasSearchOrFiltersLocal = !!(
+      filters.keyword ||
+      filters.categoryId ||
+      (filters.skillIds && filters.skillIds.length > 0)
+    );
 
     if (filters.recentInteractions && filters.recentInteractions.length > 0) {
       const jobIds = filters.recentInteractions.map((r: any) => r.jobId);
@@ -29,9 +34,9 @@ export class JobSearchService implements IJobSearchService {
         knnQuery = {
           field: "embedding",
           query_vector: avgVector,
-          k: (filters.limit ?? 20) + 70,
-          num_candidates: 400,
-          boost: 20.0,
+          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 70 : 20),
+          num_candidates: !hasSearchOrFiltersLocal ? 400 : 100,
+          boost: !hasSearchOrFiltersLocal ? 20.0 : 10.0,
         };
       }
     }
@@ -231,6 +236,20 @@ export class JobSearchService implements IJobSearchService {
         {
           bool: {
             should: [
+              { range: { datePosted: { gte: "now-15d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-15d/d" } } },
+                },
+              },
+            ],
+            boost: 25.0,
+          },
+        },
+        {
+          bool: {
+            should: [
               { range: { datePosted: { gte: "now-30d/d" } } },
               {
                 bool: {
@@ -239,7 +258,7 @@ export class JobSearchService implements IJobSearchService {
                 },
               },
             ],
-            boost: 25.0,
+            boost: 20.0,
           },
         },
         {
@@ -253,7 +272,7 @@ export class JobSearchService implements IJobSearchService {
                 },
               },
             ],
-            boost: 20.0,
+            boost: 15.0,
           },
         },
       );
@@ -351,6 +370,12 @@ export class JobSearchService implements IJobSearchService {
   ): Promise<PaginatedResult<JobSearchDocument>> {
     let knnQuery: any = undefined;
 
+    const hasSearchOrFiltersLocal = !!(
+      filters.keyword ||
+      filters.categoryId ||
+      (filters.skillIds && filters.skillIds.length > 0)
+    );
+
     if (filters.recentInteractions && filters.recentInteractions.length > 0) {
       const jobIds = filters.recentInteractions.map((r: any) => r.jobId);
       const vectorsMap = await this.getVectorsForJobs(jobIds);
@@ -362,9 +387,9 @@ export class JobSearchService implements IJobSearchService {
         knnQuery = {
           field: "embedding",
           query_vector: avgVector,
-          k: (filters.limit ?? 20) + 70,
-          num_candidates: 400,
-          boost: 15.0,
+          k: (filters.limit ?? 20) + (!hasSearchOrFiltersLocal ? 70 : 20),
+          num_candidates: !hasSearchOrFiltersLocal ? 400 : 100,
+          boost: !hasSearchOrFiltersLocal ? 20.0 : 10.0,
         };
       }
     }
@@ -462,7 +487,7 @@ export class JobSearchService implements IJobSearchService {
       ];
     }
 
-    if (mappedSortField === "date_posted") {
+    if (mappedSortField === "datePosted") {
       return [
         {
           _script: {
@@ -725,6 +750,20 @@ export class JobSearchService implements IJobSearchService {
         {
           bool: {
             should: [
+              { range: { datePosted: { gte: "now-15d/d" } } },
+              {
+                bool: {
+                  must_not: { exists: { field: "datePosted" } },
+                  filter: { range: { createdAt: { gte: "now-15d/d" } } },
+                },
+              },
+            ],
+            boost: 25.0,
+          },
+        },
+        {
+          bool: {
+            should: [
               { range: { datePosted: { gte: "now-30d/d" } } },
               {
                 bool: {
@@ -733,7 +772,7 @@ export class JobSearchService implements IJobSearchService {
                 },
               },
             ],
-            boost: 25.0,
+            boost: 20.0,
           },
         },
         {
@@ -747,7 +786,7 @@ export class JobSearchService implements IJobSearchService {
                 },
               },
             ],
-            boost: 20.0,
+            boost: 15.0,
           },
         },
       );

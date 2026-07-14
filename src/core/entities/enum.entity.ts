@@ -62,6 +62,7 @@ export enum NotificationType {
   FEEDBACK_ASSIGNED = "feedback_assigned",
   BLOG_COMMENT = "blog_comment",
   BLOG_COMMENT_REPLY = "blog_comment_reply",
+  SKILL_READY = "skill_ready",
 }
 export enum NotificationStatusEnum {
   READ = "read",

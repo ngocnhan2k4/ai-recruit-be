@@ -14,6 +14,7 @@ import { getAppConfigs } from "./common/config/app.config";
 import { enableSwaggerDoc } from "./common/config/swagger.config";
 import { enableAppMiddleware } from "./common/middlewares/app.middleware";
 import { loadVaultIntoEnv } from "./common/config";
+import { RequestContextLogger } from "./common/logger/request-context.logger";
 
 async function bootstrap() {
   await loadVaultIntoEnv();
@@ -23,6 +24,9 @@ async function bootstrap() {
     new FastifyAdapter({
       maxParamLength: 256,
     }),
+    {
+      logger: new RequestContextLogger(),
+    },
   );
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
