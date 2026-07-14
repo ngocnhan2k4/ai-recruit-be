@@ -1,27 +1,8 @@
 import { randomUUID } from "crypto";
 
-const SENSITIVE_KEY =
-  /(password|passwd|secret|token|authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|cookie|credential)/i;
-
 const MAX_BODY_CHARS = 4000;
 const MAX_STACK_CHARS = 8000;
-
-/** Headers useful for debugging; others are skipped to reduce noise. */
-const HEADER_ALLOWLIST = new Set([
-  "host",
-  "origin",
-  "referer",
-  "user-agent",
-  "content-type",
-  "content-length",
-  "accept",
-  "accept-language",
-  "x-forwarded-for",
-  "x-real-ip",
-  "x-request-id",
-  "authorization",
-  "cookie",
-]);
+const MAX_HEADERS_CHARS = 20000;
 
 export const REQUEST_ID_HEADER = "x-request-id";
 
@@ -54,14 +35,33 @@ function truncate(value: string, max: number): string {
   return `${value.slice(0, max)}…[truncated ${value.length - max} chars]`;
 }
 
-function redactValue(key: string, value: unknown): unknown {
-  if (SENSITIVE_KEY.test(key)) {
-    if (typeof value === "string") {
-      return value.length === 0 ? "[EMPTY]" : `[REDACTED len=${value.length}]`;
-    }
-    return "[REDACTED]";
+/** Shallow clone for log — no redaction, keeps full string values. */
+function cloneForRawLog(value: unknown, depth = 0): unknown {
+  if (value == null) return value;
+  if (depth > 6) return "[MaxDepth]";
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
   }
-  return value;
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "symbol") return value.description ?? "[Symbol]";
+  if (typeof value === "function")
+    return `[Function ${value.name || "anonymous"}]`;
+  if (Array.isArray(value)) {
+    return value.slice(0, 100).map((item) => cloneForRawLog(item, depth + 1));
+  }
+  if (typeof value === "object") {
+    if (Buffer.isBuffer(value)) return `[Buffer ${value.length} bytes]`;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = cloneForRawLog(v, depth + 1);
+    }
+    return out;
+  }
+  return "[Unserializable]";
 }
 
 export function sanitizeForLog(value: unknown, depth = 0): unknown {
@@ -81,7 +81,7 @@ export function sanitizeForLog(value: unknown, depth = 0): unknown {
     if (Buffer.isBuffer(value)) return `[Buffer ${value.length} bytes]`;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = sanitizeForLog(redactValue(k, v), depth + 1);
+      out[k] = sanitizeForLog(v, depth + 1);
     }
     return out;
   }
@@ -105,19 +105,28 @@ export function truncateStack(stack?: string): string | undefined {
   return truncate(stack, MAX_STACK_CHARS);
 }
 
+/** Log all request headers as-is (including Authorization / Cookie). */
 export function serializeRequestHeaders(
   headers: Record<string, unknown> | undefined,
 ): string | undefined {
   if (!headers) return undefined;
-  const picked: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    const lower = key.toLowerCase();
-    if (!HEADER_ALLOWLIST.has(lower)) continue;
-    picked[lower] = value;
+  try {
+    const raw = cloneForRawLog(headers);
+    if (
+      typeof raw === "object" &&
+      raw &&
+      !Array.isArray(raw) &&
+      Object.keys(raw).length === 0
+    ) {
+      return undefined;
+    }
+    return truncate(JSON.stringify(raw), MAX_HEADERS_CHARS);
+  } catch {
+    return "[unserializable]";
   }
-  return serializeRequestPayload(picked);
 }
 
+/** Log all cookies as-is (including refresh token). */
 export function serializeRequestCookies(
   cookies: Record<string, unknown> | undefined,
 ): string | undefined {
@@ -125,19 +134,11 @@ export function serializeRequestCookies(
   const names = Object.keys(cookies);
   if (names.length === 0) return undefined;
 
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(cookies)) {
-    if (typeof value === "string") {
-      out[key] = SENSITIVE_KEY.test(key)
-        ? value.length === 0
-          ? "[EMPTY]"
-          : `[REDACTED len=${value.length}]`
-        : truncate(value, 200);
-    } else {
-      out[key] = sanitizeForLog(redactValue(key, value));
-    }
+  try {
+    return truncate(JSON.stringify(cloneForRawLog(cookies)), MAX_HEADERS_CHARS);
+  } catch {
+    return "[unserializable]";
   }
-  return serializeRequestPayload(out);
 }
 
 export type RequestLogSnapshot = {
