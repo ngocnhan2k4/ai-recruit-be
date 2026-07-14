@@ -22,3 +22,6 @@ export const getFallbackLanguage = (): string =>
 
 export const getRequestId = (): string | undefined =>
   getContext(CONTEXT_KEYS.REQUEST_ID) as string | undefined;
+
+export const getRequestStartTime = (): number | undefined =>
+  getContext(CONTEXT_KEYS.START_TIME) as number | undefined;

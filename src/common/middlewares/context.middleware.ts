@@ -23,6 +23,7 @@ export class ContextMiddleware implements NestMiddleware {
 
     runContext(() => {
       setContext(CONTEXT_KEYS.REQUEST_ID, requestId);
+      setContext(CONTEXT_KEYS.START_TIME, performance.now());
       setContext(
         CONTEXT_KEYS.REQUEST_LANGUAGE,
         resolveRequestLanguage({

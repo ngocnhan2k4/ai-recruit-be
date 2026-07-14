@@ -6,6 +6,23 @@ const SENSITIVE_KEY =
 const MAX_BODY_CHARS = 4000;
 const MAX_STACK_CHARS = 8000;
 
+/** Headers useful for debugging; others are skipped to reduce noise. */
+const HEADER_ALLOWLIST = new Set([
+  "host",
+  "origin",
+  "referer",
+  "user-agent",
+  "content-type",
+  "content-length",
+  "accept",
+  "accept-language",
+  "x-forwarded-for",
+  "x-real-ip",
+  "x-request-id",
+  "authorization",
+  "cookie",
+]);
+
 export const REQUEST_ID_HEADER = "x-request-id";
 
 export function createRequestId(incoming?: string | string[]): string {
@@ -38,7 +55,12 @@ function truncate(value: string, max: number): string {
 }
 
 function redactValue(key: string, value: unknown): unknown {
-  if (SENSITIVE_KEY.test(key)) return "[REDACTED]";
+  if (SENSITIVE_KEY.test(key)) {
+    if (typeof value === "string") {
+      return value.length === 0 ? "[EMPTY]" : `[REDACTED len=${value.length}]`;
+    }
+    return "[REDACTED]";
+  }
   return value;
 }
 
@@ -83,6 +105,41 @@ export function truncateStack(stack?: string): string | undefined {
   return truncate(stack, MAX_STACK_CHARS);
 }
 
+export function serializeRequestHeaders(
+  headers: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!headers) return undefined;
+  const picked: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    const lower = key.toLowerCase();
+    if (!HEADER_ALLOWLIST.has(lower)) continue;
+    picked[lower] = value;
+  }
+  return serializeRequestPayload(picked);
+}
+
+export function serializeRequestCookies(
+  cookies: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!cookies) return undefined;
+  const names = Object.keys(cookies);
+  if (names.length === 0) return undefined;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(cookies)) {
+    if (typeof value === "string") {
+      out[key] = SENSITIVE_KEY.test(key)
+        ? value.length === 0
+          ? "[EMPTY]"
+          : `[REDACTED len=${value.length}]`
+        : truncate(value, 200);
+    } else {
+      out[key] = sanitizeForLog(redactValue(key, value));
+    }
+  }
+  return serializeRequestPayload(out);
+}
+
 export type RequestLogSnapshot = {
   requestId: string;
   method: string;
@@ -91,4 +148,6 @@ export type RequestLogSnapshot = {
   query?: string;
   params?: string;
   body?: string;
+  headers?: string;
+  cookies?: string;
 };
