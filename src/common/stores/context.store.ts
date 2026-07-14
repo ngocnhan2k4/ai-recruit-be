@@ -4,6 +4,7 @@ export const CONTEXT_KEYS = {
   REQUEST_LANGUAGE: "requestLanguage",
   FALLBACK_LANGUAGE: "fallbackLanguage",
   REQUEST_ID: "requestId",
+  START_TIME: "startTime",
 } as const;
 
 const als = new AsyncLocalStorage<Map<string, unknown>>();

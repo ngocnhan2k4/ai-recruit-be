@@ -32,6 +32,10 @@ export class EnvironmentVariables {
   @IsString()
   GLOBAL_PREFIX: string = "/api/v1";
 
+  @IsOptional()
+  @IsString()
+  TIMEZONE: string = "Asia/Ho_Chi_Minh";
+
   @IsString()
   DATABASE_URL: string;
 
