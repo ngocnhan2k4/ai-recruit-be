@@ -18,6 +18,7 @@ export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
   private readonly aiBlogAuthorId?: string;
   private readonly aiBlogRangeDays: number;
+  private readonly timeZone: string;
 
   constructor(
     private readonly cacheService: ICacheService,
@@ -32,6 +33,8 @@ export class BlogScheduler {
       1,
       this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
     );
+    this.timeZone =
+      this.configService.get<string>("TIMEZONE") || "Asia/Ho_Chi_Minh";
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -118,7 +121,7 @@ export class BlogScheduler {
   }
 
   @Cron("0 0 0 * * 0", {
-    timeZone: "Asia/Ho_Chi_Minh",
+    timeZone: process.env.TIMEZONE || "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
     await this.generateAiBlogOnce();
@@ -203,7 +206,7 @@ export class BlogScheduler {
 
   private formatVietnamDate(date: Date): string {
     return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
+      timeZone: this.timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
