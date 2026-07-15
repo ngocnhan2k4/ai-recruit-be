@@ -112,7 +112,41 @@ const USEFUL_HEADER_KEYS = new Set([
   "x-real-ip",
 ]);
 
-/** Log only Cookie, Authorization (Bearer), and client IP headers. */
+const COOKIE_KEYS_TO_LOG = new Set(["token", "refreshtoken"]);
+
+/** Parse raw Cookie header and keep only token / refreshToken. */
+function pickCookiesFromHeader(
+  cookieHeader: unknown,
+): Record<string, unknown> | undefined {
+  if (cookieHeader == null) return undefined;
+
+  let raw: string;
+  if (typeof cookieHeader === "string") {
+    raw = cookieHeader;
+  } else if (Array.isArray(cookieHeader)) {
+    raw = cookieHeader
+      .filter((part): part is string => typeof part === "string")
+      .join("; ");
+  } else {
+    return undefined;
+  }
+
+  if (!raw.trim()) return undefined;
+
+  const parsed: Record<string, unknown> = {};
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    const name = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (COOKIE_KEYS_TO_LOG.has(name.toLowerCase())) {
+      parsed[name] = value;
+    }
+  }
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
+/** Log only Cookie (token + refreshToken), Authorization, and client IP headers. */
 export function serializeRequestHeaders(
   headers: Record<string, unknown> | undefined,
 ): string | undefined {
@@ -120,9 +154,14 @@ export function serializeRequestHeaders(
   try {
     const filtered: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(headers)) {
-      if (USEFUL_HEADER_KEYS.has(key.toLowerCase()) && value != null) {
-        filtered[key] = value;
+      const lower = key.toLowerCase();
+      if (!USEFUL_HEADER_KEYS.has(lower) || value == null) continue;
+      if (lower === "cookie") {
+        const picked = pickCookiesFromHeader(value);
+        if (picked) filtered.cookie = picked;
+        continue;
       }
+      filtered[key] = value;
     }
     if (Object.keys(filtered).length === 0) return undefined;
     return truncate(
@@ -133,30 +172,3 @@ export function serializeRequestHeaders(
     return "[unserializable]";
   }
 }
-
-/** Log all cookies as-is (including refresh token). */
-export function serializeRequestCookies(
-  cookies: Record<string, unknown> | undefined,
-): string | undefined {
-  if (!cookies) return undefined;
-  const names = Object.keys(cookies);
-  if (names.length === 0) return undefined;
-
-  try {
-    return truncate(JSON.stringify(cloneForRawLog(cookies)), MAX_HEADERS_CHARS);
-  } catch {
-    return "[unserializable]";
-  }
-}
-
-export type RequestLogSnapshot = {
-  requestId: string;
-  method: string;
-  url: string;
-  userId?: string;
-  query?: string;
-  params?: string;
-  body?: string;
-  headers?: string;
-  cookies?: string;
-};
