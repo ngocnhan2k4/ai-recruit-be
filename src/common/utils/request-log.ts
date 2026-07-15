@@ -105,22 +105,30 @@ export function truncateStack(stack?: string): string | undefined {
   return truncate(stack, MAX_STACK_CHARS);
 }
 
-/** Log all request headers as-is (including Authorization / Cookie). */
+const USEFUL_HEADER_KEYS = new Set([
+  "cookie",
+  "authorization",
+  "x-forwarded-for",
+  "x-real-ip",
+]);
+
+/** Log only Cookie, Authorization (Bearer), and client IP headers. */
 export function serializeRequestHeaders(
   headers: Record<string, unknown> | undefined,
 ): string | undefined {
   if (!headers) return undefined;
   try {
-    const raw = cloneForRawLog(headers);
-    if (
-      typeof raw === "object" &&
-      raw &&
-      !Array.isArray(raw) &&
-      Object.keys(raw).length === 0
-    ) {
-      return undefined;
+    const filtered: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      if (USEFUL_HEADER_KEYS.has(key.toLowerCase()) && value != null) {
+        filtered[key] = value;
+      }
     }
-    return truncate(JSON.stringify(raw), MAX_HEADERS_CHARS);
+    if (Object.keys(filtered).length === 0) return undefined;
+    return truncate(
+      JSON.stringify(cloneForRawLog(filtered)),
+      MAX_HEADERS_CHARS,
+    );
   } catch {
     return "[unserializable]";
   }
