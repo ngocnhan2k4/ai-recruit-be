@@ -479,6 +479,7 @@ export class UserRepository
       const keyword = `%${query.keyword.toLowerCase()}%`;
       conditions.push(
         or(
+          ilike(sql`${users.id}::text`, keyword),
           ilike(sql`coalesce(${users.username}, '')`, keyword),
           ilike(sql`coalesce(${users.name}, '')`, keyword),
           ilike(users.email, keyword),
