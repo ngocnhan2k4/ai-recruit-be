@@ -180,6 +180,7 @@ export const applyJobs = pgTable(
       .references(() => jobs.id),
     status: ApplyStatusEnum("status").default("pending"),
     cvId: uuid("cv_id").references(() => cvs.id),
+    userId: uuid("user_id").references(() => users.id),
     answers: jsonb("answers"),
     matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
     matchingCriteria: jsonb("matching_criteria"),
@@ -189,6 +190,7 @@ export const applyJobs = pgTable(
   },
   (table) => [
     uniqueIndex("idx_apply_jobs_cv_job").on(table.cvId, table.jobId),
+    uniqueIndex("idx_apply_jobs_user_job").on(table.userId, table.jobId),
     index("idx_apply_jobs_job_id_created").on(
       table.jobId,
       desc(table.createdAt),
