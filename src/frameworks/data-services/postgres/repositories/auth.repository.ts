@@ -29,6 +29,21 @@ export class AuthRepository
       .execute();
   }
 
+  async retireWithGrace(token: string, graceUntil: Date): Promise<void> {
+    // Only shorten (never extend): update wins only when the current expiry is
+    // later than the grace deadline, so a retired token can't be kept alive.
+    await this.getExecutor()
+      .update(this._table as any)
+      .set({ expiresAt: graceUntil })
+      .where(
+        and(
+          eq((this._table as any).token, token),
+          gt((this._table as any).expiresAt, graceUntil),
+        ),
+      )
+      .execute();
+  }
+
   async findValidToken(token: string): Promise<RefreshToken | null> {
     const result = await this.db
       .select()

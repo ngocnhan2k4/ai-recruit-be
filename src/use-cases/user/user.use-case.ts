@@ -944,11 +944,7 @@ export class UserUseCases implements OnModuleInit {
     userOnboarding: UserOnboardingDto,
     userId: string,
   ): Promise<ApiResponse<void>> {
-    const onboarding: Partial<
-      Omit<UserOnboardingDto, "name" | "gender" | "dob">
-    > = {
-      ...userOnboarding,
-    };
+    const { name, gender, dob, ...onboarding } = userOnboarding;
     const newOnboarding = {
       ...onboarding,
       userId,
@@ -967,9 +963,9 @@ export class UserUseCases implements OnModuleInit {
       userId,
       { ...newOnboarding } as UserOnboarding,
       {
-        name: userOnboarding.name!,
-        gender: userOnboarding.gender!,
-        dob: userOnboarding.dob!,
+        name: name ?? undefined,
+        gender: gender ?? undefined,
+        dob: dob ?? undefined,
       },
     );
     return {

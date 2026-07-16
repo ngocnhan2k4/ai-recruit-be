@@ -1,4 +1,9 @@
-import { RESPONSE_CODE, RESPONSE_MESSAGE, RoleEnum } from "@/common/constants";
+import {
+  REFRESH_ROTATION_GRACE_SECONDS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+} from "@/common/constants";
 import { TokenPayload } from "@/common/types";
 import {
   buildDeletedEmail,
@@ -377,7 +382,13 @@ export class AuthUseCases {
     }
     this.assertUserCanRefresh(user);
     const { accessToken, refreshToken } = await this.issueNewTokens(user);
-    await this.authRepository.revoke(oldRefreshToken);
+    // Keep the old token valid for a short grace window instead of revoking it
+    // immediately, so concurrent refreshes (multi-tab / retries) don't 401.
+    const graceSeconds = REFRESH_ROTATION_GRACE_SECONDS;
+    await this.authRepository.retireWithGrace(
+      oldRefreshToken,
+      new Date(Date.now() + graceSeconds * 1000),
+    );
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
