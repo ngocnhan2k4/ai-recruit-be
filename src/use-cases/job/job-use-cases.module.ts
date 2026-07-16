@@ -9,6 +9,7 @@ import { ConfigModule } from "@nestjs/config";
 import { CvModule } from "@/services/cv/cv.module";
 import { EventTrackingModule } from "../event-tracking/event-tracking.module";
 import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module";
+import { NotificationModule } from "@/frameworks/notification/notification.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module
     CvModule,
     EventTrackingModule,
     BloomFilterModule,
+    NotificationModule,
   ],
   providers: [JobUseCases],
   exports: [JobUseCases],

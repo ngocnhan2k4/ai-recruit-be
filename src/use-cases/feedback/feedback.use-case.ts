@@ -221,6 +221,10 @@ export class FeedbackUseCase {
         {
           title: "Bạn được giao xử lý feedback",
           message: `Phản hồi: ${messageBody}`,
+          templateKey: "feedback_assigned",
+          templateData: {
+            feedbackSubject: messageBody,
+          },
           type: NotificationType.FEEDBACK_ASSIGNED,
           senderId: assignedByUserId ?? undefined,
           payload: { feedbackId: id },
