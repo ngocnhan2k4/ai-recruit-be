@@ -35,14 +35,9 @@ jobs:
           VAULT_RESP_DEV=$(curl -s -H "X-Vault-Token: $VAULT_TOKEN" https://vault.airecruit.software/v1/airecruit-backend/data/dev)
           VAULT_RESP_PROD=$(curl -s -H "X-Vault-Token: $VAULT_TOKEN" https://vault.airecruit.software/v1/airecruit-backend/data/prod)
           export VAULT_RESP_DEV VAULT_RESP_PROD
-          
-          HAS_REDIS=$(python -c "
-import json, os
-d_dev = json.loads(os.environ['VAULT_RESP_DEV']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_DEV']).get('data', {})
-d_prod = json.loads(os.environ['VAULT_RESP_PROD']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_PROD']).get('data', {})
-print('yes' if d_dev.get('REDIS_HOST') or d_prod.get('REDIS_HOST') else 'no')
-")
-          
+
+          HAS_REDIS=$(python -c "import json, os; d_dev = json.loads(os.environ['VAULT_RESP_DEV']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_DEV']).get('data', {}); d_prod = json.loads(os.environ['VAULT_RESP_PROD']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_PROD']).get('data', {}); print('yes' if d_dev.get('REDIS_HOST') or d_prod.get('REDIS_HOST') else 'no')")
+
           if [ "$HAS_REDIS" = "yes" ]; then
             npm ci --omit=dev --prefix ./job_index_queue
           else
@@ -70,12 +65,7 @@ print('yes' if d_dev.get('REDIS_HOST') or d_prod.get('REDIS_HOST') else 'no')
             export VAULT_RESP
             
             # Extract variables using Python helper
-            read -r DATABASE_URL REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB <<< $(python -c "
-import json, os
-resp = json.loads(os.environ['VAULT_RESP'])
-data = resp.get('data', {}).get('data', {}) or resp.get('data', {})
-print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('REDIS_PORT','6379')} {data.get('REDIS_PASSWORD','')} {data.get('REDIS_DB','0')}\")
-")
+            read -r DATABASE_URL REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB <<< $(python -c "import json, os; resp = json.loads(os.environ['VAULT_RESP']); data = resp.get('data', {}).get('data', {}) or resp.get('data', {}); print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('REDIS_PORT','6379')} {data.get('REDIS_PASSWORD','')} {data.get('REDIS_DB','0')}\")")
             
             # Construct and validate Redis url
             if [ -n "$REDIS_HOST" ]; then
@@ -122,13 +112,13 @@ print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('RE
               QUEUE_REDIS_URL_EFFECTIVE=""
             fi
             
-            # 2. Export uncategorized jobs to CSV
+            # Export uncategorized jobs to CSV
             CSV_PATH="classifier/data/predict_jobs_${env_name}.csv"
             python scripts/export_uncategorized_jobs.py \
               --db_url "$DATABASE_URL" \
               --output-file "$CSV_PATH"
               
-            # 3. Check job count
+            # Check job count
             JOB_COUNT=$(python -c "import pandas as pd; print(len(pd.read_csv('$CSV_PATH')))" 2>/dev/null || echo 0)
             
             # Export count to GITHUB_ENV for Slack Notification
@@ -136,20 +126,20 @@ print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('RE
             echo "${UPPER_ENV}_JOB_COUNT=$JOB_COUNT" >> "$GITHUB_ENV"
             
             if [ "$JOB_COUNT" -gt 0 ]; then
-              # 4. Run classifier
+              # Run classifier
               RESULTS_PATH="classifier/data/results_${env_name}.csv"
               python classifier/predict.py \
                 --model "tienminhktvn/job-category-classifier" \
                 --input_file "$CSV_PATH" \
                 --output_file "$RESULTS_PATH"
                 
-              # 5. Update database
+              # Update database
               python scripts/update_category.py \
                 --db_url "$DATABASE_URL" \
                 --csv_file "$RESULTS_PATH" \
                 --redis_url "$QUEUE_REDIS_URL_EFFECTIVE"
                 
-              # 6. Delete "Other" category jobs
+              # Delete "Other" category jobs
               python scripts/delete_other_category_jobs.py \
                 --db_url "$DATABASE_URL" \
                 --redis_url "$QUEUE_REDIS_URL_EFFECTIVE"
@@ -157,7 +147,7 @@ print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('RE
               echo "📭 No uncategorized jobs found for $env_name. Skipping classification."
             fi
             
-            # 7. Cleanup unused categories
+            # Cleanup unused categories
             python scripts/cleanup_unused_categories.py \
               --db_url "$DATABASE_URL"
           done
