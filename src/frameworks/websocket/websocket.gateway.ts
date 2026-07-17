@@ -13,8 +13,17 @@ import { ConfigService } from "@nestjs/config";
 import { Notification } from "@/core";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { IdentityUser } from "@/core/entities/websocket.entity";
-import { RoleEnum } from "@/common/constants";
-import { ROOM_NOTIFICATIONS } from "@/common/constants";
+import {
+  DEFAULT_LANGUAGE_CODE,
+  RoleEnum,
+  ROOM_NOTIFICATIONS,
+} from "@/common/constants";
+import { NotificationRendererService } from "@/frameworks/notification/notification-renderer.service";
+import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import {
+  normalizeLanguageCode,
+  resolveExplicitRequestLanguage,
+} from "@/common/utils";
 
 interface AuthenticatedSocket extends Socket, IdentityUser {
   roles?: RoleEnum[];
@@ -41,9 +50,11 @@ export class WebSocketGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly userRepository: IUserRepository,
+    private readonly notificationRenderer: NotificationRendererService,
   ) {}
 
-  handleConnection(client: AuthenticatedSocket) {
+  async handleConnection(client: AuthenticatedSocket) {
     try {
       // Extract token from handshake query or headers
       const token =
@@ -70,6 +81,21 @@ export class WebSocketGateway
       }
 
       const orgId = client.handshake.query.organizationId as string;
+      const user = await this.userRepository.get(client.userId);
+      client.preferredLanguage = user?.preferredLanguage
+        ? normalizeLanguageCode(user.preferredLanguage)
+        : DEFAULT_LANGUAGE_CODE;
+      client.languageCode = resolveExplicitRequestLanguage({
+        queryLang:
+          client.handshake.query.languageCode ??
+          client.handshake.query.lang ??
+          (client.handshake.auth?.languageCode as
+            | string
+            | string[]
+            | undefined) ??
+          (client.handshake.auth?.lang as string | string[] | undefined),
+        acceptLanguage: client.handshake.headers["accept-language"],
+      });
 
       client.organizationId = orgId;
 
@@ -110,6 +136,10 @@ export class WebSocketGateway
         message: "Connected to notification service",
         userId: client.userId,
         orgId: orgId ? orgId : "none",
+        languageCode:
+          client.languageCode ??
+          client.preferredLanguage ??
+          DEFAULT_LANGUAGE_CODE,
       });
     } catch (error) {
       this.logger.error("WebSocket authentication failed:", error);
@@ -143,13 +173,22 @@ export class WebSocketGateway
     client.emit("pong", { timestamp: new Date().toISOString() });
   }
 
-  sendToUser(identity: IdentityUser, notification: Notification) {
-    const userKey = ROOM_NOTIFICATIONS.user({
-      userId: identity.userId,
-      orgId: identity.organizationId,
-    });
+  private getSocketsForUser(userId: string): Set<AuthenticatedSocket> {
+    const matchedSockets = new Set<AuthenticatedSocket>();
 
-    const sockets = this.connectedUsers.get(userKey);
+    for (const sockets of this.connectedUsers.values()) {
+      sockets.forEach((socket) => {
+        if (socket.userId === userId) {
+          matchedSockets.add(socket);
+        }
+      });
+    }
+
+    return matchedSockets;
+  }
+
+  sendToUser(identity: IdentityUser, notification: Notification) {
+    const sockets = this.getSocketsForUser(identity.userId);
 
     if (!sockets || sockets.size === 0) {
       this.logger.warn(
@@ -158,7 +197,21 @@ export class WebSocketGateway
       return false;
     }
     sockets.forEach((socket) => {
-      socket.emit("notification", notification);
+      const primaryLanguage =
+        socket.languageCode ??
+        socket.preferredLanguage ??
+        DEFAULT_LANGUAGE_CODE;
+      const fallbackLanguage =
+        socket.preferredLanguage ?? DEFAULT_LANGUAGE_CODE;
+      const rendered = this.notificationRenderer.render(notification, {
+        languagePriority: [primaryLanguage, fallbackLanguage],
+      });
+      socket.emit("notification", {
+        ...notification,
+        title: rendered.title,
+        message: rendered.message,
+        displayLanguage: rendered.language,
+      });
     });
     this.logger.log(
       `Notification sent to user ${identity.userId}, org:${identity.organizationId}`,

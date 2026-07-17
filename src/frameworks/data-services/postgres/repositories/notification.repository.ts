@@ -159,6 +159,11 @@ export class NotificationRepository
     type: string;
     title: string;
     buildMessage: (actorNames: string[], actorCount: number) => string;
+    templateKey?: string;
+    buildTemplateData?: (
+      actorNames: string[],
+      actorCount: number,
+    ) => Record<string, any>;
     payload: Record<string, any>;
   }): Promise<Notification | null> {
     const {
@@ -168,6 +173,8 @@ export class NotificationRepository
       type,
       title,
       buildMessage,
+      templateKey,
+      buildTemplateData,
       payload,
     } = params;
 
@@ -220,6 +227,9 @@ export class NotificationRepository
         (id) => actorUsers.find((u) => u.id === id)?.name ?? "Người dùng",
       );
       const message = buildMessage(actorNames, actorCount);
+      const templateData = buildTemplateData
+        ? buildTemplateData(actorNames, actorCount)
+        : {};
 
       // Reuse actorUsers (already fetched) to get sender info for avatar display
       const senderInfo = actorUsers.find((u) => u.id === senderId) ?? null;
@@ -231,6 +241,8 @@ export class NotificationRepository
             actorIds: updatedActorIds,
             actorCount,
             message,
+            templateKey,
+            templateData,
             updatedAt: new Date(),
           })
           .where(eq(notifications.id, existing.notification.id))
@@ -260,6 +272,8 @@ export class NotificationRepository
           title,
           message,
           type: type as (typeof notifications.$inferSelect)["type"],
+          templateKey,
+          templateData,
           payload: payload as (typeof notifications.$inferSelect)["payload"],
           actorIds: updatedActorIds,
           actorCount,

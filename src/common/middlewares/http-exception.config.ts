@@ -17,7 +17,7 @@ import {
 } from "@/common/utils/db-error";
 import {
   REQUEST_ID_HEADER,
-  serializeRequestCookies,
+  createRequestId,
   serializeRequestHeaders,
   serializeRequestPayload,
   setResponseHeader,
@@ -55,8 +55,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId =
       getRequestId() ||
       request.requestId ||
-      (request.headers[REQUEST_ID_HEADER] as string | undefined) ||
-      "unknown";
+      createRequestId(request.headers[REQUEST_ID_HEADER]);
+    request.requestId = requestId;
     const userId = request.user?.sub || request.user?.userId || "anonymous";
     const query = serializeRequestPayload(request.query);
     const params = serializeRequestPayload(request.params);
@@ -64,7 +64,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const headers = serializeRequestHeaders(
       request.headers as Record<string, unknown>,
     );
-    const cookies = serializeRequestCookies(request.cookies);
 
     const name = (exception as Error)?.name ?? "Error";
     let resContent: ApiResponse<any>;
@@ -126,7 +125,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       params,
       body,
       headers,
-      cookies,
       ip: request.ip,
       stack,
       causeStack,
@@ -153,7 +151,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       params,
       body,
       headers,
-      cookies,
       ip: request.ip,
     });
     if (dbErrorInfo) {

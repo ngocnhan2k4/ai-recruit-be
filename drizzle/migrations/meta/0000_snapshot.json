@@ -5332,7 +5332,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"user_subscriptions\".\"status\" = 'active'::user_subscription_status",
+          "where": "\"user_subscriptions\".\"status\"::text = 'active'",
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -24,6 +24,7 @@ import {
   count,
   ilike,
   and,
+  or,
   SQL,
   sql,
   asc,
@@ -164,6 +165,40 @@ export class SkillRepository
     };
   }
 
+  /**
+   * Strip spaces / punctuation so "nodejs" matches "node.js", "Node JS", etc.
+   */
+  private buildSkillKeywordCondition(keyword: string): SQL {
+    const trimmed = keyword.trim();
+    const likePattern = `%${trimmed}%`;
+    const normalizedKeyword = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedNameExpr = sql`regexp_replace(lower(${skills.name}), '[^a-z0-9]', '', 'g')`;
+    const normalizedAliasExpr = sql`regexp_replace(lower(${skillsSynonyms.aliasName}), '[^a-z0-9]', '', 'g')`;
+
+    const nameMatch = or(
+      ilike(skills.name, likePattern),
+      normalizedKeyword
+        ? sql`${normalizedNameExpr} LIKE ${`%${normalizedKeyword}%`}`
+        : undefined,
+    );
+
+    const synonymMatch = sql`EXISTS (
+      SELECT 1
+      FROM ${skillsSynonyms}
+      WHERE ${skillsSynonyms.masterSkillId} = ${skills.id}
+        AND (
+          ${skillsSynonyms.aliasName} ILIKE ${likePattern}
+          ${
+            normalizedKeyword
+              ? sql`OR ${normalizedAliasExpr} LIKE ${`%${normalizedKeyword}%`}`
+              : sql``
+          }
+        )
+    )`;
+
+    return or(nameMatch, synonymMatch)!;
+  }
+
   private buildWhereCondition(query: SkillFilter) {
     const keyword = query.keyword ?? "";
     const skillIds = query.skillIds || [];
@@ -172,7 +207,7 @@ export class SkillRepository
     const whereConditions: SQL[] = [eq(skills.isApproved, isApproved)];
 
     if (keyword) {
-      whereConditions.push(ilike(skills.name, `%${keyword}%`));
+      whereConditions.push(this.buildSkillKeywordCondition(keyword));
     }
 
     if (skillIds.length > 0) {

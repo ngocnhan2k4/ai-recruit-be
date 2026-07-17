@@ -220,6 +220,11 @@ export class BlogUseCases {
             {
               title: "Phản hồi bình luận",
               message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
+              templateKey: "blog_comment_reply",
+              templateData: {
+                commenterName,
+                postTitle: post.title,
+              },
               type: NotificationType.BLOG_COMMENT_REPLY,
               senderId: user.userId,
               payload: {
@@ -248,6 +253,12 @@ export class BlogUseCases {
               return `${actorNames[0]} và ${actorNames[1]} đã bình luận bài viết "${post.title}" của bạn.`;
             return `${actorNames.slice(0, 2).join(", ")} và ${others} người khác đã bình luận bài viết "${post.title}" của bạn.`;
           },
+          templateKey: "blog_comment_aggregated",
+          buildTemplateData: (actorNames, actorCount) => ({
+            actorNames,
+            actorCount,
+            postTitle: post.title,
+          }),
           payload: {
             blogId: post.id,
             blogSlug: post.slug,
