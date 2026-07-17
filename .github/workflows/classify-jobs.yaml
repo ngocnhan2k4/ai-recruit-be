@@ -90,27 +90,27 @@ jobs:
               # Validate Redis Connection
               export QUEUE_REDIS_URL
               node <<'NODE'
-              const path = require("path");
-              const Redis = require(path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis"));
-              const client = new Redis(process.env.QUEUE_REDIS_URL, {
-                enableReadyCheck: true,
-                connectTimeout: 5000,
-                maxRetriesPerRequest: 1,
-                retryStrategy: () => null,
-              });
-              const timer = setTimeout(() => {
-                console.error("Redis connection timeout");
-                process.exit(1);
-              }, 6000);
-              client.once("ready", async () => {
-                clearTimeout(timer);
-                await client.quit();
-                process.exit(0);
-              });
-              client.once("error", (err) => {
-                console.error(err?.message || err);
-                process.exit(1);
-              });
+const path = require("path");
+const Redis = require(path.resolve(process.cwd(), "job_index_queue", "node_modules", "ioredis"));
+const client = new Redis(process.env.QUEUE_REDIS_URL, {
+  enableReadyCheck: true,
+  connectTimeout: 5000,
+  maxRetriesPerRequest: 1,
+  retryStrategy: () => null,
+});
+const timer = setTimeout(() => {
+  console.error("Redis connection timeout");
+  process.exit(1);
+}, 6000);
+client.once("ready", async () => {
+  clearTimeout(timer);
+  await client.quit();
+  process.exit(0);
+});
+client.once("error", (err) => {
+  console.error(err?.message || err);
+  process.exit(1);
+});
 NODE
               if [ $? -eq 0 ]; then
                 QUEUE_REDIS_URL_EFFECTIVE="$QUEUE_REDIS_URL"
