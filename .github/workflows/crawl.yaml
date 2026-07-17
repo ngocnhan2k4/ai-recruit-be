@@ -58,20 +58,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select LinkedIn keywords
-        id: keywords
-        shell: bash
-        run: |
-          python -c "
-          import random, os
-          lines = [line.strip() for line in open('crawl_jobs/classifier/data/categories.txt', encoding='utf-8') if line.strip()]
-          kws = random.sample(lines, 2) if len(lines) >= 2 else (lines * 2)[:2]
-          print(f'Selected Keywords: {kws}')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'kw1={kws[0]}\n')
-              f.write(f'kw2={kws[1]}\n')
-          "
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -103,94 +89,17 @@ jobs:
             echo "Skip queue bridge install: REDIS_URL secrets are empty."
           fi
 
-      - name: Prepare Redis URLs
-        working-directory: ./crawl_jobs
-        env:
-          QUEUE_REDIS_URL_DEV: ${{ secrets.DEV_REDIS_URL }}
-          QUEUE_REDIS_URL_PROD: ${{ secrets.PROD_REDIS_URL }}
-        run: |
-          echo "QUEUE_REDIS_URL_DEV=$QUEUE_REDIS_URL_DEV" >> "$GITHUB_ENV"
-          echo "QUEUE_REDIS_URL_PROD=$QUEUE_REDIS_URL_PROD" >> "$GITHUB_ENV"
-
-      - name: Run crawler - Part 1 (ITViec, VietnamWorks, LinkedIn KW1)
-        id: run_crawler_1
-        working-directory: ./crawl_jobs
-        run: |
-          QUEUE_ARGS=()
-          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
-            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
-            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
-            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
-          fi
-
-          python main.py \
-            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
-            --gha-output "../gha_out_1.txt" \
-            --mode ${{ inputs.mode || 'update' }} \
-            --itviec-pages ${{ inputs.itviec_pages || '1' }} \
-            --vietnamworks-pages ${{ inputs.vietnamworks_pages || '1' }} \
-            --topcv-pages 0 \
-            --jobsgo-pages 0 \
-            --linkedin-pages 1 \
-            --linkedin-keywords "${{ steps.keywords.outputs.kw1 }}" \
-            --linkedin-limit 5 \
-            "${QUEUE_ARGS[@]}"
-
-      - name: Run crawler - Part 2 (LinkedIn KW2 only)
-        id: run_crawler_2
-        working-directory: ./crawl_jobs
-        run: |
-          QUEUE_ARGS=()
-          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
-            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
-            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
-            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
-          fi
-
-          python main.py \
-            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
-            --gha-output "../gha_out_2.txt" \
-            --mode ${{ inputs.mode || 'update' }} \
-            --itviec-pages 0 \
-            --vietnamworks-pages 0 \
-            --topcv-pages 0 \
-            --jobsgo-pages 0 \
-            --linkedin-pages 1 \
-            --linkedin-keywords "${{ steps.keywords.outputs.kw2 }}" \
-            --linkedin-limit 5 \
-            "${QUEUE_ARGS[@]}"
-
-      - name: Aggregate Outputs
+      - name: Run Crawler
         id: aggregate_outputs
+        working-directory: ./crawl_jobs
         run: |
-          python -c "
-          import os
-          def load_vars(path):
-              d = {}
-              if os.path.exists(path):
-                  for line in open(path):
-                      if '=' in line:
-                          k, v = line.strip().split('=', 1)
-                          try: d[k] = int(v)
-                          except ValueError:
-                              try: d[k] = float(v)
-                              except ValueError: d[k] = v
-              return d
-
-          v1 = load_vars('gha_out_1.txt')
-          v2 = load_vars('gha_out_2.txt')
-          keys = set(v1.keys()) | set(v2.keys())
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              for k in keys:
-                  val1 = v1.get(k, 0)
-                  val2 = v2.get(k, 0)
-                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
-                      total = val1 + val2
-                      res = f'{total:.2f}' if isinstance(total, float) else total
-                      f.write(f'{k}={res}\n')
-                  else:
-                      f.write(f'{k}={val1 or val2}\n')
-          "
+          python scripts/run_crawler.py \
+            --platform ubuntu \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --queue-redis-urls "${{ secrets.DEV_REDIS_URL }}" "${{ secrets.PROD_REDIS_URL }}" \
+            --mode "${{ inputs.mode || 'update' }}" \
+            --itviec-pages "${{ inputs.itviec_pages || '1' }}" \
+            --vietnamworks-pages "${{ inputs.vietnamworks_pages || '1' }}"
 
       - name: Notify Slack
         if: always()
@@ -240,20 +149,6 @@ jobs:
       - name: Clean stale output files
         run: rm -f gha_out_*.txt
 
-      - name: Select LinkedIn keywords
-        id: keywords
-        shell: bash
-        run: |
-          python -c "
-          import random, os
-          lines = [line.strip() for line in open('crawl_jobs/classifier/data/categories.txt', encoding='utf-8') if line.strip()]
-          kws = random.sample(lines, 2) if len(lines) >= 2 else (lines * 2)[:2]
-          print(f'Selected Keywords: {kws}')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'kw1={kws[0]}\n')
-              f.write(f'kw2={kws[1]}\n')
-          "
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -284,85 +179,17 @@ jobs:
             echo "Skip queue bridge install: REDIS_URL secrets are empty."
           fi
 
-      - name: Run crawler - Part 1 (TopCV, JobsGO, LinkedIn KW1)
-        id: run_crawler_1
-        working-directory: ./crawl_jobs
-        run: |
-          QUEUE_ARGS=()
-          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
-            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
-            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
-            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
-          fi
-
-          python main.py \
-            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
-            --gha-output "../gha_out_1.txt" \
-            --mode ${{ inputs.mode || 'update' }} \
-            --itviec-pages 0 \
-            --vietnamworks-pages 0 \
-            --topcv-pages ${{ inputs.topcv_pages || '1' }} \
-            --jobsgo-pages ${{ inputs.jobsgo_pages || '1' }} \
-            --linkedin-pages 1 \
-            --linkedin-keywords "${{ steps.keywords.outputs.kw1 }}" \
-            --linkedin-limit 5 \
-            "${QUEUE_ARGS[@]}"
-
-      - name: Run crawler - Part 2 (LinkedIn KW2 only)
-        id: run_crawler_2
-        working-directory: ./crawl_jobs
-        run: |
-          QUEUE_ARGS=()
-          if [ -n "$QUEUE_REDIS_URL_DEV" ] || [ -n "$QUEUE_REDIS_URL_PROD" ]; then
-            QUEUE_ARGS+=(--queue-index-enabled --queue-redis-urls)
-            [ -n "$QUEUE_REDIS_URL_DEV" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_DEV")
-            [ -n "$QUEUE_REDIS_URL_PROD" ] && QUEUE_ARGS+=("$QUEUE_REDIS_URL_PROD")
-          fi
-
-          python main.py \
-            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
-            --gha-output "../gha_out_2.txt" \
-            --mode ${{ inputs.mode || 'update' }} \
-            --itviec-pages 0 \
-            --vietnamworks-pages 0 \
-            --topcv-pages 0 \
-            --jobsgo-pages 0 \
-            --linkedin-pages 1 \
-            --linkedin-keywords "${{ steps.keywords.outputs.kw2 }}" \
-            --linkedin-limit 5 \
-            "${QUEUE_ARGS[@]}"
-
-      - name: Aggregate Outputs
+      - name: Run Crawler
         id: aggregate_outputs
+        working-directory: ./crawl_jobs
         run: |
-          python -c "
-          import os
-          def load_vars(path):
-              d = {}
-              if os.path.exists(path):
-                  for line in open(path):
-                      if '=' in line:
-                          k, v = line.strip().split('=', 1)
-                          try: d[k] = int(v)
-                          except ValueError:
-                              try: d[k] = float(v)
-                              except ValueError: d[k] = v
-              return d
-
-          v1 = load_vars('gha_out_1.txt')
-          v2 = load_vars('gha_out_2.txt')
-          keys = set(v1.keys()) | set(v2.keys())
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              for k in keys:
-                  val1 = v1.get(k, 0)
-                  val2 = v2.get(k, 0)
-                  if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
-                      total = val1 + val2
-                      res = f'{total:.2f}' if isinstance(total, float) else total
-                      f.write(f'{k}={res}\n')
-                  else:
-                      f.write(f'{k}={val1 or val2}\n')
-          "
+          python scripts/run_crawler.py \
+            --platform selfhosted \
+            --db-urls "${{ secrets.DEV_DATABASE_URL }}" "${{ secrets.PROD_DATABASE_URL }}" \
+            --queue-redis-urls "${{ secrets.DEV_REDIS_URL }}" "${{ secrets.PROD_REDIS_URL }}" \
+            --mode "${{ inputs.mode || 'update' }}" \
+            --topcv-pages "${{ inputs.topcv_pages || '1' }}" \
+            --jobsgo-pages "${{ inputs.jobsgo_pages || '1' }}"
 
       - name: Notify Slack
         if: always()
