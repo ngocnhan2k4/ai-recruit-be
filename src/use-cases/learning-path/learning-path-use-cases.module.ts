@@ -5,6 +5,7 @@ import { PostgresDataServicesModule } from "@/frameworks/data-services/postgres/
 import { WebSocketModule } from "@/frameworks/websocket/websocket.module";
 import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 import { FeatureModule } from "@/services";
+import { NotificationModule } from "@/frameworks/notification/notification.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { FeatureModule } from "@/services";
     WebSocketModule,
     MessageQueueModule,
     FeatureModule,
+    NotificationModule,
   ],
   providers: [LearningPathUseCase],
   exports: [LearningPathUseCase],

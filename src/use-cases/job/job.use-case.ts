@@ -83,6 +83,7 @@ import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult, TokenPayload } from "@/common/types";
 import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { ROOM_NOTIFICATIONS } from "@/common/constants";
 import { IFeatureService } from "@/core";
@@ -98,6 +99,7 @@ export class JobUseCases {
     private readonly organizationRepository: IOrganizationRepository,
     private readonly userRepository: IUserRepository,
     private readonly webSocketGateway: IWebSocketGateway,
+    private readonly notificationService: INotificationService,
     private readonly messageQueueService: IMessageQueueService,
     private readonly jobSearchService: IJobSearchService,
     private readonly notificationRepository: INotificationRepository,
@@ -783,7 +785,7 @@ export class JobUseCases {
 
       const recipients = adminOrgUsers.map((m) => ({
         receiverId: m.id,
-        orgId,
+        organizationId: orgId,
       }));
 
       const notifications =
@@ -791,6 +793,10 @@ export class JobUseCases {
           {
             title: "Đơn ứng tuyển mới",
             message: `Có một đơn ứng tuyển mới cho vị trí "${job?.title}"`,
+            templateKey: "job_applied",
+            templateData: {
+              jobTitle: job?.title ?? "job",
+            },
             type: NotificationType.JOB_APPLIED,
             senderId: userId,
             payload: {
@@ -801,9 +807,10 @@ export class JobUseCases {
           },
           recipients,
         );
-      this.webSocketGateway.sendToRoom(
-        ROOM_NOTIFICATIONS.org({ orgId: orgId }),
-        notifications[0],
+      await Promise.all(
+        notifications.map((notification) =>
+          this.notificationService.sendNotification(notification),
+        ),
       );
       this.logger.log(
         `Sent new-application notification to room ${ROOM_NOTIFICATIONS.org({ orgId: orgId })} for job "${job?.title}"`,
@@ -966,22 +973,35 @@ export class JobUseCases {
             : "Đơn ứng tuyển bị từ chối";
         const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${job.title}" đã được ${data.status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
 
-        await this.notificationRepository.createNotificationWithRecipients(
-          {
-            title: notificationTitle,
-            message: notificationMessage,
-            type:
-              data.status == ApplyStatusEnum.ACCEPTED
-                ? NotificationType.CV_APPROVED
-                : NotificationType.CV_REJECTED,
-            senderId: senderUserId,
-            payload: {
-              jobId: applyData.jobId,
-              applyId: applyData.id,
-              orgId: job.organizationId,
+        const notifications =
+          await this.notificationRepository.createNotificationWithRecipients(
+            {
+              title: notificationTitle,
+              message: notificationMessage,
+              templateKey:
+                data.status == ApplyStatusEnum.ACCEPTED
+                  ? "cv_approved"
+                  : "cv_rejected",
+              templateData: {
+                jobTitle: job.title,
+              },
+              type:
+                data.status == ApplyStatusEnum.ACCEPTED
+                  ? NotificationType.CV_APPROVED
+                  : NotificationType.CV_REJECTED,
+              senderId: senderUserId,
+              payload: {
+                jobId: applyData.jobId,
+                applyId: applyData.id,
+                orgId: job.organizationId,
+              },
             },
-          },
-          [{ receiverId: cv.userId, organizationId: job.organizationId }],
+            [{ receiverId: cv.userId, organizationId: job.organizationId }],
+          );
+        await Promise.all(
+          notifications.map((notification) =>
+            this.notificationService.sendNotification(notification),
+          ),
         );
       }
     } catch (err) {
@@ -1117,6 +1137,10 @@ export class JobUseCases {
               {
                 title: "Công việc mới được tạo",
                 message: `Công việc "${newJob.title}" đã được tạo và đang chờ phê duyệt.`,
+                templateKey: "job_posted",
+                templateData: {
+                  jobTitle: newJob.title,
+                },
                 type: NotificationType.JOB_POSTED,
                 senderId: userId,
                 payload: {
@@ -1133,7 +1157,11 @@ export class JobUseCases {
       });
 
     if (newNotifications.length > 0) {
-      this.webSocketGateway.sendToRoom("admin", newNotifications[0]);
+      await Promise.all(
+        newNotifications.map((notification) =>
+          this.notificationService.sendNotification(notification),
+        ),
+      );
       this.logger.log(
         `Broadcast job-created notification to admin room for job "${newJob.title}" (${newNotifications.length} notifications created in DB)`,
       );
@@ -1465,6 +1493,10 @@ export class JobUseCases {
               {
                 title: "Công việc được cập nhật",
                 message: `Công việc "${updatedJob.title}" đã được cập nhật và cần phê duyệt lại.`,
+                templateKey: "job_updated",
+                templateData: {
+                  jobTitle: updatedJob.title,
+                },
                 type: NotificationType.JOB_UPDATED,
                 senderId: senderUserId,
                 payload: {
@@ -1481,9 +1513,10 @@ export class JobUseCases {
       });
 
     if (newNotifications.length > 0) {
-      this.webSocketGateway.sendToRoom(
-        ROOM_NOTIFICATIONS.admin,
-        newNotifications[0],
+      await Promise.all(
+        newNotifications.map((notification) =>
+          this.notificationService.sendNotification(notification),
+        ),
       );
       this.logger.log(
         `Broadcast job-updated notification to admin room for job "${updatedJob?.title}" (${newNotifications.length} notifications created in DB)`,
@@ -1542,6 +1575,13 @@ export class JobUseCases {
               {
                 title: "Cập nhật trạng thái công việc",
                 message: `Công việc "${updatedJob?.title ?? currentJob.job.title}" đã ${getJobStatus(updateJobDto.status)} bởi quản trị viên.`,
+                templateKey:
+                  updateJobDto.status === JobStatusEnum.ACTIVE
+                    ? "admin_job_approved"
+                    : "admin_job_rejected",
+                templateData: {
+                  jobTitle: updatedJob?.title ?? currentJob.job.title,
+                },
                 type:
                   updateJobDto.status === JobStatusEnum.ACTIVE
                     ? NotificationType.ADMIN_JOB_APPROVED
@@ -1569,7 +1609,11 @@ export class JobUseCases {
       const orgRoom = ROOM_NOTIFICATIONS.org({
         orgId: finalizedJob.organizationId,
       });
-      this.webSocketGateway.sendToRoom(orgRoom, notifications[0]);
+      await Promise.all(
+        notifications.map((notification) =>
+          this.notificationService.sendNotification(notification),
+        ),
+      );
       this.logger.log(
         `Broadcast job-updated notification to org room ${orgRoom} for job "${finalizedJob.title}" (${notifications.length} notifications created in DB)`,
       );
