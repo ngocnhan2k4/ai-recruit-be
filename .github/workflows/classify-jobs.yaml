@@ -37,11 +37,11 @@ jobs:
           export VAULT_RESP_DEV VAULT_RESP_PROD
           
           HAS_REDIS=$(python -c "
-          import json, os
-          d_dev = json.loads(os.environ['VAULT_RESP_DEV']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_DEV']).get('data', {})
-          d_prod = json.loads(os.environ['VAULT_RESP_PROD']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_PROD']).get('data', {})
-          print('yes' if d_dev.get('REDIS_HOST') or d_prod.get('REDIS_HOST') else 'no')
-          ")
+import json, os
+d_dev = json.loads(os.environ['VAULT_RESP_DEV']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_DEV']).get('data', {})
+d_prod = json.loads(os.environ['VAULT_RESP_PROD']).get('data', {}).get('data', {}) or json.loads(os.environ['VAULT_RESP_PROD']).get('data', {})
+print('yes' if d_dev.get('REDIS_HOST') or d_prod.get('REDIS_HOST') else 'no')
+")
           
           if [ "$HAS_REDIS" = "yes" ]; then
             npm ci --omit=dev --prefix ./job_index_queue
@@ -71,11 +71,11 @@ jobs:
             
             # Extract variables using Python helper
             read -r DATABASE_URL REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB <<< $(python -c "
-            import json, os
-            resp = json.loads(os.environ['VAULT_RESP'])
-            data = resp.get('data', {}).get('data', {}) or resp.get('data', {})
-            print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('REDIS_PORT','6379')} {data.get('REDIS_PASSWORD','')} {data.get('REDIS_DB','0')}\")
-            ")
+import json, os
+resp = json.loads(os.environ['VAULT_RESP'])
+data = resp.get('data', {}).get('data', {}) or resp.get('data', {})
+print(f\"{data.get('DATABASE_URL','')} {data.get('REDIS_HOST','')} {data.get('REDIS_PORT','6379')} {data.get('REDIS_PASSWORD','')} {data.get('REDIS_DB','0')}\")
+")
             
             # Construct and validate Redis url
             if [ -n "$REDIS_HOST" ]; then
@@ -149,7 +149,7 @@ jobs:
                 --csv_file "$RESULTS_PATH" \
                 --redis_url "$QUEUE_REDIS_URL_EFFECTIVE"
                 
-              # 6. Delete 'Other' category jobs
+              # 6. Delete "Other" category jobs
               python scripts/delete_other_category_jobs.py \
                 --db_url "$DATABASE_URL" \
                 --redis_url "$QUEUE_REDIS_URL_EFFECTIVE"
