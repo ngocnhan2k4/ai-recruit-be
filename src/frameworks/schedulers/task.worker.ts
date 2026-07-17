@@ -22,6 +22,7 @@ import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   AILearningRoadmapResult,
+  AISubpathResult,
   CvLanguageEnum,
   NotificationType,
   NewAiCv,
@@ -480,13 +481,29 @@ export class TaskWorker extends WorkerHost {
                     optionName: option.optionName ?? "",
                     resources: option.resources || [],
                     keyConcepts: option.keyConcepts || [],
+                    subpath: option.subpath,
                   }));
                 },
               ),
           )
           .flat(2);
 
-        await this.skillOptionRepository.createMany(newSkillOptions, tx);
+        const createdOptions = await this.skillOptionRepository.createMany(
+          newSkillOptions.map(({ subpath: _subpath, ...rest }) => rest),
+          tx,
+        );
+
+        const optionIdToDbId = new Map(
+          createdOptions.map((row) => [row.optionId, row.id]),
+        );
+
+        const readySubpaths = newSkillOptions
+          .filter((o) => o.subpath && optionIdToDbId.has(o.optionId))
+          .map((o) => ({
+            roadmapSkillOptionId: optionIdToDbId.get(o.optionId)!,
+            optionName: o.optionName,
+            subpath: o.subpath!,
+          }));
 
         for (const phase of preview.phases) {
           if (phase.skills?.length) {
@@ -527,9 +544,17 @@ export class TaskWorker extends WorkerHost {
           roadmap: newRoadmap,
           phaseIds: createdPhases.map((item) => item.id),
           skillIds: createdSkills.map((item) => item.id),
+          readySubpaths,
         };
       },
     );
+
+    await this.persistEagerlyGeneratedSubpaths({
+      userId,
+      targetRole: request.targetRole ?? "",
+      currentRole: request.currentRole ?? "",
+      readySubpaths: persisted.readySubpaths,
+    });
 
     await this.enqueueRoadmapTranslationJobs({
       phaseIds: persisted.phaseIds,
@@ -538,6 +563,47 @@ export class TaskWorker extends WorkerHost {
     });
 
     return persisted.roadmap;
+  }
+
+  private async persistEagerlyGeneratedSubpaths(params: {
+    userId: string;
+    targetRole: string;
+    currentRole: string;
+    readySubpaths: Array<{
+      roadmapSkillOptionId: string;
+      optionName: string;
+      subpath: AISubpathResult;
+    }>;
+  }) {
+    const { userId, targetRole, currentRole, readySubpaths } = params;
+    if (!readySubpaths.length) return;
+
+    await Promise.all(
+      readySubpaths.map(
+        async ({ roadmapSkillOptionId, optionName, subpath }) => {
+          try {
+            const shared = await this.subpathRepository.createFromAIResult(
+              { optionName, targetRole, currentRole },
+              subpath,
+            );
+
+            await this.subpathRepository.cloneSharedSubpathForUser(
+              shared.id,
+              roadmapSkillOptionId,
+              userId,
+            );
+          } catch (err: any) {
+            this.logger.error(
+              `[worker] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
+            );
+          }
+        },
+      ),
+    );
+
+    this.logger.log(
+      `[worker] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
+    );
   }
 
   private async withTaskLifecycle<TResult>(
