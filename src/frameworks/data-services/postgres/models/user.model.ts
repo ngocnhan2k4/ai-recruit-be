@@ -24,6 +24,7 @@ import {
   EducationLevelEnum,
   ProviderEnum,
   UserStatusEnum,
+  LanguageEnum,
 } from "./enums";
 
 export const userIdentities = pgTable(
@@ -75,6 +76,9 @@ export const users = pgTable(
     gender: GenderEnum("gender"),
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
+    preferredLanguage: LanguageEnum("preferred_language")
+      .notNull()
+      .default("vi"),
     deletionRequestedAt: timestamp("deletion_requested_at"),
     purgeAfterAt: timestamp("purge_after_at"),
     ...timestamps,

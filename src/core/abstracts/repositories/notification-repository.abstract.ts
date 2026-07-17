@@ -26,6 +26,11 @@ export abstract class INotificationRepository extends IGenericRepository<Notific
     type: string;
     title: string;
     buildMessage: (actorNames: string[], actorCount: number) => string;
+    templateKey?: string;
+    buildTemplateData?: (
+      actorNames: string[],
+      actorCount: number,
+    ) => Record<string, any>;
     payload: Record<string, any>;
   }): Promise<Notification | null>;
 

@@ -18,6 +18,7 @@ import {
   INotificationRepository,
   ISubpathRepository,
 } from "@/core/abstracts";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
@@ -64,6 +65,7 @@ export class TaskWorker extends WorkerHost {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly notificationRepository: INotificationRepository,
+    private readonly notificationService: INotificationService,
     private readonly aiCvRepository: IAiCvRepository,
     private readonly messageQueueService: IMessageQueueService,
     private readonly subpathRepository: ISubpathRepository,
@@ -110,6 +112,11 @@ export class TaskWorker extends WorkerHost {
     };
   }) {
     const { notificationId, userId, payload, message, taskId } = params;
+    const template = this.resolveTaskNotificationTemplate({
+      taskType: params.taskData.type,
+      status: params.taskData.status,
+      message,
+    });
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
       await this.taskRepository.update(
@@ -125,6 +132,8 @@ export class TaskWorker extends WorkerHost {
             taskId,
             ...payload,
           },
+          templateKey: template.templateKey,
+          templateData: template.templateData,
           message,
           updatedAt: new Date(),
         },
@@ -132,10 +141,13 @@ export class TaskWorker extends WorkerHost {
       );
     });
 
-    this.webSocketGateway.sendToUser({ userId }, {
+    await this.notificationService.sendNotification({
       id: notificationId,
       receiverId: userId,
+      title: "",
       message,
+      templateKey: template.templateKey,
+      templateData: template.templateData,
       type: NotificationType.SYSTEM,
       payload,
       task: {
@@ -143,6 +155,40 @@ export class TaskWorker extends WorkerHost {
         ...params.taskData,
       },
     } as any);
+  }
+
+  private resolveTaskNotificationTemplate(params: {
+    taskType: TaskTypeEnum;
+    status: TaskStatusEnum;
+    message: string;
+  }) {
+    if (params.taskType === TaskTypeEnum.LEARNING_PATH_GENERATION) {
+      return {
+        templateKey:
+          params.status === TaskStatusEnum.IN_PROGRESS
+            ? "system_learning_path_in_progress"
+            : params.status === TaskStatusEnum.COMPLETED
+              ? "system_learning_path_completed"
+              : "system_learning_path_failed",
+        templateData:
+          params.status === TaskStatusEnum.FAILED
+            ? { errorMessage: params.message }
+            : {},
+      };
+    }
+
+    return {
+      templateKey:
+        params.status === TaskStatusEnum.IN_PROGRESS
+          ? "system_cv_generation_in_progress"
+          : params.status === TaskStatusEnum.COMPLETED
+            ? "system_cv_generation_completed"
+            : "system_cv_generation_failed",
+      templateData:
+        params.status === TaskStatusEnum.FAILED
+          ? { errorMessage: params.message }
+          : {},
+    };
   }
 
   private buildPrimaryKey(...args: string[]) {

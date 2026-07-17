@@ -7,10 +7,13 @@ import {
   integer,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 import { users } from "./user.model";
 import { NotificationTypeEnum } from "./enums";
 import { organizations } from "./organization.model";
+
+export type NotificationTemplateData = Record<string, any>;
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -22,6 +25,12 @@ export const notifications = pgTable("notifications", {
   title: varchar("title").notNull(),
   message: varchar("message", { length: 500 }).notNull(),
   type: NotificationTypeEnum("type").notNull(),
+  templateKey: varchar("template_key", { length: 100 }),
+  templateData: jsonb("template_data")
+    .$type<NotificationTemplateData>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+  snapshotLanguageCode: varchar("snapshot_language_code", { length: 5 }),
 
   payload: jsonb("payload").$type<{
     jobId?: string;

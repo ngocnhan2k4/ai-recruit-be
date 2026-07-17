@@ -48,6 +48,23 @@ export function normalizeLanguageCode(input?: string | null): string {
 const toSingleValue = (value?: string | string[] | null): string | undefined =>
   Array.isArray(value) ? value.join(",") : (value ?? undefined);
 
+export function resolveExplicitRequestLanguage(input?: {
+  queryLang?: string | string[] | null;
+  acceptLanguage?: string | string[] | null;
+}): string | undefined {
+  const queryLang = toSingleValue(input?.queryLang)?.trim();
+  if (queryLang) {
+    return parseSupportedLanguageCode(queryLang) ?? undefined;
+  }
+
+  const acceptLanguage = toSingleValue(input?.acceptLanguage);
+  if (acceptLanguage) {
+    return parseSupportedLanguageCode(acceptLanguage) ?? undefined;
+  }
+
+  return undefined;
+}
+
 /* Convert the query lang or accept language to a single value and normalize it
  * @param input - The query lang or accept language: vi, en, vi-VN, en-US, etc.
  * @returns The normalized language code: vi, en, etc.
@@ -56,17 +73,7 @@ export function resolveRequestLanguage(input?: {
   queryLang?: string | string[] | null;
   acceptLanguage?: string | string[] | null;
 }): string {
-  const queryLang = toSingleValue(input?.queryLang)?.trim();
-  if (queryLang) {
-    return normalizeLanguageCode(queryLang);
-  }
-
-  const acceptLanguage = toSingleValue(input?.acceptLanguage);
-  if (acceptLanguage) {
-    return normalizeLanguageCode(acceptLanguage);
-  }
-
-  return DEFAULT_LANGUAGE_CODE;
+  return resolveExplicitRequestLanguage(input) ?? DEFAULT_LANGUAGE_CODE;
 }
 
 export function buildLanguagePriority(
