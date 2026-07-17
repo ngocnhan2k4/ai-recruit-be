@@ -112,7 +112,7 @@ const USEFUL_HEADER_KEYS = new Set([
   "x-real-ip",
 ]);
 
-const COOKIE_KEYS_TO_LOG = new Set(["token", "refreshtoken"]);
+const COOKIE_KEYS_TO_LOG = new Set(["refreshtoken"]);
 
 /** Parse raw Cookie header and keep only token / refreshToken. */
 function pickCookiesFromHeader(

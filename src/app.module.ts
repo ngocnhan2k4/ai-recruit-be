@@ -258,10 +258,10 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    consumer.apply(ContextMiddleware).forRoutes("*");
     consumer
       .apply(RateLimitMiddleware)
       .exclude("/health", "users/me", "auth/refresh")
       .forRoutes("*");
-    consumer.apply(ContextMiddleware).forRoutes("*");
   }
 }
