@@ -146,6 +146,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `[RATE LIMIT] IP: ${request.ip} | User: ${userId} | Path: ${method} ${originalUrl}`,
       );
     } else {
+      // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
       this.logger.error(
         `[ERROR] API Request ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
       );
@@ -184,6 +185,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       });
     }
 
+    // Local-only debug fields; requestId is header-only.
     if (this.appConfigs.nodeEnv === Environment.Local) {
       assign(resContent, {
         stack,
