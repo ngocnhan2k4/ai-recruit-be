@@ -38,8 +38,6 @@ export class RateLimitGuard implements CanActivate {
     this.excludedPaths = new Set(
       excluded.map((path) => `${this.globalPrefix}${path}`),
     );
-
-    console.log(this.excludedPaths);
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
