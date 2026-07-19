@@ -1,24 +1,27 @@
 import {
   Injectable,
-  Logger,
-  NestMiddleware,
+  CanActivate,
+  ExecutionContext,
   HttpStatus,
   Inject,
   HttpException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ICacheService } from "@/core/abstracts/cache.abstract";
-import { FastifyRequest, FastifyReply } from "fastify";
+import { FastifyRequest } from "fastify";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "../constants";
 
 @Injectable()
-export class RateLimitMiddleware implements NestMiddleware {
-  private readonly logger = new Logger(RateLimitMiddleware.name);
+export class RateLimitGuard implements CanActivate {
+  private readonly logger = new Logger(RateLimitGuard.name);
 
   private readonly enabled: boolean;
   private readonly capacity: number;
   private readonly refillRate: number;
   private readonly ttlSeconds: number;
+  private readonly globalPrefix: string;
+  private readonly excludedPaths: Set<string>;
 
   constructor(
     configService: ConfigService,
@@ -28,18 +31,48 @@ export class RateLimitMiddleware implements NestMiddleware {
     this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 30);
     this.refillRate = configService.get<number>("RATE_LIMIT_REFILL_RATE", 1);
     this.ttlSeconds = Math.ceil((this.capacity / this.refillRate) * 2);
+    this.globalPrefix = configService.get<string>("GLOBAL_PREFIX", "");
+
+    const excluded = ["/health", "/users/me", "/auth/refresh"];
+
+    this.excludedPaths = new Set(
+      excluded.map((path) => `${this.globalPrefix}${path}`),
+    );
+
+    console.log(this.excludedPaths);
   }
 
-  async use(
-    req: FastifyRequest,
-    _: FastifyReply,
-    next: () => void,
-  ): Promise<void> {
-    if (!this.enabled || req.method === "OPTIONS") {
-      return next();
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (!this.enabled) {
+      return true;
     }
 
-    const ip = this.getClientIp(req);
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
+
+    if (request.method === "OPTIONS") {
+      return true;
+    }
+
+    const path = request.url.split("?")[0];
+    const excludedPaths = ["/health", "/users/me", "/auth/refresh"];
+    const isExcluded = excludedPaths.some((excluded) => {
+      const cleanExcluded = excluded.startsWith("/")
+        ? excluded
+        : `/${excluded}`;
+      const prefix = this.globalPrefix.startsWith("/")
+        ? this.globalPrefix
+        : `/${this.globalPrefix}`;
+      const prefixedExcluded = this.globalPrefix
+        ? `${prefix}${cleanExcluded}`
+        : cleanExcluded;
+      return path === cleanExcluded || path === prefixedExcluded;
+    });
+
+    if (isExcluded) {
+      return true;
+    }
+
+    const ip = this.getClientIp(request);
     const key = `rl:${ip}`;
 
     let allowed = false;
@@ -92,7 +125,7 @@ export class RateLimitMiddleware implements NestMiddleware {
       }
     } catch (err) {
       this.logger.error("Rate limiter error — failing open:", err);
-      return next();
+      return true;
     }
 
     if (!allowed) {
@@ -105,7 +138,7 @@ export class RateLimitMiddleware implements NestMiddleware {
       );
     }
 
-    next();
+    return true;
   }
 
   private getClientIp(req: FastifyRequest): string {
