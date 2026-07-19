@@ -295,9 +295,9 @@ def main():
 
         # TopCV - page by page (max 10 jobs per page)
         if page <= topcv_pages:
-            print(f"\n🔄 TopCV (page {page}/{topcv_pages}, max 10 jobs)")
+            print(f"\n🔄 TopCV (page {page}/{topcv_pages}, max 5 jobs)")
             topcv_companies = topcv_crawl(
-                pages=1, start_page=page, max_jobs_per_page=10
+                pages=1, start_page=page, max_jobs_per_page=5
             )
             for i, db_url in enumerate(args.db_urls):
                 producer = queue_producers[i] if i < len(queue_producers) else None
