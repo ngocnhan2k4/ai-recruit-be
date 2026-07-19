@@ -13,8 +13,4 @@ export abstract class IJobSearchService {
   abstract searchJobsLegacy(
     filters: JobFilters,
   ): Promise<PaginatedResult<JobSearchDocument>>;
-  abstract matchJobsLegacy(
-    userProfile: UserProfile,
-    filters: JobFilters,
-  ): Promise<PaginatedResult<JobSearchDocument>>;
 }
