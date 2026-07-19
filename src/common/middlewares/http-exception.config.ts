@@ -181,6 +181,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
 
     setResponseHeader(response, REQUEST_ID_HEADER, requestId);
-    response.status(httpStatus).send(resContent);
+    if (typeof response.status === "function") {
+      response.status(httpStatus).send(resContent);
+    } else {
+      const rawResponse = response as any;
+      rawResponse.statusCode = httpStatus;
+      rawResponse.setHeader("Content-Type", "application/json; charset=utf-8");
+      rawResponse.end(JSON.stringify(resContent));
+    }
   }
 }

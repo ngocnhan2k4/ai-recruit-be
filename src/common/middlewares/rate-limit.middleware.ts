@@ -25,7 +25,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     @Inject(ICacheService) private readonly cacheService: ICacheService,
   ) {
     this.enabled = configService.get<boolean>("RATE_LIMIT_ENABLED", true);
-    this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 60);
+    this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 30);
     this.refillRate = configService.get<number>("RATE_LIMIT_REFILL_RATE", 1);
     this.ttlSeconds = Math.ceil((this.capacity / this.refillRate) * 2);
   }
@@ -45,42 +45,57 @@ export class RateLimitMiddleware implements NestMiddleware {
     let allowed = false;
 
     try {
-      const bucket = await this.cacheService.hgetall(key);
+      const now = Math.floor(Date.now() / 1000);
 
-      let tokens: number;
-      let lastRefill: number;
-      const now = Date.now() / 1000;
+      const luaScript = `
+        local key = KEYS[1]
+        local capacity = tonumber(ARGV[1])
+        local refillRate = tonumber(ARGV[2])
+        local now = tonumber(ARGV[3])
+        local ttl = tonumber(ARGV[4])
 
-      if (!bucket || Object.keys(bucket).length === 0) {
-        tokens = this.capacity;
-        lastRefill = now;
-      } else {
-        tokens = parseFloat(bucket.tokens);
-        lastRefill = parseFloat(bucket.lastRefill);
-      }
+        local bucket = redis.call('HMGET', key, 'tokens', 'lastRefill')
+        local tokens = tonumber(bucket[1])
+        local lastRefill = tonumber(bucket[2])
 
-      const elapsed = Math.max(0, now - lastRefill);
-      tokens = Math.min(this.capacity, tokens + elapsed * this.refillRate);
-      lastRefill = now;
+        if not tokens then
+          tokens = capacity
+          lastRefill = now
+        else
+          local elapsed = math.max(0, now - lastRefill)
+          tokens = math.min(capacity, tokens + (elapsed * refillRate))
+          lastRefill = now
+        end
 
-      if (tokens >= 1) {
-        tokens -= 1;
+        if tokens >= 1 then
+          tokens = tokens - 1
+          redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', lastRefill)
+          redis.call('EXPIRE', key, ttl)
+          return 1
+        else
+          return 0
+        end
+      `;
+
+      const result = await this.cacheService.eval(
+        luaScript,
+        1,
+        key,
+        this.capacity.toString(),
+        this.refillRate.toString(),
+        now.toString(),
+        this.ttlSeconds.toString(),
+      );
+
+      if ((result as unknown as number) === 1) {
         allowed = true;
       }
-
-      await this.cacheService.hset(key, {
-        tokens: tokens.toString(),
-        lastRefill: lastRefill.toString(),
-      });
-      await this.cacheService.expire(key, this.ttlSeconds);
     } catch (err) {
       this.logger.error("Rate limiter error — failing open:", err);
       return next();
     }
 
     if (!allowed) {
-      this.logger.warn(`Rate limit exceeded for IP: ${ip}`);
-
       throw new HttpException(
         {
           code: RESPONSE_CODE.TOO_MANY_REQUESTS,
