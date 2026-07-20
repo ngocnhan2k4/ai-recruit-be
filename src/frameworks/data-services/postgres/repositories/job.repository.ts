@@ -818,6 +818,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          j.id,
           j.title AS name,
           COUNT(DISTINCT aj.id) AS count,
           ROW_NUMBER() OVER (PARTITION BY j.category_id ORDER BY COUNT(DISTINCT aj.id) DESC) AS rn
@@ -830,17 +831,24 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, j.title
+        GROUP BY j.category_id, j.id, j.title
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
     `);
 
-    const map = new Map<string, { name: string; count: number }[]>();
+    const map = new Map<
+      string,
+      { id: string; name: string; count: number }[]
+    >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({ name: String(r.name), count: Number(r.count) });
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
+        name: String(r.name),
+        count: Number(r.count),
+      });
     }
 
     return categoryIds
@@ -851,6 +859,7 @@ export class JobRepository
         return {
           categoryId: id,
           topAppliedJobs: items.map((i) => ({
+            id: i.id,
             name: i.name,
             count: i.count,
             percentage: total > 0 ? Math.round((i.count / total) * 100) : 0,
@@ -870,6 +879,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          o.id,
           o.name,
           o.logo_url,
           COUNT(DISTINCT j.id) AS count,
@@ -884,7 +894,7 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, o.name, o.logo_url
+        GROUP BY j.category_id, o.id, o.name, o.logo_url
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
@@ -892,12 +902,13 @@ export class JobRepository
 
     const map = new Map<
       string,
-      { name: string; logoUrl: string | null; count: number }[]
+      { id: string; name: string; logoUrl: string | null; count: number }[]
     >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
         name: String(r.name),
         logoUrl: r.logo_url ? String(r.logo_url) : null,
         count: Number(r.count),
@@ -912,6 +923,7 @@ export class JobRepository
         return {
           categoryId: id,
           topEmployers: items.map((i) => ({
+            id: i.id,
             name: i.name,
             logoUrl: i.logoUrl ?? undefined,
             count: i.count,

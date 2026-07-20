@@ -1,9 +1,12 @@
 import { NestFactory } from "@nestjs/core";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "../../src/app.module";
 import { getAppConfigs } from "../../src/common/config/app.config";
 import { generateDocumentBuilder } from "../../src/common/config/swagger.config";
-import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from "@nestjs/platform-fastify";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -28,7 +31,9 @@ async function generateSwaggerJson() {
   fs.writeFileSync(outputPath, JSON.stringify(document, null, 2));
 
   console.log(`✅ Swagger JSON generated successfully at: ${outputPath}`);
-  console.log(`📄 File size: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB`);
+  console.log(
+    `📄 File size: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB`,
+  );
 
   await app.close();
 }
@@ -41,4 +46,3 @@ generateSwaggerJson()
     console.error("❌ Error generating Swagger JSON:", error);
     process.exit(1);
   });
-
