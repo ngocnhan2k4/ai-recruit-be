@@ -172,12 +172,12 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
-  RATE_LIMIT_CAPACITY: number = 60;
+  RATE_LIMIT_CAPACITY: number;
 
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
-  RATE_LIMIT_REFILL_RATE: number = 1;
+  RATE_LIMIT_REFILL_RATE: number;
 
   @IsOptional()
   @IsString()
