@@ -8,9 +8,9 @@ import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-export const enableAppMiddleware = (app: NestFastifyApplication) => {
+export const enableAppMiddleware = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-  app.register(fastifyCors, {
+  await app.register(fastifyCors, {
     origin: appConfigs.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
@@ -20,9 +20,12 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
 
-  // Use Fastify-native compression to avoid response/body issues in browsers
-  app.register(fastifyCompress, { global: true });
-  app.register(fastifyCookie);
+  await app.register(fastifyCompress, {
+    global: true,
+    threshold: 1024,
+    encodings: ["gzip", "deflate", "br"],
+  });
+  await app.register(fastifyCookie);
 
   // Register multipart support for file uploads
   const multipartOptions: FastifyMultipartOptions = {
@@ -30,7 +33,7 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       fileSize: 10 * 1024 * 1024, // 10MB
     },
   };
-  app.register(fastifyMultipart, multipartOptions);
+  await app.register(fastifyMultipart, multipartOptions);
 
   app.useGlobalPipes(
     new ValidationPipe({
