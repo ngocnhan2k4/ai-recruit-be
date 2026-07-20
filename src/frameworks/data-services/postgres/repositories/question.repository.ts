@@ -344,4 +344,22 @@ export class QuestionRepository
       };
     });
   }
+
+  async checkDuplicate(
+    skillId: string,
+    questionText: string,
+  ): Promise<boolean> {
+    const normalized = questionText.trim().toLowerCase();
+    const rows = await this.db
+      .select({ id: questions.id })
+      .from(questions)
+      .where(
+        and(
+          eq(questions.skillId, skillId),
+          sql`LOWER(TRIM(${questions.questionText})) = ${normalized}`,
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
 }
