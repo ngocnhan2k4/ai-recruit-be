@@ -243,38 +243,38 @@ export const notificationTemplateRenderers: Record<
   }),
   system_learning_path_pending: buildSimpleRenderer({
     title: {
-      vi: "Lộ trình học tập của bạn đang được tạo",
-      en: "Your learning path is being created",
+      vi: "Lộ trình học tập cho vai trò {{targetRole}}",
+      en: "Learning path for role {{targetRole}}",
     },
     message: {
-      vi: "Đang tạo lộ trình học tập dựa trên vai trò mục tiêu của bạn. Vui lòng chờ trong giây lát!",
-      en: "We are creating a learning path based on your target role. Please wait a moment!",
+      vi: "Đang tạo lộ trình học tập cho {{targetRole}}. Vui lòng chờ trong giây lát!",
+      en: "We are creating a learning path for {{targetRole}}. Please wait a moment!",
     },
   }),
   system_learning_path_in_progress: buildSimpleRenderer({
     title: {
-      vi: "Lộ trình học tập của bạn đang được tạo",
-      en: "Your learning path is being created",
+      vi: "Lộ trình học tập cho vai trò {{targetRole}}",
+      en: "Learning path for role {{targetRole}}",
     },
     message: {
-      vi: "Đang tạo lộ trình học tập của bạn...",
-      en: "Your learning path is being generated...",
+      vi: "Đang tạo lộ trình học tập cho {{targetRole}}...",
+      en: "Generating learning path for {{targetRole}}...",
     },
   }),
   system_learning_path_completed: buildSimpleRenderer({
     title: {
-      vi: "Lộ trình học tập của bạn đã sẵn sàng",
-      en: "Your learning path is ready",
+      vi: "Lộ trình học tập cho vai trò {{targetRole}}",
+      en: "Learning path for role {{targetRole}}",
     },
     message: {
-      vi: "Lộ trình học tập của bạn đã sẵn sàng.",
-      en: "Your learning path is ready.",
+      vi: "Lộ trình học tập cho {{targetRole}} đã sẵn sàng.",
+      en: "Your learning path for {{targetRole}} is ready.",
     },
   }),
   system_learning_path_failed: buildSimpleRenderer({
     title: {
-      vi: "Không thể tạo lộ trình học tập",
-      en: "Learning path generation failed",
+      vi: "Lộ trình học tập cho vai trò {{targetRole}}",
+      en: "Learning path for role {{targetRole}}",
     },
     message: {
       vi: "{{errorMessage}}",
