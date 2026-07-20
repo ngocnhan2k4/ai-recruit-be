@@ -358,6 +358,22 @@ export class BlogUseCases {
     return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
+  private stripLocalesContent(
+    locales?: BlogLocaleMap,
+  ): BlogLocaleMap | undefined {
+    if (!locales) return undefined;
+
+    const slim: BlogLocaleMap = {};
+    for (const [lang, value] of Object.entries(locales)) {
+      if (!value) continue;
+      slim[lang] = {
+        ...(value.title !== undefined ? { title: value.title } : {}),
+        ...(value.summary !== undefined ? { summary: value.summary } : {}),
+      };
+    }
+    return slim;
+  }
+
   private async getBlogsWithTags(
     data: BlogPostListItem[],
   ): Promise<BlogPostListItemDto[]> {
@@ -373,6 +389,7 @@ export class BlogUseCases {
 
     return data.map((blog) => ({
       ...blog,
+      locales: this.stripLocalesContent(blog.locales),
       likes: likesMap[blog.id] ?? 0,
       tags: tagsMap[blog.id] || [],
     }));
