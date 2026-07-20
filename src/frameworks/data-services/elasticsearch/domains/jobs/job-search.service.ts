@@ -885,16 +885,7 @@ export class JobSearchService implements IJobSearchService {
                       weight: 0.15,
                     },
                   ]
-                : [
-                    {
-                      weight: 0.15,
-                      script_score: {
-                        script: {
-                          source: "return 1.0;",
-                        },
-                      },
-                    },
-                  ]),
+                : []),
               // 4. Category Match Score (10%)
               ...(userCategoryIds.length > 0
                 ? [
@@ -923,16 +914,7 @@ export class JobSearchService implements IJobSearchService {
                       weight: 0.1,
                     },
                   ]
-                : [
-                    {
-                      weight: 0.1,
-                      script_score: {
-                        script: {
-                          source: "return 1.0;",
-                        },
-                      },
-                    },
-                  ]),
+                : []),
               // 5. Salary Match Score (10%) - nß║┐u c├│ expected salary
               ...(userProfile.expectedSalary
                 ? [
@@ -977,16 +959,7 @@ export class JobSearchService implements IJobSearchService {
                       },
                     },
                   ]
-                : [
-                    {
-                      weight: 0.1,
-                      script_score: {
-                        script: {
-                          source: "return 1.0;",
-                        },
-                      },
-                    },
-                  ]),
+                : []),
               // 6. Freshness Score (Bonus up to 20%)
               ...(!fromDate && !toDate
                 ? [
