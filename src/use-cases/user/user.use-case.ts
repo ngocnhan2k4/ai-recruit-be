@@ -706,6 +706,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -759,6 +760,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -797,9 +799,10 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
+
     return {
       message: "User skill created successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
       data: userSkill,
     };
   }
@@ -966,6 +969,7 @@ export class UserUseCases implements OnModuleInit {
         name: name ?? undefined,
         gender: gender ?? undefined,
         dob: dob ?? undefined,
+        onboardingCompleted: true,
       },
     );
     return {
