@@ -1,6 +1,12 @@
 import { type AppConfigProps } from "@/common/config";
 import { ApiResponse } from "@/interfaces/dtos";
-import { Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common";
+import {
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from "@nestjs/common";
 import type { ArgumentsHost } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
@@ -17,6 +23,7 @@ import {
 } from "@/common/utils/db-error";
 import {
   REQUEST_ID_HEADER,
+  createRequestId,
   serializeRequestHeaders,
   serializeRequestPayload,
   setResponseHeader,
@@ -54,8 +61,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId =
       getRequestId() ||
       request.requestId ||
-      (request.headers[REQUEST_ID_HEADER] as string | undefined) ||
-      "unknown";
+      createRequestId(request.headers[REQUEST_ID_HEADER]);
+    request.requestId = requestId;
     const userId = request.user?.sub || request.user?.userId || "anonymous";
     const query = serializeRequestPayload(request.query);
     const params = serializeRequestPayload(request.params);
@@ -134,29 +141,48 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ...(externalErrorInfo ? { externalError: externalErrorInfo } : {}),
     };
 
-    // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
-    this.logger.error(
-      `[ERROR] API Request ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
-    );
+    if (httpStatus === (HttpStatus.TOO_MANY_REQUESTS as number)) {
+      this.logger.warn(
+        `[RATE LIMIT] IP: ${request.ip} | User: ${userId} | Path: ${method} ${originalUrl}`,
+      );
+    } else {
+      // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
+      this.logger.error(
+        `[ERROR] API Request ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
+      );
 
-    Sentry.setTag("requestId", requestId);
-    Sentry.setUser({ id: userId === "anonymous" ? undefined : userId });
-    Sentry.setContext("request", {
-      requestId,
-      method,
-      url: originalUrl,
-      userId,
-      query,
-      params,
-      body,
-      headers,
-      ip: request.ip,
-    });
-    if (dbErrorInfo) {
-      Sentry.setContext("dbError", dbErrorInfo);
-    }
-    if (externalErrorInfo) {
-      Sentry.setContext("externalError", externalErrorInfo);
+      Sentry.setTag("requestId", requestId);
+      Sentry.setUser({ id: userId === "anonymous" ? undefined : userId });
+      Sentry.setContext("request", {
+        requestId,
+        method,
+        url: originalUrl,
+        userId,
+        query,
+        params,
+        body,
+        headers,
+        ip: request.ip,
+      });
+      if (dbErrorInfo) {
+        Sentry.setContext("dbError", dbErrorInfo);
+      }
+      if (externalErrorInfo) {
+        Sentry.setContext("externalError", externalErrorInfo);
+      }
+
+      const stackLines = (stack || "").split("\n");
+      const moduleLine =
+        stackLines.find((line: string) => line.includes("src/")) ||
+        "Unknown module";
+      const moduleName =
+        moduleLine.match(/src\/(.*?):/)?.[1] || "Unknown Module";
+
+      void this.loggerService.logError({
+        type: moduleName,
+        content: JSON.stringify(logPayload),
+        note: `User: ${userId} | requestId: ${requestId}`,
+      });
     }
 
     // Local-only debug fields; requestId is header-only.
@@ -166,18 +192,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ...(dbErrorInfo ? { dbError: dbErrorInfo } : {}),
       });
     }
-
-    const stackLines = (stack || "").split("\n");
-    const moduleLine =
-      stackLines.find((line: string) => line.includes("src/")) ||
-      "Unknown module";
-    const moduleName = moduleLine.match(/src\/(.*?):/)?.[1] || "Unknown Module";
-
-    void this.loggerService.logError({
-      type: moduleName,
-      content: JSON.stringify(logPayload),
-      note: `User: ${userId} | requestId: ${requestId}`,
-    });
 
     setResponseHeader(response, REQUEST_ID_HEADER, requestId);
     response.status(httpStatus).send(resContent);

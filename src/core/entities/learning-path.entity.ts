@@ -77,6 +77,7 @@ export interface SkillOption {
   optionName: string;
   resources: Resource[];
   keyConcepts: string[];
+  subpath?: AISubpathResult;
 }
 
 export interface RoadmapSkillData {
