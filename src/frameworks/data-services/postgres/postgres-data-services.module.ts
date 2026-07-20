@@ -113,10 +113,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
         try {
           const pool = new Pool({
             connectionString: configService.get<string>("DATABASE_URL"),
-            ssl:
-              process.env.NODE_ENV === "production"
-                ? { rejectUnauthorized: false }
-                : false,
+            ssl: { rejectUnauthorized: false },
             max: 20, // Maximum number of connections in the pool
             min: 5, // Minimum number of connections in the pool
             idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
