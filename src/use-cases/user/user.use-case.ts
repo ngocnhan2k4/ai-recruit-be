@@ -588,9 +588,6 @@ export class UserUseCases implements OnModuleInit {
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
 
-      // Invalidate user profile cache to ensure matching APIs have fresh data
-      await this.userRepository.clearUserProfileCache(userId);
-
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
@@ -710,8 +707,6 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
-    await this.userRepository.clearUserProfileCache(userId);
-
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -742,8 +737,6 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
-    await this.userRepository.clearUserProfileCache(userId);
-
     return {
       message: "User experience updated successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -767,8 +760,6 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
-
-    await this.userRepository.clearUserProfileCache(userId);
 
     return {
       message: "User experience deleted successfully",
@@ -808,8 +799,6 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
-
-    await this.userRepository.clearUserProfileCache(userId);
 
     return {
       message: "User skill created successfully",

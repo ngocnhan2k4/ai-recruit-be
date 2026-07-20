@@ -573,16 +573,28 @@ export class JobSearchService implements IJobSearchService {
     const docs = actualHits.flatMap((h) => {
       const source = h?._source;
       if (!source?.id) return [];
+
+      let dateBoost = 0;
+      if (!filters.toDate && !filters.fromDate) {
+        let dateMillis = 0;
+        if (source.datePosted) {
+          dateMillis = new Date(source.datePosted).getTime();
+        } else if (source.createdAt) {
+          dateMillis = new Date(source.createdAt).getTime();
+        }
+
+        if (dateMillis > 0) {
+          const ageInDays = (Date.now() - dateMillis) / (1000 * 60 * 60 * 24);
+          if (ageInDays <= 15) dateBoost = 0.2;
+          else if (ageInDays <= 30) dateBoost = 0.15;
+          else if (ageInDays <= 60) dateBoost = 0.1;
+          else dateBoost = 0.02;
+        }
+      }
+
       const score =
         typeof h?._score === "number"
-          ? Number(
-              (
-                Math.min(
-                  h._score - (!filters.toDate && !filters.fromDate ? 0.2 : 0),
-                  1,
-                ) * 100
-              ).toFixed(2),
-            )
+          ? Number((Math.min(h._score - dateBoost, 1) * 100).toFixed(2))
           : undefined;
       return [{ ...source, ...(typeof score === "number" ? { score } : {}) }];
     }) satisfies JobSearchDocument[];
@@ -745,38 +757,23 @@ export class JobSearchService implements IJobSearchService {
       mustQueries.push({
         bool: {
           should: [
-            { match: { title: { query: keyword, boost: 3.0 } } },
-            { match: { description: { query: keyword, boost: 1.0 } } },
-            { match: { skillNames: { query: keyword, boost: 2.0 } } },
-            { match: { organizationName: { query: keyword, boost: 2.5 } } },
-            { match: { categoryName: { query: keyword, boost: 1.8 } } },
-            { match: { provinceNames: { query: keyword, boost: 1.3 } } },
+            { match: { title: { query: keyword, boost: 10.0 } } },
+            { match: { description: { query: keyword, boost: 3.0 } } },
+            { match: { skillNames: { query: keyword, boost: 5.0 } } },
+            { match: { organizationName: { query: keyword, boost: 3.0 } } },
+            { match: { categoryName: { query: keyword, boost: 5.0 } } },
+            { match: { provinceNames: { query: keyword, boost: 2.0 } } },
           ],
           minimum_should_match: 1,
         },
       });
     }
 
-    // Should queries cho matching (boost score)
+    // Profile-based should queries — intentionally empty.
+    // Keyword is already in mustQueries (strict filter).
+    // Profile skill/category matching is handled by function_score functions below (scoring only, no filtering).
     const shouldQueries: any[] = [];
-
-    if (skillIds.length > 0) {
-      shouldQueries.push({
-        terms: {
-          skillIds: skillIds,
-          boost: 2.0, // Boost cho skill matching
-        },
-      });
-    }
-
-    if (userCategoryIds.length > 0) {
-      shouldQueries.push({
-        terms: {
-          categoryId: userCategoryIds,
-        },
-      });
-    }
-    // Function Score Query vß╗¢i custom scoring
+    // Function Score Query với custom scoring
     return {
       index: this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS"),
       body: {
@@ -786,7 +783,7 @@ export class JobSearchService implements IJobSearchService {
               bool: {
                 must: mustQueries,
                 should: shouldQueries,
-                minimum_should_match: shouldQueries.length > 0 ? 1 : 0,
+                minimum_should_match: 0,
               },
             },
             functions: [
@@ -1036,7 +1033,7 @@ export class JobSearchService implements IJobSearchService {
                 : []),
             ],
             score_mode: "sum", // Sum all function scores
-            boost_mode: "replace", // Sum vß╗¢i query score
+            boost_mode: keyword ? "multiply" : "replace", // When keyword: multiply native relevance × profile score; When no keyword: profile score only
           },
         },
         sort: this.buildSort(sortBy, sortDirection),

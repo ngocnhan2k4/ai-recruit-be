@@ -645,11 +645,6 @@ export class UserRepository
     );
   }
 
-  async clearUserProfileCache(userId: string): Promise<void> {
-    const key = CACHE_KEYS.user.getUserProfile(userId);
-    await this.cacheManager.del(key);
-  }
-
   // [TODO] split to 3 function to usecase call(code respository can reuse after)
   async getUserCvData(userId: string): Promise<UserCvData | null> {
     const user = await this.get(userId);
