@@ -1671,9 +1671,13 @@ export class JobRepository
     filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
+    const statuses =
+      filter?.statuses && filter.statuses.length > 0
+        ? [...filter.statuses].sort().join(",")
+        : "all";
     const key = filter?.userId
-      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
-      : CACHE_KEYS.job.getWithDetail(jobId);
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId, statuses)
+      : CACHE_KEYS.job.getWithDetail(jobId, statuses);
 
     return cacheWithDedup(
       key,

@@ -12,9 +12,10 @@ export const CACHE_KEYS = {
   job: {
     patternDetail: (jobId: string) => `job:${jobId}:*`,
     get: (jobId: string) => `job:${jobId}:get`,
-    getWithDetail: (jobId: string) => `job:${jobId}:getWithDetail`,
-    getWithDetailByUser: (jobId: string, userId: string) =>
-      `job:${jobId}:getWithDetail:user:${userId}`,
+    getWithDetail: (jobId: string, statuses = "all") =>
+      `job:${jobId}:getWithDetail:statuses:${statuses}`,
+    getWithDetailByUser: (jobId: string, userId: string, statuses = "all") =>
+      `job:${jobId}:getWithDetail:user:${userId}:statuses:${statuses}`,
   },
   skillSynonym: {
     getAll: () => `skillSynonym:getAll`,

@@ -1696,10 +1696,28 @@ export class JobUseCases {
     };
   }
 
-  // [TODO]: fix for admin
   async getJobById(
     jobId: string,
     userId?: string,
+  ): Promise<ApiResponse<JobResponseDto>> {
+    return this.fetchJobById(jobId, {
+      userId,
+      // Public job detail only exposes jobs that are visible to applicants.
+      statuses: [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.PAUSED,
+        JobStatusEnum.CLOSED,
+      ],
+    });
+  }
+
+  async adminGetJobById(jobId: string): Promise<ApiResponse<JobResponseDto>> {
+    return this.fetchJobById(jobId);
+  }
+
+  private async fetchJobById(
+    jobId: string,
+    filter?: { userId?: string; statuses?: JobStatusEnum[] },
   ): Promise<ApiResponse<JobResponseDto>> {
     const job: {
       job: Job;
@@ -1712,14 +1730,8 @@ export class JobUseCases {
       applyId?: string | null;
       applyUrl?: string | null;
       category?: Category;
-    } | null = await this.jobRepository.getFullJobById(jobId, {
-      userId,
-      statuses: [
-        JobStatusEnum.ACTIVE,
-        JobStatusEnum.PAUSED,
-        JobStatusEnum.CLOSED,
-      ],
-    });
+    } | null = await this.jobRepository.getFullJobById(jobId, filter);
+
     if (!job) {
       this.logger.error(
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
@@ -1730,7 +1742,6 @@ export class JobUseCases {
       });
     }
 
-    // Transform questions field
     const transformedJob: JobResponseDto = {
       ...job,
       job: {
