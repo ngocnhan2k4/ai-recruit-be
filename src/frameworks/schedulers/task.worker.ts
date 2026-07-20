@@ -111,12 +111,14 @@ export class TaskWorker extends WorkerHost {
       result?: Record<string, any> | null;
       error?: string | null;
     };
+    templateData?: Record<string, any>;
   }) {
     const { notificationId, userId, payload, message, taskId } = params;
     const template = this.resolveTaskNotificationTemplate({
       taskType: params.taskData.type,
       status: params.taskData.status,
       message,
+      templateData: params.templateData,
     });
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
@@ -162,7 +164,10 @@ export class TaskWorker extends WorkerHost {
     taskType: TaskTypeEnum;
     status: TaskStatusEnum;
     message: string;
+    templateData?: Record<string, any>;
   }) {
+    const baseData = params.templateData ?? {};
+
     if (params.taskType === TaskTypeEnum.LEARNING_PATH_GENERATION) {
       return {
         templateKey:
@@ -173,8 +178,8 @@ export class TaskWorker extends WorkerHost {
               : "system_learning_path_failed",
         templateData:
           params.status === TaskStatusEnum.FAILED
-            ? { errorMessage: params.message }
-            : {},
+            ? { ...baseData, errorMessage: params.message }
+            : baseData,
       };
     }
 
@@ -187,8 +192,8 @@ export class TaskWorker extends WorkerHost {
             : "system_cv_generation_failed",
       templateData:
         params.status === TaskStatusEnum.FAILED
-          ? { errorMessage: params.message }
-          : {},
+          ? { ...baseData, errorMessage: params.message }
+          : baseData,
     };
   }
 
@@ -701,6 +706,8 @@ export class TaskWorker extends WorkerHost {
         throw new Error(`Task input missing userId/request: ${taskId}`);
       }
 
+      const templateData = this.buildTaskTemplateData(taskType, request);
+
       await this.emitAndPersistTask({
         taskId,
         notificationId,
@@ -711,6 +718,7 @@ export class TaskWorker extends WorkerHost {
           type: taskType,
           status: TaskStatusEnum.IN_PROGRESS,
         },
+        templateData,
       });
 
       const result = await coreLogic(task, request);
@@ -730,9 +738,11 @@ export class TaskWorker extends WorkerHost {
             attempts,
           },
         },
+        templateData,
       });
     } catch (error: any) {
       if (task) {
+        const request = (task.input as any)?.request;
         await this.emitAndPersistTask({
           taskId,
           notificationId,
@@ -748,6 +758,7 @@ export class TaskWorker extends WorkerHost {
             }),
             result: null,
           },
+          templateData: this.buildTaskTemplateData(taskType, request),
         });
       }
       this.logger.error(
@@ -764,6 +775,20 @@ export class TaskWorker extends WorkerHost {
       );
       throw error;
     }
+  }
+
+  private buildTaskTemplateData(
+    taskType: TaskTypeEnum,
+    request: Record<string, any> | null | undefined,
+  ): Record<string, any> {
+    if (
+      taskType === TaskTypeEnum.LEARNING_PATH_GENERATION &&
+      request?.targetRole
+    ) {
+      return { targetRole: request.targetRole };
+    }
+
+    return {};
   }
 
   private async processLearningPath(
