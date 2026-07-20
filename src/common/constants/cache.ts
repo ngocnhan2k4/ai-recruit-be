@@ -45,13 +45,13 @@ export const CACHE_KEYS = {
       requestLanguage = "vi",
       fallbackLanguage = "vi",
     ) =>
-      `blog:${postId}:getPostBaseById:${requestLanguage}:${fallbackLanguage}`,
+      `blog:${postId}:getPostBaseById:v2:${requestLanguage}:${fallbackLanguage}`,
     getPostBaseBySlug: (
       slug: string,
       requestLanguage = "vi",
       fallbackLanguage = "vi",
     ) =>
-      `blog:slug:${slug}:getPostBaseBySlug:${requestLanguage}:${fallbackLanguage}`,
+      `blog:slug:${slug}:getPostBaseBySlug:v2:${requestLanguage}:${fallbackLanguage}`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
     topBlogs: () => `blog:top`,
