@@ -45,6 +45,8 @@ export interface UserProfile {
   categoryIds: Category["id"][];
   expectedSalary?: number;
   isSeekingJob?: boolean;
+  skillNames?: string[];
+  categoryNames?: string[];
 }
 
 export interface UserCvExperience {

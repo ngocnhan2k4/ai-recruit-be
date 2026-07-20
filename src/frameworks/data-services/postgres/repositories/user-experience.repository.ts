@@ -19,6 +19,9 @@ import {
   getRequestLanguage,
   slugify,
 } from "@/common/utils";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
 export class UserExperienceRepository
@@ -28,8 +31,13 @@ export class UserExperienceRepository
   constructor(
     @Inject("DRIZZLE") protected db: DBDrizzle,
     private readonly organizationRepository: IOrganizationRepository,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
     super(db, userExperiences);
+  }
+
+  private async invalidateUserProfileCache(userId: string): Promise<void> {
+    await this.cacheManager.del(CACHE_KEYS.user.getUserProfile(userId));
   }
 
   async getUserExperiencesByUsername(username: string): Promise<
@@ -247,6 +255,8 @@ export class UserExperienceRepository
         .returning();
       return result;
     });
+
+    await this.invalidateUserProfileCache(userId);
     return tx;
   }
 
@@ -292,6 +302,8 @@ export class UserExperienceRepository
         .returning();
       return result;
     });
+
+    await this.invalidateUserProfileCache(userId);
     return tx;
   }
 
@@ -299,7 +311,7 @@ export class UserExperienceRepository
     userId: string,
     experienceId: number,
   ): Promise<boolean> {
-    return await this.db.transaction(async (tx) => {
+    const deleted = await this.db.transaction(async (tx) => {
       // Get the experience first to find which organization it was tied to
       const [experience] = await tx
         .select()
@@ -339,5 +351,8 @@ export class UserExperienceRepository
 
       return result.length > 0;
     });
+
+    await this.invalidateUserProfileCache(userId);
+    return deleted;
   }
 }

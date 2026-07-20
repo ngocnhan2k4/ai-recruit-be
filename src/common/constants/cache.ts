@@ -29,6 +29,7 @@ export const CACHE_KEYS = {
   },
   user: {
     get: (userId: string) => `user:${userId}:get`,
+    getUserProfile: (userId: string) => `user:${userId}:getUserProfile`,
   },
   cv: {
     get: (cvId: string) => `cv:${cvId}:get`,
