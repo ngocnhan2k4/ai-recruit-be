@@ -74,8 +74,11 @@ export class BlogPostListItemDto {
   @ApiPropertyOptional({ nullable: true })
   thumbnail?: string | null;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -143,8 +146,11 @@ export class BlogPostDetailDto {
   @ApiProperty()
   content: string;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   viewCount: number;

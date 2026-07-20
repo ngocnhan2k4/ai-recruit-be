@@ -78,7 +78,7 @@ export class BlogService {
   }
 
   calculateRelatedPosts(
-    currentPost: { category: string; sourceType?: string },
+    currentPost: { categoryId: string; sourceType?: string },
     candidates: BlogPostListItemDto[],
     currentTags: { name: string }[],
     limit = 4,
@@ -88,7 +88,7 @@ export class BlogService {
     const scored = candidates.map((post) => {
       let score = 0;
 
-      if (post.category === currentPost.category) {
+      if (post.categoryId === currentPost.categoryId) {
         score += 5;
       }
 
