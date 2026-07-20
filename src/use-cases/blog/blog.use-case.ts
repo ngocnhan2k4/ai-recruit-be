@@ -1,6 +1,7 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { CACHE_KEYS } from "@/common/constants/cache";
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { PaginatedResult, TokenPayload } from "@/common/types";
+import { cacheWithDedup, getRequestLanguage } from "@/common/utils";
 import { generateSlug } from "@/common/utils/string";
 import { ICacheService } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
@@ -53,6 +54,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
+const TOP_BLOGS_CANDIDATE_LIMIT = 40;
+const RELATED_POSTS_CANDIDATE_LIMIT = 20;
 @Injectable()
 export class BlogUseCases {
   private readonly logger = new Logger(BlogUseCases.name);
@@ -431,14 +434,36 @@ export class BlogUseCases {
   }
 
   async getTopBlogs(): Promise<ApiResponse<BlogPostListItemDto[]>> {
-    const { data } = await this.blogRepository.getPosts({
-      limit: 100,
-      page: 1,
-      status: BlogPostStatus.PUBLISHED,
-    });
+    const language = getRequestLanguage();
+    const cacheKey = CACHE_KEYS.blog.topBlogs(language);
 
-    const dataWithTags = await this.getBlogsWithTags(data);
-    const result = this.blogService.calculateTopBlogs(dataWithTags);
+    const result = await cacheWithDedup<BlogPostListItemDto[]>(
+      cacheKey,
+      async () =>
+        (await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey)) ??
+        undefined,
+      async () => {
+        const { data } = await this.blogRepository.getPosts({
+          limit: TOP_BLOGS_CANDIDATE_LIMIT,
+          page: 1,
+          status: BlogPostStatus.PUBLISHED,
+          sortBy: "createdAt",
+          sortDirection: "desc",
+        });
+
+        const dataWithTags = await this.getBlogsWithTags(data);
+        const result = this.blogService.calculateTopBlogs(dataWithTags);
+        return result.map((post) => {
+          const localeContent = post.locales?.[language];
+          return {
+            ...post,
+            locales: localeContent ? { [language]: localeContent } : undefined,
+          };
+        });
+      },
+      (data) => this.cacheService.setJson(cacheKey, data, SHORT_TTL),
+      { logger: this.logger },
+    );
 
     return {
       code: RESPONSE_CODE.SUCCESS,
@@ -451,6 +476,31 @@ export class BlogUseCases {
     slug: string,
     limit = 4,
   ): Promise<ApiResponse<BlogPostListItemDto[]>> {
+    const language = getRequestLanguage();
+    const cacheKey = CACHE_KEYS.blog.relatedPosts(slug, language);
+
+    const result = await cacheWithDedup<BlogPostListItemDto[]>(
+      cacheKey,
+      async () =>
+        (await this.cacheService.getJson<BlogPostListItemDto[]>(cacheKey)) ??
+        undefined,
+      () => this.fetchRelatedPosts(slug, limit, language),
+      (data) => this.cacheService.setJson(cacheKey, data, SHORT_TTL),
+      { logger: this.logger },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: result,
+    };
+  }
+
+  private async fetchRelatedPosts(
+    slug: string,
+    limit: number,
+    language,
+  ): Promise<BlogPostListItemDto[]> {
     const currentPost = await this.blogRepository.getPostBaseBySlug(slug);
 
     if (!currentPost) {
@@ -460,17 +510,40 @@ export class BlogUseCases {
       });
     }
 
-    const currentTags = await this.blogRepository.getPostTagsByPostId(
-      currentPost.id,
-    );
+    const [currentTags, categoryResult] = await Promise.all([
+      this.blogRepository.getPostTagsByPostId(currentPost.id),
+      this.blogRepository.getPosts({
+        limit: RELATED_POSTS_CANDIDATE_LIMIT,
+        page: 1,
+        status: BlogPostStatus.PUBLISHED,
+        category: currentPost.categoryId,
+        excludePostId: currentPost.id,
+        sortBy: "createdAt",
+        sortDirection: "desc",
+      }),
+    ]);
 
-    const { data } = await this.blogRepository.getPosts({
-      limit: 50,
-      page: 1,
-      status: BlogPostStatus.PUBLISHED,
-    });
+    const candidates = [...categoryResult.data];
 
-    const candidates = data.filter((p) => p.slug !== slug);
+    if (candidates.length < limit) {
+      const { data: fallback } = await this.blogRepository.getPosts({
+        limit: RELATED_POSTS_CANDIDATE_LIMIT,
+        page: 1,
+        status: BlogPostStatus.PUBLISHED,
+        excludePostId: currentPost.id,
+        sortBy: "createdAt",
+        sortDirection: "desc",
+      });
+
+      const seen = new Set(candidates.map((post) => post.id));
+      for (const post of fallback) {
+        if (!seen.has(post.id)) {
+          candidates.push(post);
+          seen.add(post.id);
+        }
+      }
+    }
+
     const candidatesWithTags = await this.getBlogsWithTags(candidates);
 
     const result = this.blogService.calculateRelatedPosts(
@@ -479,12 +552,13 @@ export class BlogUseCases {
       currentTags,
       limit,
     );
-
-    return {
-      code: RESPONSE_CODE.SUCCESS,
-      message: RESPONSE_MESSAGE.SUCCESS,
-      data: result,
-    };
+    return result.map((post) => {
+      const localeContent = post.locales?.[language];
+      return {
+        ...post,
+        locales: localeContent ? { [language]: localeContent } : undefined,
+      };
+    });
   }
 
   async getCategories(): Promise<ApiResponse<BlogCategoryDto[]>> {

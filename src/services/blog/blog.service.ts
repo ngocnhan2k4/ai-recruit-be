@@ -65,6 +65,8 @@ export class BlogService {
   }
 
   calculateTopBlogs(posts: BlogPostListItemDto[]): BlogPostListItemDto[] {
+    const TOP_BLOGS_LIMIT = 10;
+
     const now = Date.now();
     const scoredPosts = posts.map((post) => {
       const createdAtTime = new Date(post.createdAt).getTime();
@@ -74,7 +76,7 @@ export class BlogService {
     });
 
     scoredPosts.sort((a, b) => b.score - a.score);
-    return scoredPosts.slice(0, 10).map((item) => item.post);
+    return scoredPosts.slice(0, TOP_BLOGS_LIMIT).map((item) => item.post);
   }
 
   calculateRelatedPosts(

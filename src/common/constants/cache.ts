@@ -53,7 +53,10 @@ export const CACHE_KEYS = {
       `blog:slug:${slug}:getPostBaseBySlug:v2:${requestLanguage}:${fallbackLanguage}`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
-    topBlogs: () => `blog:top`,
-    relatedPosts: (slug: string) => `blog:related:${slug}`,
+    topBlogs: (requestLanguage = "vi") => `blog:top:${requestLanguage}`,
+    relatedPosts: (slug: string, requestLanguage = "vi") =>
+      `blog:related:${slug}:${requestLanguage}`,
+    patternTop: () => `blog:top:*`,
+    patternRelated: () => `blog:related:*`,
   },
 };

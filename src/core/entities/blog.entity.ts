@@ -8,6 +8,7 @@ export interface BlogPostFilters extends GeneralQuery {
   excludeStatus?: BlogPostStatus;
   sourceType?: BlogSourceType;
   skillIds?: string[];
+  excludePostId?: string;
 }
 
 export interface BlogPostSource {

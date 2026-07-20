@@ -124,7 +124,11 @@ export class BlogRepository
   }
 
   private async invalidateBlogCache(postId: string, slug?: string) {
-    const patterns = [CACHE_KEYS.blog.patternDetail(postId)];
+    const patterns = [
+      CACHE_KEYS.blog.patternDetail(postId),
+      CACHE_KEYS.blog.patternTop(),
+      CACHE_KEYS.blog.patternRelated(),
+    ];
     if (slug) {
       patterns.push(CACHE_KEYS.blog.patternSlugDetail(slug));
     }
@@ -400,6 +404,7 @@ export class BlogRepository
       | "excludeStatus"
       | "sourceType"
       | "skillIds"
+      | "excludePostId"
     >,
   ) {
     const conditions: SQL[] = [isNull(blogPosts.deletedAt)];
@@ -424,6 +429,10 @@ export class BlogRepository
 
     if (filters.sourceType) {
       conditions.push(eq(blogPosts.sourceType, filters.sourceType));
+    }
+
+    if (filters.excludePostId) {
+      conditions.push(ne(blogPosts.id, filters.excludePostId));
     }
 
     if (filters.skillIds && filters.skillIds.length > 0) {
