@@ -17,7 +17,9 @@ export class UserOnboardingRepository
   async createOnboardingForUser(
     userId: string,
     onboardingData: UserOnboarding,
-    userData: Partial<Pick<User, "name" | "gender" | "dob">>,
+    userData: Partial<
+      Pick<User, "name" | "gender" | "dob" | "onboardingCompleted">
+    >,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const { userId: _userId, ...onboardingUpdate } = onboardingData;
@@ -30,10 +32,14 @@ export class UserOnboardingRepository
           set: onboardingUpdate,
         });
 
-      const userUpdate: Partial<Pick<User, "name" | "gender" | "dob">> = {};
+      const userUpdate: Partial<
+        Pick<User, "name" | "gender" | "dob" | "onboardingCompleted">
+      > = {};
       if (userData.name !== undefined) userUpdate.name = userData.name;
       if (userData.gender !== undefined) userUpdate.gender = userData.gender;
       if (userData.dob !== undefined) userUpdate.dob = userData.dob;
+      if (userData.onboardingCompleted !== undefined)
+        userUpdate.onboardingCompleted = userData.onboardingCompleted;
 
       if (Object.keys(userUpdate).length > 0) {
         await tx.update(users).set(userUpdate).where(eq(users.id, userId));
