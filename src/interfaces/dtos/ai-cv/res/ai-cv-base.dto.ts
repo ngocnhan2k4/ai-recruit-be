@@ -1,12 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import {
-  IsArray,
-  IsEmail,
-  IsString,
-  IsOptional,
-  ValidateNested,
-} from "class-validator";
+import { IsArray, IsString, IsOptional, ValidateNested } from "class-validator";
 
 export class CvSocialLinkDto {
   @ApiPropertyOptional({
@@ -27,12 +21,13 @@ export class CvSocialLinkDto {
 }
 
 export class CvPersonalInfoDto {
-  @ApiProperty({ example: "Nguyen Van A" })
+  @ApiPropertyOptional({ example: "Nguyen Van A" })
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
-  @ApiProperty({ example: "dev@example.com" })
-  @IsEmail()
+  @ApiPropertyOptional({ example: "dev@example.com" })
+  @IsString()
   @IsOptional()
   email?: string;
 
@@ -73,83 +68,94 @@ export class CvExperienceDto {
   @IsOptional()
   company?: string;
 
-  @ApiProperty({ example: "Senior Backend Engineer" })
+  @ApiPropertyOptional({ example: "Senior Backend Engineer" })
   @IsString()
-  position: string;
+  @IsOptional()
+  position?: string;
 
-  @ApiProperty({ example: "2020-01" })
+  @ApiPropertyOptional({ example: "2020-01" })
   @IsString()
-  startDate: string;
+  @IsOptional()
+  startDate?: string;
 
-  @ApiProperty({ example: "Present" })
+  @ApiPropertyOptional({ example: "Present" })
   @IsString()
-  endDate: string;
+  @IsOptional()
+  endDate?: string;
 
   @ApiPropertyOptional({ example: "Ho Chi Minh" })
   @IsString()
   @IsOptional()
   location?: string;
 
-  @ApiProperty({ example: ["Optimized API latency by 50%"], type: [String] })
+  @ApiPropertyOptional({
+    example: ["Optimized API latency by 50%"],
+    type: [String],
+  })
   @IsArray()
   @IsString({ each: true })
-  achievements: string[];
+  @IsOptional()
+  achievements?: string[];
 }
 
 export class CvEducationDto {
-  @ApiProperty({ example: "University of Technology" })
+  @ApiPropertyOptional({ example: "University of Technology" })
   @IsString()
-  institution: string;
+  @IsOptional()
+  institution?: string;
 
   @ApiPropertyOptional({ example: "Bachelor", nullable: true })
   @IsString()
   @IsOptional()
-  degree: string | null;
+  degree?: string | null;
 
   @ApiPropertyOptional({ example: "Computer Science", nullable: true })
   @IsString()
   @IsOptional()
-  field: string | null;
+  field?: string | null;
 
   @ApiPropertyOptional({ example: "2016", nullable: true })
   @IsString()
   @IsOptional()
-  startDate: string | null;
+  startDate?: string | null;
 
   @ApiPropertyOptional({ example: "2020", nullable: true })
   @IsString()
   @IsOptional()
-  endDate: string | null;
+  endDate?: string | null;
 
   @ApiPropertyOptional({ example: "3.8/4.0", nullable: true })
   @IsString()
   @IsOptional()
-  gpa: string | null;
+  gpa?: string | null;
 
   @ApiPropertyOptional({ example: "Vietnam", nullable: true })
   @IsString()
   @IsOptional()
-  location: string | null;
+  location?: string | null;
 }
 
 export class CvProjectDto {
-  @ApiProperty({ example: "E-commerce Platform" })
+  @ApiPropertyOptional({ example: "E-commerce Platform" })
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @ApiPropertyOptional({ example: "ECOM", nullable: true })
   @IsString()
   @IsOptional()
   shortName?: string | null;
 
-  @ApiProperty({ example: "A scalable microservices system..." })
+  @ApiPropertyOptional({ example: "A scalable microservices system..." })
   @IsString()
-  description: string;
+  @IsOptional()
+  description?: string;
 
-  @ApiProperty({ example: ["NestJS", "PostgreSQL"], type: [String] })
+  @ApiPropertyOptional({ example: ["NestJS", "PostgreSQL"], type: [String] })
   @IsArray()
   @IsString({ each: true })
-  technologies: string[];
+  @IsOptional()
+  technologies?: string[];
 
   @ApiPropertyOptional({ example: "https://github.com/demo/project" })
   @IsString()
@@ -158,100 +164,116 @@ export class CvProjectDto {
 }
 
 export class CvCertificateDto {
-  @ApiProperty({ example: "AWS Solutions Architect" })
+  @ApiPropertyOptional({ example: "AWS Solutions Architect" })
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
-  @ApiProperty({ example: "Amazon Web Services" })
+  @ApiPropertyOptional({ example: "Amazon Web Services" })
   @IsString()
-  issuer: string;
+  @IsOptional()
+  issuer?: string;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
-  issueDate: string | null;
+  issueDate?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
-  expiryDate: string | null;
+  expiryDate?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
-  credentialId: string | null;
+  credentialId?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
-  credentialUrl: string | null;
+  credentialUrl?: string | null;
 }
 
 export class CvSkillGroupDto {
-  @ApiProperty({ example: "Backend" })
+  @ApiPropertyOptional({ example: "Backend" })
   @IsString()
-  category: string;
+  @IsOptional()
+  category?: string;
 
-  @ApiProperty({ example: ["Node.js", "Go"], type: [String] })
+  @ApiPropertyOptional({ example: ["Node.js", "Go"], type: [String] })
   @IsArray()
   @IsString({ each: true })
-  items: string[];
+  @IsOptional()
+  items?: string[];
 }
 
 export class CvSkillsDto {
-  @ApiProperty({ type: [CvSkillGroupDto] })
+  @ApiPropertyOptional({ type: [CvSkillGroupDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CvSkillGroupDto)
-  technical: CvSkillGroupDto[];
+  @IsOptional()
+  technical?: CvSkillGroupDto[];
 
-  @ApiProperty({ example: ["Leadership", "Communication"], type: [String] })
+  @ApiPropertyOptional({
+    example: ["Leadership", "Communication"],
+    type: [String],
+  })
   @IsArray()
   @IsString({ each: true })
-  soft: string[];
+  @IsOptional()
+  soft?: string[];
 }
 
 export class OptimizedCvDataDto {
   @ApiPropertyOptional({ example: "Full Stack Developer", nullable: true })
   @IsString()
   @IsOptional()
-  targetJobTitle: string | null;
+  targetJobTitle?: string | null;
 
-  @ApiProperty({ type: CvPersonalInfoDto })
+  @ApiPropertyOptional({ type: CvPersonalInfoDto })
   @ValidateNested()
   @Type(() => CvPersonalInfoDto)
-  personalInfo: CvPersonalInfoDto;
+  @IsOptional()
+  personalInfo?: CvPersonalInfoDto;
 
-  @ApiProperty({ example: "Highly motivated developer..." })
+  @ApiPropertyOptional({ example: "Highly motivated developer..." })
   @IsString()
-  summary: string;
+  @IsOptional()
+  summary?: string;
 
-  @ApiProperty({ type: [CvExperienceDto] })
+  @ApiPropertyOptional({ type: [CvExperienceDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CvExperienceDto)
-  experience: CvExperienceDto[];
+  @IsOptional()
+  experience?: CvExperienceDto[];
 
-  @ApiProperty({ type: [CvEducationDto] })
+  @ApiPropertyOptional({ type: [CvEducationDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CvEducationDto)
-  education: CvEducationDto[];
+  @IsOptional()
+  education?: CvEducationDto[];
 
-  @ApiProperty({ type: CvSkillsDto })
+  @ApiPropertyOptional({ type: CvSkillsDto })
   @ValidateNested()
   @Type(() => CvSkillsDto)
-  skills: CvSkillsDto;
+  @IsOptional()
+  skills?: CvSkillsDto;
 
-  @ApiProperty({ type: [CvProjectDto] })
+  @ApiPropertyOptional({ type: [CvProjectDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CvProjectDto)
-  projects: CvProjectDto[];
+  @IsOptional()
+  projects?: CvProjectDto[];
 
-  @ApiProperty({ type: [CvCertificateDto] })
+  @ApiPropertyOptional({ type: [CvCertificateDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CvCertificateDto)
-  certificates: CvCertificateDto[];
+  @IsOptional()
+  certificates?: CvCertificateDto[];
 }
