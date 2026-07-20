@@ -24,7 +24,6 @@ import {
   JobMatchResultDto,
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
-import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 import { Dictionary, keyBy } from "lodash";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
 import { IBloomFilterService } from "@/core/abstracts";
@@ -122,59 +121,16 @@ export class JobMatchingUseCases {
       });
     }
 
-    // Tích hợp Soft boost từ sở thích người dùng và lịch sử
-    const prefs = await this.eventTrackingService.getUserPreference(userId);
-    if (prefs) {
-      filters.userPreference = prefs;
-    }
-    const recentJobs =
-      await this.eventTrackingService.getUserRecentInteractedJobs(userId);
-    if (recentJobs && recentJobs.length > 0) {
-      filters.recentInteractions = recentJobs;
-
-      const appliedJobIds = recentJobs
-        .filter((r) => r.eventType === EventTypeEnum.APPLY_JOB)
-        .map((r) => r.jobId);
-      if (appliedJobIds.length > 0) {
-        filters.excludeJobIds = appliedJobIds;
-      }
-    }
-
-    // Load user's bloom filter to avoid duplicate recommendations
-    const bloomKey = `user_seen_jobs:${userId}`;
-    if (!filters.cursor) {
-      // First page should start fresh so old recommendation history does not
-      // wipe out the entire result set.
-      this.bloomFilterService.clear(bloomKey);
-    } else {
-      await this.bloomFilterService.loadFromRedis(bloomKey);
-    }
-
     const {
       data: rawDocs,
       pagination: { nextCursor, hasNextPage: hasMore },
     } = await this.jobSearchService.matchJobs(userProfile, filters);
 
-    // Filter out jobs the user has already seen
-    const docs = rawDocs.filter((doc) => {
-      if (!doc?.id) return false;
-      return !this.bloomFilterService.mightContain(bloomKey, doc.id);
-    });
-
-    // Add newly recommended jobs to bloom filter
-    for (const doc of docs) {
-      if (doc?.id) {
-        this.bloomFilterService.add(bloomKey, doc.id);
-      }
-    }
-    // Khắc phục Race Condition: Lưu liền tay xuống Redis nhưng không dùng await để tránh block API
-    this.bloomFilterService.syncKeyToRedis(bloomKey).catch(() => {});
-
     // Extract job IDs for batch query
     const jobIds: string[] = [];
     const orgIds: string[] = [];
 
-    for (const doc of docs) {
+    for (const doc of rawDocs) {
       if (!doc?.id) continue;
       jobIds.push(doc.id);
       const orgId = doc.organizationId;
@@ -203,7 +159,11 @@ export class JobMatchingUseCases {
     const organizationMap = keyBy(organizations, "id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
+    const jobs = this.convertHitToDto(
+      rawDocs,
+      organizationMap,
+      userJobStatusMap,
+    );
 
     this.logger.log(
       `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
@@ -319,74 +279,5 @@ export class JobMatchingUseCases {
         score: typeof source.score === "number" ? source.score : 0,
       } as JobMatchResultDto;
     });
-  }
-
-  async getMatchedJobsWithScoresLegacy(
-    userId: string,
-    filters: JobFilters,
-  ): Promise<ApiResponse<PaginatedResult<JobMatchResultDto>>> {
-    const userProfile = await this.userRepository.getUserProfile(userId);
-    if (!userProfile) {
-      throw new NotFoundException({
-        message: `User ${userId} not found`,
-        code: RESPONSE_CODE.USER_NOT_FOUND,
-      });
-    }
-
-    const {
-      data: docs,
-      pagination: { nextCursor, hasNextPage: hasMore },
-    } = await this.jobSearchService.matchJobsLegacy(userProfile, filters);
-
-    // Extract job IDs for batch query
-    const jobIds: string[] = [];
-    const orgIds: string[] = [];
-
-    for (const doc of docs) {
-      if (!doc?.id) continue;
-      jobIds.push(doc.id);
-      const orgId = doc.organizationId;
-      if (typeof orgId === "string" && orgId.length > 0) orgIds.push(orgId);
-    }
-
-    const uniqueOrgIds = [...new Set<string>(orgIds)];
-
-    const [userJobStatusMap, organizations] = await Promise.all([
-      jobIds.length > 0 && filters.user?.userId
-        ? await this.jobRepository.getUserJobStatuses(
-            filters.user?.userId,
-            jobIds,
-          )
-        : Promise.resolve(new Map()),
-      this.organizationRepository.getByIds(uniqueOrgIds, [
-        "id",
-        "name",
-        "description",
-        "websiteUrl",
-        "employeesMin",
-        "employeesMax",
-        "logoUrl",
-      ]),
-    ]);
-    const organizationMap = keyBy(organizations, "id");
-
-    // Transform ES results to JobMatchResult (extends JobResponse)
-    const jobs = this.convertHitToDto(docs, organizationMap, userJobStatusMap);
-
-    this.logger.log(
-      `Found ${jobs.length} matched jobs for user ${userId}, hasMore: ${hasMore}`,
-    );
-
-    return {
-      data: {
-        data: jobs,
-        pagination: {
-          nextCursor,
-          hasNextPage: hasMore,
-        },
-      },
-      message: "Successfully retrieved matched jobs",
-      code: RESPONSE_CODE.SUCCESS,
-    };
   }
 }

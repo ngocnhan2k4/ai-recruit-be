@@ -5,14 +5,24 @@ import { type DBDrizzle } from "../types";
 import { userOnboardings, users } from "../models";
 import { UserOnboarding, User } from "@/core/entities";
 import { eq } from "drizzle-orm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
 export class UserOnboardingRepository
   extends GenericRepository<UserOnboarding, typeof userOnboardings>
   implements IUserOnboardingRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, userOnboardings);
+  }
+
+  private async invalidateUserProfileCache(userId: string): Promise<void> {
+    await this.cacheManager.del(CACHE_KEYS.user.getUserProfile(userId));
   }
   async createOnboardingForUser(
     userId: string,
@@ -45,6 +55,8 @@ export class UserOnboardingRepository
         await tx.update(users).set(userUpdate).where(eq(users.id, userId));
       }
     });
+
+    await this.invalidateUserProfileCache(userId);
   }
 
   async upsert(
@@ -61,5 +73,7 @@ export class UserOnboardingRepository
         target: [userOnboardings.userId],
         set: onboardingData,
       });
+
+    await this.invalidateUserProfileCache(userId);
   }
 }
