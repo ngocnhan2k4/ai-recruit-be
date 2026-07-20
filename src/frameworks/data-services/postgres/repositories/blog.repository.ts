@@ -217,7 +217,8 @@ export class BlogRepository
     summary: string | null;
     thumbnail: string | null;
     content: string | null;
-    category: string | null;
+    categoryId: string | null;
+    categoryName: string | null;
     status: BlogPostStatus;
     viewCount: number | null;
     sourceType: string | null;
@@ -237,7 +238,8 @@ export class BlogRepository
       summary: post.summary ?? "",
       thumbnail: post.thumbnail,
       content: post.content ?? "",
-      category: post.category ?? "",
+      categoryId: post.categoryId ?? "",
+      categoryName: post.categoryName ?? "",
       status: post.status,
       viewCount: post.viewCount ?? 0,
       sourceType: post.sourceType as BlogSourceType,
@@ -493,7 +495,8 @@ export class BlogRepository
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
-          category: blogPosts.categoryId,
+          categoryId: blogPosts.categoryId,
+          categoryName: blogCategories.name,
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
@@ -501,6 +504,7 @@ export class BlogRepository
           source: blogPosts.source,
         })
         .from(blogPosts)
+        .leftJoin(blogCategories, eq(blogCategories.id, blogPosts.categoryId))
         .where(baseWhere)
         .orderBy(...orderBy)
         .limit(limit)
@@ -518,6 +522,8 @@ export class BlogRepository
     return {
       data: rows.map((item) => ({
         ...item,
+        categoryName: item.categoryName ?? "",
+        categoryId: item.categoryId,
         title: this.resolveLocalizedValue({
           locales: this.normalizeLocaleMap(item.locales),
           field: "title",
@@ -616,7 +622,8 @@ export class BlogRepository
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
-          category: blogPosts.categoryId,
+          categoryId: blogPosts.categoryId,
+          categoryName: blogCategories.name,
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
@@ -625,6 +632,7 @@ export class BlogRepository
         })
         .from(userActions)
         .innerJoin(blogPosts, eq(blogPosts.id, userActions.objectId))
+        .leftJoin(blogCategories, eq(blogCategories.id, blogPosts.categoryId))
         .where(finalWhere)
         .orderBy(...orderBy)
         .limit(limit + 1),
@@ -655,6 +663,8 @@ export class BlogRepository
     return {
       data: data.map((item) => ({
         ...item,
+        categoryName: item.categoryName ?? "",
+        categoryId: item.categoryId,
         title: this.resolveLocalizedValue({
           locales: this.normalizeLocaleMap(item.locales),
           field: "title",
@@ -716,7 +726,8 @@ export class BlogRepository
           slug: blogPosts.slug,
           summary: blogPosts.summary,
           thumbnail: blogPosts.thumbnail,
-          category: blogPosts.categoryId,
+          categoryId: blogPosts.categoryId,
+          categoryName: blogCategories.name,
           createdAt: blogPosts.createdAt,
           updatedAt: blogPosts.updatedAt,
           status: sql<BlogPostStatus>`${blogPosts.status}`,
@@ -724,6 +735,7 @@ export class BlogRepository
           source: blogPosts.source,
         })
         .from(blogPosts)
+        .leftJoin(blogCategories, eq(blogCategories.id, blogPosts.categoryId))
         .where(finalWhere)
         .orderBy(...orderBy)
         .limit(limit + 1),
@@ -742,6 +754,8 @@ export class BlogRepository
     return {
       data: data.map((item) => ({
         ...item,
+        categoryName: item.categoryName ?? "",
+        categoryId: item.categoryId,
         title: this.resolveLocalizedValue({
           locales: this.normalizeLocaleMap(item.locales),
           field: "title",
@@ -826,7 +840,8 @@ export class BlogRepository
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
             content: blogPosts.content,
-            category: blogPosts.categoryId,
+            categoryId: blogPosts.categoryId,
+            categoryName: blogCategories.name,
             status: sql<BlogPostStatus>`${blogPosts.status}`,
             viewCount: blogPosts.viewCount,
             sourceType: blogPosts.sourceType,
@@ -840,6 +855,7 @@ export class BlogRepository
           })
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
+          .leftJoin(blogCategories, eq(blogCategories.id, blogPosts.categoryId))
           .where(and(eq(blogPosts.slug, slug), isNull(blogPosts.deletedAt)))
           .limit(1);
 
@@ -849,6 +865,8 @@ export class BlogRepository
 
         return this.mapToPostDetailBase({
           ...post,
+          categoryName: post.categoryName ?? "",
+          categoryId: post.categoryId,
           title: this.resolveLocalizedValue({
             locales,
             field: "title",
@@ -903,7 +921,8 @@ export class BlogRepository
             summary: blogPosts.summary,
             thumbnail: blogPosts.thumbnail,
             content: blogPosts.content,
-            category: blogPosts.categoryId,
+            categoryId: blogPosts.categoryId,
+            categoryName: blogCategories.name,
             status: sql<BlogPostStatus>`${blogPosts.status}`,
             viewCount: blogPosts.viewCount,
             sourceType: blogPosts.sourceType,
@@ -917,6 +936,7 @@ export class BlogRepository
           })
           .from(blogPosts)
           .leftJoin(users, eq(users.id, blogPosts.authorId))
+          .leftJoin(blogCategories, eq(blogCategories.id, blogPosts.categoryId))
           .where(and(eq(blogPosts.id, id), isNull(blogPosts.deletedAt)))
           .limit(1);
 
@@ -926,6 +946,8 @@ export class BlogRepository
 
         return this.mapToPostDetailBase({
           ...post,
+          categoryName: post.categoryName ?? "",
+          categoryId: post.categoryId,
           title: this.resolveLocalizedValue({
             locales,
             field: "title",
