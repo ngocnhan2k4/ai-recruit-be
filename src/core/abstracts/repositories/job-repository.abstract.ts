@@ -265,4 +265,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     score: number | null,
     criteria: Record<string, any>,
   ): Promise<void>;
+
+  abstract getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>>;
 }

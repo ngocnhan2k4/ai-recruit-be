@@ -2239,4 +2239,35 @@ export class JobRepository
       })
       .where(eq(applyJobs.id, applyId));
   }
+
+  async getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>> {
+    const rows = await this.db
+      .select({
+        applyId: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+      })
+      .from(applyJobs)
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+          isNotNull(applyJobs.cvId),
+        ),
+      );
+
+    return rows
+      .filter((row): row is { applyId: string; jobId: string; cvId: string } =>
+        Boolean(row.applyId && row.jobId && row.cvId),
+      )
+      .map((row) => ({
+        applyId: row.applyId,
+        jobId: row.jobId,
+        cvId: row.cvId,
+      }));
+  }
 }

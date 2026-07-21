@@ -1843,7 +1843,11 @@ export class JobUseCases {
         continue;
       }
       const { score, criteria } = this.cvService.calculateMatchingScore(
-        cv,
+        {
+          ...cv,
+          expectedSalary: user.expectedSalary,
+          experienceYears: cv.experienceYears ?? user.experienceYears,
+        },
         jobForMatching,
       );
       if (
