@@ -1209,6 +1209,7 @@ export class JobRepository
       return inserted as ApplyJobResponse;
     });
 
+    await this.invalidateJobCache(jobId);
     return newApplication;
   }
 
@@ -1224,6 +1225,10 @@ export class JobRepository
       })
       .where(eq(applyJobs.id, applyId))
       .returning();
+
+    if (updatedApplication?.jobId) {
+      await this.invalidateJobCache(updatedApplication.jobId);
+    }
 
     return updatedApplication as ApplyJobResponse;
   }
