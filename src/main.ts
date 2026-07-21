@@ -35,7 +35,7 @@ async function bootstrap() {
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
 
-  enableAppMiddleware(app);
+  await enableAppMiddleware(app);
   enableSwaggerDoc(app);
 
   await app.listen(port, "0.0.0.0", () => {

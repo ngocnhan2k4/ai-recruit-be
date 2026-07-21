@@ -43,7 +43,8 @@ export interface BlogPostListItem {
   summary: string;
   locales?: BlogLocaleMap;
   thumbnail: string | null;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   status: BlogPostStatus;
   sourceType: BlogSourceType;
   source: BlogPostSource | null;
@@ -77,7 +78,8 @@ export interface BlogPostDetailBase {
   locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   viewCount: number;
   author: BlogPostAuthor | null;
   status: BlogPostStatus;
@@ -95,7 +97,8 @@ export interface BlogPostDetail {
   locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   viewCount: number;
   author: BlogPostAuthor | null;
   likes: number;
