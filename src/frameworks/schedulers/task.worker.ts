@@ -241,20 +241,27 @@ export class TaskWorker extends WorkerHost {
             if (existing) return;
 
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,
@@ -305,20 +312,27 @@ export class TaskWorker extends WorkerHost {
         missing.map(
           async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,

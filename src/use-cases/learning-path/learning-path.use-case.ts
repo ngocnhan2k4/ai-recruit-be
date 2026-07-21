@@ -118,20 +118,27 @@ export class LearningPathUseCase {
     // generate if missing
     if (!subpath) {
       try {
-        const aiResult = await this.aiService.generateSubPath({
+        let shared = await this.subpathRepository.findSharedByNaturalKey({
           optionName: option.optionName,
-          keyConcepts: option.keyConcepts ?? [],
           targetRole: roadmap.targetRole ?? "",
           currentRole: roadmap.currentRole ?? "",
         });
-        const shared = await this.subpathRepository.createFromAIResult(
-          {
+        if (!shared) {
+          const aiResult = await this.aiService.generateSubPath({
             optionName: option.optionName,
+            keyConcepts: option.keyConcepts ?? [],
             targetRole: roadmap.targetRole ?? "",
             currentRole: roadmap.currentRole ?? "",
-          },
-          aiResult,
-        );
+          });
+          shared = await this.subpathRepository.createFromAIResult(
+            {
+              optionName: option.optionName,
+              targetRole: roadmap.targetRole ?? "",
+              currentRole: roadmap.currentRole ?? "",
+            },
+            aiResult,
+          );
+        }
         await this.subpathRepository.cloneSharedSubpathForUser(
           shared.id,
           optionId,
