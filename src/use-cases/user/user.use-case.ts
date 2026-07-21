@@ -1057,6 +1057,7 @@ export class UserUseCases implements OnModuleInit {
         name: name ?? undefined,
         gender: gender ?? undefined,
         dob: dob ?? undefined,
+        onboardingCompleted: true,
       },
     );
     return {
