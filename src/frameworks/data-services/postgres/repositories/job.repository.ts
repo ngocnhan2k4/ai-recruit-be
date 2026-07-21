@@ -1861,7 +1861,7 @@ export class JobRepository
         companyName: organizations.name,
         logoUrl: organizations.logoUrl,
         workType: jobs.workType,
-        createdAt: jobs.createdAt,
+        createdAt: applyJobs.createdAt,
         endedAt: jobs.endDate,
         provinceNames: sql`(
           SELECT json_agg(p.name) 
@@ -1884,8 +1884,8 @@ export class JobRepository
       )
       .orderBy(
         query.sortDirection === "desc"
-          ? desc(jobs.createdAt)
-          : asc(jobs.createdAt),
+          ? desc(applyJobs.createdAt)
+          : asc(applyJobs.createdAt),
       )
       .offset(offset)
       .limit(query.limit + 1);
