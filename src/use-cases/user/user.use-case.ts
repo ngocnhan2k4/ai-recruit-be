@@ -4,6 +4,7 @@ import {
   RESPONSE_MESSAGE,
   RoleEnum,
   SUPPORTED_LANGUAGE_CODES,
+  TASK_EVENT,
   USER_FOLDER,
 } from "@/common/constants";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -69,6 +70,8 @@ import {
   IAuthRepository,
   IAuthService,
   IBloomFilterService,
+  IJobRepository,
+  IMessageQueueService,
   ISkillRepository,
   IUserExperienceRepository,
   IUserOnboardingRepository,
@@ -97,6 +100,8 @@ export class UserUseCases implements OnModuleInit {
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
     private readonly configService: ConfigService,
+    private readonly jobRepository: IJobRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   // private isUserAccountAvailable(user: User): boolean {
@@ -136,6 +141,42 @@ export class UserUseCases implements OnModuleInit {
         tx,
       );
     });
+  }
+
+  private async enqueueRescoreApplicationsForUser(
+    userId: string,
+  ): Promise<void> {
+    try {
+      const targets =
+        await this.jobRepository.getApplyScoreTargetsByUserId(userId);
+      if (targets.length === 0) {
+        return;
+      }
+
+      await Promise.all(
+        targets.map((target) =>
+          this.messageQueueService.addScoreCv(
+            TASK_EVENT.SCORE_CV_APPLY,
+            {
+              applyId: target.applyId,
+              jobId: target.jobId,
+              cvId: target.cvId,
+            },
+            {
+              jobId: `score-cv-apply-${target.applyId}`,
+            },
+          ),
+        ),
+      );
+
+      this.logger.log(
+        `[enqueueRescoreApplicationsForUser] Enqueued ${targets.length} score jobs for user ${userId}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `[enqueueRescoreApplicationsForUser] Failed for user ${userId}: ${error.message}`,
+      );
+    }
   }
 
   async onModuleInit() {
@@ -552,6 +593,20 @@ export class UserUseCases implements OnModuleInit {
       }
 
       // Update preferences if provided
+      const shouldTrackMatchingPrefs =
+        expectedSalary !== undefined || experienceYears !== undefined;
+      const [previousOnboarding] = shouldTrackMatchingPrefs
+        ? await this.userOnboardingRepository.getByField({ userId })
+        : [];
+      const previousExpectedSalary =
+        previousOnboarding?.expectedSalary != null
+          ? Number(previousOnboarding.expectedSalary)
+          : null;
+      const previousExperienceYears =
+        previousOnboarding?.experienceYears != null
+          ? Number(previousOnboarding.experienceYears)
+          : null;
+
       if (
         provinceIds !== undefined ||
         categoryIds !== undefined ||
@@ -586,6 +641,39 @@ export class UserUseCases implements OnModuleInit {
         preferencesUpdate.languageCode = getRequestLanguage();
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
+      }
+
+      const nextExpectedSalary =
+        expectedSalary === undefined
+          ? previousExpectedSalary
+          : expectedSalary == null
+            ? null
+            : Number(expectedSalary);
+      const normalizedNextExpectedSalary = Number.isFinite(
+        nextExpectedSalary as number,
+      )
+        ? nextExpectedSalary
+        : null;
+      const nextExperienceYears =
+        experienceYears === undefined
+          ? previousExperienceYears
+          : experienceYears == null
+            ? null
+            : Number(experienceYears);
+      const normalizedNextExperienceYears = Number.isFinite(
+        nextExperienceYears as number,
+      )
+        ? nextExperienceYears
+        : null;
+
+      const shouldRescore =
+        (expectedSalary !== undefined &&
+          previousExpectedSalary !== normalizedNextExpectedSalary) ||
+        (experienceYears !== undefined &&
+          previousExperienceYears !== normalizedNextExperienceYears);
+
+      if (shouldRescore) {
+        await this.enqueueRescoreApplicationsForUser(userId);
       }
 
       return {

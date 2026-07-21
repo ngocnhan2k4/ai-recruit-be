@@ -69,8 +69,6 @@ export class CvSearchService implements ICvSearchService {
       categoryId,
       experienceMin,
       experienceMax,
-      // salaryMin,
-      salaryMax,
       sortBy,
       sortDirection,
     } = filters;
@@ -110,16 +108,8 @@ export class CvSearchService implements ICvSearchService {
       );
     }
 
-    const normalizedJobSalaryMax =
-      typeof salaryMax === "number"
-        ? salaryMax
-        : salaryMax != null
-          ? Number(salaryMax)
-          : null;
     const hasExperienceRequirement =
       experienceMin != null && experienceMax != null;
-    const hasSalaryRequirement =
-      normalizedJobSalaryMax != null && normalizedJobSalaryMax > 0;
 
     const functions: any[] = [
       ...(skillIds && skillIds.length > 0
@@ -212,7 +202,7 @@ export class CvSearchService implements ICvSearchService {
       ...(categoryId
         ? [
             {
-              weight: 0.1,
+              weight: 0.2,
               script_score: {
                 script: {
                   source: `
@@ -223,36 +213,6 @@ export class CvSearchService implements ICvSearchService {
                   `,
                   params: {
                     jobCategoryId: categoryId,
-                  },
-                },
-              },
-            },
-          ]
-        : []),
-      ...(hasSalaryRequirement
-        ? [
-            {
-              weight: 0.1,
-              script_score: {
-                script: {
-                  source: `
-              if (!doc.containsKey('expectedSalary') || doc['expectedSalary'].size() == 0) {
-                return 0;
-              }
-
-              double cvExpected = doc['expectedSalary'].value;
-              double jobMax = params.jobSalaryMax;
-
-              if (cvExpected <= jobMax * 1.2) {
-                return 1;
-              } else if (cvExpected <= jobMax * 1.5) {
-                return 0.7;
-              } else {
-                return 0.3;
-              }
-            `,
-                  params: {
-                    jobSalaryMax: normalizedJobSalaryMax,
                   },
                 },
               },
@@ -302,7 +262,6 @@ export class CvSearchService implements ICvSearchService {
             "categoryIds",
             "categoryNames",
             "experienceYears",
-            "expectedSalary",
             "updatedAt",
           ],
         },

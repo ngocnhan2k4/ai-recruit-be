@@ -7,6 +7,7 @@ import {
   ICvSearchService,
   IJobSearchService,
   ICvService,
+  IUserOnboardingRepository,
 } from "@/core/abstracts";
 import {
   formatWorkerErrorLog,
@@ -30,6 +31,7 @@ export class ScoreCvWorker extends WorkerHost {
     private readonly cvSearchService: ICvSearchService,
     private readonly jobSearchService: IJobSearchService,
     private readonly cvService: ICvService,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {
     super();
   }
@@ -61,8 +63,17 @@ export class ScoreCvWorker extends WorkerHost {
       throw new Error(`Job ${jobId} not found in ES`);
     }
 
+    const [onboarding] = await this.userOnboardingRepository.getByField({
+      userId: cvResult.userId,
+    });
+
     const { score, criteria } = this.cvService.calculateMatchingScore(
-      cvResult,
+      {
+        ...cvResult,
+        expectedSalary: onboarding?.expectedSalary,
+        experienceYears:
+          cvResult.experienceYears ?? onboarding?.experienceYears,
+      },
       jobResult,
     );
 

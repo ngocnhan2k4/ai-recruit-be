@@ -434,6 +434,8 @@ export class UserRepository
           needUserSubscription = true;
           break;
         case "onboarding":
+          selectedFields["expectedSalary"] = userOnboardings.expectedSalary;
+          selectedFields["experienceYears"] = userOnboardings.experienceYears;
           needOnboarding = true;
           break;
         default:
