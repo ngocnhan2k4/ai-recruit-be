@@ -43,7 +43,9 @@ export class BlogLocaleContentResponseDto {
   @ApiPropertyOptional()
   summary?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: "Present on detail endpoints only; omitted from list payloads",
+  })
   content?: string;
 }
 

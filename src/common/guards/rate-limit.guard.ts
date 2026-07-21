@@ -28,7 +28,7 @@ export class RateLimitGuard implements CanActivate {
     @Inject(ICacheService) private readonly cacheService: ICacheService,
   ) {
     this.enabled = configService.get<boolean>("RATE_LIMIT_ENABLED", true);
-    this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 30);
+    this.capacity = configService.get<number>("RATE_LIMIT_CAPACITY", 60);
     this.refillRate = configService.get<number>("RATE_LIMIT_REFILL_RATE", 1);
     this.ttlSeconds = Math.ceil((this.capacity / this.refillRate) * 2);
     this.globalPrefix = configService.get<string>("GLOBAL_PREFIX", "");
