@@ -3,3 +3,4 @@ export * from "./roadmap.dto";
 export * from "./weekly-progress.dto";
 export * from "./skill-note.dto";
 export * from "./roadmap-chat.dto";
+export * from "./admin-roadmap.dto";

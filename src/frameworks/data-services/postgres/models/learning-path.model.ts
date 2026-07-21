@@ -22,6 +22,7 @@ import {
   ResourceTypeEnum,
   SkillLevelEnum,
   PhaseStatusEnum,
+  LearningRoadmapGenerationStatusEnum,
 } from "@/core";
 
 export const phaseStatusEnum = pgEnum("phase_status", [
@@ -29,6 +30,22 @@ export const phaseStatusEnum = pgEnum("phase_status", [
   PhaseStatusEnum.IN_PROGRESS,
   PhaseStatusEnum.COMPLETED,
 ]);
+
+export const learningRoadmapGenerationStatusEnum = pgEnum(
+  "learning_roadmap_generation_status",
+  [
+    LearningRoadmapGenerationStatusEnum.PENDING,
+    LearningRoadmapGenerationStatusEnum.IN_PROGRESS,
+    LearningRoadmapGenerationStatusEnum.FINISHED,
+    LearningRoadmapGenerationStatusEnum.FAILED,
+  ],
+);
+
+export type LearningRoadmapGenerationMetadata = {
+  result?: Record<string, unknown> | null;
+  error?: string | null;
+  language?: string | null;
+};
 
 export const learningRoadmaps = pgTable(
   "learning_roadmaps",
@@ -59,6 +76,12 @@ export const learningRoadmaps = pgTable(
         estimatedDifficulty: GapDifficultyEnum;
       }>()
       .notNull(),
+
+    generationStatus: learningRoadmapGenerationStatusEnum("generation_status")
+      .notNull()
+      .default(LearningRoadmapGenerationStatusEnum.PENDING),
+
+    metadata: jsonb("metadata").$type<LearningRoadmapGenerationMetadata>(),
 
     generatedAt: timestamp("generated_at").notNull().defaultNow(),
     completedAt: timestamp("completed_at"),

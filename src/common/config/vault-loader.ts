@@ -1,12 +1,23 @@
 import vault from "node-vault";
 import dotenv from "dotenv";
+import { Environment } from "./env.config";
 
 dotenv.config();
+
+export function applyLocalRuntimeDefaults(): void {
+  if (process.env.NODE_ENV !== Environment.Local) {
+    return;
+  }
+
+  process.env.REDIS_DB = "10";
+}
 
 /**
  * Load secrets from Vault and merge into process.env
  */
 export async function loadVaultIntoEnv(): Promise<void> {
+  applyLocalRuntimeDefaults();
+
   if (process.env.ENABLE_VAULT === "false") {
     console.log("Vault is disabled, skipping Vault secrets loading");
     return;

@@ -7,3 +7,4 @@ export * from "./weekly-progress.dto";
 export * from "./skill-note.dto";
 export * from "./subpath.dto";
 export * from "./roadmap-chat.dto";
+export * from "./admin-roadmap.dto";

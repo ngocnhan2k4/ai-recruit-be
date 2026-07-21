@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString } from "class-validator";
 import {
+  LearningRoadmapGenerationStatusEnum,
   NotificationStatusEnum,
   NotificationType,
   TaskStatusEnum,
@@ -19,6 +20,14 @@ export class TaskInNotificationDto {
 
   @ApiProperty({ nullable: true })
   result: Record<string, any> | null;
+}
+
+export class RoadmapInNotificationDto {
+  @ApiProperty({ type: "string" })
+  id: string;
+
+  @ApiProperty({ enum: LearningRoadmapGenerationStatusEnum })
+  generationStatus: LearningRoadmapGenerationStatusEnum;
 }
 
 export class NotificationDto {
@@ -57,6 +66,7 @@ export class NotificationDto {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    roadmapId?: string;
     feedbackId?: string;
     blogId?: string;
     blogSlug?: string;
@@ -86,6 +96,9 @@ export class NotificationDto {
 
   @ApiProperty({ type: TaskInNotificationDto, nullable: true })
   task?: TaskInNotificationDto | null;
+
+  @ApiProperty({ type: RoadmapInNotificationDto, nullable: true })
+  roadmap?: RoadmapInNotificationDto | null;
 }
 
 export class NotificationActionResponseDto {

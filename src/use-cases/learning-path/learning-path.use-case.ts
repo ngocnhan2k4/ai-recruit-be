@@ -10,7 +10,6 @@ import {
   IRoadmapSkillRepository,
   IRoadmapSkillOptionRepository,
   IWeeklyProgressRepository,
-  ITaskRepository,
   INotificationRepository,
   IWebSocketGateway,
   IFeatureService,
@@ -36,12 +35,15 @@ import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
 import {
   FeatureCodeEnum,
+  GapDifficultyEnum,
   LearningRoadmap,
+  LearningRoadmapAdminFilter,
+  LearningRoadmapGenerationStatusEnum,
   LearningRoadmapWithDetails,
+  ListLearningRoadmapAdminResponse,
   WeeklyProgress,
   NotificationType,
   TaskTypeEnum,
-  TaskStatusEnum,
   SubpathWithDetails,
   SubpathModuleQuizResult,
 } from "@/core";
@@ -69,7 +71,6 @@ export class LearningPathUseCase {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly weeklyProgressRepository: IWeeklyProgressRepository,
-    private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
     private readonly webSocketGateway: IWebSocketGateway,
     private readonly notificationService: INotificationService,
@@ -251,32 +252,39 @@ export class LearningPathUseCase {
     request: PreviewRoadmapDto,
     userId: string,
     requestLanguage?: string,
-  ): Promise<ApiResponse<{ taskId: string }>> {
+  ): Promise<ApiResponse<{ roadmapId: string }>> {
     this.logger.log(
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
     const sourceLanguage = normalizeLanguageCode(requestLanguage);
 
-    const result = await this.taskRepository.executeWithTransaction(
-      async (tx) => {
+    const result = await this.roadmapRepository.executeWithTransaction(
+      async () => {
         await this.featureService.consumeFeature(
           userId,
           FeatureCodeEnum.LEARNING_PATH,
         );
 
-        const task = await this.taskRepository.create(
-          {
-            name: `Learning path generation: ${request.targetRole}`,
-            type: TaskTypeEnum.LEARNING_PATH_GENERATION,
-            status: TaskStatusEnum.PENDING,
-            userId,
-            input: {
-              request,
-              sourceLanguage,
-            },
+        const roadmap = await this.roadmapRepository.create({
+          userId,
+          title: request.targetRole,
+          currentRole: request.currentRole,
+          targetRole: request.targetRole,
+          timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+          currentSkills: request.currentSkills,
+          totalWeeks: 0,
+          gapAnalysis: {
+            missingSkills: [],
+            skillsToImprove: [],
+            estimatedDifficulty: GapDifficultyEnum.MEDIUM,
           },
-          tx,
-        );
+          generationStatus: LearningRoadmapGenerationStatusEnum.PENDING,
+          metadata: {
+            language: sourceLanguage,
+            result: null,
+            error: null,
+          },
+        });
 
         const [notification] =
           await this.notificationRepository.createNotificationWithRecipients(
@@ -290,14 +298,14 @@ export class LearningPathUseCase {
               },
               type: NotificationType.SYSTEM,
               payload: {
-                taskId: task.id,
+                roadmapId: roadmap.id,
               },
             },
             [{ receiverId: userId }],
           );
         return {
-          task,
           notification,
+          roadmap,
         };
       },
     );
@@ -311,16 +319,16 @@ export class LearningPathUseCase {
         await this.messageQueueService.addTask(
           TaskTypeEnum.LEARNING_PATH_GENERATION,
           {
-            taskId: result.task.id,
+            roadmapId: result.roadmap.id,
             notificationId: result.notification.id,
           },
           {
-            jobId: `task-async-${result.task.id}`,
+            jobId: `learning-path-async-${result.roadmap.id}`,
             attempts: 1,
           },
         );
         this.logger.log(
-          `Learning path generation task added to message queue: ${result.task.id}`,
+          `Learning path generation queued for roadmap: ${result.roadmap.id}`,
         );
       },
       {
@@ -332,7 +340,41 @@ export class LearningPathUseCase {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: "Learning path generation started",
-      data: { taskId: result.task.id },
+      data: { roadmapId: result.roadmap.id },
+    };
+  }
+
+  async getAdminRoadmaps(
+    filter: LearningRoadmapAdminFilter,
+  ): Promise<
+    ApiResponse<PaginatedResultDto<ListLearningRoadmapAdminResponse>>
+  > {
+    const result = await this.roadmapRepository.getAdminRoadmaps(filter);
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "Admin learning roadmaps fetched successfully",
+      data: {
+        data: result.data,
+        pagination: result.pagination,
+      },
+    };
+  }
+
+  async deleteAdminRoadmap(id: string): Promise<ApiResponse<void>> {
+    const existing = await this.roadmapRepository.get(id);
+    if (!existing) {
+      throw new NotFoundException({
+        message: "Roadmap not found",
+        code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    await this.roadmapRepository.delete({ id });
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "Learning roadmap deleted successfully",
     };
   }
 

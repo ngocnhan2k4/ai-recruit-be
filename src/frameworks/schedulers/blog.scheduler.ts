@@ -28,7 +28,7 @@ export class BlogScheduler {
     private readonly configService: ConfigService,
   ) {
     this.aiBlogAuthorId =
-      this.configService.get<string>("AI_BLOG_AUTHOR_ID") || undefined;
+      this.configService.get<string>("SYSTEM_USER_ID") || undefined;
     this.aiBlogRangeDays = Math.max(
       1,
       this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
@@ -135,7 +135,7 @@ export class BlogScheduler {
 
       if (!this.aiBlogAuthorId) {
         this.logger.warn(
-          "[scheduler.generateAiBlogOnce] Skipping weekly AI blog generation because AI_BLOG_AUTHOR_ID is not configured.",
+          "[scheduler.generateAiBlogOnce] Skipping weekly AI blog generation because SYSTEM_USER_ID is not configured.",
         );
         return;
       }

@@ -16,7 +16,9 @@ import {
   SkillLevelEnum,
   ResourceTypeEnum,
   GapDifficultyEnum,
+  LearningRoadmapGenerationStatusEnum,
 } from "./enum.entity";
+import { GeneralQuery, RelatedEntity } from "@/common/types";
 
 export type NewLearningRoadmap = InferInsertModel<typeof learningRoadmaps>;
 export type LearningRoadmap = InferSelectModel<typeof learningRoadmaps>;
@@ -288,4 +290,15 @@ export interface RoadmapChatMessage {
   proposal?: RoadmapChatProposal;
   proposalStatus?: "applied" | "dismissed" | null;
   createdAt: Date;
+}
+
+export interface LearningRoadmapAdminFilter extends GeneralQuery {
+  generationStatus?: LearningRoadmapGenerationStatusEnum;
+  userId?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export interface ListLearningRoadmapAdminResponse extends LearningRoadmap {
+  user?: RelatedEntity & { email?: string | null };
 }

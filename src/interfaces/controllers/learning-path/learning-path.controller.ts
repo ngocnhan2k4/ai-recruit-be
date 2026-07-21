@@ -68,7 +68,7 @@ export class LearningPathController {
     @Body() dto: PreviewRoadmapDto,
     @GetUser() user: TokenPayload,
     @Headers("accept-language") acceptLanguage?: string,
-  ): Promise<ApiResponse<{ taskId: string }>> {
+  ): Promise<ApiResponse<{ roadmapId: string }>> {
     return this.learningPathUseCase.createRoadmap(
       dto,
       user.userId,

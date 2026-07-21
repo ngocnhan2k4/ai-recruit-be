@@ -46,7 +46,10 @@ import {
 } from "@/frameworks/data-services/postgres/models/blog.model";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { OptimizedCvData } from "./ai-cv.entity";
-import { SchoolTypeEnum } from "./enum.entity";
+import {
+  LearningRoadmapGenerationStatusEnum,
+  SchoolTypeEnum,
+} from "./enum.entity";
 export * from "./ai-cv.entity";
 export * from "./blog.entity";
 export * from "./comment.entity";
@@ -127,6 +130,10 @@ export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
     displayLanguage?: string | null;
     task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
+    roadmap?: {
+      id: string;
+      generationStatus: LearningRoadmapGenerationStatusEnum;
+    } | null;
     sender?: {
       name?: string | null;
       avatarUrl?: string | null;

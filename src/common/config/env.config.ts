@@ -40,9 +40,6 @@ export class EnvironmentVariables {
   DATABASE_URL: string;
 
   @IsString()
-  DATABASE_ADAPTER_URL: string;
-
-  @IsString()
   JWT_SECRET: string;
 
   @IsString()
@@ -104,7 +101,7 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
-  AI_BLOG_AUTHOR_ID: string;
+  SYSTEM_USER_ID: string;
 
   @IsOptional()
   @IsNumber()

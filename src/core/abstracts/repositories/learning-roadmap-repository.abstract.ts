@@ -1,6 +1,8 @@
 import {
   LearningRoadmap,
+  LearningRoadmapAdminFilter,
   LearningRoadmapWithDetails,
+  ListLearningRoadmapAdminResponse,
   RoadmapProgressStats,
 } from "@/core";
 import { IGenericRepository } from "./generic-repository.abstract";
@@ -18,4 +20,8 @@ export abstract class ILearningRoadmapRepository extends IGenericRepository<Lear
   abstract getProgressStats(roadmapId: string): Promise<RoadmapProgressStats>;
 
   abstract updateProgress(roadmapId: string, tx?: any): Promise<void>;
+
+  abstract getAdminRoadmaps(
+    filter: LearningRoadmapAdminFilter,
+  ): Promise<PaginatedResult<ListLearningRoadmapAdminResponse>>;
 }

@@ -50,6 +50,7 @@ export * from "./comment/comment.controller";
 export * from "./translation/translation.controller";
 
 export * from "./learning-path/learning-path.controller";
+export * from "./learning-path/learning-path-admin.controller";
 export * from "./subscription/admin-subscription.controller";
 export * from "./feature/admin-feature.controller";
 

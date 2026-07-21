@@ -188,6 +188,13 @@ export enum PhaseStatusEnum {
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
 }
+
+export enum LearningRoadmapGenerationStatusEnum {
+  PENDING = "pending",
+  IN_PROGRESS = "in_progress",
+  FINISHED = "finished",
+  FAILED = "failed",
+}
 export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",
   SUGGEST_CV_FIELD = "suggest_cv_field",

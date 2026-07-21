@@ -25,6 +25,7 @@ import {
   AILearningRoadmapResult,
   AISubpathResult,
   CvLanguageEnum,
+  LearningRoadmapGenerationStatusEnum,
   NotificationType,
   NewAiCv,
   OptimizeAtsRequest,
@@ -46,6 +47,11 @@ import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
+  notificationId: string;
+};
+
+type LearningPathJobData = {
+  roadmapId: string;
   notificationId: string;
 };
 
@@ -84,7 +90,10 @@ export class TaskWorker extends WorkerHost {
         if (
           (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
         ) {
-          return this.processLearningPath(job.data as TaskData, runOptions);
+          return this.processLearningPath(
+            job.data as LearningPathJobData,
+            runOptions,
+          );
         }
 
         if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
@@ -403,17 +412,19 @@ export class TaskWorker extends WorkerHost {
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
     sourceLanguage: string;
+    roadmapId: string;
   }) {
-    const { userId, request, result, sourceLanguage } = data;
+    const { userId, request, result, sourceLanguage, roadmapId } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
     const persisted = await this.roadmapRepository.executeWithTransaction(
       async () => {
-        const newRoadmap = await this.createRoadmapRecord({
+        const newRoadmap = await this.updateRoadmapRecord({
           userId,
           request,
           preview,
+          roadmapId,
         });
 
         const { createdPhases, phaseMap } = await this.createPhasesFromPreview({
@@ -465,22 +476,35 @@ export class TaskWorker extends WorkerHost {
     return persisted.roadmap;
   }
 
-  private async createRoadmapRecord(params: {
+  private async updateRoadmapRecord(params: {
     userId: string;
     request: PreviewRoadmapDto;
     preview: AILearningRoadmapResult["previewData"];
+    roadmapId: string;
   }) {
-    const { userId, request, preview } = params;
-    return this.roadmapRepository.create({
-      userId,
-      title: request.targetRole,
-      currentRole: request.currentRole,
-      targetRole: request.targetRole,
-      timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-      currentSkills: request.currentSkills,
-      totalWeeks: preview.totalWeeks,
-      gapAnalysis: preview.gapAnalysis,
-    });
+    const { userId, request, preview, roadmapId } = params;
+    const [updatedRoadmap] = await this.roadmapRepository.update(
+      { id: roadmapId },
+      {
+        userId,
+        title: request.targetRole,
+        currentRole: request.currentRole,
+        targetRole: request.targetRole,
+        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+        currentSkills: request.currentSkills,
+        totalWeeks: preview.totalWeeks,
+        gapAnalysis: preview.gapAnalysis,
+        generationStatus: LearningRoadmapGenerationStatusEnum.FINISHED,
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    );
+
+    if (!updatedRoadmap) {
+      throw new Error(`Pending roadmap not found: ${roadmapId}`);
+    }
+
+    return updatedRoadmap;
   }
 
   private async createPhasesFromPreview(params: {
@@ -805,57 +829,239 @@ export class TaskWorker extends WorkerHost {
     return {};
   }
 
+  // [TODO]: delete this function to clear
+  private mapGenerationStatusToTaskStatus(
+    status: LearningRoadmapGenerationStatusEnum,
+  ): TaskStatusEnum {
+    switch (status) {
+      case LearningRoadmapGenerationStatusEnum.PENDING:
+        return TaskStatusEnum.PENDING;
+      case LearningRoadmapGenerationStatusEnum.IN_PROGRESS:
+        return TaskStatusEnum.IN_PROGRESS;
+      case LearningRoadmapGenerationStatusEnum.FINISHED:
+        return TaskStatusEnum.COMPLETED;
+      case LearningRoadmapGenerationStatusEnum.FAILED:
+        return TaskStatusEnum.FAILED;
+      default:
+        return TaskStatusEnum.PENDING;
+    }
+  }
+
+  private async emitAndPersistLearningPath(params: {
+    roadmapId: string;
+    notificationId: string;
+    userId: string;
+    message: string;
+    generationStatus: LearningRoadmapGenerationStatusEnum;
+    metadataPatch?: {
+      result?: Record<string, unknown> | null;
+      error?: string | null;
+    };
+    templateData?: Record<string, any>;
+  }) {
+    const {
+      roadmapId,
+      notificationId,
+      userId,
+      message,
+      generationStatus,
+      metadataPatch,
+      templateData,
+    } = params;
+
+    const taskStatus = this.mapGenerationStatusToTaskStatus(generationStatus);
+    const template = this.resolveTaskNotificationTemplate({
+      taskType: TaskTypeEnum.LEARNING_PATH_GENERATION,
+      status: taskStatus,
+      message,
+      templateData,
+    });
+
+    const existing = await this.roadmapRepository.get(roadmapId);
+    const nextMetadata = {
+      ...(existing?.metadata ?? {}),
+      ...(metadataPatch ?? {}),
+    };
+
+    await this.roadmapRepository.executeWithTransaction(async (tx) => {
+      await this.roadmapRepository.update(
+        { id: roadmapId },
+        {
+          generationStatus,
+          metadata: nextMetadata,
+          updatedAt: new Date(),
+        },
+        tx,
+      );
+
+      await this.notificationRepository.update(
+        { id: notificationId },
+        {
+          payload: { roadmapId },
+          templateKey: template.templateKey,
+          templateData: template.templateData,
+          message,
+          updatedAt: new Date(),
+        },
+        tx,
+      );
+    });
+
+    await this.notificationService.sendNotification({
+      id: notificationId,
+      receiverId: userId,
+      title: "",
+      message,
+      templateKey: template.templateKey,
+      templateData: template.templateData,
+      type: NotificationType.SYSTEM,
+      payload: { roadmapId },
+      roadmap: {
+        id: roadmapId,
+        generationStatus,
+        result: nextMetadata.result ?? { roadmapId },
+        error: nextMetadata.error ?? null,
+      },
+    } as any);
+  }
+
   private async processLearningPath(
-    data: TaskData,
+    data: LearningPathJobData,
     options?: { attemptsMade?: number; maxAttempts?: number },
   ) {
+    const { roadmapId, notificationId } = data;
     const isFinalAttempt =
       (options?.attemptsMade ?? 0) + 1 >= (options?.maxAttempts ?? 1);
+    const messages = {
+      inProgress: "Đang tạo lộ trình học tập của bạn...",
+      completed: "Lộ trình học tập của bạn đã sẵn sàng.",
+      failed: isFinalAttempt
+        ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
+        : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
+    };
 
-    return this.withTaskLifecycle(
-      data,
-      TaskTypeEnum.LEARNING_PATH_GENERATION,
-      {
-        inProgress: "Đang tạo lộ trình học tập của bạn...",
-        completed: "Lộ trình học tập của bạn đã sẵn sàng.",
-        failed: isFinalAttempt
-          ? "Đã gặp sự cố khi tạo lộ trình, vui lòng thử lại sau."
-          : "Đang gặp sự cố khi tạo lộ trình, hệ thống sẽ thử lại...",
-      },
-      async (task, request: PreviewRoadmapDto) => {
-        const sourceLanguage =
-          (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
-
-        const roadmapRequest = {
-          currentRole: request.currentRole,
-          targetRole: request.targetRole,
-          timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-          currentSkills: request.currentSkills,
-          language: sourceLanguage as "vi" | "en",
-        };
-
-        const resultData =
-          await this.aiService.generateRoadmapV2(roadmapRequest);
-
-        const roadmap = await this.persistRoadmapFromPreview({
-          userId: task.userId,
-          request,
-          result: resultData,
-          sourceLanguage,
-        });
-
-        // Generate all subpaths before notifying user so content is ready on first open
-        await this.generateAllSubpathsForRoadmap({
-          roadmapId: roadmap.id,
-          userId: task.userId,
-          targetRole: roadmap.targetRole ?? "",
-          currentRole: roadmap.currentRole ?? "",
-        });
-
-        return { roadmapId: roadmap.id, data: resultData };
-      },
-      options,
+    this.logger.log(
+      `[learning_path_generation] Starting roadmap ${roadmapId} with notification ${notificationId}`,
     );
+
+    let userId: string | null = null;
+    let request: PreviewRoadmapDto | null = null;
+
+    try {
+      const roadmap = await this.roadmapRepository.get(roadmapId);
+      if (!roadmap) {
+        throw new Error(`Roadmap not found: ${roadmapId}`);
+      }
+
+      userId = roadmap.userId;
+      request = {
+        currentRole: roadmap.currentRole ?? undefined,
+        targetRole: roadmap.targetRole,
+        timeCommitmentHoursPerWeek: roadmap.timeCommitmentHoursPerWeek,
+        currentSkills: roadmap.currentSkills ?? undefined,
+      } as PreviewRoadmapDto;
+      const sourceLanguage =
+        roadmap.metadata?.language || DEFAULT_LANGUAGE_CODE;
+
+      if (!userId || !request?.targetRole) {
+        throw new Error(
+          `Roadmap metadata missing userId/request: ${roadmapId}`,
+        );
+      }
+
+      const templateData = { targetRole: request.targetRole };
+
+      await this.emitAndPersistLearningPath({
+        roadmapId,
+        notificationId,
+        userId,
+        message: messages.inProgress,
+        generationStatus: LearningRoadmapGenerationStatusEnum.IN_PROGRESS,
+        templateData,
+      });
+
+      const roadmapRequest = {
+        currentRole: request.currentRole,
+        targetRole: request.targetRole,
+        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+        currentSkills: request.currentSkills,
+        language: sourceLanguage as "vi" | "en",
+      };
+
+      const resultData = await this.aiService.generateRoadmapV2(roadmapRequest);
+
+      const persisted = await this.persistRoadmapFromPreview({
+        userId,
+        request,
+        result: resultData,
+        sourceLanguage,
+        roadmapId,
+      });
+
+      await this.generateAllSubpathsForRoadmap({
+        roadmapId: persisted.id,
+        userId,
+        targetRole: persisted.targetRole ?? "",
+        currentRole: persisted.currentRole ?? "",
+      });
+
+      const attempts = options?.attemptsMade ?? 1;
+      const result = {
+        roadmapId: persisted.id,
+        data: resultData as unknown as Record<string, unknown>,
+        attempts,
+      };
+
+      await this.emitAndPersistLearningPath({
+        roadmapId,
+        notificationId,
+        userId,
+        message: messages.completed,
+        generationStatus: LearningRoadmapGenerationStatusEnum.FINISHED,
+        metadataPatch: {
+          result,
+          error: null,
+        },
+        templateData,
+      });
+
+      return result;
+    } catch (error: any) {
+      if (userId) {
+        await this.emitAndPersistLearningPath({
+          roadmapId,
+          notificationId,
+          userId,
+          message: error?.message || messages.failed,
+          generationStatus: LearningRoadmapGenerationStatusEnum.FAILED,
+          metadataPatch: {
+            error: JSON.stringify({
+              message: error?.message || "Unknown error",
+              attempts: options?.attemptsMade,
+            }),
+            result: null,
+          },
+          templateData: this.buildTaskTemplateData(
+            TaskTypeEnum.LEARNING_PATH_GENERATION,
+            request,
+          ),
+        });
+      }
+
+      this.logger.error(
+        formatTrackedErrorLog({
+          worker: "task.worker",
+          requestId: getRequestId(),
+          queue: TASK_QUEUE,
+          jobId: roadmapId,
+          jobName: TaskTypeEnum.LEARNING_PATH_GENERATION,
+          attemptsMade: options?.attemptsMade,
+          data,
+          error,
+        }),
+      );
+      throw error;
+    }
   }
 
   private async processOptimizeCv(

@@ -5,7 +5,14 @@ import {
 } from "@/common/utils";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
-import { INotificationRepository, IUserRepository } from "@/core";
+import {
+  ILearningRoadmapRepository,
+  INotificationRepository,
+  IOrganizationMemberInvitationRepository,
+  IOrganizationRepository,
+  ITaskRepository,
+  IUserRepository,
+} from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse, NotificationDto } from "@/interfaces/dtos";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
@@ -30,6 +37,10 @@ export class NotificationUseCase {
   constructor(
     private readonly notificationRepository: INotificationRepository,
     private readonly userRepository: IUserRepository,
+    private readonly organizationRepository: IOrganizationRepository,
+    private readonly organizationInvitationRepository: IOrganizationMemberInvitationRepository,
+    private readonly taskRepository: ITaskRepository,
+    private readonly learningRoadmapRepository: ILearningRoadmapRepository,
     private readonly notificationRenderer: NotificationRendererService,
   ) {}
 
@@ -76,6 +87,12 @@ export class NotificationUseCase {
                   : null,
               }
             : null,
+          roadmap: d.roadmap
+            ? {
+                id: d.roadmap.id,
+                generationStatus: d.roadmap.generationStatus,
+              }
+            : null,
         })),
         pagination: result.pagination,
       },
@@ -89,9 +106,10 @@ export class NotificationUseCase {
     const adjustedFilter = this.getTypeFilters(filter, false);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);
+    const enriched = await this.enrichNotifications(result);
     return this.buildGetNotificationsSuccessResponse(
       filter,
-      await this.renderNotifications(filter.userId, result),
+      await this.renderNotifications(filter.userId, enriched),
       false,
     );
   }
@@ -102,11 +120,122 @@ export class NotificationUseCase {
     const adjustedFilter = this.getTypeFilters(filter, true);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);
+    const enriched = await this.enrichNotifications(result);
     return this.buildGetNotificationsSuccessResponse(
       filter,
-      await this.renderNotifications(filter.userId, result),
+      await this.renderNotifications(filter.userId, enriched),
       true,
     );
+  }
+
+  private async enrichNotifications(
+    result: PaginatedResult<Notification>,
+  ): Promise<PaginatedResult<Notification>> {
+    if (result.data.length === 0) {
+      return result;
+    }
+
+    const senderIds = this.uniqueIds(result.data.map((item) => item.senderId));
+    const orgIds = this.uniqueIds(
+      result.data.map((item) => item.payload?.orgId),
+    );
+    const orgInvitationIds = this.uniqueIds(
+      result.data.map((item) => item.payload?.orgInvitationId),
+    );
+    const taskIds = this.uniqueIds(
+      result.data.map((item) => item.payload?.taskId),
+    );
+    const roadmapIds = this.uniqueIds(
+      result.data.map((item) => item.payload?.roadmapId),
+    );
+
+    const [senders, organizations, orgInvitations, tasks, roadmaps] =
+      await Promise.all([
+        this.userRepository.getByIds(senderIds, ["id", "name", "avatarUrl"]),
+        this.organizationRepository.getByIds(orgIds, ["id", "name", "logoUrl"]),
+        this.organizationInvitationRepository.getByIds(orgInvitationIds, [
+          "id",
+          "status",
+        ]),
+        this.taskRepository.getByIds(taskIds, [
+          "id",
+          "status",
+          "type",
+          "result",
+        ]),
+        this.learningRoadmapRepository.getByIds(roadmapIds, [
+          "id",
+          "generationStatus",
+          "metadata",
+        ]),
+      ]);
+
+    const senderMap = new Map(senders.map((row) => [row.id, row] as const));
+    const organizationMap = new Map(
+      organizations.map((row) => [row.id, row] as const),
+    );
+    const orgInvitationMap = new Map(
+      orgInvitations.map((row) => [row.id, row] as const),
+    );
+    const taskMap = new Map(tasks.map((row) => [row.id, row] as const));
+    const roadmapMap = new Map(roadmaps.map((row) => [row.id, row] as const));
+
+    return {
+      ...result,
+      data: result.data.map((notification) => {
+        const payload = notification.payload;
+        const task = payload?.taskId ? taskMap.get(payload.taskId) : undefined;
+        const roadmap = payload?.roadmapId
+          ? roadmapMap.get(payload.roadmapId)
+          : undefined;
+        const organization = payload?.orgId
+          ? organizationMap.get(payload.orgId)
+          : undefined;
+        const orgInvitation = payload?.orgInvitationId
+          ? orgInvitationMap.get(payload.orgInvitationId)
+          : undefined;
+        const sender = notification.senderId
+          ? senderMap.get(notification.senderId)
+          : undefined;
+
+        return {
+          ...notification,
+          sender: sender
+            ? { name: sender.name, avatarUrl: sender.avatarUrl }
+            : null,
+          organization: organization
+            ? { name: organization.name, logoUrl: organization.logoUrl }
+            : null,
+          orgInvitation: orgInvitation
+            ? { status: String(orgInvitation.status ?? "") }
+            : null,
+          task: task
+            ? {
+                id: task.id,
+                status: task.status,
+                type: task.type,
+                result: task.result,
+              }
+            : null,
+          roadmap: roadmap
+            ? {
+                id: roadmap.id,
+                generationStatus: roadmap.generationStatus,
+                result: roadmap.metadata?.result ?? { roadmapId: roadmap.id },
+                error: roadmap.metadata?.error ?? null,
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
+  private uniqueIds(values: Array<string | null | undefined>): string[] {
+    return [
+      ...new Set(
+        values.filter((value): value is string => typeof value === "string"),
+      ),
+    ];
   }
 
   private async renderNotifications(

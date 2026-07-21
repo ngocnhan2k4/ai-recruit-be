@@ -1,7 +1,9 @@
 import {
   ILearningRoadmapRepository,
   LearningRoadmap,
+  LearningRoadmapAdminFilter,
   LearningRoadmapWithDetails,
+  ListLearningRoadmapAdminResponse,
   RoadmapProgressStats,
   SkillLevel,
 } from "@/core";
@@ -17,15 +19,39 @@ import {
   roadmapSkillOptions,
   skills,
   subpaths,
+  users,
 } from "../models";
-import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
+import { GeneralQuery, PaginatedResult, RelatedEntity } from "@/common/types";
+import {
+  eq,
+  and,
+  SQL,
+  isNull,
+  desc,
+  lt,
+  inArray,
+  asc,
+  count,
+  gte,
+  lte,
+  ilike,
+  or,
+  sql,
+} from "drizzle-orm";
 import {
   buildLanguagePriority,
   getCurrentWeekNumber,
   getFallbackLanguage,
   getRequestLanguage,
 } from "@/common/utils";
+
+const ADMIN_SORTABLE_FIELDS = new Set([
+  "createdAt",
+  "updatedAt",
+  "generationStatus",
+  "title",
+  "targetRole",
+]);
 
 @Injectable()
 export class LearningRoadmapRepository
@@ -34,6 +60,104 @@ export class LearningRoadmapRepository
 {
   constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
     super(db, learningRoadmaps);
+  }
+
+  async getAdminRoadmaps(
+    filter: LearningRoadmapAdminFilter,
+  ): Promise<PaginatedResult<ListLearningRoadmapAdminResponse>> {
+    const whereConditions: SQL[] = [isNull(learningRoadmaps.deletedAt)];
+
+    if (filter.generationStatus) {
+      whereConditions.push(
+        eq(learningRoadmaps.generationStatus, filter.generationStatus),
+      );
+    }
+
+    if (filter.userId) {
+      whereConditions.push(eq(learningRoadmaps.userId, filter.userId));
+    }
+
+    if (filter.startDate) {
+      whereConditions.push(gte(learningRoadmaps.createdAt, filter.startDate));
+    }
+
+    if (filter.endDate) {
+      whereConditions.push(lte(learningRoadmaps.createdAt, filter.endDate));
+    }
+
+    if (filter.keyword) {
+      const keyword = `%${filter.keyword}%`;
+      whereConditions.push(
+        or(
+          ilike(sql`${learningRoadmaps.id}::text`, keyword),
+          ilike(learningRoadmaps.title, keyword),
+          ilike(learningRoadmaps.targetRole, keyword),
+          ilike(
+            sql`COALESCE(${learningRoadmaps.metadata} ->> 'error', '')`,
+            keyword,
+          ),
+          ilike(sql`COALESCE(${users.name}, '')`, keyword),
+          ilike(sql`COALESCE(${users.email}, '')`, keyword),
+        )!,
+      );
+    }
+
+    const sortBy =
+      filter.sortBy && ADMIN_SORTABLE_FIELDS.has(filter.sortBy)
+        ? filter.sortBy
+        : "createdAt";
+    const sortDirection = filter.sortDirection === "asc" ? asc : desc;
+    const sortColumn =
+      (learningRoadmaps as any)[sortBy] ?? learningRoadmaps.createdAt;
+
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+    const [items, totalResult] = await Promise.all([
+      this.db
+        .select({
+          id: learningRoadmaps.id,
+          userId: learningRoadmaps.userId,
+          title: learningRoadmaps.title,
+          currentRole: learningRoadmaps.currentRole,
+          targetRole: learningRoadmaps.targetRole,
+          timeCommitmentHoursPerWeek:
+            learningRoadmaps.timeCommitmentHoursPerWeek,
+          currentSkills: learningRoadmaps.currentSkills,
+          totalWeeks: learningRoadmaps.totalWeeks,
+          gapAnalysis: learningRoadmaps.gapAnalysis,
+          generationStatus: learningRoadmaps.generationStatus,
+          metadata: learningRoadmaps.metadata,
+          generatedAt: learningRoadmaps.generatedAt,
+          completedAt: learningRoadmaps.completedAt,
+          startDate: learningRoadmaps.startDate,
+          overallProgress: learningRoadmaps.overallProgress,
+          createdAt: learningRoadmaps.createdAt,
+          updatedAt: learningRoadmaps.updatedAt,
+          deletedAt: learningRoadmaps.deletedAt,
+          user: sql<
+            (RelatedEntity & { email?: string | null }) | undefined
+          >`json_build_object('id', ${users.id}, 'name', COALESCE(${users.name}, ${users.email}), 'email', ${users.email})`.as(
+            "user",
+          ),
+        })
+        .from(learningRoadmaps)
+        .leftJoin(users, eq(learningRoadmaps.userId, users.id))
+        .where(whereClause)
+        .orderBy(sortDirection(sortColumn))
+        .limit(filter.limit)
+        .offset((filter.page! - 1) * filter.limit),
+      this.db
+        .select({ count: count() })
+        .from(learningRoadmaps)
+        .leftJoin(users, eq(learningRoadmaps.userId, users.id))
+        .where(whereClause),
+    ]);
+
+    return {
+      data: items as ListLearningRoadmapAdminResponse[],
+      pagination: { total: Number(totalResult[0]?.count ?? 0) },
+    };
   }
 
   async getPaginatedRoadmaps(

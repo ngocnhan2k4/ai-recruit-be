@@ -19,12 +19,7 @@ import {
   notInArray,
   sql,
 } from "drizzle-orm";
-import {
-  organizationInvitations,
-  organizations,
-  tasks,
-  users,
-} from "../models";
+import { organizations, users } from "../models";
 import { notifications, userNotifications } from "../models/notification.model";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
@@ -341,50 +336,21 @@ export class NotificationRepository
       }
     }
 
-    const orgIdFromPayload = sql<string>`(${notifications.payload} ->> 'orgId')::uuid`;
-    const orgInvitationId = sql<string>`(${notifications.payload} ->> 'orgInvitationId')::uuid`;
-    const taskIdFromPayload = sql<string>`(${notifications.payload} ->> 'taskId')::uuid`;
-
     const notificationsResult = await this.db
       .select({
         userNotification: userNotifications,
         notification: notifications,
-        sender: {
-          name: users.name,
-          avatarUrl: users.avatarUrl,
-        },
-        organization: {
-          name: organizations.name,
-          logoUrl: organizations.logoUrl,
-        },
-        orgInvitation: {
-          status: organizationInvitations.status,
-        },
-        task: {
-          id: tasks.id,
-          status: tasks.status,
-          type: tasks.type,
-          result: tasks.result,
-        },
       })
       .from(userNotifications)
       .innerJoin(
         notifications,
         eq(userNotifications.notificationId, notifications.id),
       )
-      .leftJoin(tasks, eq(taskIdFromPayload, tasks.id))
-      .leftJoin(users, eq(notifications.senderId, users.id))
-      .leftJoin(organizations, eq(orgIdFromPayload, organizations.id))
-      .leftJoin(
-        organizationInvitations,
-        eq(orgInvitationId, organizationInvitations.id),
-      )
       .where(and(...whereConditions))
       .orderBy(desc(notifications.createdAt))
       .limit(filter.limit + 1);
 
     const hasNextPage = notificationsResult.length > filter.limit;
-
     const slicedResults = hasNextPage
       ? notificationsResult.slice(0, filter.limit)
       : notificationsResult;
@@ -397,10 +363,6 @@ export class NotificationRepository
       data: slicedResults.map((row) => ({
         ...row.notification,
         ...row.userNotification,
-        sender: row.sender,
-        organization: row.organization,
-        orgInvitation: row.orgInvitation,
-        task: row.task,
       })),
       pagination: {
         nextCursor,
