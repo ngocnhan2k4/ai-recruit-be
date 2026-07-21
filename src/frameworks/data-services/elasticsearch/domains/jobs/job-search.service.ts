@@ -230,17 +230,38 @@ export class JobSearchService implements IJobSearchService {
     }
 
     const shouldQueries: any[] = [];
+    let d90Str = "now-90d/d";
 
-    if (!fromDate && !toDate) {
+    if (!fromDate) {
+      const referenceDate = toDate ? new Date(toDate) : new Date();
+
+      const date15d = new Date(
+        referenceDate.getTime() - 15 * 24 * 60 * 60 * 1000,
+      );
+      const date30d = new Date(
+        referenceDate.getTime() - 30 * 24 * 60 * 60 * 1000,
+      );
+      const date60d = new Date(
+        referenceDate.getTime() - 60 * 24 * 60 * 60 * 1000,
+      );
+      const date90d = new Date(
+        referenceDate.getTime() - 90 * 24 * 60 * 60 * 1000,
+      );
+
+      const d15Str = date15d.toISOString();
+      const d30Str = date30d.toISOString();
+      const d60Str = date60d.toISOString();
+      d90Str = date90d.toISOString();
+
       shouldQueries.push(
         {
           bool: {
             should: [
-              { range: { datePosted: { gte: "now-15d/d" } } },
+              { range: { datePosted: { gte: d15Str } } },
               {
                 bool: {
                   must_not: { exists: { field: "datePosted" } },
-                  filter: { range: { createdAt: { gte: "now-15d/d" } } },
+                  filter: { range: { createdAt: { gte: d15Str } } },
                 },
               },
             ],
@@ -250,11 +271,11 @@ export class JobSearchService implements IJobSearchService {
         {
           bool: {
             should: [
-              { range: { datePosted: { gte: "now-30d/d" } } },
+              { range: { datePosted: { gte: d30Str } } },
               {
                 bool: {
                   must_not: { exists: { field: "datePosted" } },
-                  filter: { range: { createdAt: { gte: "now-30d/d" } } },
+                  filter: { range: { createdAt: { gte: d30Str } } },
                 },
               },
             ],
@@ -264,11 +285,11 @@ export class JobSearchService implements IJobSearchService {
         {
           bool: {
             should: [
-              { range: { datePosted: { gte: "now-60d/d" } } },
+              { range: { datePosted: { gte: d60Str } } },
               {
                 bool: {
                   must_not: { exists: { field: "datePosted" } },
-                  filter: { range: { createdAt: { gte: "now-60d/d" } } },
+                  filter: { range: { createdAt: { gte: d60Str } } },
                 },
               },
             ],
@@ -322,15 +343,15 @@ export class JobSearchService implements IJobSearchService {
           must_not: mustNotQueries,
           // Freshness filter: chỉ tìm KNN candidates trong 90 ngày gần nhất
           // Đảm bảo pool candidates vừa liên quan vừa mới
-          ...(!fromDate && !toDate
+          ...(!fromDate
             ? {
                 should: [
-                  { range: { datePosted: { gte: "now-90d/d" } } },
+                  { range: { datePosted: { gte: d90Str } } },
                   {
                     bool: {
                       must_not: { exists: { field: "datePosted" } },
                       filter: {
-                        range: { createdAt: { gte: "now-90d/d" } },
+                        range: { createdAt: { gte: d90Str } },
                       },
                     },
                   },
@@ -570,12 +591,16 @@ export class JobSearchService implements IJobSearchService {
       }
     }
 
+    const referenceDate = filters.toDate
+      ? new Date(filters.toDate).getTime()
+      : Date.now();
+
     const docs = actualHits.flatMap((h) => {
       const source = h?._source;
       if (!source?.id) return [];
 
       let dateBoost = 0;
-      if (!filters.toDate && !filters.fromDate) {
+      if (!filters.fromDate) {
         let dateMillis = 0;
         if (source.datePosted) {
           dateMillis = new Date(source.datePosted).getTime();
@@ -584,11 +609,15 @@ export class JobSearchService implements IJobSearchService {
         }
 
         if (dateMillis > 0) {
-          const ageInDays = (Date.now() - dateMillis) / (1000 * 60 * 60 * 24);
-          if (ageInDays <= 15) dateBoost = 0.2;
-          else if (ageInDays <= 30) dateBoost = 0.15;
-          else if (ageInDays <= 60) dateBoost = 0.1;
-          else dateBoost = 0.02;
+          const ageInDays =
+            (referenceDate - dateMillis) / (1000 * 60 * 60 * 24);
+
+          if (ageInDays >= 0) {
+            if (ageInDays <= 15) dateBoost = 0.2;
+            else if (ageInDays <= 30) dateBoost = 0.15;
+            else if (ageInDays <= 60) dateBoost = 0.1;
+            else dateBoost = 0.02;
+          }
         }
       }
 
@@ -961,7 +990,7 @@ export class JobSearchService implements IJobSearchService {
                   ]
                 : []),
               // 6. Freshness Score (Bonus up to 20%)
-              ...(!fromDate && !toDate
+              ...(!fromDate
                 ? [
                     {
                       weight: 0.2,
@@ -977,14 +1006,20 @@ export class JobSearchService implements IJobSearchService {
                             
                             if (dateMillis == 0) return 0;
                             
-                            long now = new Date().getTime();
-                            long ageInDays = (now - dateMillis) / (1000 * 60 * 60 * 24);
+                            long referenceTime = params.referenceTime;
+                            long ageInDays = (referenceTime - dateMillis) / (1000 * 60 * 60 * 24);
                             
+                            if (ageInDays < 0) return 0.1; 
                             if (ageInDays <= 15) return 1.0;
                             if (ageInDays <= 30) return 0.75;
                             if (ageInDays <= 60) return 0.5;
                             return 0.1;
                           `,
+                          params: {
+                            referenceTime: toDate
+                              ? new Date(toDate).getTime()
+                              : Date.now(),
+                          },
                         },
                       },
                     },
