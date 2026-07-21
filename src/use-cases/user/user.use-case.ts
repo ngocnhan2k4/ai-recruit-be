@@ -673,7 +673,7 @@ export class UserUseCases implements OnModuleInit {
           previousExperienceYears !== normalizedNextExperienceYears);
 
       if (shouldRescore) {
-        await this.enqueueRescoreApplicationsForUser(userId);
+        this.enqueueRescoreApplicationsForUser(userId);
       }
 
       return {
