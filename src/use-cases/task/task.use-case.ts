@@ -25,6 +25,7 @@ export class TaskUseCase {
       data: {
         data: result.data as unknown as GetTasksResponseDto[],
         pagination: result.pagination,
+        summary: result.summary,
       },
     };
   }

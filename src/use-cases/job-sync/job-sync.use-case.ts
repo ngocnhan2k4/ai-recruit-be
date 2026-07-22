@@ -72,6 +72,7 @@ export class JobSyncUseCases {
         limit: batchSize,
         page,
         status: JobStatusEnum.ACTIVE,
+        includeEmbedding: true,
       });
       const data = result.data.filter((item) => item.category != null);
 
@@ -244,6 +245,7 @@ export class JobSyncUseCases {
         limit: batchSize,
         page,
         status: JobStatusEnum.ACTIVE,
+        includeEmbedding: true,
       });
       const data = result.data.filter((item) => item.category != null);
 
