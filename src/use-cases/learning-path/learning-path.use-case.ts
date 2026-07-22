@@ -36,10 +36,12 @@ import { ApiResponse, PaginatedResultDto } from "@/interfaces/dtos";
 import { RESPONSE_CODE } from "@/common/constants";
 import {
   FeatureCodeEnum,
+  GapDifficultyEnum,
   LearningRoadmap,
   LearningRoadmapWithDetails,
   WeeklyProgress,
   NotificationType,
+  RoadmapGenerationStatusEnum,
   TaskTypeEnum,
   TaskStatusEnum,
   SubpathWithDetails,
@@ -251,32 +253,46 @@ export class LearningPathUseCase {
     request: PreviewRoadmapDto,
     userId: string,
     requestLanguage?: string,
-  ): Promise<ApiResponse<{ taskId: string }>> {
+  ): Promise<ApiResponse<{ taskId: string; roadmapId: string }>> {
     this.logger.log(
       `Previewing roadmap for target role: ${request.targetRole}`,
     );
     const sourceLanguage = normalizeLanguageCode(requestLanguage);
 
     const result = await this.taskRepository.executeWithTransaction(
-      async (tx) => {
+      async () => {
         await this.featureService.consumeFeature(
           userId,
           FeatureCodeEnum.LEARNING_PATH,
         );
 
-        const task = await this.taskRepository.create(
-          {
-            name: `Learning path generation: ${request.targetRole}`,
-            type: TaskTypeEnum.LEARNING_PATH_GENERATION,
-            status: TaskStatusEnum.PENDING,
-            userId,
-            input: {
-              request,
-              sourceLanguage,
-            },
+        const roadmap = await this.roadmapRepository.create({
+          userId,
+          title: request.targetRole,
+          currentRole: request.currentRole,
+          targetRole: request.targetRole,
+          timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+          currentSkills: request.currentSkills,
+          totalWeeks: 0,
+          gapAnalysis: {
+            missingSkills: [],
+            skillsToImprove: [],
+            estimatedDifficulty: GapDifficultyEnum.MEDIUM,
           },
-          tx,
-        );
+          generationStatus: RoadmapGenerationStatusEnum.PENDING,
+        });
+
+        const task = await this.taskRepository.create({
+          name: `Learning path generation: ${request.targetRole}`,
+          type: TaskTypeEnum.LEARNING_PATH_GENERATION,
+          status: TaskStatusEnum.PENDING,
+          userId,
+          input: {
+            request,
+            sourceLanguage,
+            roadmapId: roadmap.id,
+          },
+        });
 
         const [notification] =
           await this.notificationRepository.createNotificationWithRecipients(
@@ -291,6 +307,7 @@ export class LearningPathUseCase {
               type: NotificationType.SYSTEM,
               payload: {
                 taskId: task.id,
+                roadmapId: roadmap.id,
               },
             },
             [{ receiverId: userId }],
@@ -298,6 +315,7 @@ export class LearningPathUseCase {
         return {
           task,
           notification,
+          roadmap,
         };
       },
     );
@@ -332,7 +350,7 @@ export class LearningPathUseCase {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: "Learning path generation started",
-      data: { taskId: result.task.id },
+      data: { taskId: result.task.id, roadmapId: result.roadmap.id },
     };
   }
 
@@ -497,6 +515,16 @@ export class LearningPathUseCase {
       throw new NotFoundException({
         message: "Roadmap not found",
         code: RESPONSE_CODE.ROADMAP_NOT_FOUND,
+      });
+    }
+
+    if (roadmap.generationStatus !== RoadmapGenerationStatusEnum.COMPLETED) {
+      throw new BadRequestException({
+        message:
+          roadmap.generationStatus === RoadmapGenerationStatusEnum.FAILED
+            ? "Roadmap generation failed"
+            : "Roadmap is still being generated",
+        code: RESPONSE_CODE.ROADMAP_NOT_READY,
       });
     }
 

@@ -29,6 +29,7 @@ import {
   NewAiCv,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  RoadmapGenerationStatusEnum,
   RoadmapSkillData,
   SkillOption,
   Task,
@@ -399,18 +400,20 @@ export class TaskWorker extends WorkerHost {
   }
 
   private async persistRoadmapFromPreview(data: {
+    roadmapId: string;
     userId: string;
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
     sourceLanguage: string;
   }) {
-    const { userId, request, result, sourceLanguage } = data;
+    const { roadmapId, userId, request, result, sourceLanguage } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
     const persisted = await this.roadmapRepository.executeWithTransaction(
       async () => {
-        const newRoadmap = await this.createRoadmapRecord({
+        const newRoadmap = await this.updateRoadmapRecord({
+          roadmapId,
           userId,
           request,
           preview,
@@ -465,22 +468,34 @@ export class TaskWorker extends WorkerHost {
     return persisted.roadmap;
   }
 
-  private async createRoadmapRecord(params: {
+  private async updateRoadmapRecord(params: {
+    roadmapId: string;
     userId: string;
     request: PreviewRoadmapDto;
     preview: AILearningRoadmapResult["previewData"];
   }) {
-    const { userId, request, preview } = params;
-    return this.roadmapRepository.create({
-      userId,
-      title: request.targetRole,
-      currentRole: request.currentRole,
-      targetRole: request.targetRole,
-      timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-      currentSkills: request.currentSkills,
-      totalWeeks: preview.totalWeeks,
-      gapAnalysis: preview.gapAnalysis,
-    });
+    const { roadmapId, userId, request, preview } = params;
+    const [updated] = await this.roadmapRepository.update(
+      { id: roadmapId, userId },
+      {
+        title: request.targetRole,
+        currentRole: request.currentRole,
+        targetRole: request.targetRole,
+        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+        currentSkills: request.currentSkills,
+        totalWeeks: preview.totalWeeks,
+        gapAnalysis: preview.gapAnalysis,
+        generationStatus: RoadmapGenerationStatusEnum.COMPLETED,
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    );
+
+    if (!updated) {
+      throw new Error(`Roadmap skeleton not found: ${roadmapId}`);
+    }
+
+    return updated;
   }
 
   private async createPhasesFromPreview(params: {
@@ -774,6 +789,21 @@ export class TaskWorker extends WorkerHost {
           },
           templateData: this.buildTaskTemplateData(taskType, request),
         });
+
+        const roadmapId = (task.input as any)?.roadmapId;
+        if (
+          taskType === TaskTypeEnum.LEARNING_PATH_GENERATION &&
+          typeof roadmapId === "string" &&
+          roadmapId.length > 0
+        ) {
+          await this.roadmapRepository.update(
+            { id: roadmapId, userId: task.userId },
+            {
+              generationStatus: RoadmapGenerationStatusEnum.FAILED,
+              updatedAt: new Date(),
+            },
+          );
+        }
       }
       this.logger.error(
         formatTrackedErrorLog({
@@ -825,6 +855,13 @@ export class TaskWorker extends WorkerHost {
       async (task, request: PreviewRoadmapDto) => {
         const sourceLanguage =
           (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
+        const roadmapId = (task.input as any)?.roadmapId;
+
+        if (!roadmapId || typeof roadmapId !== "string") {
+          throw new Error(
+            `Task input missing roadmapId for learning path generation: ${task.id}`,
+          );
+        }
 
         const roadmapRequest = {
           currentRole: request.currentRole,
@@ -838,6 +875,7 @@ export class TaskWorker extends WorkerHost {
           await this.aiService.generateRoadmapV2(roadmapRequest);
 
         const roadmap = await this.persistRoadmapFromPreview({
+          roadmapId,
           userId: task.userId,
           request,
           result: resultData,
