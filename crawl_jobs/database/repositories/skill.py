@@ -66,15 +66,19 @@ def get_or_create_skill(cur, skill_name):
                 f"    [Skill] Fuzzy synonym (High - {syn_score}%): {skill_name} ~> {matched_alias}"
             )
 
-            # Insert new mapping to skills_synonyms for future speed
+            # Insert new mapping to skills_synonyms for future speed if not exists
             cur.execute(
-                """
-                INSERT INTO skills_synonyms (alias_name, master_skill_id) 
-                VALUES (%s, %s)
-                ON CONFLICT (alias_name) DO NOTHING
-                """,
-                (normalized_name, master_id),
+                "SELECT 1 FROM skills_synonyms WHERE alias_name = %s AND master_skill_id = %s LIMIT 1",
+                (normalized_name, master_id)
             )
+            if not cur.fetchone():
+                try:
+                    cur.execute(
+                        "INSERT INTO skills_synonyms (alias_name, master_skill_id) VALUES (%s, %s)",
+                        (normalized_name, master_id),
+                    )
+                except Exception:
+                    pass
             return master_id
 
     if max(skill_score, syn_score) < 60:

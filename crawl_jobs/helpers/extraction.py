@@ -12,13 +12,15 @@ from typing import Optional, Tuple
 
 def extract_salary(salary: str) -> Tuple[int, int]:
     """
-    Extract salary range from a Vietnamese salary string.
+    Extract salary range from a Vietnamese or English salary string.
     
     Handles formats like:
     - "10 - 20 triệu" (10-20 million VND)
     - "1000 - 2000 USD"
     - "Thoả thuận" (Negotiable)
     - "Tới 30 triệu" (Up to 30 million)
+    - "1,100$" or "1.100$" (USD Single values)
+    - "1,100 - 2,200 $" or "1.100 - 2.200 $" (USD Ranges)
     
     Args:
         salary: Salary string to parse
@@ -26,50 +28,81 @@ def extract_salary(salary: str) -> Tuple[int, int]:
     Returns:
         Tuple of (min_salary, max_salary) in millions VND.
         Returns (0, 0) for negotiable salaries or unparseable strings.
-        
-    Example:
-        >>> extract_salary("15 - 25 triệu")
-        (15, 25)
     """
-    s = salary.replace(",", "").lower().strip()
-    USD_CONVERSION_FACTOR = 25.0  # Approximate VND/USD rate in thousands
-
-    if "thoả thuận" in s:
+    if not salary:
         return 0, 0
+        
+    s = salary.lower().strip()
+    
+    # Check for negotiable
+    if any(keyword in s for keyword in ["thoả thuận", "thỏa thuận", "negotiable", "thương lượng"]):
+        return 0, 0
+        
+    # Check if currency is USD or VND
+    is_usd = "usd" in s or "$" in s
+    
+    # Normalize thousands separators for both dot and comma
+    # Replace '.' or ',' with '' if followed by exactly 3 digits (thousands separator)
+    s = re.sub(r'([.,])(\d{3})(?!\d)', r'\2', s)
+    
+    USD_CONVERSION_FACTOR = 25.0  # Approximate VND/USD rate in thousands
+    
+    # Helper to convert a numeric string to million VND
+    def to_vnd_million(val_str: str) -> float:
+        val = float(val_str)
+        if is_usd:
+            # If the value is small (< 100) in USD, it could be in thousands of USD (e.g. 1.5 meaning 1.5k USD)
+            if val < 100:
+                return val * 1000 * USD_CONVERSION_FACTOR / 1000
+            return val * USD_CONVERSION_FACTOR / 1000
+        else:
+            # VND: e.g. "15" or "15.5" (meaning million VND)
+            # If the value is very large, e.g. 15000000, it's raw VND, divide by 1,000,000
+            if val > 100000:
+                return val / 1000000
+            return val
 
-    if s.startswith("tới"):
-        match = re.search(r"(\d+)\s*(triệu|usd)", s)
-        if match:
-            value = float(match.group(1))
-            unit = match.group(2)
-
-            max_salary = value
-            if unit == "usd":
-                max_salary = value * USD_CONVERSION_FACTOR / 1000
-
-            return 0, int(round(max_salary))
-
+    # Case 1: Range "X - Y"
     if "-" in s:
         parts = s.split("-")
-
-        min_match = re.search(r"(\d+)", parts[0])
-        max_match = re.search(r"(\d+)\s*(triệu|usd)", parts[1])
-
+        min_match = re.search(r"([\d.]+)", parts[0])
+        max_match = re.search(r"([\d.]+)", parts[1])
         if min_match and max_match:
-            min_value = float(min_match.group(1))
-            max_value = float(max_match.group(1))
-            unit = max_match.group(2)
+            try:
+                min_val = to_vnd_million(min_match.group(1))
+                max_val = to_vnd_million(max_match.group(1))
+                return int(round(min_val)), int(round(max_val))
+            except ValueError:
+                pass
 
-            if unit == "triệu":
-                min_salary = min_value
-                max_salary = max_value
-            elif unit == "usd":
-                min_salary = min_value * USD_CONVERSION_FACTOR / 1000
-                max_salary = max_value * USD_CONVERSION_FACTOR / 1000
-            else:
-                return 0, 0
+    # Case 2: "tới" / "lên đến" / "dưới" / "tối đa" (Up to Y)
+    if any(keyword in s for keyword in ["tới", "lên đến", "dưới", "tối đa", "up to", "max"]):
+        match = re.search(r"([\d.]+)", s)
+        if match:
+            try:
+                max_val = to_vnd_million(match.group(1))
+                return 0, int(round(max_val))
+            except ValueError:
+                pass
 
-            return int(round(min_salary)), int(round(max_salary))
+    # Case 3: "từ" / "tối thiểu" / "trên" / "min" (From X)
+    if any(keyword in s for keyword in ["từ", "tối thiểu", "trên", "min", "from", "above"]):
+        match = re.search(r"([\d.]+)", s)
+        if match:
+            try:
+                min_val = to_vnd_million(match.group(1))
+                return int(round(min_val)), 0
+            except ValueError:
+                pass
+
+    # Case 4: Single value
+    match = re.search(r"([\d.]+)", s)
+    if match:
+        try:
+            val = to_vnd_million(match.group(1))
+            return int(round(val)), int(round(val))
+        except ValueError:
+            pass
 
     return 0, 0
 
