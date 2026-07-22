@@ -57,6 +57,7 @@ export class NotificationDto {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    roadmapId?: string;
     feedbackId?: string;
     blogId?: string;
     blogSlug?: string;

@@ -40,6 +40,7 @@ export const notifications = pgTable("notifications", {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    roadmapId?: string;
     feedbackId?: string;
     blogId?: string;
     blogSlug?: string;
