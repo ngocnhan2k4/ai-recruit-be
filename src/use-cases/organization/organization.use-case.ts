@@ -382,6 +382,8 @@ export class OrganizationUseCase {
         return [];
       });
 
+    await this.organizationRepository.invalidateCache(orgId);
+
     return {
       data: {
         id: orgId,
@@ -431,6 +433,9 @@ export class OrganizationUseCase {
         benefits: data.benefits,
       },
     );
+
+    await this.organizationRepository.invalidateCache(orgId);
+
     return {
       data: {
         ...org,

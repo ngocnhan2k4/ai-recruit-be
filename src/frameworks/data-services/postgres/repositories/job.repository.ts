@@ -15,13 +15,9 @@ import {
   desc,
   inArray,
   lt,
+  getTableColumns,
 } from "drizzle-orm";
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   jobs,
   skills,
@@ -83,7 +79,6 @@ import {
 import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
-import { RESPONSE_CODE } from "@/common/constants";
 import { ICacheService } from "@/core";
 
 @Injectable()
@@ -246,11 +241,17 @@ export class JobRepository
       filters?.sortDirection,
     );
 
+    const { embedding: _embedding, ...jobColumnsWithoutEmbedding } =
+      getTableColumns(jobs);
+    const jobColumns = filters?.includeEmbedding
+      ? getTableColumns(jobs)
+      : jobColumnsWithoutEmbedding;
+
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
         job: {
-          ...jobs,
+          ...jobColumns,
           applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
             "applyUrl",
           ),
@@ -824,6 +825,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          j.id,
           j.title AS name,
           COUNT(DISTINCT aj.id) AS count,
           ROW_NUMBER() OVER (PARTITION BY j.category_id ORDER BY COUNT(DISTINCT aj.id) DESC) AS rn
@@ -836,17 +838,24 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, j.title
+        GROUP BY j.category_id, j.id, j.title
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
     `);
 
-    const map = new Map<string, { name: string; count: number }[]>();
+    const map = new Map<
+      string,
+      { id: string; name: string; count: number }[]
+    >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({ name: String(r.name), count: Number(r.count) });
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
+        name: String(r.name),
+        count: Number(r.count),
+      });
     }
 
     return categoryIds
@@ -857,6 +866,7 @@ export class JobRepository
         return {
           categoryId: id,
           topAppliedJobs: items.map((i) => ({
+            id: i.id,
             name: i.name,
             count: i.count,
             percentage: total > 0 ? Math.round((i.count / total) * 100) : 0,
@@ -876,6 +886,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          o.id,
           o.name,
           o.logo_url,
           COUNT(DISTINCT j.id) AS count,
@@ -890,7 +901,7 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, o.name, o.logo_url
+        GROUP BY j.category_id, o.id, o.name, o.logo_url
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
@@ -898,12 +909,13 @@ export class JobRepository
 
     const map = new Map<
       string,
-      { name: string; logoUrl: string | null; count: number }[]
+      { id: string; name: string; logoUrl: string | null; count: number }[]
     >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
         name: String(r.name),
         logoUrl: r.logo_url ? String(r.logo_url) : null,
         count: Number(r.count),
@@ -918,6 +930,7 @@ export class JobRepository
         return {
           categoryId: id,
           topEmployers: items.map((i) => ({
+            id: i.id,
             name: i.name,
             logoUrl: i.logoUrl ?? undefined,
             count: i.count,
@@ -1184,30 +1197,17 @@ export class JobRepository
     answers,
   }: {
     jobId: string;
-    userCvId: string;
+    userCvId?: string;
     senderUserId: string;
     answers?: JobAnswer[];
   }): Promise<ApplyJobResponse> {
     const newApplication = await this.executeWithTransaction(async (tx) => {
-      const existingApplication = await tx
-        .select({ id: applyJobs.id })
-        .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)))
-        .limit(1);
-
-      if (existingApplication.length > 0) {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.ALREADY_APPLIED,
-          message: "User has already applied for this job",
-        });
-      }
-
       const [inserted] = await tx
         .insert(applyJobs)
         .values({
           jobId,
           cvId: userCvId,
+          userId: senderUserId,
           answers,
           status: ApplyStatusEnum.PENDING,
         })
@@ -1216,6 +1216,7 @@ export class JobRepository
       return inserted as ApplyJobResponse;
     });
 
+    await this.invalidateJobCache(jobId);
     return newApplication;
   }
 
@@ -1231,6 +1232,10 @@ export class JobRepository
       })
       .where(eq(applyJobs.id, applyId))
       .returning();
+
+    if (updatedApplication?.jobId) {
+      await this.invalidateJobCache(updatedApplication.jobId);
+    }
 
     return updatedApplication as ApplyJobResponse;
   }
@@ -1678,9 +1683,13 @@ export class JobRepository
     filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
+    const statuses =
+      filter?.statuses && filter.statuses.length > 0
+        ? [...filter.statuses].sort().join(",")
+        : "all";
     const key = filter?.userId
-      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
-      : CACHE_KEYS.job.getWithDetail(jobId);
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId, statuses)
+      : CACHE_KEYS.job.getWithDetail(jobId, statuses);
 
     return cacheWithDedup(
       key,
@@ -1818,9 +1827,14 @@ export class JobRepository
         count: sql`COUNT(*)`.as("count"),
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)));
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      );
     return Number(result[0]?.count ?? 0);
   }
   async getAllAppliedJobs(
@@ -1854,7 +1868,7 @@ export class JobRepository
         companyName: organizations.name,
         logoUrl: organizations.logoUrl,
         workType: jobs.workType,
-        createdAt: jobs.createdAt,
+        createdAt: applyJobs.createdAt,
         endedAt: jobs.endDate,
         provinceNames: sql`(
           SELECT json_agg(p.name) 
@@ -1866,14 +1880,19 @@ export class JobRepository
         applyStatus: applyJobs.status,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      )
       .orderBy(
         query.sortDirection === "desc"
-          ? desc(jobs.createdAt)
-          : asc(jobs.createdAt),
+          ? desc(applyJobs.createdAt)
+          : asc(applyJobs.createdAt),
       )
       .offset(offset)
       .limit(query.limit + 1);
@@ -1909,7 +1928,7 @@ export class JobRepository
   > {
     const result = await this.db
       .select({
-        userId: cvs.userId,
+        userId: sql<string>`COALESCE(${applyJobs.userId}, ${cvs.userId})`,
         email: users.email,
         name: users.name,
         jobId: applyJobs.jobId,
@@ -1917,10 +1936,13 @@ export class JobRepository
         categoryId: jobs.categoryId,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(
         users,
-        and(eq(cvs.userId, users.id), eq(users.status, UserStatusEnum.ACTIVE)),
+        and(
+          eq(sql`COALESCE(${applyJobs.userId}, ${cvs.userId})`, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
       )
       .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
       .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
@@ -2105,8 +2127,13 @@ export class JobRepository
           applyId: applyJobs.id,
         })
         .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, userId), inArray(applyJobs.jobId, jobIds))),
+        .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(
+          and(
+            inArray(applyJobs.jobId, jobIds),
+            or(eq(applyJobs.userId, userId), eq(cvs.userId, userId)),
+          ),
+        ),
     ]);
 
     // Update saved status
@@ -2223,5 +2250,36 @@ export class JobRepository
         scoredAt: new Date(),
       })
       .where(eq(applyJobs.id, applyId));
+  }
+
+  async getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>> {
+    const rows = await this.db
+      .select({
+        applyId: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+      })
+      .from(applyJobs)
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+          isNotNull(applyJobs.cvId),
+        ),
+      );
+
+    return rows
+      .filter((row): row is { applyId: string; jobId: string; cvId: string } =>
+        Boolean(row.applyId && row.jobId && row.cvId),
+      )
+      .map((row) => ({
+        applyId: row.applyId,
+        jobId: row.jobId,
+        cvId: row.cvId,
+      }));
   }
 }

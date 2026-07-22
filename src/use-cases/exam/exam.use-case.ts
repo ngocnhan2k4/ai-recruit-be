@@ -245,6 +245,15 @@ export class ExamUseCases {
 
   async createQuestion(dto: CreateQuestionDto) {
     const sourceLanguage = getRequestLanguage();
+    const isDuplicate = await this.questionRepo.checkDuplicate(
+      dto.skillId,
+      dto.questionText,
+    );
+    if (isDuplicate) {
+      throw new BadRequestException(
+        "Question already exists for this skill (case-insensitive)",
+      );
+    }
     const question = await this.questionRepo.create(
       this.buildQuestionCreatePayload(dto),
     );
@@ -517,12 +526,11 @@ export class ExamUseCases {
       );
     }
 
-    // TODO: Re-enable this validation for production
-    // if (allQuestions.length < EXAM_MAX_QUESTIONS) {
-    //   throw new BadRequestException(
-    //     `Not enough questions for this skill. Found ${allQuestions.length}, need ${EXAM_MAX_QUESTIONS}. Try selecting different difficulty levels or contact admin.`,
-    //   );
-    // }
+    if (allQuestionsWithKeys.length < EXAM_MAX_QUESTIONS) {
+      throw new BadRequestException(
+        `Not enough questions for this skill. Found ${allQuestionsWithKeys.length}, need ${EXAM_MAX_QUESTIONS}. Try selecting different difficulty levels or contact admin.`,
+      );
+    }
 
     // Randomize and select questions (use available count or EXAM_MAX_QUESTIONS, whichever is less)
     const questionCount = Math.min(

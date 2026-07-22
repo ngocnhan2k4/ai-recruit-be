@@ -43,7 +43,9 @@ export class BlogLocaleContentResponseDto {
   @ApiPropertyOptional()
   summary?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: "Present on detail endpoints only; omitted from list payloads",
+  })
   content?: string;
 }
 
@@ -74,8 +76,11 @@ export class BlogPostListItemDto {
   @ApiPropertyOptional({ nullable: true })
   thumbnail?: string | null;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -143,8 +148,11 @@ export class BlogPostDetailDto {
   @ApiProperty()
   content: string;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   viewCount: number;

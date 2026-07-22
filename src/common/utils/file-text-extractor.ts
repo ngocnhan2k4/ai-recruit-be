@@ -8,7 +8,7 @@ export class FileTextExtractor {
     try {
       const parser = new PDFParse({ data: buffer });
       const result = await parser.getText();
-      return result.text ? result.text.trim() : "";
+      return result.text ? result.text.replace(/\0/g, "").trim() : "";
     } catch (error: any) {
       throw new Error(`Failed to extract text from PDF: ${error.message}`);
     }
@@ -17,7 +17,7 @@ export class FileTextExtractor {
   static async extractFromDocx(buffer: Buffer): Promise<string> {
     try {
       const result = await extractRawText({ buffer });
-      return result.value.trim();
+      return result.value.replace(/\0/g, "").trim();
     } catch (error: any) {
       throw new Error(`Failed to extract text from DOCX: ${error.message}`);
     }
@@ -45,7 +45,7 @@ export class FileTextExtractor {
         throw new Error(RESPONSE_MESSAGE.INVALID_FILE_TYPE);
       }
 
-      text = text.trim();
+      text = text.replace(/\0/g, "").trim();
 
       if (text.length < 100) {
         throw new Error(

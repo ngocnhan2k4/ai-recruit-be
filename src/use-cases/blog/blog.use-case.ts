@@ -220,6 +220,11 @@ export class BlogUseCases {
             {
               title: "Phản hồi bình luận",
               message: `${commenterName} đã trả lời bình luận của bạn trong bài viết ${post.title}.`,
+              templateKey: "blog_comment_reply",
+              templateData: {
+                commenterName,
+                postTitle: post.title,
+              },
               type: NotificationType.BLOG_COMMENT_REPLY,
               senderId: user.userId,
               payload: {
@@ -248,6 +253,12 @@ export class BlogUseCases {
               return `${actorNames[0]} và ${actorNames[1]} đã bình luận bài viết "${post.title}" của bạn.`;
             return `${actorNames.slice(0, 2).join(", ")} và ${others} người khác đã bình luận bài viết "${post.title}" của bạn.`;
           },
+          templateKey: "blog_comment_aggregated",
+          buildTemplateData: (actorNames, actorCount) => ({
+            actorNames,
+            actorCount,
+            postTitle: post.title,
+          }),
           payload: {
             blogId: post.id,
             blogSlug: post.slug,
@@ -347,6 +358,22 @@ export class BlogUseCases {
     return this.buildPaginatedBlogsResponse(data, pagination);
   }
 
+  private stripLocalesContent(
+    locales?: BlogLocaleMap,
+  ): BlogLocaleMap | undefined {
+    if (!locales) return undefined;
+
+    const slim: BlogLocaleMap = {};
+    for (const [lang, value] of Object.entries(locales)) {
+      if (!value) continue;
+      slim[lang] = {
+        ...(value.title !== undefined ? { title: value.title } : {}),
+        ...(value.summary !== undefined ? { summary: value.summary } : {}),
+      };
+    }
+    return slim;
+  }
+
   private async getBlogsWithTags(
     data: BlogPostListItem[],
   ): Promise<BlogPostListItemDto[]> {
@@ -362,6 +389,7 @@ export class BlogUseCases {
 
     return data.map((blog) => ({
       ...blog,
+      locales: this.stripLocalesContent(blog.locales),
       likes: likesMap[blog.id] ?? 0,
       tags: tagsMap[blog.id] || [],
     }));

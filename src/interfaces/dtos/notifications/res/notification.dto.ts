@@ -40,6 +40,12 @@ export class NotificationDto {
   @ApiProperty({ type: "string" })
   message: string;
 
+  @ApiProperty({ type: "string", nullable: true, required: false })
+  displayLanguage?: string | null;
+
+  @ApiProperty({ type: "string", nullable: true, required: false })
+  templateKey?: string | null;
+
   @ApiProperty({ enum: NotificationType })
   type: NotificationType;
 
@@ -51,7 +57,12 @@ export class NotificationDto {
     orgInvitationId?: string;
     avatarUrl?: string;
     taskId?: string;
+    roadmapId?: string;
     feedbackId?: string;
+    blogId?: string;
+    blogSlug?: string;
+    commentId?: string;
+    commentParentId?: string | null;
   } | null;
 
   @ApiProperty({ type: "string", nullable: true })

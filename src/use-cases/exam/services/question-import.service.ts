@@ -53,6 +53,7 @@ export class QuestionImportService {
 
     // Cache for skills
     const skillCache = new Map<string, string>();
+    const batchSeen = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const rowNum = i + 2; // +2 because of 0-index and header
@@ -167,6 +168,29 @@ export class QuestionImportService {
           errors.push(`Row ${rowNum}: Missing skillId or skill name`);
           continue;
         }
+
+        // Prevent duplicate questions (case-insensitive & trimmed)
+        const normalizedText = row.questionText.trim().toLowerCase();
+        const batchKey = `${skillId}_${normalizedText}`;
+        if (batchSeen.has(batchKey)) {
+          errors.push(
+            `Row ${rowNum}: Question already exists in this import batch`,
+          );
+          continue;
+        }
+
+        const isDbDuplicate = await this.questionRepo.checkDuplicate(
+          skillId,
+          row.questionText,
+        );
+        if (isDbDuplicate) {
+          errors.push(
+            `Row ${rowNum}: Question already exists in the database for this skill`,
+          );
+          continue;
+        }
+
+        batchSeen.add(batchKey);
 
         validQuestions.push({
           skillId,

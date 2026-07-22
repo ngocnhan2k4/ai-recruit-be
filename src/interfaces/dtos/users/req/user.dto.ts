@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   IsArray,
@@ -14,6 +15,7 @@ import { GeneralQueryDto } from "../../common/query";
 import { GenderEnum, UserSubscriptionStatusEnum } from "@/core";
 import { RoleEnum } from "@/common/constants";
 import { Transform, Type } from "class-transformer";
+import { SUPPORTED_LANGUAGE_CODES } from "@/common/constants/translation";
 
 export class CreateUserRequestDto {
   @ApiProperty()
@@ -121,6 +123,27 @@ export class UpdateUserRequestDto extends PartialType(CreateUserRequestDto) {
   @IsArray()
   @IsString({ each: true })
   skills?: string[] | null;
+
+  @ApiProperty({
+    required: false,
+    enum: SUPPORTED_LANGUAGE_CODES,
+    description: "Preferred language for notifications and realtime updates",
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(SUPPORTED_LANGUAGE_CODES)
+  preferredLanguage?: string;
+}
+
+export class UpdatePreferredLanguageRequestDto {
+  @ApiProperty({
+    enum: SUPPORTED_LANGUAGE_CODES,
+    description: "Preferred language for notifications and realtime updates",
+    example: "en",
+  })
+  @IsString()
+  @IsIn(SUPPORTED_LANGUAGE_CODES)
+  preferredLanguage: string;
 }
 
 export enum TypeAvatar {

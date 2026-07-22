@@ -3,6 +3,8 @@ import {
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
   RoleEnum,
+  SUPPORTED_LANGUAGE_CODES,
+  TASK_EVENT,
   USER_FOLDER,
 } from "@/common/constants";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -12,6 +14,7 @@ import {
   buildDeletedPhone,
   getRequestLanguage,
   normalizeLanguageCode,
+  parseSupportedLanguageCode,
 } from "@/common/utils";
 import {
   getFirebaseProviderKey,
@@ -41,6 +44,7 @@ import {
 } from "@/interfaces/dtos";
 import { MultipartFile } from "@fastify/multipart";
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -66,12 +70,16 @@ import {
   IAuthRepository,
   IAuthService,
   IBloomFilterService,
+  IJobRepository,
+  IMessageQueueService,
   ISkillRepository,
   IUserExperienceRepository,
   IUserOnboardingRepository,
   IUserRepository,
   IUserSkillRepository,
 } from "../../core/abstracts";
+
+type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -92,6 +100,8 @@ export class UserUseCases implements OnModuleInit {
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
     private readonly configService: ConfigService,
+    private readonly jobRepository: IJobRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   // private isUserAccountAvailable(user: User): boolean {
@@ -131,6 +141,42 @@ export class UserUseCases implements OnModuleInit {
         tx,
       );
     });
+  }
+
+  private async enqueueRescoreApplicationsForUser(
+    userId: string,
+  ): Promise<void> {
+    try {
+      const targets =
+        await this.jobRepository.getApplyScoreTargetsByUserId(userId);
+      if (targets.length === 0) {
+        return;
+      }
+
+      await Promise.all(
+        targets.map((target) =>
+          this.messageQueueService.addScoreCv(
+            TASK_EVENT.SCORE_CV_APPLY,
+            {
+              applyId: target.applyId,
+              jobId: target.jobId,
+              cvId: target.cvId,
+            },
+            {
+              jobId: `score-cv-apply-${target.applyId}`,
+            },
+          ),
+        ),
+      );
+
+      this.logger.log(
+        `[enqueueRescoreApplicationsForUser] Enqueued ${targets.length} score jobs for user ${userId}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `[enqueueRescoreApplicationsForUser] Failed for user ${userId}: ${error.message}`,
+      );
+    }
   }
 
   async onModuleInit() {
@@ -467,6 +513,7 @@ export class UserUseCases implements OnModuleInit {
       }
       response.email = user.email || null;
       response.phone = user.phone || null;
+      response.preferredLanguage = user.preferredLanguage || "vi";
     }
 
     return {
@@ -497,11 +544,31 @@ export class UserUseCases implements OnModuleInit {
       experienceYears,
       currentGoal,
       skills,
+      preferredLanguage,
       ...userUpdateData
     } = updateUserDto;
 
+    let normalizedPreferredLanguage: SupportedLanguageCode | undefined;
+    if (preferredLanguage !== undefined) {
+      const parsedPreferredLanguage =
+        parseSupportedLanguageCode(preferredLanguage);
+      if (!parsedPreferredLanguage) {
+        throw new BadRequestException({
+          message: "Unsupported preferred language",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+      normalizedPreferredLanguage =
+        parsedPreferredLanguage as SupportedLanguageCode;
+    }
+
     const normalizedUserUpdateData = {
       ...userUpdateData,
+      ...(preferredLanguage !== undefined
+        ? {
+            preferredLanguage: normalizedPreferredLanguage,
+          }
+        : {}),
       ...(userUpdateData.dob !== undefined
         ? { dob: userUpdateData.dob || null }
         : {}),
@@ -526,6 +593,20 @@ export class UserUseCases implements OnModuleInit {
       }
 
       // Update preferences if provided
+      const shouldTrackMatchingPrefs =
+        expectedSalary !== undefined || experienceYears !== undefined;
+      const [previousOnboarding] = shouldTrackMatchingPrefs
+        ? await this.userOnboardingRepository.getByField({ userId })
+        : [];
+      const previousExpectedSalary =
+        previousOnboarding?.expectedSalary != null
+          ? Number(previousOnboarding.expectedSalary)
+          : null;
+      const previousExperienceYears =
+        previousOnboarding?.experienceYears != null
+          ? Number(previousOnboarding.experienceYears)
+          : null;
+
       if (
         provinceIds !== undefined ||
         categoryIds !== undefined ||
@@ -562,6 +643,39 @@ export class UserUseCases implements OnModuleInit {
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
       }
 
+      const nextExpectedSalary =
+        expectedSalary === undefined
+          ? previousExpectedSalary
+          : expectedSalary == null
+            ? null
+            : Number(expectedSalary);
+      const normalizedNextExpectedSalary = Number.isFinite(
+        nextExpectedSalary as number,
+      )
+        ? nextExpectedSalary
+        : null;
+      const nextExperienceYears =
+        experienceYears === undefined
+          ? previousExperienceYears
+          : experienceYears == null
+            ? null
+            : Number(experienceYears);
+      const normalizedNextExperienceYears = Number.isFinite(
+        nextExperienceYears as number,
+      )
+        ? nextExperienceYears
+        : null;
+
+      const shouldRescore =
+        (expectedSalary !== undefined &&
+          previousExpectedSalary !== normalizedNextExpectedSalary) ||
+        (experienceYears !== undefined &&
+          previousExperienceYears !== normalizedNextExperienceYears);
+
+      if (shouldRescore) {
+        this.enqueueRescoreApplicationsForUser(userId);
+      }
+
       return {
         message: "User profile updated successfully",
         code: RESPONSE_MESSAGE.SUCCESS,
@@ -590,6 +704,39 @@ export class UserUseCases implements OnModuleInit {
       }
       throw error;
     }
+  }
+
+  async updatePreferredLanguage(
+    userId: string,
+    preferredLanguage: string,
+  ): Promise<ApiResponse<void>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
+    }
+
+    const normalized = parseSupportedLanguageCode(preferredLanguage);
+    if (!normalized) {
+      throw new BadRequestException({
+        message: "Unsupported preferred language",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    await this.userRepository.update(
+      { id: userId },
+      {
+        preferredLanguage: normalized as SupportedLanguageCode,
+      },
+    );
+
+    return {
+      message: "Preferred language updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 
   async getUserExperiences(
@@ -647,6 +794,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -700,6 +848,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -738,9 +887,10 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
+
     return {
       message: "User skill created successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
       data: userSkill,
     };
   }
@@ -907,6 +1057,7 @@ export class UserUseCases implements OnModuleInit {
         name: name ?? undefined,
         gender: gender ?? undefined,
         dob: dob ?? undefined,
+        onboardingCompleted: true,
       },
     );
     return {

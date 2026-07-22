@@ -57,7 +57,7 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
-  ORGANIZATION_INVITED = "organization_invited",
+  ORGANIZATION_INVITATION = "organization_invitation",
   SYSTEM = "system",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   BLOG_COMMENT = "blog_comment",
@@ -187,6 +187,12 @@ export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
+}
+
+export enum RoadmapGenerationStatusEnum {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
 }
 export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",
