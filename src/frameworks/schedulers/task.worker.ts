@@ -40,10 +40,8 @@ import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
 import {
   formatTrackedErrorLog,
-  formatWorkerErrorLog,
   runJobWithContext,
 } from "@/common/utils/job-context";
-import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
@@ -81,22 +79,17 @@ export class TaskWorker extends WorkerHost {
         attemptsMade: job.attemptsMade,
         maxAttempts: job.opts.attempts,
       };
-      try {
-        if (
-          (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
-        ) {
-          return this.processLearningPath(job.data as TaskData, runOptions);
-        }
-
-        if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-          return this.processOptimizeCv(job.data as TaskData, runOptions);
-        }
-
-        this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-      } catch (error) {
-        this.logger.error(formatWorkerErrorLog("task.worker", job, error));
-        throw error;
+      if (
+        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+      ) {
+        return this.processLearningPath(job.data as TaskData, runOptions);
       }
+
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+        return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
     });
   }
 
@@ -278,7 +271,7 @@ export class TaskWorker extends WorkerHost {
               } as any);
             } catch (err: any) {
               this.logger.error(
-                `[task.worker] Subpath gen failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath gen failed for "${optionName}": ${err.message}`,
               );
               this.webSocketGateway.sendToUser({ userId: params.userId }, {
                 type: NotificationType.SKILL_READY,
@@ -307,7 +300,7 @@ export class TaskWorker extends WorkerHost {
 
     if (missing.length > 0) {
       this.logger.warn(
-        `[task.worker] Verification pass: ${missing.length} options still missing snapshots — retrying`,
+        `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass: ${missing.length} options still missing snapshots — retrying`,
       );
       await Promise.all(
         missing.map(
@@ -348,11 +341,11 @@ export class TaskWorker extends WorkerHost {
                 failed: false,
               } as any);
               this.logger.log(
-                `[task.worker] Verification pass recovered "${optionName}"`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass recovered "${optionName}"`,
               );
             } catch (err: any) {
               this.logger.error(
-                `[task.worker] Verification pass also failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass also failed for "${optionName}": ${err.message}`,
               );
             }
           },
@@ -361,7 +354,7 @@ export class TaskWorker extends WorkerHost {
     }
 
     this.logger.log(
-      `[task.worker] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
     );
   }
 
@@ -650,7 +643,7 @@ export class TaskWorker extends WorkerHost {
             const mapped = skillIdMap.get(prereqSkillId);
             if (!mapped) {
               this.logger.warn(
-                `[worker.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
               );
             }
             return mapped;
@@ -694,7 +687,7 @@ export class TaskWorker extends WorkerHost {
             );
           } catch (err: any) {
             this.logger.error(
-              `[task.worker] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
+              `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
             );
           }
         },
@@ -702,7 +695,7 @@ export class TaskWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[task.worker] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
     );
   }
 
@@ -808,7 +801,6 @@ export class TaskWorker extends WorkerHost {
       this.logger.error(
         formatTrackedErrorLog({
           worker: "task.worker",
-          requestId: getRequestId(),
           queue: TASK_QUEUE,
           jobId: taskId,
           jobName: taskType,
@@ -890,6 +882,11 @@ export class TaskWorker extends WorkerHost {
           currentRole: roadmap.currentRole ?? "",
         });
 
+        const elapsedMs = Date.now() - new Date(task.createdAt).getTime();
+        this.logger.log(
+          `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Task ${task.id} completed in ${elapsedMs}ms (${(elapsedMs / 1000).toFixed(1)}s) — now - createdAt`,
+        );
+
         return { roadmapId: roadmap.id, data: resultData };
       },
       options,
@@ -937,7 +934,7 @@ export class TaskWorker extends WorkerHost {
         const savedCv = await this.aiCvRepository.create(aiCvData);
 
         this.logger.log(
-          `Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+          `[${TaskTypeEnum.CV_GENERATION}] Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
         );
 
         return { data: result, aiCvId: savedCv.id };
