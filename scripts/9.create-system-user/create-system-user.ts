@@ -150,7 +150,7 @@ async function ensureFreeSubscription(db: DBDrizzle, userId: string) {
     )
     .onConflictDoNothing();
 }
-// bun create:system-user --email=admin@airecruit.software --password='airecruit123@A' --name='AIRecruit Admin' --role=SUPER_ADMIN
+// bun create:system-user --email=admin@airecruit.software --password='airecruit123@A' --name='CareerLens Admin' --role=SUPER_ADMIN
 async function main() {
   const options = parseArgs();
   console.log(

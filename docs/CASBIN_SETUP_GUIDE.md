@@ -1,6 +1,6 @@
 # Casbin Authorization Setup Guide
 
-This guide explains how Casbin is configured in your AI Recruit backend system with PostgreSQL database integration.
+This guide explains how Casbin is configured in your CareerLens backend system with PostgreSQL database integration.
 
 ## Overview
 

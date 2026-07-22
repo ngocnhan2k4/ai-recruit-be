@@ -26,7 +26,7 @@ Cảm ơn bạn đã đồng hành cùng CareerLens.`,
 
 Hãy đăng nhập để xem chi tiết và nhận ưu đãi trước khi hết hạn.
 
-Cảm ơn bạn đã tin tưởng AI Recruit.`,
+Cảm ơn bạn đã tin tưởng CareerLens.`,
   },
   {
     id: AdminEmailTemplateId.RENEWAL_REMINDER,
@@ -34,7 +34,7 @@ Cảm ơn bạn đã tin tưởng AI Recruit.`,
     defaultSubject: "Nhắc nhở gia hạn gói subscription",
     defaultBody: `Gói subscription của bạn sắp hết hạn.
 
-Vui lòng gia hạn sớm để tiếp tục sử dụng đầy đủ tính năng trên AI Recruit.
+Vui lòng gia hạn sớm để tiếp tục sử dụng đầy đủ tính năng trên CareerLens.
 
 Nếu bạn đã gia hạn, vui lòng bỏ qua email này.`,
   },
