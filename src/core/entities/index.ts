@@ -10,6 +10,7 @@ import {
   feedbacks,
   jobProvinces,
   jobs,
+  jobCopilotDrafts,
   notifications,
   organizationInvitations,
   organizationLocations,
@@ -55,6 +56,8 @@ export * from "./email.entity";
 export * from "./enum.entity";
 export * from "./feedback.entity";
 export * from "./job.entity";
+export * from "./job-copilot.entity";
+export * from "./job-copilot-draft.entity";
 export * from "./learning-path.entity";
 export * from "./organization.entity";
 export * from "./otp.entity";
@@ -73,6 +76,8 @@ export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
   questions?: string[];
 };
+
+export type NewJobCopilotDraft = InferInsertModel<typeof jobCopilotDrafts>;
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
