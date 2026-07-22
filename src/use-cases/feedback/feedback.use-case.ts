@@ -109,6 +109,7 @@ export class FeedbackUseCase {
           assignedToUserId: feedback.assignedToUserId ?? null,
         })),
         pagination: result.pagination,
+        summary: result.summary,
       },
       message: "Feedbacks retrieved successfully",
     };

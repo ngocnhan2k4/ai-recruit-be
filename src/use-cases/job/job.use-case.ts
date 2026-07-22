@@ -365,20 +365,26 @@ export class JobUseCases {
     const result = await this.jobRepository.getJobsByAdmin(filters);
 
     this.logger.log(`Fetched ${result.data.length} jobs`);
-    // Transform Job entities to JobDtos
-    const transformedJobData = result.data.map((item) => ({
-      ...item,
-      job: {
-        ...item.job,
-      } as JobDto,
-      organization: {
-        ...item.organization,
-      } as OrganizationWithDetailsDto,
-      skills: item.skills.map((skill) => ({
-        id: skill.id,
-        name: skill.name,
-      })),
-    }));
+    // Transform Job entities to JobDtos (embedding is excluded at query level)
+    const transformedJobData = result.data.map((item) => {
+      const { embedding: _embedding, ...jobWithoutEmbedding } =
+        item.job as Job & {
+          embedding?: unknown;
+        };
+      return {
+        ...item,
+        job: {
+          ...jobWithoutEmbedding,
+        } as JobDto,
+        organization: {
+          ...item.organization,
+        } as OrganizationWithDetailsDto,
+        skills: item.skills.map((skill) => ({
+          id: skill.id,
+          name: skill.name,
+        })),
+      };
+    });
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,

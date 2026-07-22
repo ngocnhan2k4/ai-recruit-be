@@ -33,6 +33,7 @@ export interface JobFilters extends GeneralQuery {
   fields?: string[];
   ids?: string[];
   excludeJobIds?: string[];
+  includeEmbedding?: boolean;
 }
 
 export interface ApplyJobFilters extends GeneralQuery {

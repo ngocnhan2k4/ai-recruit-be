@@ -15,6 +15,7 @@ import {
   desc,
   inArray,
   lt,
+  getTableColumns,
 } from "drizzle-orm";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
@@ -240,11 +241,17 @@ export class JobRepository
       filters?.sortDirection,
     );
 
+    const { embedding: _embedding, ...jobColumnsWithoutEmbedding } =
+      getTableColumns(jobs);
+    const jobColumns = filters?.includeEmbedding
+      ? getTableColumns(jobs)
+      : jobColumnsWithoutEmbedding;
+
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
         job: {
-          ...jobs,
+          ...jobColumns,
           applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
             "applyUrl",
           ),
