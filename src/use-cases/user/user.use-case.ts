@@ -28,6 +28,9 @@ import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service"
 import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
 import {
   AdminUpdateUserRequestDto,
+  AdminSendEmailRequestDto,
+  AdminSendEmailResponseDto,
+  AdminEmailTemplateResponseDto,
   ApiResponse,
   CreateUserEducationDto,
   CreateUserExperienceRequestDto,
@@ -57,6 +60,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { addDays } from "date-fns";
 import {
   EducationLevelEnum,
+  EmailJobType,
   GenderEnum,
   GetUserFeaturesResponse,
   OrganizationTypeEnum,
@@ -78,7 +82,14 @@ import {
   IUserRepository,
   IUserSkillRepository,
 } from "../../core/abstracts";
-
+import {
+  ADMIN_BULK_EMAIL_RECIPIENT_CAP,
+  ADMIN_EMAIL_TEMPLATES,
+  getAdminEmailTemplate,
+  plainTextBodyToHtml,
+  substitutePlaceholders,
+} from "@/frameworks/email-services/admin-email-templates";
+import { AdminBulkEmailData } from "@/core/entities/email.entity";
 type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 @Injectable()
@@ -1073,6 +1084,113 @@ export class UserUseCases implements OnModuleInit {
     return {
       data: result,
       message: "Users retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  getAdminEmailTemplates(): ApiResponse<AdminEmailTemplateResponseDto[]> {
+    return {
+      data: ADMIN_EMAIL_TEMPLATES,
+      message: "Email templates retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminSendEmail(
+    dto: AdminSendEmailRequestDto,
+  ): Promise<ApiResponse<AdminSendEmailResponseDto>> {
+    const template = getAdminEmailTemplate(dto.templateId);
+    if (!template) {
+      throw new BadRequestException({
+        message: "Invalid email template",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const subject = dto.subject?.trim();
+    const body = dto.body?.trim();
+    if (!subject || !body) {
+      throw new BadRequestException({
+        message: "Subject and body are required",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    if (!dto.selectAllMatching && (!dto.userIds || dto.userIds.length === 0)) {
+      throw new BadRequestException({
+        message: "userIds is required when selectAllMatching is false",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const recipientQuery: GetUserQuery = dto.selectAllMatching
+      ? {
+          limit: ADMIN_BULK_EMAIL_RECIPIENT_CAP + 1,
+          keyword: dto.keyword,
+          subscriptionId: dto.subscriptionId,
+          statusSubscription: dto.statusSubscription,
+          isDeleted: false,
+          fields:
+            dto.subscriptionId || dto.statusSubscription
+              ? ["subscription", "userSubscription"]
+              : undefined,
+        }
+      : {
+          limit: ADMIN_BULK_EMAIL_RECIPIENT_CAP + 1,
+          userIds: dto.userIds,
+          isDeleted: false,
+        };
+
+    const recipients = await this.userRepository.getEmailRecipients(
+      recipientQuery,
+      ADMIN_BULK_EMAIL_RECIPIENT_CAP,
+    );
+
+    if (recipients.length > ADMIN_BULK_EMAIL_RECIPIENT_CAP) {
+      throw new BadRequestException({
+        message: `Too many recipients. Maximum is ${ADMIN_BULK_EMAIL_RECIPIENT_CAP}`,
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    let queued = 0;
+    let skippedNoEmail = 0;
+
+    for (const recipient of recipients) {
+      if (!recipient.email?.trim()) {
+        skippedNoEmail += 1;
+        continue;
+      }
+
+      const name = recipient.name?.trim() || "bạn";
+      const personalizedSubject = substitutePlaceholders(subject, {
+        name,
+        email: recipient.email,
+      });
+      const personalizedBody = substitutePlaceholders(body, {
+        name,
+        email: recipient.email,
+      });
+      const bodyHtml = plainTextBodyToHtml(personalizedBody);
+
+      const payload: AdminBulkEmailData = {
+        to: recipient.email,
+        subject: personalizedSubject,
+        bodyHtml,
+        recipientName: name,
+      };
+
+      await this.messageQueueService.addEmail(EmailJobType.ADMIN_BULK, payload);
+      queued += 1;
+    }
+
+    return {
+      data: {
+        queued,
+        skippedNoEmail,
+        totalRequested: recipients.length,
+      },
+      message: "Emails queued successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
