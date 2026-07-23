@@ -170,6 +170,13 @@ export enum EmailJobType {
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   FEEDBACK_RESOLVED = "feedback_resolved",
+  ADMIN_BULK = "admin_bulk",
+}
+
+export enum AdminEmailTemplateId {
+  SYSTEM_ANNOUNCEMENT = "system_announcement",
+  SUBSCRIPTION_PROMO = "subscription_promo",
+  RENEWAL_REMINDER = "renewal_reminder",
 }
 
 export enum OtpPurpose {
