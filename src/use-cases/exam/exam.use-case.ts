@@ -36,7 +36,12 @@ import {
   TRANSLATION_SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
 } from "@/common/constants";
-import { getRequestLanguage } from "@/common/utils";
+import {
+  getExplicitRequestLanguage,
+  getRequestLanguage,
+  inferSupportedLanguageFromText,
+  normalizeLanguageCode,
+} from "@/common/utils";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { UpdateQuestionTranslationDto } from "@/interfaces/dtos/exam";
 
@@ -56,24 +61,37 @@ export class ExamUseCases {
     private readonly messageQueueService: IMessageQueueService,
   ) {}
 
-  private resolveTranslationTargets() {
-    return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  private resolveTranslationTargets(sourceLanguage: string) {
+    const normalizedSourceLanguage = normalizeLanguageCode(sourceLanguage);
+    return TRANSLATION_SUPPORTED_LANGUAGES.filter(
+      (language) => language !== normalizedSourceLanguage,
+    );
   }
 
   private async enqueueQuestionTranslation(
     questionId: string,
     sourceLanguage: string,
   ) {
-    const targetLanguages = this.resolveTranslationTargets();
+    const normalizedSourceLanguage = normalizeLanguageCode(sourceLanguage);
+    const targetLanguages = this.resolveTranslationTargets(
+      normalizedSourceLanguage,
+    );
     if (!targetLanguages.length) {
       return;
     }
 
     await this.messageQueueService.addTranslation(TranslationJobType.QUESTION, {
       questionId,
-      sourceLanguage,
+      sourceLanguage: normalizedSourceLanguage,
       targetLanguages,
     });
+  }
+
+  private resolveQuestionSourceLanguage(questionText: string) {
+    return normalizeLanguageCode(
+      getExplicitRequestLanguage() ??
+        inferSupportedLanguageFromText(questionText),
+    );
   }
 
   private addAnswerKeys(question: Question): Question {
@@ -244,7 +262,7 @@ export class ExamUseCases {
   // ==================== QUESTION MANAGEMENT ====================
 
   async createQuestion(dto: CreateQuestionDto) {
-    const sourceLanguage = getRequestLanguage();
+    const sourceLanguage = this.resolveQuestionSourceLanguage(dto.questionText);
     const isDuplicate = await this.questionRepo.checkDuplicate(
       dto.skillId,
       dto.questionText,
@@ -267,11 +285,13 @@ export class ExamUseCases {
   }
 
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
-    const sourceLanguage = getRequestLanguage();
     const existing = await this.questionRepo.get(id);
     if (!existing) {
       throw new NotFoundException("Question not found");
     }
+    const sourceLanguage = this.resolveQuestionSourceLanguage(
+      dto.questionText ?? existing.questionText,
+    );
 
     const [updated] = await this.questionRepo.update(
       { id },
@@ -511,6 +531,7 @@ export class ExamUseCases {
   // ==================== EXAM FLOW ====================
 
   async startExam(userId: string, dto: StartExamDto) {
+    const languageCode = getRequestLanguage();
     // Fetch all active questions for single skill and optional difficulty levels
     const allQuestions = await this.questionRepo.getActiveQuestionsBySkills(
       [dto.skillId],
@@ -575,6 +596,7 @@ export class ExamUseCases {
       message: "Exam started successfully",
       data: {
         userTestId: userTest.id,
+        languageCode,
         questions: questionsForUser,
       },
     };
@@ -724,6 +746,7 @@ export class ExamUseCases {
       message: "Test details fetched successfully",
       data: {
         test,
+        languageCode: getRequestLanguage(),
         questions,
         answers,
       },
@@ -804,6 +827,7 @@ export class ExamUseCases {
       message: "Incomplete exam questions fetched successfully",
       data: {
         userTestId: testId,
+        languageCode: getRequestLanguage(),
         questions: questionsForUser,
         answeredCount: savedAnswers.length,
         totalCount: questionsForUser.length,
