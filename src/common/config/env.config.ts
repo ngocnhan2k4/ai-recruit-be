@@ -17,7 +17,7 @@ export enum Environment {
 export class EnvironmentVariables {
   @IsOptional()
   @IsString()
-  NAME: string = "CareerLens";
+  NAME: string = "AI Recruit";
 
   @IsOptional()
   @IsNumber()

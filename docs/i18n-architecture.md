@@ -1,6 +1,6 @@
 # Tài liệu Thiết kế Kiến trúc Hệ thống Đa ngôn ngữ (i18n Architecture)
 
-**Tài liệu này mô tả chi tiết kiến trúc (High-level & Low-level), thiết kế cơ sở dữ liệu và chiến lược triển khai hệ thống đa ngôn ngữ cho nền tảng CareerLens (hỗ trợ Tiếng Việt, Tiếng Anh và mở rộng trong tương lai).**
+**Tài liệu này mô tả chi tiết kiến trúc (High-level & Low-level), thiết kế cơ sở dữ liệu và chiến lược triển khai hệ thống đa ngôn ngữ cho nền tảng AI Recruit (hỗ trợ Tiếng Việt, Tiếng Anh và mở rộng trong tương lai).**
 
 ---
 
