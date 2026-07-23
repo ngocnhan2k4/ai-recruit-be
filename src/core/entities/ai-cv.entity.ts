@@ -89,6 +89,39 @@ export class OptimizeAtsResponse {
   language: CvLanguageEnum;
 }
 
+export class ScoreCriteria {
+  score: number;
+  feedback: string;
+}
+
+export class ScoreBreakdown {
+  format: ScoreCriteria;
+  skills: ScoreCriteria;
+  experience: ScoreCriteria;
+  relevance: ScoreCriteria;
+}
+
+export class OptimizationApplied {
+  section: string;
+  action: "update" | "delete" | "add";
+  original_text: string | null;
+  optimized_text: string | null;
+  reasoning: string;
+}
+
+export class OptimizeAtsResponseV2 {
+  cv_data: OptimizedCvData;
+  original_ats_score: number;
+  original_score_breakdown: ScoreBreakdown;
+  ats_score: number;
+  score_breakdown: ScoreBreakdown;
+  matching_skills: string[];
+  missing_skills: string[];
+  recommendation: string;
+  optimizations_applied: OptimizationApplied[];
+  generated_at: string;
+}
+
 export interface CvFieldContext {
   index?: number;
   position?: string;

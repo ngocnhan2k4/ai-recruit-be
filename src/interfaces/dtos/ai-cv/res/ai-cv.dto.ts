@@ -31,10 +31,33 @@ export class AiCvDto {
   @IsOptional()
   targetJobTitle: string | null;
 
-  @ApiProperty({ type: OptimizedCvDataDto })
+  @ApiPropertyOptional({ type: OptimizedCvDataDto })
   @ValidateNested()
   @Type(() => OptimizedCvDataDto)
   cvData: OptimizedCvDataDto;
+
+  @ApiPropertyOptional({ type: OptimizedCvDataDto, nullable: true })
+  @ValidateNested()
+  @Type(() => OptimizedCvDataDto)
+  @IsOptional()
+  editedCvData?: OptimizedCvDataDto | null;
+
+  @ApiPropertyOptional({ example: 70, nullable: true })
+  @IsNumber()
+  @IsOptional()
+  originalAtsScore?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  originalScoreBreakdown?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  scoreBreakdown?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  optimizationsApplied?: Record<string, any>[] | null;
 
   @ApiPropertyOptional({ example: 85, nullable: true })
   @IsNumber()

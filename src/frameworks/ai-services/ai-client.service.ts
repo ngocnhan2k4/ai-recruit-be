@@ -24,6 +24,7 @@ import {
   ExtractCvRequest,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
 } from "@/core";
 import {
   CvFieldSuggestionRequest,
@@ -232,6 +233,19 @@ export class AIClientService implements IAIService {
       url,
       body: request,
       errorContext: "AI Service CV optimization failed",
+    });
+  }
+
+  // Optimize CV for ATS compatibility V2 (Explainable AI)
+  async optimizeCvAtsV2(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/optimize-cv-ats/v2`;
+
+    return this.postWithRetry<OptimizeAtsRequest, OptimizeAtsResponseV2>({
+      url,
+      body: request,
+      errorContext: "AI Service CV optimization V2 failed",
     });
   }
 

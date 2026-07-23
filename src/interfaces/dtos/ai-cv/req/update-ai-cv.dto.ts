@@ -26,3 +26,14 @@ export class UpdateAiCvDto extends PartialType(
   @IsOptional()
   cvData?: UpdateOptimizedCvDataDto;
 }
+
+export class UpdateAiCvV2Dto {
+  @ApiPropertyOptional({
+    type: UpdateOptimizedCvDataDto,
+    description: "The edited structured JSON data of the CV",
+  })
+  @ValidateNested()
+  @Type(() => UpdateOptimizedCvDataDto)
+  @IsOptional()
+  editedCvData?: UpdateOptimizedCvDataDto;
+}

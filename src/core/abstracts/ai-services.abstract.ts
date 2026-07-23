@@ -1,6 +1,7 @@
 import {
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
   GenerateJobBlogPostRequest,
@@ -35,6 +36,10 @@ export abstract class IAIService {
   abstract optimizeCvAts(
     request: OptimizeAtsRequest,
   ): Promise<OptimizeAtsResponse>;
+
+  abstract optimizeCvAtsV2(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponseV2>;
 
   abstract suggestCvField(
     request: CvFieldSuggestionRequest,

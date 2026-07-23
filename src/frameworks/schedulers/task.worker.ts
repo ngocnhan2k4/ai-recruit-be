@@ -29,6 +29,7 @@ import {
   NewAiCv,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
   RoadmapGenerationStatusEnum,
   RoadmapSkillData,
   SkillOption,
@@ -87,6 +88,10 @@ export class TaskWorker extends WorkerHost {
 
       if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
         return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION_V2) {
+        return this.processOptimizeCvV2(job.data as TaskData, runOptions);
       }
 
       this.logger.warn(`[process] Unknown task job name: ${job.name}`);
@@ -935,6 +940,59 @@ export class TaskWorker extends WorkerHost {
 
         this.logger.log(
           `[${TaskTypeEnum.CV_GENERATION}] Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+        );
+
+        return { data: result, aiCvId: savedCv.id };
+      },
+      options,
+    );
+  }
+
+  private async processOptimizeCvV2(
+    data: TaskData,
+    options?: { attemptsMade?: number; maxAttempts?: number },
+  ) {
+    return this.withTaskLifecycle(
+      data,
+      TaskTypeEnum.CV_GENERATION_V2,
+      {
+        inProgress: "Đang tối ưu CV của bạn...",
+        completed: "CV của bạn đã được tối ưu.",
+        failed:
+          options?.attemptsMade === options?.maxAttempts
+            ? "Đã gặp sự cố khi tối ưu CV, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tối ưu CV, hệ thống sẽ thử lại...",
+      },
+      async (task, request: OptimizeAtsRequest) => {
+        const result: OptimizeAtsResponseV2 =
+          await this.aiService.optimizeCvAtsV2(request);
+
+        const title =
+          result.cv_data?.targetJobTitle ||
+          `CV tối ưu - ${new Date().toLocaleDateString("vi-VN")}`;
+
+        const aiCvData: NewAiCv = {
+          userId: task.userId,
+          title,
+          targetJobTitle: result.cv_data?.targetJobTitle || null,
+          cvData: result.cv_data,
+          originalAtsScore: result.original_ats_score,
+          originalScoreBreakdown: result.original_score_breakdown,
+          atsScore: result.ats_score,
+          scoreBreakdown: result.score_breakdown,
+          matchingSkills: result.matching_skills || [],
+          missingSkills: result.missing_skills || [],
+          recommendation: result.recommendation || null,
+          optimizationsApplied: result.optimizations_applied || [],
+          jobDescription: request.jobDescription || null,
+          language: request.language || CvLanguageEnum.VIETNAMESE,
+          isFavorite: false,
+        };
+
+        const savedCv = await this.aiCvRepository.create(aiCvData);
+
+        this.logger.log(
+          `[${TaskTypeEnum.CV_GENERATION_V2}] Auto-saved optimized CV V2 ${savedCv.id} for user ${task.userId}`,
         );
 
         return { data: result, aiCvId: savedCv.id };

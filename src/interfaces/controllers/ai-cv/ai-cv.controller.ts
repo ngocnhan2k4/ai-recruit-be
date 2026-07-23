@@ -7,7 +7,7 @@ import {
   AiCvDto,
   AiCvListResponseDto,
   GenerateCvPdfRequestDto,
-  UpdateAiCvDto,
+  UpdateAiCvV2Dto,
 } from "@/interfaces/dtos/ai-cv";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
 import {
@@ -88,7 +88,7 @@ export class AiCvController {
 
   @Post("optimize-ats")
   @ApiOperation({
-    summary: "Optimize CV for ATS",
+    summary: "Optimize CV for ATS (V2 Explainable AI)",
     description:
       "Optimize CV for ATS compatibility. Accepts either a CV file (PDF/DOCX) OR raw CV text. Supports two optimization modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
@@ -99,7 +99,7 @@ export class AiCvController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<{ taskId: string }>> {
     if (!request.file && !request.cvText) {
-      return await this.aiCvUseCases.optimizeCvForAts(
+      return await this.aiCvUseCases.optimizeCvForAtsV2(
         request,
         user.userId,
         true,
@@ -113,7 +113,7 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvUseCases.optimizeCvForAts(
+    return await this.aiCvUseCases.optimizeCvForAtsV2(
       request,
       user.userId,
       false,
@@ -153,18 +153,19 @@ export class AiCvController {
   }
 
   @ApiOperation({
-    summary: "Update AI CV",
-    description: "Update an existing AI CV",
+    summary: "Update AI CV (V2)",
+    description:
+      "Update an existing AI CV's editedCvData without mutating original cvData or Explainable AI metrics",
   })
-  @ApiBody({ type: UpdateAiCvDto })
+  @ApiBody({ type: UpdateAiCvV2Dto })
   @ApiResponseDto(AiCvDto)
   @Put(":id")
   async updateAiCv(
     @GetUser() user: TokenPayload,
     @Param("id") aiCvId: string,
-    @Body() updateAiCvDto: UpdateAiCvDto,
+    @Body() updateAiCvV2Dto: UpdateAiCvV2Dto,
   ) {
-    return this.aiCvUseCases.updateAiCv(user.userId, aiCvId, updateAiCvDto);
+    return this.aiCvUseCases.updateAiCvV2(user.userId, aiCvId, updateAiCvV2Dto);
   }
 
   @ApiOperation({
