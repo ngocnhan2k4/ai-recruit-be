@@ -26,8 +26,15 @@ export const aiCvs = pgTable(
 
     // CV Data
     cvData: jsonb("cv_data").notNull(), // OptimizedCvDataDto structure
+    editedCvData: jsonb("edited_cv_data"),
+
+    // Explainable AI
+    originalScoreBreakdown: jsonb("original_score_breakdown"),
+    scoreBreakdown: jsonb("score_breakdown"),
+    optimizationsApplied: jsonb("optimizations_applied"),
 
     // AI Analysis Results
+    originalAtsScore: integer("original_ats_score"), // 0-100
     atsScore: integer("ats_score"), // 0-100
     matchingSkills: text("matching_skills").array(),
     missingSkills: text("missing_skills").array(),
