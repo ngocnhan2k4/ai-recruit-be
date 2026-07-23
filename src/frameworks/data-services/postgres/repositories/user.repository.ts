@@ -350,6 +350,28 @@ export class UserRepository
     };
   }
 
+  async getEmailRecipients(
+    query: GetUserQuery,
+    limit: number,
+  ): Promise<{ id: string; email: string | null; name: string | null }[]> {
+    const fields = this.ensureGetUsersColumns(query);
+    const { db } = this.joinGetUsersBuilder(fields, query);
+    const conditions = this.buildGetAllAdminUsersQuery(query);
+
+    const items = await db
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit + 1)
+      .orderBy(sql`${users.createdAt} DESC`);
+
+    return items.map(
+      (row: { id: string; email: string | null; name: string | null }) => ({
+        id: row.id,
+        email: row.email,
+        name: row.name,
+      }),
+    );
+  }
+
   private buildSort(sortBy?: string, sortDirection?: SortDirection) {
     if (!sortBy) {
       return sql`${users.createdAt} DESC`;
