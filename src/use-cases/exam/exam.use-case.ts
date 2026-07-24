@@ -526,6 +526,61 @@ export class ExamUseCases {
     };
   }
 
+  /**
+   * Re-enqueue translation jobs for existing questions so that questions which
+   * were imported/created before translations existed (or whose translation job
+   * failed) get their other-language translation generated. Without a
+   * translation row for the requested language, the exam falls back to the
+   * source language — which is why switching the UI language appears to do
+   * nothing for those questions.
+   *
+   * The source language is inferred per-question from its text, and the
+   * translation worker upserts, so this is safe to run repeatedly.
+   */
+  async backfillQuestionTranslations(options?: { onlyActive?: boolean }) {
+    const limit = 200;
+    let page = 1;
+    let enqueued = 0;
+    let scanned = 0;
+
+    for (;;) {
+      const result = await this.questionRepo.getPaginatedQuestions({
+        limit,
+        page,
+        ...(options?.onlyActive ? { isActive: true } : {}),
+      });
+
+      const items = result.data ?? [];
+      if (items.length === 0) {
+        break;
+      }
+
+      for (const question of items) {
+        scanned++;
+        const sourceLanguage = inferSupportedLanguageFromText(
+          question.questionText,
+        );
+        await this.enqueueQuestionTranslation(question.id, sourceLanguage);
+        enqueued++;
+      }
+
+      if (items.length < limit) {
+        break;
+      }
+      page++;
+    }
+
+    this.logger.log(
+      `Backfill enqueued ${enqueued} question translation job(s) (scanned ${scanned})`,
+    );
+
+    return {
+      success: true,
+      message: "Question translation backfill enqueued",
+      data: { scanned, enqueued },
+    };
+  }
+
   // ==================== LEVEL MANAGEMENT ====================
 
   // ==================== EXAM FLOW ====================
@@ -566,12 +621,9 @@ export class ExamUseCases {
       },
     );
 
-    // Randomize answer options
-    const questionsWithRandomOptions =
-      this.randomizerService.randomizeOptions(selectedQuestions);
-
-    // Create user test record with question IDs
-    const questionIds = questionsWithRandomOptions.map((q) => q.id);
+    // Create user test record first so we can seed a STABLE option order by
+    // its id. Question order is already randomized above (selectedQuestions).
+    const questionIds = selectedQuestions.map((q) => q.id);
     const userTest = await this.userTestRepo.create({
       userId,
       selectedSkillIds: [dto.skillId],
@@ -579,6 +631,15 @@ export class ExamUseCases {
       questionIds: questionIds,
       totalScore: null, // Explicitly set to null for unsubmitted tests
     });
+
+    // Deterministically randomize answer options, seeded by the test id, so the
+    // order stays identical on every subsequent fetch (e.g. continuing the exam
+    // or switching UI language) instead of reshuffling each time.
+    const questionsWithRandomOptions =
+      this.randomizerService.randomizeOptionsDeterministic(
+        selectedQuestions,
+        userTest.id,
+      );
 
     // Return questions without correct answers
     const questionsForUser = questionsWithRandomOptions.map((q) => ({
@@ -808,9 +869,14 @@ export class ExamUseCases {
       savedAnswers.map((a) => [a.questionId, a.chosenAnswer]),
     );
 
-    // Randomize answer options for each question
+    // Deterministically order answer options, seeded by the test id, so the
+    // order matches what was shown when the exam started and stays stable across
+    // refetches (including UI language switches) instead of reshuffling.
     const questionsWithRandomOptions =
-      this.randomizerService.randomizeOptions(validQuestions);
+      this.randomizerService.randomizeOptionsDeterministic(
+        validQuestions,
+        testId,
+      );
 
     // Return questions with saved answers (if any)
     const questionsForUser = questionsWithRandomOptions.map((q) => ({
