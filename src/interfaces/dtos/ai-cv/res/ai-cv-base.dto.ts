@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsString, IsOptional, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsString,
+  IsNumber,
+  IsOptional,
+  ValidateNested,
+} from "class-validator";
 
 export class CvSocialLinkDto {
   @ApiPropertyOptional({
@@ -276,4 +282,75 @@ export class OptimizedCvDataDto {
   @Type(() => CvCertificateDto)
   @IsOptional()
   certificates?: CvCertificateDto[];
+}
+
+export class ScoreCriteriaDto {
+  @ApiPropertyOptional({ example: 85 })
+  @IsNumber()
+  @IsOptional()
+  score?: number;
+
+  @ApiPropertyOptional({ example: "Good formatting and clear structure" })
+  @IsString()
+  @IsOptional()
+  feedback?: string;
+}
+
+export class ScoreBreakdownDto {
+  @ApiPropertyOptional({ type: ScoreCriteriaDto })
+  @ValidateNested()
+  @Type(() => ScoreCriteriaDto)
+  @IsOptional()
+  format?: ScoreCriteriaDto;
+
+  @ApiPropertyOptional({ type: ScoreCriteriaDto })
+  @ValidateNested()
+  @Type(() => ScoreCriteriaDto)
+  @IsOptional()
+  skills?: ScoreCriteriaDto;
+
+  @ApiPropertyOptional({ type: ScoreCriteriaDto })
+  @ValidateNested()
+  @Type(() => ScoreCriteriaDto)
+  @IsOptional()
+  experience?: ScoreCriteriaDto;
+
+  @ApiPropertyOptional({ type: ScoreCriteriaDto })
+  @ValidateNested()
+  @Type(() => ScoreCriteriaDto)
+  @IsOptional()
+  relevance?: ScoreCriteriaDto;
+}
+
+export class OptimizationAppliedDto {
+  @ApiPropertyOptional({ example: "summary" })
+  @IsString()
+  @IsOptional()
+  section?: string;
+
+  @ApiPropertyOptional({ example: "update" })
+  @IsString()
+  @IsOptional()
+  action?: "update" | "delete" | "add";
+
+  @ApiPropertyOptional({
+    example: "Original text before optimization",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  originalText?: string | null;
+
+  @ApiPropertyOptional({
+    example: "Optimized text after AI enhancement",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  optimizedText?: string | null;
+
+  @ApiPropertyOptional({ example: "Reasoning for AI optimization" })
+  @IsString()
+  @IsOptional()
+  reasoning?: string;
 }

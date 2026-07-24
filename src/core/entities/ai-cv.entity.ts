@@ -104,22 +104,22 @@ export class ScoreBreakdown {
 export class OptimizationApplied {
   section: string;
   action: "update" | "delete" | "add";
-  original_text: string | null;
-  optimized_text: string | null;
+  originalText: string | null;
+  optimizedText: string | null;
   reasoning: string;
 }
 
 export class OptimizeAtsResponseV2 {
-  cv_data: OptimizedCvData;
-  original_ats_score: number;
-  original_score_breakdown: ScoreBreakdown;
-  ats_score: number;
-  score_breakdown: ScoreBreakdown;
-  matching_skills: string[];
-  missing_skills: string[];
+  cvData: OptimizedCvData;
+  originalAtsScore: number;
+  originalScoreBreakdown: ScoreBreakdown;
+  atsScore: number;
+  scoreBreakdown: ScoreBreakdown;
+  matchingSkills: string[];
+  missingSkills: string[];
   recommendation: string;
-  optimizations_applied: OptimizationApplied[];
-  generated_at: string;
+  optimizationsApplied: OptimizationApplied[];
+  generatedAt: string;
 }
 
 export interface CvFieldContext {

@@ -967,23 +967,46 @@ export class TaskWorker extends WorkerHost {
         const result: OptimizeAtsResponseV2 =
           await this.aiService.optimizeCvAtsV2(request);
 
+        const res = result as any;
+        const cvData = result.cvData || res.cv_data;
+        const originalAtsScore =
+          result.originalAtsScore ?? res.original_ats_score ?? null;
+        const originalScoreBreakdown =
+          result.originalScoreBreakdown || res.original_score_breakdown || null;
+        const atsScore = result.atsScore ?? res.ats_score ?? null;
+        const scoreBreakdown =
+          result.scoreBreakdown || res.score_breakdown || null;
+        const matchingSkills =
+          result.matchingSkills || res.matching_skills || [];
+        const missingSkills = result.missingSkills || res.missing_skills || [];
+        const rawOptimizations =
+          result.optimizationsApplied || res.optimizations_applied || [];
+
+        const optimizationsApplied = rawOptimizations.map((item: any) => ({
+          section: item.section,
+          action: item.action,
+          originalText: item.originalText ?? item.original_text ?? null,
+          optimizedText: item.optimizedText ?? item.optimized_text ?? null,
+          reasoning: item.reasoning,
+        }));
+
         const title =
-          result.cv_data?.targetJobTitle ||
+          cvData?.targetJobTitle ||
           `CV tối ưu - ${new Date().toLocaleDateString("vi-VN")}`;
 
         const aiCvData: NewAiCv = {
           userId: task.userId,
           title,
-          targetJobTitle: result.cv_data?.targetJobTitle || null,
-          cvData: result.cv_data,
-          originalAtsScore: result.original_ats_score,
-          originalScoreBreakdown: result.original_score_breakdown,
-          atsScore: result.ats_score,
-          scoreBreakdown: result.score_breakdown,
-          matchingSkills: result.matching_skills || [],
-          missingSkills: result.missing_skills || [],
+          targetJobTitle: cvData?.targetJobTitle || null,
+          cvData,
+          originalAtsScore,
+          originalScoreBreakdown,
+          atsScore,
+          scoreBreakdown,
+          matchingSkills,
+          missingSkills,
           recommendation: result.recommendation || null,
-          optimizationsApplied: result.optimizations_applied || [],
+          optimizationsApplied,
           jobDescription: request.jobDescription || null,
           language: request.language || CvLanguageEnum.VIETNAMESE,
           isFavorite: false,
