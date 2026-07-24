@@ -75,19 +75,16 @@ export class EmailService {
     const frontendUrl = this.configService.get<string>("FRONTEND_URL")!;
 
     const formatSalary = (min: string | null, max: string | null): string => {
+      // Job salaries are stored in triệu VND (e.g. 15 = 15 triệu)
       if (!min && !max) return "Thỏa thuận";
       if (min && max) {
-        const minNum = parseInt(min) / 1000000;
-        const maxNum = parseInt(max) / 1000000;
-        return `${minNum} - ${maxNum} triệu VNĐ`;
+        return `${min} - ${max} triệu`;
       }
       if (min) {
-        const minNum = parseInt(min) / 1000000;
-        return `Từ ${minNum} triệu VNĐ`;
+        return `Từ ${min} triệu`;
       }
       if (max) {
-        const maxNum = parseInt(max) / 1000000;
-        return `Đến ${maxNum} triệu VNĐ`;
+        return `Đến ${max} triệu`;
       }
       return "Thỏa thuận";
     };
@@ -189,6 +186,27 @@ export class EmailService {
       subject: "Bạn được giao xử lý feedback",
       html,
       text: `Bạn được giao xử lý feedback: ${feedbackSubject}. ${adminFeedbacksUrl}`,
+    });
+  }
+
+  async sendAdminBulkEmail(
+    to: string,
+    subject: string,
+    bodyHtml: string,
+    recipientName: string,
+  ): Promise<void> {
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL") ?? "";
+    const html = compileTemplate("admin-bulk.hbs", {
+      recipientName: recipientName || "bạn",
+      bodyHtml,
+      frontendUrl: frontendUrl.replace(/\/$/, ""),
+    });
+
+    await this.sendEmail({
+      to,
+      subject,
+      html,
+      text: bodyHtml.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
     });
   }
 }

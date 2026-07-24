@@ -9,10 +9,16 @@ import {
   IsArray,
   IsNumber,
   IsUUID,
+  ValidateIf,
+  ArrayMinSize,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { GeneralQueryDto } from "../../common/query";
-import { GenderEnum, UserSubscriptionStatusEnum } from "@/core";
+import {
+  AdminEmailTemplateId,
+  GenderEnum,
+  UserSubscriptionStatusEnum,
+} from "@/core";
 import { RoleEnum } from "@/common/constants";
 import { Transform, Type } from "class-transformer";
 import { SUPPORTED_LANGUAGE_CODES } from "@/common/constants/translation";
@@ -219,4 +225,60 @@ export class AdminUpdateUserRequestDto {
   @IsArray()
   @IsEnum(RoleEnum, { each: true })
   roles?: RoleEnum[];
+}
+
+export class AdminSendEmailRequestDto {
+  @ApiProperty({ enum: AdminEmailTemplateId })
+  @IsEnum(AdminEmailTemplateId)
+  templateId: AdminEmailTemplateId;
+
+  @ApiProperty({ description: "Email subject (editable)" })
+  @IsString()
+  subject: string;
+
+  @ApiProperty({
+    description:
+      "Email body text; supports {{name}} and {{email}} placeholders",
+  })
+  @IsString()
+  body: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      "Explicit user IDs to email (required when selectAllMatching is false)",
+  })
+  @ValidateIf((o) => !o.selectAllMatching)
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  userIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      "When true, email all users matching keyword/subscriptionId/statusSubscription filters",
+  })
+  @IsOptional()
+  @IsBoolean()
+  selectAllMatching?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Filter keyword (with selectAllMatching)",
+  })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "Filter by subscription id" })
+  @IsOptional()
+  @IsUUID()
+  subscriptionId?: string;
+
+  @ApiPropertyOptional({
+    enum: UserSubscriptionStatusEnum,
+    description: "Filter by subscription status",
+  })
+  @IsOptional()
+  @IsEnum(UserSubscriptionStatusEnum)
+  statusSubscription?: UserSubscriptionStatusEnum;
 }
