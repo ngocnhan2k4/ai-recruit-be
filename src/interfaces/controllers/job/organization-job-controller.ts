@@ -19,17 +19,72 @@ import {
   UpdateJobDto,
   JobDto,
   JobCandidateRecommendationDto,
+  JobCopilotRequestDto,
+  JobCopilotResponseDto,
+  SaveJobCopilotDraftDto,
+  JobCopilotDraftResponseDto,
 } from "@/interfaces/dtos";
 import {
   JwtAuthGuard,
   OrganizationAuthorizeGuard,
 } from "@/frameworks/auth-services/guards";
+import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
+import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
 
 @ApiTags("Organization Jobs")
 @ApiBearerAuth()
 @Controller("organizations/:orgId")
 export class OrganizationJobController {
-  constructor(private readonly jobUseCases: JobUseCases) {}
+  constructor(
+    private readonly jobUseCases: JobUseCases,
+    private readonly jobCopilotUseCase: JobCopilotUseCase,
+    private readonly jobCopilotDraftUseCase: JobCopilotDraftUseCase,
+  ) {}
+
+  @ApiOperation({ summary: "Get the recruiter's active Job Copilot draft" })
+  @ApiResponseDto(JobCopilotDraftResponseDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("job-copilot/draft")
+  getJobCopilotDraft(
+    @Param("orgId") orgId: string,
+    @GetUser() user: TokenPayload,
+  ) {
+    return this.jobCopilotDraftUseCase.get(orgId, user.userId);
+  }
+
+  @ApiOperation({ summary: "Create or update a Job Copilot draft" })
+  @ApiResponseDto(JobCopilotDraftResponseDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Put("job-copilot/draft")
+  saveJobCopilotDraft(
+    @Param("orgId") orgId: string,
+    @GetUser() user: TokenPayload,
+    @Body() input: SaveJobCopilotDraftDto,
+  ) {
+    return this.jobCopilotDraftUseCase.save(orgId, user.userId, input);
+  }
+
+  @ApiOperation({ summary: "Soft delete the active Job Copilot draft" })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Delete("job-copilot/draft")
+  deleteJobCopilotDraft(
+    @Param("orgId") orgId: string,
+    @GetUser() user: TokenPayload,
+  ) {
+    return this.jobCopilotDraftUseCase.remove(orgId, user.userId);
+  }
+
+  @ApiOperation({
+    summary: "Generate or review a job description with AI",
+  })
+  @ApiResponseDto(JobCopilotResponseDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Post("job-copilot")
+  async runJobCopilot(
+    @Body() request: JobCopilotRequestDto,
+  ): Promise<ApiResponse<JobCopilotResponseDto>> {
+    return this.jobCopilotUseCase.run(request);
+  }
 
   @ApiOperation({
     summary: "Create organization job",
