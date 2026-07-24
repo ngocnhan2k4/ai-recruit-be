@@ -1,0 +1,41 @@
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { organizations } from "./organization.model";
+import { users } from "./user.model";
+import { timestamps } from "./helpers";
+
+export const jobCopilotDrafts = pgTable(
+  "job_copilot_drafts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    formData: jsonb("form_data").$type<Record<string, unknown>>().notNull(),
+    analysisResult: jsonb("analysis_result"),
+    analyzedContent: jsonb("analyzed_content"),
+    screeningQuestions: jsonb("screening_questions").notNull().default([]),
+    suggestionStatuses: jsonb("suggestion_statuses").notNull().default({}),
+    version: integer("version").notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("uniq_active_job_copilot_draft_recruiter_org")
+      .on(table.organizationId, table.createdBy)
+      .where(sql`${table.deletedAt} IS NULL`),
+    index("idx_job_copilot_drafts_org_user").on(
+      table.organizationId,
+      table.createdBy,
+    ),
+  ],
+);

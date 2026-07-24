@@ -19,7 +19,17 @@ import {
   subpaths,
 } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { eq, and, SQL, isNull, desc, lt, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  SQL,
+  isNull,
+  desc,
+  lt,
+  inArray,
+  ilike,
+  or,
+} from "drizzle-orm";
 import {
   buildLanguagePriority,
   getCurrentWeekNumber,
@@ -49,6 +59,19 @@ export class LearningRoadmapRepository
       whereConditions.push(
         lt(learningRoadmaps.createdAt, new Date(query.cursor)),
       );
+    }
+
+    const keyword = query.keyword?.trim();
+    if (keyword) {
+      const pattern = `%${keyword}%`;
+      const keywordCondition = or(
+        ilike(learningRoadmaps.title, pattern),
+        ilike(learningRoadmaps.targetRole, pattern),
+        ilike(learningRoadmaps.currentRole, pattern),
+      );
+      if (keywordCondition) {
+        whereConditions.push(keywordCondition);
+      }
     }
 
     const items = await this.db
