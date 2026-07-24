@@ -115,4 +115,6 @@ export interface GetAllUserResponse
     UserSubscription,
     "id" | "startedAt" | "expiredAt" | "status" | "createdAt"
   >;
+  expectedSalary?: number | null;
+  experienceYears?: number | null;
 }

@@ -52,21 +52,8 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const path = request.url.split("?")[0];
-    const excludedPaths = ["/health", "/users/me", "/auth/refresh"];
-    const isExcluded = excludedPaths.some((excluded) => {
-      const cleanExcluded = excluded.startsWith("/")
-        ? excluded
-        : `/${excluded}`;
-      const prefix = this.globalPrefix.startsWith("/")
-        ? this.globalPrefix
-        : `/${this.globalPrefix}`;
-      const prefixedExcluded = this.globalPrefix
-        ? `${prefix}${cleanExcluded}`
-        : cleanExcluded;
-      return path === cleanExcluded || path === prefixedExcluded;
-    });
 
-    if (isExcluded) {
+    if (this.excludedPaths.has(path)) {
       return true;
     }
 

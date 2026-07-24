@@ -96,6 +96,7 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
 
   abstract getTopAppliedJobs(
     filter: StatisticsJobFilter,
+    limit?: number,
   ): Promise<TopInMarketResponse[]>;
 
   abstract getTopEmployers(
@@ -265,4 +266,8 @@ export abstract class IJobRepository extends IGenericRepository<Job> {
     score: number | null,
     criteria: Record<string, any>,
   ): Promise<void>;
+
+  abstract getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>>;
 }

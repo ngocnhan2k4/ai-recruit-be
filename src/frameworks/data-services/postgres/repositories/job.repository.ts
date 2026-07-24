@@ -15,6 +15,7 @@ import {
   desc,
   inArray,
   lt,
+  getTableColumns,
 } from "drizzle-orm";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
@@ -240,11 +241,17 @@ export class JobRepository
       filters?.sortDirection,
     );
 
+    const { embedding: _embedding, ...jobColumnsWithoutEmbedding } =
+      getTableColumns(jobs);
+    const jobColumns = filters?.includeEmbedding
+      ? getTableColumns(jobs)
+      : jobColumnsWithoutEmbedding;
+
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
         job: {
-          ...jobs,
+          ...jobColumns,
           applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
             "applyUrl",
           ),
@@ -1209,6 +1216,7 @@ export class JobRepository
       return inserted as ApplyJobResponse;
     });
 
+    await this.invalidateJobCache(jobId);
     return newApplication;
   }
 
@@ -1224,6 +1232,10 @@ export class JobRepository
       })
       .where(eq(applyJobs.id, applyId))
       .returning();
+
+    if (updatedApplication?.jobId) {
+      await this.invalidateJobCache(updatedApplication.jobId);
+    }
 
     return updatedApplication as ApplyJobResponse;
   }
@@ -1671,9 +1683,13 @@ export class JobRepository
     filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
+    const statuses =
+      filter?.statuses && filter.statuses.length > 0
+        ? [...filter.statuses].sort().join(",")
+        : "all";
     const key = filter?.userId
-      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
-      : CACHE_KEYS.job.getWithDetail(jobId);
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId, statuses)
+      : CACHE_KEYS.job.getWithDetail(jobId, statuses);
 
     return cacheWithDedup(
       key,
@@ -1852,7 +1868,7 @@ export class JobRepository
         companyName: organizations.name,
         logoUrl: organizations.logoUrl,
         workType: jobs.workType,
-        createdAt: jobs.createdAt,
+        createdAt: applyJobs.createdAt,
         endedAt: jobs.endDate,
         provinceNames: sql`(
           SELECT json_agg(p.name) 
@@ -1875,8 +1891,8 @@ export class JobRepository
       )
       .orderBy(
         query.sortDirection === "desc"
-          ? desc(jobs.createdAt)
-          : asc(jobs.createdAt),
+          ? desc(applyJobs.createdAt)
+          : asc(applyJobs.createdAt),
       )
       .offset(offset)
       .limit(query.limit + 1);
@@ -2234,5 +2250,36 @@ export class JobRepository
         scoredAt: new Date(),
       })
       .where(eq(applyJobs.id, applyId));
+  }
+
+  async getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>> {
+    const rows = await this.db
+      .select({
+        applyId: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+      })
+      .from(applyJobs)
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+          isNotNull(applyJobs.cvId),
+        ),
+      );
+
+    return rows
+      .filter((row): row is { applyId: string; jobId: string; cvId: string } =>
+        Boolean(row.applyId && row.jobId && row.cvId),
+      )
+      .map((row) => ({
+        applyId: row.applyId,
+        jobId: row.jobId,
+        cvId: row.cvId,
+      }));
   }
 }

@@ -1,4 +1,4 @@
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
+import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
 import { PaginatedResult, SortDirection } from "@/common/types";
 import {
   cacheWithDedup,
@@ -31,6 +31,7 @@ import {
   and,
   arrayOverlaps,
   asc,
+  count,
   countDistinct,
   eq,
   gte,
@@ -314,23 +315,61 @@ export class UserRepository
     const { db, countDb } = this.joinGetUsersBuilder(fields, query);
     const conditions = this.buildGetAllAdminUsersQuery(query);
 
-    const [items, totalRow] = await Promise.all([
+    const [items, totalRow, summaryRow] = await Promise.all([
       db
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .limit(limit)
         .offset(offset)
         .orderBy(this.buildSort(query.sortBy, query.sortDirection)),
       countDb.where(conditions.length > 0 ? and(...conditions) : undefined),
+      this.db
+        .select({
+          total: count(),
+          verified: sql<number>`count(*) filter (where ${users.emailVerified} = true or ${users.phoneVerified} = true)`,
+          admin: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[])`,
+          user: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.USER}]::varchar[] and not (${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[]))`,
+        })
+        .from(users)
+        .where(isNull(users.deletedAt)),
     ]);
 
     const total = Number(totalRow[0]?.count ?? 0);
+    const summary = {
+      total: Number(summaryRow[0]?.total ?? 0),
+      verified: Number(summaryRow[0]?.verified ?? 0),
+      admin: Number(summaryRow[0]?.admin ?? 0),
+      user: Number(summaryRow[0]?.user ?? 0),
+    };
 
     return {
       data: items,
       pagination: {
         total,
       },
+      summary,
     };
+  }
+
+  async getEmailRecipients(
+    query: GetUserQuery,
+    limit: number,
+  ): Promise<{ id: string; email: string | null; name: string | null }[]> {
+    const fields = this.ensureGetUsersColumns(query);
+    const { db } = this.joinGetUsersBuilder(fields, query);
+    const conditions = this.buildGetAllAdminUsersQuery(query);
+
+    const items = await db
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit + 1)
+      .orderBy(sql`${users.createdAt} DESC`);
+
+    return items.map(
+      (row: { id: string; email: string | null; name: string | null }) => ({
+        id: row.id,
+        email: row.email,
+        name: row.name,
+      }),
+    );
   }
 
   private buildSort(sortBy?: string, sortDirection?: SortDirection) {
@@ -434,6 +473,8 @@ export class UserRepository
           needUserSubscription = true;
           break;
         case "onboarding":
+          selectedFields["expectedSalary"] = userOnboardings.expectedSalary;
+          selectedFields["experienceYears"] = userOnboardings.experienceYears;
           needOnboarding = true;
           break;
         default:

@@ -170,6 +170,13 @@ export enum EmailJobType {
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   FEEDBACK_RESOLVED = "feedback_resolved",
+  ADMIN_BULK = "admin_bulk",
+}
+
+export enum AdminEmailTemplateId {
+  SYSTEM_ANNOUNCEMENT = "system_announcement",
+  SUBSCRIPTION_PROMO = "subscription_promo",
+  RENEWAL_REMINDER = "renewal_reminder",
 }
 
 export enum OtpPurpose {
@@ -187,6 +194,12 @@ export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
+}
+
+export enum RoadmapGenerationStatusEnum {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
 }
 export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",

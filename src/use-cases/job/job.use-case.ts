@@ -365,20 +365,26 @@ export class JobUseCases {
     const result = await this.jobRepository.getJobsByAdmin(filters);
 
     this.logger.log(`Fetched ${result.data.length} jobs`);
-    // Transform Job entities to JobDtos
-    const transformedJobData = result.data.map((item) => ({
-      ...item,
-      job: {
-        ...item.job,
-      } as JobDto,
-      organization: {
-        ...item.organization,
-      } as OrganizationWithDetailsDto,
-      skills: item.skills.map((skill) => ({
-        id: skill.id,
-        name: skill.name,
-      })),
-    }));
+    // Transform Job entities to JobDtos (embedding is excluded at query level)
+    const transformedJobData = result.data.map((item) => {
+      const { embedding: _embedding, ...jobWithoutEmbedding } =
+        item.job as Job & {
+          embedding?: unknown;
+        };
+      return {
+        ...item,
+        job: {
+          ...jobWithoutEmbedding,
+        } as JobDto,
+        organization: {
+          ...item.organization,
+        } as OrganizationWithDetailsDto,
+        skills: item.skills.map((skill) => ({
+          id: skill.id,
+          name: skill.name,
+        })),
+      };
+    });
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -1696,10 +1702,28 @@ export class JobUseCases {
     };
   }
 
-  // [TODO]: fix for admin
   async getJobById(
     jobId: string,
     userId?: string,
+  ): Promise<ApiResponse<JobResponseDto>> {
+    return this.fetchJobById(jobId, {
+      userId,
+      // Public job detail only exposes jobs that are visible to applicants.
+      statuses: [
+        JobStatusEnum.ACTIVE,
+        JobStatusEnum.PAUSED,
+        JobStatusEnum.CLOSED,
+      ],
+    });
+  }
+
+  async adminGetJobById(jobId: string): Promise<ApiResponse<JobResponseDto>> {
+    return this.fetchJobById(jobId);
+  }
+
+  private async fetchJobById(
+    jobId: string,
+    filter?: { userId?: string; statuses?: JobStatusEnum[] },
   ): Promise<ApiResponse<JobResponseDto>> {
     const job: {
       job: Job;
@@ -1712,14 +1736,8 @@ export class JobUseCases {
       applyId?: string | null;
       applyUrl?: string | null;
       category?: Category;
-    } | null = await this.jobRepository.getFullJobById(jobId, {
-      userId,
-      statuses: [
-        JobStatusEnum.ACTIVE,
-        JobStatusEnum.PAUSED,
-        JobStatusEnum.CLOSED,
-      ],
-    });
+    } | null = await this.jobRepository.getFullJobById(jobId, filter);
+
     if (!job) {
       this.logger.error(
         `[getJobById] [getFullJobById] Job not found: ${jobId}`,
@@ -1730,7 +1748,6 @@ export class JobUseCases {
       });
     }
 
-    // Transform questions field
     const transformedJob: JobResponseDto = {
       ...job,
       job: {
@@ -1832,7 +1849,11 @@ export class JobUseCases {
         continue;
       }
       const { score, criteria } = this.cvService.calculateMatchingScore(
-        cv,
+        {
+          ...cv,
+          expectedSalary: user.expectedSalary,
+          experienceYears: cv.experienceYears ?? user.experienceYears,
+        },
         jobForMatching,
       );
       if (

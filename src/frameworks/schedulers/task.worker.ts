@@ -29,6 +29,7 @@ import {
   NewAiCv,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  RoadmapGenerationStatusEnum,
   RoadmapSkillData,
   SkillOption,
   Task,
@@ -39,10 +40,8 @@ import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
 import {
   formatTrackedErrorLog,
-  formatWorkerErrorLog,
   runJobWithContext,
 } from "@/common/utils/job-context";
-import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
@@ -80,22 +79,17 @@ export class TaskWorker extends WorkerHost {
         attemptsMade: job.attemptsMade,
         maxAttempts: job.opts.attempts,
       };
-      try {
-        if (
-          (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
-        ) {
-          return this.processLearningPath(job.data as TaskData, runOptions);
-        }
-
-        if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-          return this.processOptimizeCv(job.data as TaskData, runOptions);
-        }
-
-        this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-      } catch (error) {
-        this.logger.error(formatWorkerErrorLog("task.worker", job, error));
-        throw error;
+      if (
+        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+      ) {
+        return this.processLearningPath(job.data as TaskData, runOptions);
       }
+
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+        return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
     });
   }
 
@@ -241,20 +235,27 @@ export class TaskWorker extends WorkerHost {
             if (existing) return;
 
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,
@@ -270,7 +271,7 @@ export class TaskWorker extends WorkerHost {
               } as any);
             } catch (err: any) {
               this.logger.error(
-                `[task.worker] Subpath gen failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath gen failed for "${optionName}": ${err.message}`,
               );
               this.webSocketGateway.sendToUser({ userId: params.userId }, {
                 type: NotificationType.SKILL_READY,
@@ -299,26 +300,33 @@ export class TaskWorker extends WorkerHost {
 
     if (missing.length > 0) {
       this.logger.warn(
-        `[task.worker] Verification pass: ${missing.length} options still missing snapshots — retrying`,
+        `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass: ${missing.length} options still missing snapshots — retrying`,
       );
       await Promise.all(
         missing.map(
           async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,
@@ -333,11 +341,11 @@ export class TaskWorker extends WorkerHost {
                 failed: false,
               } as any);
               this.logger.log(
-                `[task.worker] Verification pass recovered "${optionName}"`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass recovered "${optionName}"`,
               );
             } catch (err: any) {
               this.logger.error(
-                `[task.worker] Verification pass also failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass also failed for "${optionName}": ${err.message}`,
               );
             }
           },
@@ -346,7 +354,7 @@ export class TaskWorker extends WorkerHost {
     }
 
     this.logger.log(
-      `[task.worker] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
     );
   }
 
@@ -385,18 +393,20 @@ export class TaskWorker extends WorkerHost {
   }
 
   private async persistRoadmapFromPreview(data: {
+    roadmapId: string;
     userId: string;
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
     sourceLanguage: string;
   }) {
-    const { userId, request, result, sourceLanguage } = data;
+    const { roadmapId, userId, request, result, sourceLanguage } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
     const persisted = await this.roadmapRepository.executeWithTransaction(
       async () => {
-        const newRoadmap = await this.createRoadmapRecord({
+        const newRoadmap = await this.updateRoadmapRecord({
+          roadmapId,
           userId,
           request,
           preview,
@@ -451,22 +461,34 @@ export class TaskWorker extends WorkerHost {
     return persisted.roadmap;
   }
 
-  private async createRoadmapRecord(params: {
+  private async updateRoadmapRecord(params: {
+    roadmapId: string;
     userId: string;
     request: PreviewRoadmapDto;
     preview: AILearningRoadmapResult["previewData"];
   }) {
-    const { userId, request, preview } = params;
-    return this.roadmapRepository.create({
-      userId,
-      title: request.targetRole,
-      currentRole: request.currentRole,
-      targetRole: request.targetRole,
-      timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-      currentSkills: request.currentSkills,
-      totalWeeks: preview.totalWeeks,
-      gapAnalysis: preview.gapAnalysis,
-    });
+    const { roadmapId, userId, request, preview } = params;
+    const [updated] = await this.roadmapRepository.update(
+      { id: roadmapId, userId },
+      {
+        title: request.targetRole,
+        currentRole: request.currentRole,
+        targetRole: request.targetRole,
+        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+        currentSkills: request.currentSkills,
+        totalWeeks: preview.totalWeeks,
+        gapAnalysis: preview.gapAnalysis,
+        generationStatus: RoadmapGenerationStatusEnum.COMPLETED,
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    );
+
+    if (!updated) {
+      throw new Error(`Roadmap skeleton not found: ${roadmapId}`);
+    }
+
+    return updated;
   }
 
   private async createPhasesFromPreview(params: {
@@ -621,7 +643,7 @@ export class TaskWorker extends WorkerHost {
             const mapped = skillIdMap.get(prereqSkillId);
             if (!mapped) {
               this.logger.warn(
-                `[worker.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
               );
             }
             return mapped;
@@ -665,7 +687,7 @@ export class TaskWorker extends WorkerHost {
             );
           } catch (err: any) {
             this.logger.error(
-              `[task.worker] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
+              `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
             );
           }
         },
@@ -673,7 +695,7 @@ export class TaskWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[task.worker] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
     );
   }
 
@@ -760,11 +782,25 @@ export class TaskWorker extends WorkerHost {
           },
           templateData: this.buildTaskTemplateData(taskType, request),
         });
+
+        const roadmapId = (task.input as any)?.roadmapId;
+        if (
+          taskType === TaskTypeEnum.LEARNING_PATH_GENERATION &&
+          typeof roadmapId === "string" &&
+          roadmapId.length > 0
+        ) {
+          await this.roadmapRepository.update(
+            { id: roadmapId, userId: task.userId },
+            {
+              generationStatus: RoadmapGenerationStatusEnum.FAILED,
+              updatedAt: new Date(),
+            },
+          );
+        }
       }
       this.logger.error(
         formatTrackedErrorLog({
           worker: "task.worker",
-          requestId: getRequestId(),
           queue: TASK_QUEUE,
           jobId: taskId,
           jobName: taskType,
@@ -811,6 +847,13 @@ export class TaskWorker extends WorkerHost {
       async (task, request: PreviewRoadmapDto) => {
         const sourceLanguage =
           (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
+        const roadmapId = (task.input as any)?.roadmapId;
+
+        if (!roadmapId || typeof roadmapId !== "string") {
+          throw new Error(
+            `Task input missing roadmapId for learning path generation: ${task.id}`,
+          );
+        }
 
         const roadmapRequest = {
           currentRole: request.currentRole,
@@ -824,6 +867,7 @@ export class TaskWorker extends WorkerHost {
           await this.aiService.generateRoadmapV2(roadmapRequest);
 
         const roadmap = await this.persistRoadmapFromPreview({
+          roadmapId,
           userId: task.userId,
           request,
           result: resultData,
@@ -837,6 +881,11 @@ export class TaskWorker extends WorkerHost {
           targetRole: roadmap.targetRole ?? "",
           currentRole: roadmap.currentRole ?? "",
         });
+
+        const elapsedMs = Date.now() - new Date(task.createdAt).getTime();
+        this.logger.log(
+          `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Task ${task.id} completed in ${elapsedMs}ms (${(elapsedMs / 1000).toFixed(1)}s) — now - createdAt`,
+        );
 
         return { roadmapId: roadmap.id, data: resultData };
       },
@@ -885,7 +934,7 @@ export class TaskWorker extends WorkerHost {
         const savedCv = await this.aiCvRepository.create(aiCvData);
 
         this.logger.log(
-          `Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+          `[${TaskTypeEnum.CV_GENERATION}] Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
         );
 
         return { data: result, aiCvId: savedCv.id };

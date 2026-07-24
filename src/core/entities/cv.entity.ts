@@ -61,7 +61,6 @@ export interface CvSearchDocument {
   categoryIds?: string[];
   categoryNames?: string[];
   experienceYears?: number;
-  expectedSalary?: number;
   updatedAt?: string;
   score?: number;
 }

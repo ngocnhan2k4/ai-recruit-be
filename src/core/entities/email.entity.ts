@@ -56,3 +56,10 @@ export class FeedbackResolvedEmailData {
   feedbackSubject: string;
   resolutionNote?: string;
 }
+
+export class AdminBulkEmailData {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  recipientName: string;
+}
