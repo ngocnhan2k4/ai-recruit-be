@@ -126,6 +126,9 @@ export const RESPONSE_CODE = {
 
   // --- Task ---
   TASK_NOT_FOUND: "TASK_NOT_FOUND",
+
+  // --- Job Copilot ---
+  JOB_COPILOT_DRAFT_CONFLICT: "JOB_COPILOT_DRAFT_CONFLICT",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -212,4 +215,8 @@ export const RESPONSE_MESSAGE = {
 
   // --- Task ---
   TASK_NOT_FOUND: "Task not found.",
+
+  // --- Job Copilot ---
+  JOB_COPILOT_DRAFT_CONFLICT:
+    "This draft was updated elsewhere. Please reload the data.",
 } as const;
