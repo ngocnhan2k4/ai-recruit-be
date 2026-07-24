@@ -38,6 +38,10 @@ import {
   RoadmapChatRequest,
   RoadmapChatResponse,
 } from "@/core/entities/learning-path.entity";
+import {
+  JobCopilotRequest,
+  JobCopilotResponse,
+} from "@/core/entities/job-copilot.entity";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -71,6 +75,18 @@ export class AIClientService implements IAIService {
     if (this.configService.get<string>("OPENAI_API_KEY")) {
       this.openai.apiKey = this.configService.get<string>("OPENAI_API_KEY")!;
     }
+  }
+
+  async runJobCopilot(request: JobCopilotRequest): Promise<JobCopilotResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/job-copilot`;
+
+    return this.postWithRetry<JobCopilotRequest, JobCopilotResponse>({
+      url,
+      body: request,
+      errorContext: "AI Service Job Copilot generation failed",
+      timeoutMs: this.aiServiceTimeout * 2,
+      retryCount: 1,
+    });
   }
 
   private formatAxiosErrorMessage(error: AxiosError): string {
