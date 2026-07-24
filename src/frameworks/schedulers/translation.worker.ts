@@ -23,6 +23,7 @@ import {
   formatWorkerErrorLog,
   runJobWithContext,
 } from "@/common/utils/job-context";
+import { normalizeLanguageCode } from "@/common/utils";
 
 @Processor(TRANSLATION_QUEUE, {
   concurrency: 2,
@@ -79,9 +80,9 @@ export class TranslationWorker extends WorkerHost {
   }
 
   private resolveLanguages(data: TranslationPayloadBase) {
-    const sourceLanguage = data.sourceLanguage || "vi";
+    const sourceLanguage = normalizeLanguageCode(data.sourceLanguage || "vi");
     const targetLanguages = [...new Set(data.targetLanguages || ["en"])].filter(
-      (lang) => Boolean(lang),
+      (lang) => Boolean(lang) && normalizeLanguageCode(lang) !== sourceLanguage,
     );
 
     return { sourceLanguage, targetLanguages };

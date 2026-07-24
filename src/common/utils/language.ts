@@ -105,3 +105,12 @@ export function parseSupportedLanguageCode(
 
   return null;
 }
+
+const VIETNAMESE_CHARACTER_PATTERN =
+  /[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
+
+export function inferSupportedLanguageFromText(
+  input?: string | null,
+): "vi" | "en" {
+  return input && VIETNAMESE_CHARACTER_PATTERN.test(input) ? "vi" : "en";
+}
