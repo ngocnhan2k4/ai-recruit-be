@@ -11,12 +11,12 @@ export const ADMIN_EMAIL_TEMPLATES: AdminEmailTemplate[] = [
   {
     id: AdminEmailTemplateId.SYSTEM_ANNOUNCEMENT,
     label: "Thông báo hệ thống",
-    defaultSubject: "Thông báo từ CareerLens",
+    defaultSubject: "Thông báo từ AIRecruit",
     defaultBody: `Chúng tôi muốn gửi đến bạn một thông báo quan trọng từ hệ thống.
 
 Nội dung thông báo sẽ được cập nhật tại đây.
 
-Cảm ơn bạn đã đồng hành cùng CareerLens.`,
+Cảm ơn bạn đã đồng hành cùng AIRecruit.`,
   },
   {
     id: AdminEmailTemplateId.SUBSCRIPTION_PROMO,
