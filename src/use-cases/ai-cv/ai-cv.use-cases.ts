@@ -549,6 +549,7 @@ export class AiCvUseCases {
     }
 
     const updateData: Partial<NewAiCv> = {
+      ...updateAiCvV2Dto,
       updatedAt: new Date(),
       editedCvData: updateAiCvV2Dto?.editedCvData as
         | OptimizedCvData
