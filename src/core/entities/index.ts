@@ -168,6 +168,8 @@ export type OrganizationWithDetails = Organization & {
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
   locations?: OrganizationLocation[];
+  activeJobsCount?: number;
+  totalMembersCount?: number;
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {
