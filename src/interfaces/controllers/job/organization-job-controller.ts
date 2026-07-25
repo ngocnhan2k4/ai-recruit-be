@@ -23,6 +23,8 @@ import {
   JobCopilotResponseDto,
   SaveJobCopilotDraftDto,
   JobCopilotDraftResponseDto,
+  GenerateCandidateBriefDto,
+  CandidateBriefViewDto,
 } from "@/interfaces/dtos";
 import {
   JwtAuthGuard,
@@ -30,6 +32,7 @@ import {
 } from "@/frameworks/auth-services/guards";
 import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
 import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
+import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
 
 @ApiTags("Organization Jobs")
 @ApiBearerAuth()
@@ -39,7 +42,37 @@ export class OrganizationJobController {
     private readonly jobUseCases: JobUseCases,
     private readonly jobCopilotUseCase: JobCopilotUseCase,
     private readonly jobCopilotDraftUseCase: JobCopilotDraftUseCase,
+    private readonly candidateBriefUseCase: CandidateBriefUseCase,
   ) {}
+
+  @ApiOperation({ summary: "Get a saved Candidate Brief and stale state" })
+  @ApiResponseDto(CandidateBriefViewDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("applications/:applicationId/candidate-brief")
+  getCandidateBrief(
+    @Param("orgId") orgId: string,
+    @Param("applicationId") applicationId: string,
+  ) {
+    return this.candidateBriefUseCase.get(orgId, applicationId);
+  }
+
+  @ApiOperation({ summary: "Generate or regenerate a Candidate Brief" })
+  @ApiResponseDto(CandidateBriefViewDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Post("applications/:applicationId/candidate-brief")
+  generateCandidateBrief(
+    @Param("orgId") orgId: string,
+    @Param("applicationId") applicationId: string,
+    @GetUser() user: TokenPayload,
+    @Body() input: GenerateCandidateBriefDto,
+  ) {
+    return this.candidateBriefUseCase.generate(
+      orgId,
+      applicationId,
+      user.userId,
+      input.locale,
+    );
+  }
 
   @ApiOperation({ summary: "Get the recruiter's active Job Copilot draft" })
   @ApiResponseDto(JobCopilotDraftResponseDto)
