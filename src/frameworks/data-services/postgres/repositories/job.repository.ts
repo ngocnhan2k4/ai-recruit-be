@@ -155,11 +155,20 @@ export class JobRepository
 
   private resolveSortExpr(sortBy?: string, sortDirection?: "asc" | "desc") {
     const direction = sortDirection === "desc" ? desc : asc;
-    if (sortBy === "salary") {
+    if (sortBy === "salary" || sortBy === "salaryMin") {
       return direction(this.getAverageSalaryExpr());
     }
     if (sortBy === "datePosted") {
       return direction(this.getEffectivePostedDateExpr());
+    }
+    if (sortBy === "createdAt") {
+      return direction(jobs.createdAt);
+    }
+    if (sortBy === "title") {
+      return direction(jobs.title);
+    }
+    if (sortBy === "companyId") {
+      return direction(organizations.name);
     }
     return null;
   }
