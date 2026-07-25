@@ -1,57 +1,59 @@
 import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from "@nestjs/common";
-import {
-  EmailJobType,
-  ICompanyRepository,
-  IMessageQueueService,
-  IJobRepository,
-  IOrganizationMemberInvitationRepository,
-  IOrganizationMembersRepository,
-  IOrganizationRepository,
-  ISchoolRepository,
-  JobEventType,
-  OrganizationLocation,
-  OrganizationRoleEnum,
-  OrganizationTypeEnum,
-  OrganizationWithDetails,
-  User,
-  JobStatusEnum,
-  OrganizationChangeEmailData,
-  OrganizationVerificationEmailData,
-} from "@/core";
-import {
-  ApiResponse,
-  CreateOrganizationDto,
-  GeneralQueryDto,
-  JobDto,
-  JobPaginationResponseDto,
-  OrganizationJobQueryDto,
-  OrganizationWithDetailsDto,
-  PaginatedResultDto,
-  OrganizationTrendsResponseDto,
-  OrganizationTrendsQueryDto,
-  OrganizationCountsResponseDto,
-} from "@/interfaces/dtos";
-import { CheckOrganizationNameResponseDto } from "@/interfaces/dtos";
-import {
   ORG_FOLDER,
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
   RoleEnum,
 } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
-import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { generateSlug } from "@/common/utils";
+import {
+  EmailJobType,
+  ICompanyRepository,
+  IJobRepository,
+  IMessageQueueService,
+  IOrganizationMemberInvitationRepository,
+  IOrganizationMembersRepository,
+  IOrganizationRepository,
+  IOtpService,
+  ISchoolRepository,
+  JobEventType,
+  JobStatusEnum,
+  OrganizationChangeEmailData,
+  OrganizationLocation,
+  OrganizationRoleEnum,
+  OrganizationTypeEnum,
+  OrganizationVerificationEmailData,
+  OrganizationWithDetails,
+  OtpPurpose,
+  User,
+} from "@/core";
 import { IOrganizationLocationRepository } from "@/core/abstracts/repositories/organization-location-repository.abstract";
-import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { MultipartFile } from "@fastify/multipart";
-import { IOtpService, OtpPurpose } from "@/core";
+import { OrganizationQuery } from "@/core/entities/organization.entity";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import {
+  ApiResponse,
+  CheckOrganizationNameResponseDto,
+  CreateOrganizationDto,
+  GeneralQueryDto,
+  JobDto,
+  JobPaginationResponseDto,
+  OrganizationCountsResponseDto,
+  OrganizationJobQueryDto,
+  OrganizationOverviewStatsDto,
+  OrganizationTrendsQueryDto,
+  OrganizationTrendsResponseDto,
+  OrganizationWithDetailsDto,
+  PaginatedResultDto,
+} from "@/interfaces/dtos";
+import { MultipartFile } from "@fastify/multipart";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 
 @Injectable()
 export class OrganizationUseCase {
@@ -908,6 +910,27 @@ export class OrganizationUseCase {
         companies,
         schools,
       },
+    };
+  }
+
+  async getOrganizationOverviewStats(
+    orgId: string,
+  ): Promise<ApiResponse<OrganizationOverviewStatsDto>> {
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
+    const stats =
+      await this.organizationRepository.getOrganizationOverviewStats(orgId);
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: stats,
     };
   }
 
