@@ -10,6 +10,9 @@ import { CvModule } from "@/services/cv/cv.module";
 import { EventTrackingModule } from "../event-tracking/event-tracking.module";
 import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module";
 import { NotificationModule } from "@/frameworks/notification/notification.module";
+import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
+import { JobCopilotUseCase } from "../job-copilot/job-copilot.use-case";
+import { JobCopilotDraftUseCase } from "../job-copilot/job-copilot-draft.use-case";
 
 @Module({
   imports: [
@@ -23,8 +26,9 @@ import { NotificationModule } from "@/frameworks/notification/notification.modul
     EventTrackingModule,
     BloomFilterModule,
     NotificationModule,
+    AIServicesModule,
   ],
-  providers: [JobUseCases],
-  exports: [JobUseCases],
+  providers: [JobUseCases, JobCopilotUseCase, JobCopilotDraftUseCase],
+  exports: [JobUseCases, JobCopilotUseCase, JobCopilotDraftUseCase],
 })
 export class JobUseCasesModule {}
