@@ -12,7 +12,8 @@ import {
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
 import {
   CvFieldSuggestionRequestDto,
-  CvFieldSuggestionResponseDto,
+  CvFieldSuggestionResponseV2Dto,
+  LogSuggestionDecisionDto,
 } from "@/interfaces/dtos/ai-cv";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
@@ -122,16 +123,40 @@ export class AiCvController {
 
   @Post("suggest-field")
   @ApiOperation({
-    summary: "Suggest CV field value",
+    summary: "Suggest CV field value (V2)",
     description:
-      "Generate AI-powered suggestion for a specific CV field. Returns a single suggestion as a raw string. Valid target fields: targetJobTitle, summary, experience.position, experience.achievements, skills.technical, skills.soft, projects.description, projects.technologies",
+      "Generate AI-powered suggestions for a specific CV field. Returns 2-3 reasoned candidate chunks (action, originalText, suggestedText, reasoning) for diff/partial-accept review. Valid target fields: targetJobTitle, summary, experience.position, experience.achievements, skills.technical, skills.soft, projects.description, projects.technologies",
   })
-  @ApiResponseDto(CvFieldSuggestionResponseDto)
+  @ApiResponseDto(CvFieldSuggestionResponseV2Dto)
   async suggestCvField(
     @Body() request: CvFieldSuggestionRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+  ): Promise<ApiResponse<CvFieldSuggestionResponseV2Dto>> {
     return await this.aiCvUseCases.suggestCvField(request, user.userId);
+  }
+
+  @Post(":id/suggest-field/decision")
+  @ApiOperation({
+    summary: "Log a suggestion accept/reject decision",
+    description:
+      "Persist the user's accept/reject decision for a reviewed field-suggestion candidate, for audit/analytics.",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "AI CV ID",
+    example: "uuid-ai-cv-id",
+  })
+  async logSuggestionDecision(
+    @Param("id") aiCvId: string,
+    @Body() decision: LogSuggestionDecisionDto,
+    @GetUser() user: TokenPayload,
+  ) {
+    return await this.aiCvUseCases.logSuggestionDecision(
+      user.userId,
+      aiCvId,
+      decision,
+    );
   }
 
   @ApiOperation({

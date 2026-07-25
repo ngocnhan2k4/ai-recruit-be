@@ -29,6 +29,7 @@ import {
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  CvFieldSuggestionResponseV2,
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
 } from "@/core";
@@ -282,6 +283,26 @@ export class AIClientService implements IAIService {
       url,
       body: request,
       errorContext: "AI Service CV field suggestion failed",
+    });
+  }
+
+  // Suggest CV field value (V2 - multiple reasoned candidates)
+  async suggestCvFieldV2(
+    request: CvFieldSuggestionRequest,
+  ): Promise<CvFieldSuggestionResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/suggest-cv/v2`;
+
+    this.logger.debug(
+      `Requesting CV field suggestion (v2) for: ${request.targetField}`,
+    );
+
+    return this.postWithRetry<
+      CvFieldSuggestionRequest,
+      CvFieldSuggestionResponseV2
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service CV field suggestion (v2) failed",
     });
   }
 

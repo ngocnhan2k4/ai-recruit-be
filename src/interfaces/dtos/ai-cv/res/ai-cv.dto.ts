@@ -59,6 +59,10 @@ export class AiCvDto {
   @IsOptional()
   optimizationsApplied?: Record<string, any>[] | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  fieldSuggestionLogs?: Record<string, any>[] | null;
+
   @ApiPropertyOptional({ example: 85, nullable: true })
   @IsNumber()
   @IsOptional()

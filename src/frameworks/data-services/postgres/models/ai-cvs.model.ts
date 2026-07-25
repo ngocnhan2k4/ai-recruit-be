@@ -32,6 +32,7 @@ export const aiCvs = pgTable(
     originalScoreBreakdown: jsonb("original_score_breakdown"),
     scoreBreakdown: jsonb("score_breakdown"),
     optimizationsApplied: jsonb("optimizations_applied"),
+    fieldSuggestionLogs: jsonb("field_suggestion_logs").default([]),
 
     // AI Analysis Results
     originalAtsScore: integer("original_ats_score"), // 0-100

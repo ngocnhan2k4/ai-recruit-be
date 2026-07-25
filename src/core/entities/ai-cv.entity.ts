@@ -144,3 +144,22 @@ export interface CvFieldSuggestionResponse {
   suggestion: string;
   generatedAt: string;
 }
+
+export interface SuggestionChunk {
+  action: "update" | "add";
+  originalText: string | null;
+  suggestedText: string;
+  reasoning: string;
+}
+
+export interface CvFieldSuggestionResponseV2 {
+  targetField: string;
+  suggestions: SuggestionChunk[];
+  generatedAt: string;
+}
+
+export interface SuggestionLogEntry extends SuggestionChunk {
+  targetField: string;
+  decision: "accepted" | "rejected";
+  decidedAt: string;
+}

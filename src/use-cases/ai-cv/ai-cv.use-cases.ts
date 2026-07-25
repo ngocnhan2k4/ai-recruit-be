@@ -16,12 +16,14 @@ import {
   TaskStatusEnum,
   IFeatureService,
   OptimizedCvData,
+  SuggestionLogEntry,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   ApiResponse,
   CvFieldSuggestionRequestDto,
-  CvFieldSuggestionResponseDto,
+  CvFieldSuggestionResponseV2Dto,
+  LogSuggestionDecisionDto,
   OptimizeAtsUploadDto,
   AiCvDto,
   AiCvListResponseDto,
@@ -255,6 +257,8 @@ export class AiCvUseCases {
       scoreBreakdown: (aiCv.scoreBreakdown as Record<string, any>) ?? null,
       optimizationsApplied:
         (aiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (aiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       language: aiCv.language as CvLanguageEnum,
       template: aiCv.template as CvTemplateEnum,
     }));
@@ -287,6 +291,8 @@ export class AiCvUseCases {
       scoreBreakdown: (aiCv.scoreBreakdown as Record<string, any>) ?? null,
       optimizationsApplied:
         (aiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (aiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       updatedAt: aiCv.updatedAt ? new Date(aiCv.updatedAt) : undefined,
       createdAt: new Date(aiCv.createdAt),
     } as AiCvDto;
@@ -340,6 +346,8 @@ export class AiCvUseCases {
         (updatedAiCv.scoreBreakdown as Record<string, any>) ?? null,
       optimizationsApplied:
         (updatedAiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (updatedAiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       language: updatedAiCv.language as CvLanguageEnum,
       template: updatedAiCv.template as CvTemplateEnum,
       createdAt: new Date(updatedAiCv.createdAt),
@@ -391,7 +399,7 @@ export class AiCvUseCases {
   async suggestCvField(
     request: CvFieldSuggestionRequestDto,
     userId: string,
-  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+  ): Promise<ApiResponse<CvFieldSuggestionResponseV2Dto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
     await this.featureService.consumeFeature(
@@ -399,20 +407,62 @@ export class AiCvUseCases {
       FeatureCodeEnum.SUGGEST_CV_FIELD,
     );
 
-    const result = await this.aiService.suggestCvField({
+    const result = await this.aiService.suggestCvFieldV2({
       ...request,
       cvData: request.cvData as any,
     });
 
-    const response: CvFieldSuggestionResponseDto = {
+    const response: CvFieldSuggestionResponseV2Dto = {
       targetField: result.targetField,
-      suggestion: result.suggestion,
+      suggestions: result.suggestions,
       generatedAt: result.generatedAt,
     };
 
     return {
       data: response,
       message: "Field suggestion generated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async logSuggestionDecision(
+    userId: string,
+    aiCvId: string,
+    decision: LogSuggestionDecisionDto,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const existingAiCv = await this.aiCvRepository.get(aiCvId);
+    if (!existingAiCv || existingAiCv.userId !== userId) {
+      throw new BadRequestException({
+        message: RESPONSE_CODE.UNAUTHORIZED,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const logEntry: SuggestionLogEntry = {
+      targetField: decision.targetField,
+      action: decision.action,
+      originalText: decision.originalText ?? null,
+      suggestedText: decision.suggestedText,
+      reasoning: decision.reasoning,
+      decision: decision.decision,
+      decidedAt: new Date().toISOString(),
+    };
+
+    const fieldSuggestionLogs: SuggestionLogEntry[] = [
+      ...((existingAiCv.fieldSuggestionLogs as SuggestionLogEntry[]) || []),
+      logEntry,
+    ];
+
+    const updateData: Partial<NewAiCv> = {
+      fieldSuggestionLogs,
+      updatedAt: new Date(),
+    };
+
+    await this.aiCvRepository.update({ id: aiCvId }, updateData);
+
+    return {
+      data: { message: "Suggestion decision logged" },
+      message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -579,6 +629,8 @@ export class AiCvUseCases {
         (updatedAiCv.scoreBreakdown as Record<string, any>) ?? null,
       optimizationsApplied:
         (updatedAiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (updatedAiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       language: updatedAiCv.language as CvLanguageEnum,
       template: updatedAiCv.template as CvTemplateEnum,
       createdAt: new Date(updatedAiCv.createdAt),
