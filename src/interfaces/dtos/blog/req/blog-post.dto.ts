@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   ValidateIf,
   ValidateNested,
@@ -250,6 +251,20 @@ export class CreateBlogTagDto {
   @IsNotEmpty()
   @MaxLength(100)
   name: string;
+}
+
+export class GenerateAiBlogDto {
+  @ApiPropertyOptional({
+    description:
+      "Inclusive end date (YYYY-MM-DD) for the job market window. Defaults to today. Use to backfill a missed weekly post.",
+    example: "2026-07-20",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "date must be YYYY-MM-DD",
+  })
+  date?: string;
 }
 
 export class QueryBlogCategoriesDto extends GeneralQueryDto {}
