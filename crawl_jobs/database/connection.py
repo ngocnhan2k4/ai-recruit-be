@@ -48,6 +48,10 @@ def insert_to_db(
                     if not title or title == "N/A":
                         print("   Skipping invalid job title: N/A")
                         continue
+                    desc = jdata.get("description", "")
+                    if not desc or len(desc.strip()) < 2:
+                        print(f'   Skipping "{title}" due to empty description')
+                        continue
                     # 2. Job Raw record
                     job_raw_id = job.get_or_create_job_raw(
                         cur, title, jdata, company_raw_id

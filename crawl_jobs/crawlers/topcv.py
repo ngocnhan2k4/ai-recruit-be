@@ -295,7 +295,30 @@ def scrape_job_detail(
             form_div.decompose()
         description = html_to_mixed_content(description_wrap)
     else:
-        description = ""
+        # Support new TopCV layout with box-job-information-detail-item blocks
+        detail_items = soup.select("div.box-job-information-detail-item")
+        if detail_items:
+            EXCLUDE_KEYWORDS = {"địa điểm", "thời gian", "cách thức", "dia diem", "thoi gian", "cach thuc"}
+            combined_html = []
+            for item in detail_items:
+                title_elem = item.select_one(".box-job-information-detail-item__title--title, h2, h3")
+                if title_elem:
+                    title_text = title_elem.get_text(strip=True)
+                    if any(kw in title_text.lower() for kw in EXCLUDE_KEYWORDS):
+                        continue
+                    
+                    content_div = item.select_one(".box-job-information-detail-item__text")
+                    if content_div:
+                        combined_html.append(f"<h3>{title_text}</h3>")
+                        combined_html.append(str(content_div))
+            
+            if combined_html:
+                temp_soup = BeautifulSoup("".join(combined_html), "html.parser")
+                description = html_to_mixed_content(temp_soup)
+            else:
+                description = ""
+        else:
+            description = ""
 
     # experiences
     exp_elem = soup.select_one("div#job-detail-info-experience")
@@ -454,7 +477,7 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     return companies
 
 
-def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10):
+def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 5):
     """Crawl TopCV listing pages with enhanced anti-detection.
 
     Args:

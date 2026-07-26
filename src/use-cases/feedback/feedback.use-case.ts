@@ -109,6 +109,7 @@ export class FeedbackUseCase {
           assignedToUserId: feedback.assignedToUserId ?? null,
         })),
         pagination: result.pagination,
+        summary: result.summary,
       },
       message: "Feedbacks retrieved successfully",
     };
@@ -221,6 +222,10 @@ export class FeedbackUseCase {
         {
           title: "Bạn được giao xử lý feedback",
           message: `Phản hồi: ${messageBody}`,
+          templateKey: "feedback_assigned",
+          templateData: {
+            feedbackSubject: messageBody,
+          },
           type: NotificationType.FEEDBACK_ASSIGNED,
           senderId: assignedByUserId ?? undefined,
           payload: { feedbackId: id },

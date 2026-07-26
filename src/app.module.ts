@@ -55,7 +55,7 @@ import { CacheModule } from "@nestjs/cache-manager";
 import { createKeyv } from "@keyv/redis";
 import { TerminusModule } from "@nestjs/terminus";
 import { HttpModule } from "@nestjs/axios";
-import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from "@nestjs/core";
 import { HttpExceptionFilter } from "./common/middlewares/http-exception.config";
 import { LoggingInterceptor } from "@/common/interceptors";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
@@ -89,7 +89,7 @@ import { OtpModule } from "@/frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
 import { AiCvController } from "./interfaces/controllers/ai-cv/ai-cv.controller";
 import { AiCvUseCasesModule } from "./use-cases/ai-cv/ai-cv.use-cases.module";
-import { RateLimitMiddleware } from "./common/middlewares";
+import { RateLimitGuard } from "./common/guards";
 import { AdminSubscriptionController } from "@/interfaces/controllers/subscription/admin-subscription.controller";
 import { AdminFeatureController } from "@/interfaces/controllers/feature/admin-feature.controller";
 import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscription-use-cases.module";
@@ -108,6 +108,8 @@ import { AuditInterceptor } from "./common/audit/audit.interceptor";
 import { ContextMiddleware } from "./common/middlewares/context.middleware";
 import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
+import { HomeUseCasesModule } from "./use-cases/home/home-use-cases.module";
+import { HomeController } from "./interfaces/controllers/home/home.controller";
 
 @Module({
   imports: [
@@ -186,6 +188,7 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     TranslationUseCasesModule,
     TaskUseCasesModule,
     EventTrackingModule,
+    HomeUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -197,6 +200,7 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     CategoryController,
     UploadController,
     HealthController,
+    HomeController,
     ProvinceController,
     CvController,
     SkillController,
@@ -250,7 +254,10 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
       },
       inject: [ConfigService, ILoggerServices],
     },
-    RateLimitMiddleware,
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
     HTTP_REQUESTS_TOTAL,
     HTTP_REQUEST_DURATION_SECONDS,
     {
@@ -266,10 +273,6 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RateLimitMiddleware)
-      .exclude("/health", "users/me", "auth/refresh")
-      .forRoutes("*");
     consumer.apply(ContextMiddleware).forRoutes("*");
   }
 }

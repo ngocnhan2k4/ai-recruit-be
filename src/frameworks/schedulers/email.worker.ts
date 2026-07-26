@@ -7,6 +7,7 @@ import {
   FeedbackAssignedEmailData,
   FeedbackResolvedEmailData,
   OrganizationChangeEmailData,
+  AdminBulkEmailData,
 } from "@/core";
 import { EmailService } from "@/frameworks/email-services/email.service";
 import {
@@ -26,6 +27,7 @@ type EmailJobDataMap = {
   [EmailJobType.ORGANIZATION_CHANGE_EMAIL]: OrganizationChangeEmailData;
   [EmailJobType.FEEDBACK_ASSIGNED]: FeedbackAssignedEmailData;
   [EmailJobType.FEEDBACK_RESOLVED]: FeedbackResolvedEmailData;
+  [EmailJobType.ADMIN_BULK]: AdminBulkEmailData;
 };
 
 type EmailJobData = EmailJobDataMap[keyof EmailJobDataMap];
@@ -41,6 +43,7 @@ export class EmailWorker extends WorkerHost {
   }
 
   async process(job: Job<EmailJobData, void, EmailJobType>) {
+    console.log("job", job);
     return runJobWithContext(job, async () => {
       try {
         return await this.processEmailTask(job.name, job.data);
@@ -126,6 +129,19 @@ export class EmailWorker extends WorkerHost {
 
         this.logger.log(
           `[email.worker] [processEmailTask] Sent feedback resolved email to ${feedbackResolved.to} for feedback ${feedbackResolved.feedbackSubject}`,
+        );
+        return;
+      }
+      case EmailJobType.ADMIN_BULK: {
+        const adminBulk = data as AdminBulkEmailData;
+        await this.emailService.sendAdminBulkEmail(
+          adminBulk.to,
+          adminBulk.subject,
+          adminBulk.bodyHtml,
+          adminBulk.recipientName ?? "bạn",
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent admin bulk email to ${adminBulk.to}`,
         );
         return;
       }

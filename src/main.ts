@@ -20,10 +20,12 @@ import { RequestContextLogger } from "./common/logger/request-context.logger";
 async function bootstrap() {
   await loadVaultIntoEnv();
   process.env.TZ = process.env.TIMEZONE || process.env.TZ || "Asia/Ho_Chi_Minh";
+
   const { AppModule } = await import("./app.module.js");
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
+      trustProxy: process.env.TRUST_PROXY === "true",
       maxParamLength: 256,
     }),
     {
@@ -33,7 +35,7 @@ async function bootstrap() {
   const logger = new Logger(bootstrap.name);
   const { port, globalPrefix } = getAppConfigs(app);
 
-  enableAppMiddleware(app);
+  await enableAppMiddleware(app);
   enableSwaggerDoc(app);
 
   await app.listen(port, "0.0.0.0", () => {

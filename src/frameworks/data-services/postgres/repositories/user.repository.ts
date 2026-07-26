@@ -1,4 +1,4 @@
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
+import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
 import { PaginatedResult, SortDirection } from "@/common/types";
 import {
   cacheWithDedup,
@@ -31,6 +31,7 @@ import {
   and,
   arrayOverlaps,
   asc,
+  count,
   countDistinct,
   eq,
   gte,
@@ -45,6 +46,7 @@ import {
   SQL,
 } from "drizzle-orm";
 import {
+  categories,
   skills,
   subscriptions,
   userEducations,
@@ -313,23 +315,61 @@ export class UserRepository
     const { db, countDb } = this.joinGetUsersBuilder(fields, query);
     const conditions = this.buildGetAllAdminUsersQuery(query);
 
-    const [items, totalRow] = await Promise.all([
+    const [items, totalRow, summaryRow] = await Promise.all([
       db
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .limit(limit)
         .offset(offset)
         .orderBy(this.buildSort(query.sortBy, query.sortDirection)),
       countDb.where(conditions.length > 0 ? and(...conditions) : undefined),
+      this.db
+        .select({
+          total: count(),
+          verified: sql<number>`count(*) filter (where ${users.emailVerified} = true or ${users.phoneVerified} = true)`,
+          admin: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[])`,
+          user: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.USER}]::varchar[] and not (${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[]))`,
+        })
+        .from(users)
+        .where(isNull(users.deletedAt)),
     ]);
 
     const total = Number(totalRow[0]?.count ?? 0);
+    const summary = {
+      total: Number(summaryRow[0]?.total ?? 0),
+      verified: Number(summaryRow[0]?.verified ?? 0),
+      admin: Number(summaryRow[0]?.admin ?? 0),
+      user: Number(summaryRow[0]?.user ?? 0),
+    };
 
     return {
       data: items,
       pagination: {
         total,
       },
+      summary,
     };
+  }
+
+  async getEmailRecipients(
+    query: GetUserQuery,
+    limit: number,
+  ): Promise<{ id: string; email: string | null; name: string | null }[]> {
+    const fields = this.ensureGetUsersColumns(query);
+    const { db } = this.joinGetUsersBuilder(fields, query);
+    const conditions = this.buildGetAllAdminUsersQuery(query);
+
+    const items = await db
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit + 1)
+      .orderBy(sql`${users.createdAt} DESC`);
+
+    return items.map(
+      (row: { id: string; email: string | null; name: string | null }) => ({
+        id: row.id,
+        email: row.email,
+        name: row.name,
+      }),
+    );
   }
 
   private buildSort(sortBy?: string, sortDirection?: SortDirection) {
@@ -433,6 +473,8 @@ export class UserRepository
           needUserSubscription = true;
           break;
         case "onboarding":
+          selectedFields["expectedSalary"] = userOnboardings.expectedSalary;
+          selectedFields["experienceYears"] = userOnboardings.experienceYears;
           needOnboarding = true;
           break;
         default:
@@ -479,6 +521,7 @@ export class UserRepository
       const keyword = `%${query.keyword.toLowerCase()}%`;
       conditions.push(
         or(
+          ilike(sql`${users.id}::text`, keyword),
           ilike(sql`coalesce(${users.username}, '')`, keyword),
           ilike(sql`coalesce(${users.name}, '')`, keyword),
           ilike(users.email, keyword),
@@ -527,87 +570,120 @@ export class UserRepository
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const user = await this.get(userId);
-    if (!user) {
-      return null;
-    }
+    const key = CACHE_KEYS.user.getUserProfile(userId);
 
-    const [userSkillsResult, userExperiencesResult, userOnboardingResult] =
-      await Promise.all([
-        // Get user skills (skill IDs)
-        this.db
-          .select({ skillId: userSkills.skillId })
-          .from(userSkills)
-          .where(eq(userSkills.userId, userId)),
+    return cacheWithDedup<UserProfile | null>(
+      key,
+      async () => {
+        const cached = await this.cacheManager.get<UserProfile | null>(key);
+        return cached;
+      },
+      async () => {
+        const user = await this.get(userId);
+        if (!user) {
+          return null;
+        }
 
-        // Get user experiences for calculating years
-        this.getLocalizedRows({
-          getRowsByLanguage: (languageCode) =>
+        const [userSkillsResult, userExperiencesResult, userOnboardingResult] =
+          await Promise.all([
+            // Get user skills (skill IDs and names)
+            this.db
+              .select({ skillId: userSkills.skillId, skillName: skills.name })
+              .from(userSkills)
+              .leftJoin(skills, eq(userSkills.skillId, skills.id))
+              .where(eq(userSkills.userId, userId)),
+
+            // Get user experiences for calculating years
+            this.getLocalizedRows({
+              getRowsByLanguage: (languageCode) =>
+                this.db
+                  .select({
+                    startDate: userExperiences.startDate,
+                    endDate: userExperiences.endDate,
+                  })
+                  .from(userExperiences)
+                  .where(
+                    and(
+                      eq(userExperiences.userId, userId),
+                      eq(userExperiences.languageCode, languageCode),
+                    ),
+                  ),
+              getFallbackRows: () =>
+                this.db
+                  .select({
+                    startDate: userExperiences.startDate,
+                    endDate: userExperiences.endDate,
+                  })
+                  .from(userExperiences)
+                  .where(eq(userExperiences.userId, userId)),
+            }),
+
+            // Get user onboarding preferences
             this.db
               .select({
-                startDate: userExperiences.startDate,
-                endDate: userExperiences.endDate,
+                provinceIds: userOnboardings.provinceIds,
+                categoryIds: userOnboardings.categoryIds,
+                expectedSalary: userOnboardings.expectedSalary,
+                experienceYears: userOnboardings.experienceYears,
+                isSeekingJob: userOnboardings.isSeekingJob,
               })
-              .from(userExperiences)
-              .where(
-                and(
-                  eq(userExperiences.userId, userId),
-                  eq(userExperiences.languageCode, languageCode),
-                ),
-              ),
-          getFallbackRows: () =>
-            this.db
-              .select({
-                startDate: userExperiences.startDate,
-                endDate: userExperiences.endDate,
-              })
-              .from(userExperiences)
-              .where(eq(userExperiences.userId, userId)),
-        }),
+              .from(userOnboardings)
+              .where(eq(userOnboardings.userId, userId)),
+          ]);
 
-        // Get user onboarding preferences
-        this.db
-          .select({
-            provinceIds: userOnboardings.provinceIds,
-            categoryIds: userOnboardings.categoryIds,
-            expectedSalary: userOnboardings.expectedSalary,
-            experienceYears: userOnboardings.experienceYears,
-            isSeekingJob: userOnboardings.isSeekingJob,
-          })
-          .from(userOnboardings)
-          .where(eq(userOnboardings.userId, userId)),
-      ]);
+        const onboarding = userOnboardingResult[0];
+        const categoryIdsFromOnboarding = onboarding?.categoryIds || [];
 
-    const skillIds = userSkillsResult.map((row) => row.skillId);
+        // Fetch category names if category IDs exist
+        let categoryNames: string[] = [];
+        if (categoryIdsFromOnboarding.length > 0) {
+          const cats = await this.db
+            .select({ name: categories.name })
+            .from(categories)
+            .where(inArray(categories.id, categoryIdsFromOnboarding));
+          categoryNames = cats.map((c) => c.name);
+        }
 
-    let experienceYears = 0;
-    if (userExperiencesResult.length > 0) {
-      const totalYears = userExperiencesResult.reduce((sum, exp) => {
-        const startDate = new Date(exp.startDate);
-        const endDate = exp.endDate ? new Date(exp.endDate) : new Date();
-        const years = differenceInYears(endDate, startDate);
-        return sum + years;
-      }, 0);
-      experienceYears = Math.max(0, totalYears);
-    }
+        const skillIds = userSkillsResult.map((row) => row.skillId);
+        const skillNames = userSkillsResult
+          .map((row) => row.skillName)
+          .filter(Boolean) as string[];
 
-    const onboarding = userOnboardingResult[0];
-    const experienceYearsFromOnboarding = onboarding?.experienceYears;
+        let experienceYears = 0;
+        if (userExperiencesResult.length > 0) {
+          const totalYears = userExperiencesResult.reduce((sum, exp) => {
+            const startDate = new Date(exp.startDate);
+            const endDate = exp.endDate ? new Date(exp.endDate) : new Date();
+            const years = differenceInYears(endDate, startDate);
+            return sum + years;
+          }, 0);
+          experienceYears = Math.max(0, totalYears);
+        }
 
-    return {
-      userId: user.id,
-      skillIds,
-      experienceYears:
-        typeof experienceYearsFromOnboarding === "number"
-          ? Math.max(0, experienceYearsFromOnboarding)
-          : experienceYears,
-      provinceIds: onboarding?.provinceIds || [],
-      categoryIds: onboarding?.categoryIds || [],
-      expectedSalary: onboarding?.expectedSalary
-        ? Number(onboarding.expectedSalary)
-        : undefined,
-      isSeekingJob: onboarding?.isSeekingJob ?? false,
-    };
+        const experienceYearsFromOnboarding = onboarding?.experienceYears;
+
+        return {
+          userId: user.id,
+          skillIds,
+          skillNames,
+          experienceYears:
+            typeof experienceYearsFromOnboarding === "number"
+              ? Math.max(0, experienceYearsFromOnboarding)
+              : experienceYears,
+          provinceIds: onboarding?.provinceIds || [],
+          categoryIds: categoryIdsFromOnboarding,
+          categoryNames,
+          expectedSalary: onboarding?.expectedSalary
+            ? Number(onboarding.expectedSalary)
+            : undefined,
+          isSeekingJob: onboarding?.isSeekingJob ?? false,
+        };
+      },
+      (data: UserProfile | null) => this.cacheManager.set(key, data, SHORT_TTL), // Cache for 10 minutes (or configure LONG_TTL)
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   // [TODO] split to 3 function to usecase call(code respository can reuse after)

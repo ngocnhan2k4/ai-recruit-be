@@ -73,8 +73,6 @@ export function getCvIndexMapping({ env }: CvIndexConfig) {
         },
         experienceYears: { type: "integer" },
 
-        extractedAt: { type: "date" },
-        indexedAt: { type: "date" },
         updatedAt: { type: "date" },
       },
     },
@@ -92,7 +90,7 @@ export function transformCvToDocument(params: {
   skillIds?: string[];
   provinceIds?: string[];
   categoryIds?: string[];
-  experienceYears?: number;
+  experienceYears?: number | null;
   skillNames?: string[];
   provinceNames?: string[];
   categoryNames?: string[];
@@ -111,7 +109,7 @@ export function transformCvToDocument(params: {
     provinceNames: params.provinceNames || [],
     categoryIds: params.categoryIds || [],
     categoryNames: params.categoryNames || [],
-    experienceYears: params.experienceYears || null,
+    experienceYears: params.experienceYears ?? null,
     experienceLevel: params.experienceLevel || null,
     updatedAt: params.updatedAt
       ? new Date(params.updatedAt).toISOString()

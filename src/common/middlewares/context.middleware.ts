@@ -1,7 +1,7 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
 import { CONTEXT_KEYS, runContext, setContext } from "../stores/context.store";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { resolveRequestLanguage } from "../utils";
+import { resolveExplicitRequestLanguage } from "../utils";
 import { DEFAULT_LANGUAGE_CODE } from "../constants/translation";
 import {
   REQUEST_ID_HEADER,
@@ -14,9 +14,20 @@ type RequestWithMeta = FastifyRequest & { requestId?: string };
 @Injectable()
 export class ContextMiddleware implements NestMiddleware {
   use(req: RequestWithMeta, res: FastifyReply, next: () => void) {
-    const query = req.query as { lang?: string | string[] };
+    const query = req.query as {
+      lang?: string | string[];
+      language?: string | string[];
+      languageCode?: string | string[];
+      locale?: string | string[];
+    };
     const requestId =
       req.requestId || createRequestId(req.headers[REQUEST_ID_HEADER]);
+    const requestLanguage =
+      query.lang ??
+      query.language ??
+      query.languageCode ??
+      query.locale ??
+      req.headers["x-language"];
 
     req.requestId = requestId;
     setResponseHeader(res, REQUEST_ID_HEADER, requestId);
@@ -26,8 +37,8 @@ export class ContextMiddleware implements NestMiddleware {
       setContext(CONTEXT_KEYS.START_TIME, performance.now());
       setContext(
         CONTEXT_KEYS.REQUEST_LANGUAGE,
-        resolveRequestLanguage({
-          queryLang: query.lang,
+        resolveExplicitRequestLanguage({
+          queryLang: requestLanguage,
           acceptLanguage: req.headers["accept-language"],
         }),
       );

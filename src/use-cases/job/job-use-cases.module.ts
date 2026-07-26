@@ -9,6 +9,11 @@ import { ConfigModule } from "@nestjs/config";
 import { CvModule } from "@/services/cv/cv.module";
 import { EventTrackingModule } from "../event-tracking/event-tracking.module";
 import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module";
+import { NotificationModule } from "@/frameworks/notification/notification.module";
+import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
+import { JobCopilotUseCase } from "../job-copilot/job-copilot.use-case";
+import { JobCopilotDraftUseCase } from "../job-copilot/job-copilot-draft.use-case";
+import { CandidateBriefUseCase } from "../candidate-brief/candidate-brief.use-case";
 
 @Module({
   imports: [
@@ -21,8 +26,20 @@ import { BloomFilterModule } from "@/frameworks/bloom-filter/bloom-filter.module
     CvModule,
     EventTrackingModule,
     BloomFilterModule,
+    NotificationModule,
+    AIServicesModule,
   ],
-  providers: [JobUseCases],
-  exports: [JobUseCases],
+  providers: [
+    JobUseCases,
+    JobCopilotUseCase,
+    JobCopilotDraftUseCase,
+    CandidateBriefUseCase,
+  ],
+  exports: [
+    JobUseCases,
+    JobCopilotUseCase,
+    JobCopilotDraftUseCase,
+    CandidateBriefUseCase,
+  ],
 })
 export class JobUseCasesModule {}

@@ -61,7 +61,6 @@ export function formatWorkerErrorLog(
 ): string {
   return formatTrackedErrorLog({
     worker,
-    requestId: getRequestId() || resolveJobRequestId(job),
     queue: job.queueName,
     jobId: job.id,
     jobName: job.name,
@@ -73,7 +72,6 @@ export function formatWorkerErrorLog(
 
 export function formatTrackedErrorLog(params: {
   worker: string;
-  requestId?: string;
   queue?: string;
   jobId?: string | number;
   jobName?: string;
@@ -81,10 +79,8 @@ export function formatTrackedErrorLog(params: {
   data?: unknown;
   error: unknown;
 }): string {
-  const requestId = params.requestId || getRequestId() || "-";
   const err = params.error as Error & { cause?: unknown };
   const payload = {
-    requestId,
     worker: params.worker,
     queue: params.queue,
     jobId: params.jobId,
@@ -108,5 +104,6 @@ export function formatTrackedErrorLog(params: {
       : {}),
   };
 
-  return `[${params.worker}] job=${params.jobName ?? "-"}/${params.jobId ?? "-"} failed: ${payload.message} | ${JSON.stringify(payload)}`;
+  const prefix = params.jobName ?? params.worker;
+  return `[${prefix}] Task ${params.jobId ?? "-"} failed: ${payload.message} | ${JSON.stringify(payload)}`;
 }

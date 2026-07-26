@@ -10,6 +10,8 @@ import {
   feedbacks,
   jobProvinces,
   jobs,
+  jobCopilotDrafts,
+  candidateBriefs,
   notifications,
   organizationInvitations,
   organizationLocations,
@@ -55,6 +57,9 @@ export * from "./email.entity";
 export * from "./enum.entity";
 export * from "./feedback.entity";
 export * from "./job.entity";
+export * from "./job-copilot.entity";
+export * from "./job-copilot-draft.entity";
+export * from "./candidate-brief.entity";
 export * from "./learning-path.entity";
 export * from "./organization.entity";
 export * from "./otp.entity";
@@ -73,6 +78,9 @@ export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
   questions?: string[];
 };
+
+export type NewJobCopilotDraft = InferInsertModel<typeof jobCopilotDrafts>;
+export type NewCandidateBrief = InferInsertModel<typeof candidateBriefs>;
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
@@ -125,6 +133,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
+    displayLanguage?: string | null;
     task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
     sender?: {
       name?: string | null;
@@ -159,6 +168,8 @@ export type OrganizationWithDetails = Organization & {
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
   locations?: OrganizationLocation[];
+  activeJobsCount?: number;
+  totalMembersCount?: number;
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {

@@ -1,24 +1,24 @@
+import { Environment } from "@/common/config";
+import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import {
+  BadRequestException,
   Body,
   Controller,
   Post,
-  Res,
   Req,
-  BadRequestException,
+  Res,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { ApiBody, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { type FastifyReply, type FastifyRequest } from "fastify";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import {
-  LoginRequestDto,
-  ApiResponse,
-  LoginResponseDto,
-  ApiResponseDto,
   AccessTokenResponseDto,
+  ApiResponse,
+  ApiResponseDto,
+  LoginRequestDto,
+  LoginResponseDto,
 } from "../../dtos";
-import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
-import { type FastifyRequest, type FastifyReply } from "fastify";
-import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
-import { ConfigService } from "@nestjs/config";
-import { Environment } from "@/common/config";
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
@@ -50,6 +50,12 @@ export class AuthController {
         message: "Login failed",
       });
 
+    const refreshExpiresInDays =
+      this.configService.get<number>("REFRESH_EXPIRES_IN")!;
+    const cookieMaxAge = loginDto.rememberMe
+      ? refreshExpiresInDays * 24 * 60 * 60 // seconds
+      : undefined; // session cookie
+
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,
       secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Set to true in production with HTTPS
@@ -59,6 +65,7 @@ export class AuthController {
           : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically in dev
+      ...(cookieMaxAge !== undefined && { maxAge: cookieMaxAge }),
     });
 
     return {

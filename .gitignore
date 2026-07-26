@@ -73,3 +73,6 @@ crawl_jobs/skills/
 /blog-crawler/.env
 
 /test/load-test
+
+.env.dev
+.env.prod

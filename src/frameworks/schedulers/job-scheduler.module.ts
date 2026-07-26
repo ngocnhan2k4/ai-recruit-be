@@ -22,6 +22,7 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
 import { ActivityLogWorker } from "./activity-log.worker";
 import { TranslationModule } from "@/frameworks/translation/translation.module";
+import { NotificationModule } from "@/frameworks/notification/notification.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TranslationModule } from "@/frameworks/translation/translation.module";
     UserUseCasesModule,
     RedisModule,
     TranslationModule,
+    NotificationModule,
   ],
   providers: [
     JobMatchingScheduler,

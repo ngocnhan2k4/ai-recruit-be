@@ -6,6 +6,8 @@ export * from "./school-repository.abstract";
 export * from "./province-repository.abstract";
 export * from "./generic-repository.abstract";
 export * from "./job-repository.abstract";
+export * from "./job-copilot-draft-repository.abstract";
+export * from "./candidate-brief-repository.abstract";
 export * from "./user-repository.abstract";
 export * from "./user-experience-repository.abstract";
 export * from "./user-skill-repository.abstract";

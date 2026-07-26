@@ -6,11 +6,17 @@ import {
   TRANSLATION_SUPPORTED_LANGUAGES,
 } from "@/common/constants";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { getRequestLanguage } from "@/common/utils";
+import {
+  getExplicitRequestLanguage,
+  inferSupportedLanguageFromText,
+  normalizeLanguageCode,
+} from "@/common/utils";
 
 export interface ImportRow {
   skill?: string;
   skillId?: string;
+  sourceLanguage?: string;
+  languageCode?: string;
   questionText: string;
   options: string | string[];
   correctAnswer: string;
@@ -49,10 +55,12 @@ export class QuestionImportService {
   private async processImport(rows: ImportRow[]): Promise<ImportResultDto> {
     const errors: string[] = [];
     const validQuestions: Partial<Question>[] = [];
+    const validQuestionSourceLanguages: string[] = [];
     let successCount = 0;
 
     // Cache for skills
     const skillCache = new Map<string, string>();
+    const batchSeen = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const rowNum = i + 2; // +2 because of 0-index and header
@@ -168,6 +176,29 @@ export class QuestionImportService {
           continue;
         }
 
+        // Prevent duplicate questions (case-insensitive & trimmed)
+        const normalizedText = row.questionText.trim().toLowerCase();
+        const batchKey = `${skillId}_${normalizedText}`;
+        if (batchSeen.has(batchKey)) {
+          errors.push(
+            `Row ${rowNum}: Question already exists in this import batch`,
+          );
+          continue;
+        }
+
+        const isDbDuplicate = await this.questionRepo.checkDuplicate(
+          skillId,
+          row.questionText,
+        );
+        if (isDbDuplicate) {
+          errors.push(
+            `Row ${rowNum}: Question already exists in the database for this skill`,
+          );
+          continue;
+        }
+
+        batchSeen.add(batchKey);
+
         validQuestions.push({
           skillId,
           questionText: row.questionText,
@@ -184,6 +215,9 @@ export class QuestionImportService {
           )[],
           isActive: true,
         });
+        validQuestionSourceLanguages.push(
+          this.resolveQuestionSourceLanguage(row),
+        );
         successCount++;
       } catch (error) {
         errors.push(`Row ${rowNum}: ${error.message}`);
@@ -192,24 +226,27 @@ export class QuestionImportService {
 
     // Bulk insert valid questions
     if (validQuestions.length > 0) {
-      const sourceLanguage = getRequestLanguage();
-      const targetLanguages = [...TRANSLATION_SUPPORTED_LANGUAGES];
       const createdQuestions =
         await this.questionRepo.createMany(validQuestions);
-      if (targetLanguages.length) {
-        await Promise.all(
-          createdQuestions.map((question) =>
-            this.messageQueueService.addTranslation(
-              TranslationJobType.QUESTION,
-              {
-                questionId: question.id,
-                sourceLanguage,
-                targetLanguages,
-              },
-            ),
-          ),
-        );
-      }
+      await Promise.all(
+        createdQuestions.map((question, index) => {
+          const sourceLanguage = validQuestionSourceLanguages[index] ?? "vi";
+          const targetLanguages = TRANSLATION_SUPPORTED_LANGUAGES.filter(
+            (language) => language !== sourceLanguage,
+          );
+          if (!targetLanguages.length) {
+            return Promise.resolve();
+          }
+          return this.messageQueueService.addTranslation(
+            TranslationJobType.QUESTION,
+            {
+              questionId: question.id,
+              sourceLanguage,
+              targetLanguages,
+            },
+          );
+        }),
+      );
     }
 
     return {
@@ -240,5 +277,14 @@ export class QuestionImportService {
 
     result.push(current);
     return result;
+  }
+
+  private resolveQuestionSourceLanguage(row: ImportRow): "vi" | "en" {
+    return normalizeLanguageCode(
+      row.sourceLanguage ??
+        row.languageCode ??
+        getExplicitRequestLanguage() ??
+        inferSupportedLanguageFromText(row.questionText),
+    ) as "vi" | "en";
   }
 }

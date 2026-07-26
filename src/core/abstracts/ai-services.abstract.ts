@@ -18,8 +18,24 @@ import {
 } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
+import {
+  JobCopilotRequest,
+  JobCopilotResponse,
+} from "../entities/job-copilot.entity";
+import type {
+  CandidateBriefAiRequest,
+  CandidateBriefAnalysis,
+} from "../entities/candidate-brief.entity";
 
 export abstract class IAIService {
+  abstract runCandidateBrief(
+    request: CandidateBriefAiRequest,
+  ): Promise<CandidateBriefAnalysis>;
+
+  abstract runJobCopilot(
+    request: JobCopilotRequest,
+  ): Promise<JobCopilotResponse>;
+
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Observable<MessageEvent>;

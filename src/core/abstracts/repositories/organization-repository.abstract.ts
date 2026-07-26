@@ -1,21 +1,23 @@
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { IGenericRepository } from "./generic-repository.abstract";
 import {
   NewOrganizationWithDetails,
-  OrganizationTypeEnum,
-  OrganizationWithDetails,
-} from "@/core";
-import {
   OrganizationQuery,
   OrganizationTrends,
   OrganizationTrendsQuery,
+  OrganizationTypeEnum,
+  OrganizationWithDetails,
 } from "@/core";
 import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
+import { IGenericRepository } from "./generic-repository.abstract";
 
 export abstract class IOrganizationRepository extends IGenericRepository<OrganizationWithDetails> {
   abstract getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null>;
+
+  abstract getOrganizationOverviewStats(
+    id: string,
+  ): Promise<{ activeJobsCount: number; totalMembersCount: number }>;
 
   abstract getOrganizations(
     query: OrganizationQuery,
@@ -81,6 +83,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     data: Partial<OrganizationWithDetails>,
     tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails>;
+
+  abstract invalidateCache(id: string): Promise<void>;
 
   abstract getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
