@@ -20,6 +20,7 @@ import {
   getFirebaseProviderKey,
   normalizeProvider,
 } from "@/common/utils/firebase";
+import { setAuditContext } from "@/common/audit/set-audit-context";
 import { IOrganizationRepository, UserOnboarding, UserSkill } from "@/core";
 import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
 import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
@@ -394,6 +395,11 @@ export class UserUseCases implements OnModuleInit {
         });
     }
 
+    setAuditContext({
+      targetId: user.id,
+      data: { provider },
+    });
+
     await this.userRepository.softDeleteUserIdentity(
       user.id,
       provider,
@@ -439,6 +445,18 @@ export class UserUseCases implements OnModuleInit {
     const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
     const profiles = await this.authService.getUserProviderProfiles(decode.uid);
     const profile = profiles.find((p) => p.providerId === firebaseProviderKey);
+
+    setAuditContext({
+      targetId: userId,
+      data: {
+        provider: currentProvider,
+        updated: {
+          provider: currentProvider,
+          providerEmail: profile?.email ?? null,
+          providerName: profile?.name ?? null,
+        },
+      },
+    });
 
     await this.userRepository.addUserIdentity({
       userId,
@@ -586,6 +604,22 @@ export class UserUseCases implements OnModuleInit {
     };
 
     const updatedUser = normalizedUserUpdateData;
+
+    setAuditContext({
+      targetId: userId,
+      data: {
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+        bio: user.bio,
+        gender: user.gender,
+        dob: user.dob,
+        address: user.address,
+        preferredLanguage: user.preferredLanguage,
+        onboardingCompleted: user.onboardingCompleted,
+      },
+    });
 
     try {
       // Update user profile
@@ -806,6 +840,10 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    setAuditContext({
+      targetId: userId,
+    });
+
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -818,7 +856,31 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const [existingExperience] = await this.userExperienceRepository.getByField(
+      { userId, id },
+    );
+    if (!existingExperience) {
+      throw new NotFoundException({
+        message: "User experience not found",
+        code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
+      });
+    }
+
     const languageCode = getRequestLanguage();
+
+    setAuditContext({
+      targetId: userId,
+      data: {
+        experienceId: id,
+        position: existingExperience.position,
+        jobTitle: existingExperience.jobTitle,
+        description: existingExperience.description,
+        startDate: existingExperience.startDate,
+        endDate: existingExperience.endDate,
+        organizationId: existingExperience.organizationId,
+      },
+    });
+
     const result =
       await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
@@ -847,6 +909,23 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     id: number,
   ): Promise<ApiResponse<number>> {
+    const [existingExperience] = await this.userExperienceRepository.getByField(
+      { userId, id },
+    );
+    if (!existingExperience) {
+      throw new NotFoundException({
+        message: "[deleteUserExperience] - [delete] User experience not found",
+        code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
+      });
+    }
+
+    setAuditContext({
+      targetId: userId,
+      data: {
+        experienceId: id,
+      },
+    });
+
     const result =
       await this.userExperienceRepository.deleteUserExperienceAndUserSkills(
         userId,
@@ -899,6 +978,10 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    setAuditContext({
+      targetId: userId,
+    });
+
     return {
       message: "User skill created successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -915,6 +998,10 @@ export class UserUseCases implements OnModuleInit {
       organizationId: string | null;
     }>
   > {
+    setAuditContext({
+      targetId: userId,
+    });
+
     const result = await this.userSkillRepository.deletePermanently({
       userId,
       skillId,
@@ -925,6 +1012,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
+
     return {
       message: "User skill deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -956,6 +1044,25 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
+
+    const previousUrl =
+      type === TypeAvatar.AVATAR ? user.avatarUrl : user.bannerUrl;
+    const newUrl = result.secure_url;
+
+    setAuditContext({
+      targetId: userId,
+      data:
+        type === TypeAvatar.AVATAR
+          ? {
+              avatarUrl: previousUrl,
+              updated: { avatarUrl: newUrl },
+            }
+          : {
+              bannerUrl: previousUrl,
+              updated: { bannerUrl: newUrl },
+            },
+    });
+
     const updatedUser = {
       ...user,
       ...(type === TypeAvatar.AVATAR
@@ -1061,6 +1168,16 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    setAuditContext({
+      targetId: userId,
+      data: {
+        name: user.name,
+        gender: user.gender,
+        dob: user.dob,
+        onboardingCompleted: user.onboardingCompleted,
+      },
+    });
+
     await this.userOnboardingRepository.createOnboardingForUser(
       userId,
       { ...newOnboarding } as UserOnboarding,
@@ -1071,6 +1188,7 @@ export class UserUseCases implements OnModuleInit {
         onboardingCompleted: true,
       },
     );
+
     return {
       message: "User onboarding completed successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1215,6 +1333,13 @@ export class UserUseCases implements OnModuleInit {
       };
     }
 
+    setAuditContext({
+      targetId: userId,
+      data: {
+        roles: user.roles,
+      },
+    });
+
     if (Object.keys(updateUserClaims).length > 0) {
       await this.authService.updateUserClaims(
         user.firebaseUid!,
@@ -1270,6 +1395,7 @@ export class UserUseCases implements OnModuleInit {
       roles: rolesToUpdate as RoleEnum[],
       otherProviders,
     });
+
     return {
       message: "User updated successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1285,6 +1411,11 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_NOT_FOUND,
       });
     }
+
+    setAuditContext({
+      targetId: userId,
+      data: { name: user.name, username: user.username },
+    });
 
     await this.finalizeUserDeletion(userId);
 
@@ -1355,6 +1486,10 @@ export class UserUseCases implements OnModuleInit {
         : getRequestLanguage(),
     });
 
+    setAuditContext({
+      targetId: userId,
+    });
+
     return {
       data: {
         schoolId: newEducation.schoolId,
@@ -1389,6 +1524,21 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
       });
     }
+
+    const existingEducation = userEducation[0];
+
+    setAuditContext({
+      targetId: userId,
+      data: {
+        schoolId: existingEducation.schoolId,
+        startDate: existingEducation.startDate,
+        endDate: existingEducation.endDate,
+        description: existingEducation.description,
+        educationLevel: existingEducation.educationLevel,
+        major: existingEducation.major,
+        gpa: existingEducation.gpa,
+      },
+    });
 
     const updatedEducation = {
       ...userEducation,
@@ -1443,8 +1593,16 @@ export class UserUseCases implements OnModuleInit {
       });
     }
 
+    const existingEducation = userEducation[0];
+    setAuditContext({
+      targetId: userId,
+      data: {
+        educationId: existingEducation.id,
+      },
+    });
+
     const result = await this.userEducationRepository.deletePermanently({
-      id: userEducation[0].id,
+      id: existingEducation.id,
     });
     if (result.length === 0) {
       throw new NotFoundException({
@@ -1452,6 +1610,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EDUCATION_NOT_FOUND,
       });
     }
+
     return {
       message: "User education deleted successfully",
       code: RESPONSE_CODE.SUCCESS,
@@ -1482,6 +1641,10 @@ export class UserUseCases implements OnModuleInit {
 
     const deletionRequestedAt = new Date();
     const purgeAfterAt = addDays(deletionRequestedAt, timeToDeleteAccount);
+
+    setAuditContext({
+      targetId: userId,
+    });
 
     await this.userRepository.executeWithTransaction(async (tx) => {
       await this.authRepository.revokeAllForUser(userId);
@@ -1519,6 +1682,10 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
+
+    setAuditContext({
+      targetId: userId,
+    });
 
     await this.userRepository.update(
       { id: userId },

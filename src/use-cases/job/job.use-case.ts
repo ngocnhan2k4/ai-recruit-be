@@ -78,6 +78,7 @@ import {
   StatisticsJobFilter,
 } from "@/core";
 import { convertDateToStr, getJobStatus } from "@/common/utils";
+import { setAuditContext } from "@/common/audit/set-audit-context";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResult, TokenPayload } from "@/common/types";
@@ -750,6 +751,16 @@ export class JobUseCases {
       });
     }
 
+    setAuditContext({
+      targetId: job.id,
+      data: {
+        title: job.title,
+        applicationId: repoResult.id,
+        cvId: applyJobDto.cvId,
+        answers: applyJobDto.answers,
+      },
+    });
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -913,6 +924,17 @@ export class JobUseCases {
       });
     }
 
+    setAuditContext({
+      targetId: applyData.jobId,
+      data: {
+        applicationId: applyId,
+        status: applyData.status,
+        cvId: applyData.cv?.id,
+        answers: applyData.answers,
+        updated: dataUpdated,
+      },
+    });
+
     const repoResult = await this.jobRepository.updateApplyJob(
       applyId,
       dataUpdated,
@@ -1061,6 +1083,10 @@ export class JobUseCases {
 
     this.logger.log(`User ${userId} ${status} job ${jobId}`);
 
+    setAuditContext({
+      targetId: jobId,
+    });
+
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
@@ -1182,6 +1208,10 @@ export class JobUseCases {
     };
 
     this.logger.log(`Created job ${newJob.id}: ${newJob.title}`);
+    setAuditContext({
+      targetId: newJob.id,
+      organizationId: newJob.organizationId,
+    });
     this.messageQueueService
       .addJob(
         JobEventType.UPSERT_JOB,
@@ -1478,6 +1508,23 @@ export class JobUseCases {
       ? await this.userRepository.get(senderUserId)
       : null;
 
+    setAuditContext({
+      targetId: jobId,
+      organizationId: currentJob.job.organizationId,
+      data: {
+        title: currentJob.job.title,
+        status: currentJob.job.status,
+        salaryMin: currentJob.job.salaryMin,
+        salaryMax: currentJob.job.salaryMax,
+        workType: currentJob.job.workType,
+        categoryId: currentJob.job.categoryId,
+        experienceMin: currentJob.job.experienceMin,
+        experienceMax: currentJob.job.experienceMax,
+        recruitCount: currentJob.job.recruitCount,
+        updated: updateJobDto,
+      },
+    });
+
     // Step 4: update job in DB, create notifications if needed
     const { job: updatedJob, newNotifications } =
       await this.jobRepository.executeWithTransaction(async () => {
@@ -1563,6 +1610,23 @@ export class JobUseCases {
     }));
 
     const sender = await this.userRepository.get(user.userId);
+
+    setAuditContext({
+      targetId: jobId,
+      organizationId: currentJob.job.organizationId,
+      data: {
+        title: currentJob.job.title,
+        status: currentJob.job.status,
+        salaryMin: currentJob.job.salaryMin,
+        salaryMax: currentJob.job.salaryMax,
+        workType: currentJob.job.workType,
+        categoryId: currentJob.job.categoryId,
+        experienceMin: currentJob.job.experienceMin,
+        experienceMax: currentJob.job.experienceMax,
+        recruitCount: currentJob.job.recruitCount,
+        updated: updateJobDto,
+      },
+    });
 
     // Step 3: update job in DB, create notifications for org members about status change
     const { job: updatedJob, notifications } =
@@ -1669,6 +1733,11 @@ export class JobUseCases {
         });
       }
     }
+
+    setAuditContext({
+      targetId: jobId,
+      organizationId: existingJob.organizationId,
+    });
 
     const deleted = await this.jobRepository.delete({ id: jobId });
     if (!deleted) {
