@@ -6,9 +6,10 @@ import {
 } from "@nestjs/common";
 import { tap } from "rxjs/internal/operators/tap";
 import { ConfigService } from "@nestjs/config";
+import { randomUUID } from "crypto";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { getContext } from "../stores/context.store";
-import { includesPath, objectTypeMap } from "./object";
+import { CONTEXT_KEYS, getContext } from "@/common/stores/context.store";
+import { matchAuditRoute } from "./object";
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -21,31 +22,63 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         const req = context.switchToHttp().getRequest();
+        const method = ((req.method as string) || "GET").toUpperCase();
 
-        if (!this.shouldAudit(req.url)) return;
+        const pathname = this.getPathname(req.url as string);
+        const appPrefix = this.configService.get<string>("GLOBAL_PREFIX")!;
+        const pathWithoutPrefix = this.stripPrefix(pathname, appPrefix);
 
-        const data = getContext("data");
-        const objectIds = getContext("objectIds") || [];
-        const objectType = objectTypeMap[req.url];
+        const match = matchAuditRoute(pathWithoutPrefix, method);
+        if (!match) {
+          return;
+        }
 
-        if (!objectType) {
+        const createdBy =
+          (req.user?.userId as string | undefined) ??
+          (req.user?.id as string | undefined) ??
+          null;
+
+        if (!createdBy) {
           console.warn(
-            `[AuditInterceptor] [intercept] No object type found for path: ${req.url}`,
+            `[AuditInterceptor] Missing createdBy for ${method} ${pathWithoutPrefix}`,
           );
           return;
         }
 
+        const targetId =
+          (getContext(CONTEXT_KEYS.AUDIT_TARGET_ID) as string | null) ?? null;
+        const organizationId =
+          (getContext(CONTEXT_KEYS.AUDIT_ORGANIZATION_ID) as string | null) ??
+          null;
+        const data =
+          (getContext(CONTEXT_KEYS.AUDIT_DATA) as
+            | Record<string, unknown>
+            | undefined) ?? {};
+
+        const params = (req.params || {}) as Record<string, unknown>;
+        const query = (req.query || {}) as Record<string, unknown>;
+
+        const payload = {
+          id: randomUUID(),
+          createdBy,
+          organizationId,
+          action: match.action,
+          metadata: {
+            request: {
+              params,
+              query,
+              body: req.body || {},
+            },
+            current: data,
+          },
+          targetId,
+          targetType: match.targetType,
+          visibility: match.visibility,
+          createdAt: new Date(),
+        };
+
         this.messageQueueService
-          .addActivityLog("http_request", {
-            method: req.method,
-            url: req.url,
-            userId: req.user?.userId,
-            createdAt: new Date(),
-            data: data,
-            objectIds,
-            request: { params: req.params, query: req.query, body: req.body },
-            objectType: objectType,
-          })
+          .addActivityLog("http_request", payload)
           .catch((err) => {
             console.error(
               "[AuditInterceptor] [addActivityLog] Failed to add activity log",
@@ -56,17 +89,15 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 
-  private shouldAudit(path: string): boolean {
-    const pathname = path.split("?")[0];
+  private getPathname(url: string): string {
+    return (url || "").split("?")[0];
+  }
 
-    const appPrefix = this.configService.get<string>("GLOBAL_PREFIX")!;
-
-    return includesPath.some((p) => {
-      const pattern = `${appPrefix}${p}`.replace(/:[^/]+/g, "[^/]+");
-
-      const regex = new RegExp(`^${pattern}/?$`);
-
-      return regex.test(pathname);
-    });
+  private stripPrefix(pathname: string, prefix: string): string {
+    if (pathname.startsWith(prefix)) {
+      const stripped = pathname.slice(prefix.length);
+      return stripped.startsWith("/") ? stripped : `/${stripped}`;
+    }
+    return pathname.startsWith("/") ? pathname : `/${pathname}`;
   }
 }

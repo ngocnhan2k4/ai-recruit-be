@@ -2,13 +2,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   CreateTrackingEventRequestDto,
   EventTypeEnum,
-  ObjectTypeEnum,
 } from "../../interfaces/dtos/event-tracking/event-tracking.dto";
 import { RedisService } from "@/frameworks/redis/redis.service";
 import { ConfigService } from "@nestjs/config";
 import { ISearchService } from "@/core/abstracts";
 import { Environment } from "@/common/config";
 import { getEventTrackingIndexMapping } from "@/frameworks/data-services/elasticsearch/indices/event-tracking.index";
+import { ObjectType } from "@/core";
 
 export interface UserPreferenceProfile {
   lastCategories?: string[];
@@ -49,7 +49,7 @@ export class EventTrackingService {
     const userId = dto.userId;
     if (!userId) return;
 
-    if (dto.objectType === ObjectTypeEnum.JOB) {
+    if (dto.objectType === ObjectType.JOB) {
       await this.trackJobInteraction(dto);
     }
 

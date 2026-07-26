@@ -110,6 +110,8 @@ import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.mod
 import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
 import { HomeUseCasesModule } from "./use-cases/home/home-use-cases.module";
 import { HomeController } from "./interfaces/controllers/home/home.controller";
+import { AuditUseCasesModule } from "./use-cases/activity/activity.use-cases.module";
+import { AdminActivityController } from "./interfaces/controllers/activity/admin-activity.controller";
 
 @Module({
   imports: [
@@ -189,6 +191,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
     TaskUseCasesModule,
     EventTrackingModule,
     HomeUseCasesModule,
+    AuditUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -231,6 +234,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
     CommentController,
     TranslationController,
     TaskAdminController,
+    AdminActivityController,
   ],
   providers: [
     JwtStrategy,

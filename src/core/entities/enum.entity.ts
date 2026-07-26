@@ -249,6 +249,8 @@ export enum ExperienceLevelEnum {
 export enum ObjectType {
   BLOG = "BLOG",
   ORG = "ORG",
+  JOB = "JOB",
+  USER = "USER",
 }
 
 export enum UserActionType {

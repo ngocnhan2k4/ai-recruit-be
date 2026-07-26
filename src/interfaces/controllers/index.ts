@@ -58,3 +58,6 @@ export * from "./home/home.controller";
 
 // task controllers
 export * from "./task/task-admin.controller";
+
+// audit controllers
+export * from "./activity/admin-activity.controller";

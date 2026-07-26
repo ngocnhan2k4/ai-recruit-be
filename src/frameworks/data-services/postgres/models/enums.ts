@@ -191,7 +191,12 @@ export const BlogPostSourceTypeEnum = pgEnum("blog_post_source_type", [
 
 export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
 
-export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);
+export const ObjectTypeEnum = pgEnum("object_type", [
+  "BLOG",
+  "ORG",
+  "JOB",
+  "USER",
+]);
 
 export const ActivityActionEnum = pgEnum("activity_action", [
   "job_posted",

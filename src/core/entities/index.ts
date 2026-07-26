@@ -49,6 +49,7 @@ import {
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { OptimizedCvData } from "./ai-cv.entity";
 import { SchoolTypeEnum } from "./enum.entity";
+export * from "./activity";
 export * from "./ai-cv.entity";
 export * from "./blog.entity";
 export * from "./comment.entity";

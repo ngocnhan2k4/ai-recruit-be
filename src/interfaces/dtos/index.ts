@@ -23,3 +23,4 @@ export * from "./skill-synonym";
 export * from "./translation";
 export * from "./task";
 export * from "./home";
+export * from "./activity";
