@@ -4,6 +4,8 @@ export interface OptimizeAtsRequest {
   cvText: string;
   jobDescription?: string;
   language?: CvLanguageEnum;
+  /** Language for reasoning/recommendation text; defaults to `language` if omitted. Usually the frontend's current UI language. */
+  reasoningLanguage?: CvLanguageEnum;
 }
 
 export class CvSocialLink {
@@ -137,6 +139,10 @@ export interface CvFieldSuggestionRequest {
   targetField: string;
   fieldContext?: CvFieldContext | null;
   jobDescription?: string | null;
+  /** The CV's own content language; suggested text must be written in this language. */
+  cvLanguage?: CvLanguageEnum;
+  /** Language for the reasoning/explanation text; usually the frontend's current UI language. */
+  reasoningLanguage?: CvLanguageEnum;
 }
 
 export interface CvFieldSuggestionResponse {

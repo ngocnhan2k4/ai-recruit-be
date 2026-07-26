@@ -506,6 +506,10 @@ export class AiCvUseCases {
     const optimizeRequest: OptimizeAtsRequest = {
       cvText,
       language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      reasoningLanguage:
+        request.body.reasoningLanguage ||
+        request.body.language ||
+        CvLanguageEnum.VIETNAMESE,
       ...(request.body.jobDescription && {
         jobDescription: request.body.jobDescription,
       }),
@@ -687,6 +691,10 @@ export class AiCvUseCases {
     const optimizeRequest: OptimizeAtsRequest = {
       cvText,
       language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      reasoningLanguage:
+        request.body.reasoningLanguage ||
+        request.body.language ||
+        CvLanguageEnum.VIETNAMESE,
       ...(request.body.jobDescription && {
         jobDescription: request.body.jobDescription,
       }),

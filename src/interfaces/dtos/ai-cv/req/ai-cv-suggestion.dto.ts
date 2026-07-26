@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsEnum,
   IsIn,
   IsNotEmpty,
   IsObject,
@@ -8,6 +9,7 @@ import {
   IsString,
   ValidateNested,
 } from "class-validator";
+import { CvLanguageEnum } from "@/core";
 import { OptimizedCvDataDto } from "../res/ai-cv-base.dto";
 
 export class CvFieldContextDto {
@@ -87,6 +89,24 @@ export class CvFieldSuggestionRequestDto {
   @IsString()
   @IsOptional()
   jobDescription?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      "The CV's own content language; suggested text must be written in this language",
+    enum: CvLanguageEnum,
+  })
+  @IsEnum(CvLanguageEnum)
+  @IsOptional()
+  cvLanguage?: CvLanguageEnum;
+
+  @ApiPropertyOptional({
+    description:
+      "Language for the reasoning/explanation text (independent of cvLanguage); usually the frontend's current UI language",
+    enum: CvLanguageEnum,
+  })
+  @IsEnum(CvLanguageEnum)
+  @IsOptional()
+  reasoningLanguage?: CvLanguageEnum;
 }
 
 export class LogSuggestionDecisionDto {
