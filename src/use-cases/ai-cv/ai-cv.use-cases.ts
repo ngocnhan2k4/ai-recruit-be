@@ -1,6 +1,9 @@
-import { createHash } from "crypto";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { FileTextExtractor, userCvDataToText } from "@/common/utils";
+import {
+  FileTextExtractor,
+  userCvDataToText,
+  convertCvDataToAtsText,
+} from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
@@ -472,11 +475,6 @@ export class AiCvUseCases {
     };
   }
 
-  private hashCvData(aiCv: { cvData: unknown; editedCvData: unknown }): string {
-    const content = JSON.stringify(aiCv.editedCvData ?? aiCv.cvData);
-    return createHash("sha256").update(content).digest("hex");
-  }
-
   private async getOwnedAiCvOrThrow(aiCvId: string, userId: string) {
     const aiCv = await this.aiCvRepository.get(aiCvId);
     if (!aiCv || aiCv.userId !== userId) {
@@ -507,42 +505,13 @@ export class AiCvUseCases {
       };
     }
 
-    const currentHash = this.hashCvData(aiCv);
-    if (aiCv.newRawText && aiCv.newCvHash === currentHash) {
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: { rawText: aiCv.newRawText, cached: true },
-      };
-    }
+    const cvData = (aiCv.editedCvData ?? aiCv.cvData) as OptimizedCvDataDto;
+    const rawText = cvData ? convertCvDataToAtsText(cvData) : null;
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: { rawText: null, cached: false },
-    };
-  }
-
-  async regenerateOptimizedAtsRawText(
-    aiCvId: string,
-    userId: string,
-    html: string,
-  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
-    const aiCv = await this.getOwnedAiCvOrThrow(aiCvId, userId);
-
-    const pdfBuffer = await this.exportCvPdf({ html });
-    const rawText = await FileTextExtractor.extractFromPdf(pdfBuffer);
-    const newCvHash = this.hashCvData(aiCv);
-
-    await this.aiCvRepository.update(
-      { id: aiCvId },
-      { newRawText: rawText, newCvHash, updatedAt: new Date() },
-    );
-
-    return {
-      message: RESPONSE_MESSAGE.SUCCESS,
-      code: RESPONSE_CODE.SUCCESS,
-      data: { rawText, cached: true },
+      data: { rawText, available: rawText != null, cached: true },
     };
   }
 

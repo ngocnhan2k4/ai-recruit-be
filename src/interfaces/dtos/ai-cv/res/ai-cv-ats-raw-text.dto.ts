@@ -17,7 +17,7 @@ export class AtsRawTextResponseDto {
 
   @ApiProperty({
     description:
-      "Whether the returned rawText reflects the current CV content (optimized version only). false means the caller must POST rendered HTML to regenerate it.",
+      "Always true — kept for API compatibility. The ATS text is now generated directly from the CV's structured data on every request, so there is no cache-miss case.",
   })
   @IsBoolean()
   cached: boolean;

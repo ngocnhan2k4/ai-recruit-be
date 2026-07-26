@@ -15,7 +15,6 @@ import {
   CvFieldSuggestionResponseV2Dto,
   LogSuggestionDecisionDto,
   AtsRawTextResponseDto,
-  RegenerateAtsRawTextDto,
 } from "@/interfaces/dtos/ai-cv";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
@@ -165,7 +164,7 @@ export class AiCvController {
   @ApiOperation({
     summary: "View as ATS Bot: get raw extracted text",
     description:
-      "Returns the linear raw text an ATS parser would extract from the CV. For `version=optimized`, returns `cached: false` (no rawText) when the current CV content has changed since the last extraction — the caller must then POST rendered HTML to /ats-raw-text/optimized to regenerate it.",
+      "Returns the linear raw text an ATS parser would extract from the CV. For `version=optimized`, this is generated directly from the CV's structured data (no PDF rendering, always instant).",
   })
   @ApiParam({
     name: "id",
@@ -184,31 +183,6 @@ export class AiCvController {
       aiCvId,
       user.userId,
       version === "original" ? "original" : "optimized",
-    );
-  }
-
-  @Post(":id/ats-raw-text/optimized")
-  @ApiOperation({
-    summary: "View as ATS Bot: regenerate optimized CV raw text",
-    description:
-      "Renders the given HTML to PDF, extracts its raw text, caches it against a hash of the current CV content, and returns it.",
-  })
-  @ApiParam({
-    name: "id",
-    required: true,
-    description: "AI CV ID",
-    example: "uuid-ai-cv-id",
-  })
-  @ApiResponseDto(AtsRawTextResponseDto)
-  async regenerateOptimizedAtsRawText(
-    @Param("id") aiCvId: string,
-    @Body() body: RegenerateAtsRawTextDto,
-    @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
-    return await this.aiCvUseCases.regenerateOptimizedAtsRawText(
-      aiCvId,
-      user.userId,
-      body.html,
     );
   }
 
