@@ -7,7 +7,6 @@ import {
 import {
   ApiResponse,
   ApiResponseDto,
-  CandidateBriefViewDto,
   CreateJobDto,
   GenerateCandidateBriefDto,
   JobCandidateRecommendationDto,
@@ -19,6 +18,7 @@ import {
   SaveJobCopilotDraftDto,
   UpdateJobDto,
 } from "@/interfaces/dtos";
+import { CandidateBriefViewDto } from "@/interfaces/dtos/jobs/res/candidate-brief.dto";
 import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
 import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
 import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
