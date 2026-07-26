@@ -18,6 +18,10 @@ export abstract class ISkillRepository extends IGenericRepository<Skill> {
 
   abstract getSkillById(id: string): Promise<Pick<Skill, "name" | "id"> | null>;
 
+  abstract resolveApprovedSkillsByNames(
+    names: string[],
+  ): Promise<Pick<Skill, "id" | "name">[]>;
+
   abstract bulkReviewSkills(
     ids: string[],
     status: SkillReviewStatus,
