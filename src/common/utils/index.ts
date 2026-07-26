@@ -4,6 +4,7 @@ export * from "./handlebar";
 export * from "./firebase";
 export * from "./api";
 export * from "./file-text-extractor";
+export * from "./cv-data-to-ats-text";
 export * from "./calculate-week-number";
 export * from "./string";
 export * from "./user-profile";

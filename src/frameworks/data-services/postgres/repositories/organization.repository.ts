@@ -4,6 +4,7 @@ import type { Cache } from "cache-manager";
 import { SHORT_TTL, LONG_TTL, CACHE_KEYS } from "@/common/constants";
 import {
   IOrganizationRepository,
+  JobStatusEnum,
   NewOrganizationWithDetails,
   OrganizationTypeEnum,
   OrganizationWithDetails,
@@ -16,6 +17,7 @@ import {
 } from "../models/organization.model";
 import { companies } from "../models/company.model";
 import { schools } from "../models/school.model";
+import { jobs } from "../models/job.model";
 import { DBDrizzleTransaction, type DBDrizzle } from "../types";
 import { GenericRepository } from "./generic-repository";
 import {
@@ -31,6 +33,7 @@ import {
   sql,
   or,
   lt,
+  count,
   countDistinct,
   asc,
 } from "drizzle-orm";
@@ -208,6 +211,28 @@ export class OrganizationRepository
           .where(eq(organizationLocations.organizationId, id))
           .execute();
 
+        const [activeJobsRes, totalMembersRes] = await Promise.all([
+          this.db
+            .select({ count: count() })
+            .from(jobs)
+            .where(
+              and(
+                eq(jobs.organizationId, id),
+                isNull(jobs.deletedAt),
+                eq(jobs.status, JobStatusEnum.ACTIVE),
+              ),
+            ),
+          this.db
+            .select({ count: count() })
+            .from(organizationMembers)
+            .where(
+              and(
+                eq(organizationMembers.organizationId, id),
+                isNull(organizationMembers.deletedAt),
+              ),
+            ),
+        ]);
+
         const row = result[0];
 
         const mappedResult = {
@@ -218,6 +243,8 @@ export class OrganizationRepository
           culture: row.culture,
           schoolType: row.schoolType as SchoolTypeEnum,
           locations: locations,
+          activeJobsCount: Number(activeJobsRes[0]?.count ?? 0),
+          totalMembersCount: Number(totalMembersRes[0]?.count ?? 0),
         };
         return mappedResult;
       },
@@ -230,6 +257,50 @@ export class OrganizationRepository
       {
         logger: this.logger,
       },
+    );
+  }
+
+  async getOrganizationOverviewStats(
+    id: string,
+  ): Promise<{ activeJobsCount: number; totalMembersCount: number }> {
+    const cacheKey = CACHE_KEYS.organization.get(id) + ":overview-stats";
+    return cacheWithDedup(
+      cacheKey,
+      () =>
+        this.cacheManager.get<{
+          activeJobsCount: number;
+          totalMembersCount: number;
+        }>(cacheKey),
+      async () => {
+        const [activeJobsRes, totalMembersRes] = await Promise.all([
+          this.db
+            .select({ count: count() })
+            .from(jobs)
+            .where(
+              and(
+                eq(jobs.organizationId, id),
+                isNull(jobs.deletedAt),
+                eq(jobs.status, JobStatusEnum.ACTIVE),
+              ),
+            ),
+          this.db
+            .select({ count: count() })
+            .from(organizationMembers)
+            .where(
+              and(
+                eq(organizationMembers.organizationId, id),
+                isNull(organizationMembers.deletedAt),
+              ),
+            ),
+        ]);
+
+        return {
+          activeJobsCount: Number(activeJobsRes[0]?.count ?? 0),
+          totalMembersCount: Number(totalMembersRes[0]?.count ?? 0),
+        };
+      },
+      (data) => this.cacheManager.set(cacheKey, data, SHORT_TTL),
+      { logger: this.logger },
     );
   }
 

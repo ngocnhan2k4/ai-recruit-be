@@ -24,10 +24,12 @@ import {
   ExtractCvRequest,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
 } from "@/core";
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  CvFieldSuggestionResponseV2,
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
 } from "@/core";
@@ -42,6 +44,10 @@ import {
   JobCopilotRequest,
   JobCopilotResponse,
 } from "@/core/entities/job-copilot.entity";
+import type {
+  CandidateBriefAiRequest,
+  CandidateBriefAnalysis,
+} from "@/core/entities/candidate-brief.entity";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -75,6 +81,20 @@ export class AIClientService implements IAIService {
     if (this.configService.get<string>("OPENAI_API_KEY")) {
       this.openai.apiKey = this.configService.get<string>("OPENAI_API_KEY")!;
     }
+  }
+
+  async runCandidateBrief(
+    request: CandidateBriefAiRequest,
+  ): Promise<CandidateBriefAnalysis> {
+    const url = `${this.aiServiceUrl}/api/v1/candidate-brief`;
+
+    return this.postWithRetry<CandidateBriefAiRequest, CandidateBriefAnalysis>({
+      url,
+      body: request,
+      errorContext: "AI Service Candidate Brief generation failed",
+      timeoutMs: this.aiServiceTimeout * 2,
+      retryCount: 1,
+    });
   }
 
   async runJobCopilot(request: JobCopilotRequest): Promise<JobCopilotResponse> {
@@ -251,6 +271,19 @@ export class AIClientService implements IAIService {
     });
   }
 
+  // Optimize CV for ATS compatibility V2 (Explainable AI)
+  async optimizeCvAtsV2(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/optimize-cv-ats/v2`;
+
+    return this.postWithRetry<OptimizeAtsRequest, OptimizeAtsResponseV2>({
+      url,
+      body: request,
+      errorContext: "AI Service CV optimization V2 failed",
+    });
+  }
+
   // Suggest CV field value
   async suggestCvField(
     request: CvFieldSuggestionRequest,
@@ -268,6 +301,26 @@ export class AIClientService implements IAIService {
       url,
       body: request,
       errorContext: "AI Service CV field suggestion failed",
+    });
+  }
+
+  // Suggest CV field value (V2 - multiple reasoned candidates)
+  async suggestCvFieldV2(
+    request: CvFieldSuggestionRequest,
+  ): Promise<CvFieldSuggestionResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/suggest-cv/v2`;
+
+    this.logger.debug(
+      `Requesting CV field suggestion (v2) for: ${request.targetField}`,
+    );
+
+    return this.postWithRetry<
+      CvFieldSuggestionRequest,
+      CvFieldSuggestionResponseV2
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service CV field suggestion (v2) failed",
     });
   }
 

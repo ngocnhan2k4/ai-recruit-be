@@ -94,6 +94,18 @@ export class AdminExamController {
   }
 
   @ApiOperation({
+    summary: "Backfill question translations",
+    description:
+      "Re-enqueue translation jobs for existing questions missing their other-language translation (e.g. questions imported before translations existed, or whose translation job failed). Idempotent. Pass onlyActive=true to limit to active questions.",
+  })
+  @Post("questions/translations/backfill")
+  async backfillQuestionTranslations(@Query("onlyActive") onlyActive?: string) {
+    return this.examUseCases.backfillQuestionTranslations({
+      onlyActive: onlyActive === "true",
+    });
+  }
+
+  @ApiOperation({
     summary: "Update a question",
     description: "Update question details including difficulty levels array.",
   })
