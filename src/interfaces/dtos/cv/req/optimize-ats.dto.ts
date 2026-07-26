@@ -30,6 +30,16 @@ export class OptimizeAtsDto {
   @IsEnum(CvLanguageEnum)
   @IsOptional()
   language?: CvLanguageEnum;
+
+  @ApiProperty({
+    description:
+      "Language for recommendation/reasoning/score-breakdown text (independent of CV content language; usually the frontend's current UI language). Defaults to `language` if omitted.",
+    enum: CvLanguageEnum,
+    required: false,
+  })
+  @IsEnum(CvLanguageEnum)
+  @IsOptional()
+  reasoningLanguage?: CvLanguageEnum;
 }
 
 export class OptimizeAtsUploadDto {
