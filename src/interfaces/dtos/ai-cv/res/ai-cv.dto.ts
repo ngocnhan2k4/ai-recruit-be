@@ -106,6 +106,14 @@ export class AiCvDto {
   @IsOptional()
   originalCvFilename: string | null;
 
+  @ApiPropertyOptional({
+    example: "https://res.cloudinary.com/.../original.pdf",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  originalCvUrl?: string | null;
+
   @ApiProperty({ enum: CvLanguageEnum, example: "en" })
   language: CvLanguageEnum;
 

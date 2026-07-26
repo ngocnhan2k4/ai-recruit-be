@@ -6,6 +6,10 @@ export interface OptimizeAtsRequest {
   language?: CvLanguageEnum;
   /** Language for reasoning/recommendation text; defaults to `language` if omitted. Usually the frontend's current UI language. */
   reasoningLanguage?: CvLanguageEnum;
+  /** Cloudinary URL of the originally uploaded CV file, if any. */
+  originalCvUrl?: string;
+  /** Raw text extracted from the originally uploaded CV file, if any. */
+  oldRawText?: string;
 }
 
 export class CvSocialLink {

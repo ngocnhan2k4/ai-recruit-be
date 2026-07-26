@@ -44,6 +44,12 @@ export const aiCvs = pgTable(
     // Original Context
     jobDescription: text("job_description"),
     originalCvFilename: varchar("original_cv_filename", { length: 255 }),
+    originalCvUrl: text("original_cv_url"),
+    oldRawText: text("old_raw_text"),
+
+    // ATS Bot raw-text cache (optimized CV)
+    newRawText: text("new_raw_text"),
+    newCvHash: varchar("new_cv_hash", { length: 64 }),
 
     // Settings
     language: LanguageEnum("language").default("vi").notNull(),

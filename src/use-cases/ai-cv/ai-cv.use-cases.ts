@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { FileTextExtractor, userCvDataToText } from "@/common/utils";
 import {
@@ -30,6 +31,7 @@ import {
   OptimizedCvDataDto,
   UpdateAiCvDto,
   UpdateAiCvV2Dto,
+  AtsRawTextResponseDto,
 } from "@/interfaces/dtos";
 import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
@@ -40,6 +42,8 @@ import {
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { CV_FOLDER } from "@/common/constants";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
@@ -55,6 +59,7 @@ export class AiCvUseCases {
     private readonly notificationRepository: INotificationRepository,
     private readonly notificationService: INotificationService,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async exportCvPdf(request: GenerateCvPdfRequestDto): Promise<Buffer> {
@@ -467,6 +472,80 @@ export class AiCvUseCases {
     };
   }
 
+  private hashCvData(aiCv: { cvData: unknown; editedCvData: unknown }): string {
+    const content = JSON.stringify(aiCv.editedCvData ?? aiCv.cvData);
+    return createHash("sha256").update(content).digest("hex");
+  }
+
+  private async getOwnedAiCvOrThrow(aiCvId: string, userId: string) {
+    const aiCv = await this.aiCvRepository.get(aiCvId);
+    if (!aiCv || aiCv.userId !== userId) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+    return aiCv;
+  }
+
+  async getAtsRawText(
+    aiCvId: string,
+    userId: string,
+    version: "original" | "optimized",
+  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
+    const aiCv = await this.getOwnedAiCvOrThrow(aiCvId, userId);
+
+    if (version === "original") {
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+        data: {
+          rawText: aiCv.oldRawText ?? null,
+          available: aiCv.oldRawText != null,
+          cached: true,
+        },
+      };
+    }
+
+    const currentHash = this.hashCvData(aiCv);
+    if (aiCv.newRawText && aiCv.newCvHash === currentHash) {
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+        data: { rawText: aiCv.newRawText, cached: true },
+      };
+    }
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { rawText: null, cached: false },
+    };
+  }
+
+  async regenerateOptimizedAtsRawText(
+    aiCvId: string,
+    userId: string,
+    html: string,
+  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
+    const aiCv = await this.getOwnedAiCvOrThrow(aiCvId, userId);
+
+    const pdfBuffer = await this.exportCvPdf({ html });
+    const rawText = await FileTextExtractor.extractFromPdf(pdfBuffer);
+    const newCvHash = this.hashCvData(aiCv);
+
+    await this.aiCvRepository.update(
+      { id: aiCvId },
+      { newRawText: rawText, newCvHash, updatedAt: new Date() },
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { rawText, cached: true },
+    };
+  }
+
   async optimizeCvForAts(
     request: OptimizeAtsUploadDto,
     userId: string,
@@ -474,10 +553,23 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<{ taskId: string }>> {
     // Extract CV text before pushing to queue
     let cvText = "";
+    let originalCvUrl: string | undefined;
 
     if (request?.file) {
       cvText = await FileTextExtractor.extractText(request.file);
       this.logger.log(`Extracted ${cvText.length} chars from CV`);
+
+      try {
+        const uploadResult = await this.cloudinaryService.uploadFile(
+          request.file,
+          { folder: CV_FOLDER },
+        );
+        originalCvUrl = uploadResult?.secure_url;
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to upload original CV to Cloudinary: ${error.message}`,
+        );
+      }
     } else if (request?.cvText) {
       cvText = request.cvText;
     } else if (useUserCV) {
@@ -513,6 +605,8 @@ export class AiCvUseCases {
       ...(request.body.jobDescription && {
         jobDescription: request.body.jobDescription,
       }),
+      ...(originalCvUrl && { originalCvUrl }),
+      ...(request?.file && { oldRawText: cvText }),
     };
 
     const result = await this.taskRepository.executeWithTransaction(
@@ -659,10 +753,23 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<{ taskId: string }>> {
     // Extract CV text before pushing to queue
     let cvText = "";
+    let originalCvUrl: string | undefined;
 
     if (request?.file) {
       cvText = await FileTextExtractor.extractText(request.file);
       this.logger.log(`Extracted ${cvText.length} chars from CV`);
+
+      try {
+        const uploadResult = await this.cloudinaryService.uploadFile(
+          request.file,
+          { folder: CV_FOLDER },
+        );
+        originalCvUrl = uploadResult?.secure_url;
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to upload original CV to Cloudinary: ${error.message}`,
+        );
+      }
     } else if (request?.cvText) {
       cvText = request.cvText;
     } else if (useUserCV) {
@@ -698,6 +805,8 @@ export class AiCvUseCases {
       ...(request.body.jobDescription && {
         jobDescription: request.body.jobDescription,
       }),
+      ...(originalCvUrl && { originalCvUrl }),
+      ...(request?.file && { oldRawText: cvText }),
     };
 
     const result = await this.taskRepository.executeWithTransaction(

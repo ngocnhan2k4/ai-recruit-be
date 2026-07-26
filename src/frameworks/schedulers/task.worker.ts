@@ -934,6 +934,8 @@ export class TaskWorker extends WorkerHost {
           jobDescription: request.jobDescription || null,
           language: request.language || CvLanguageEnum.VIETNAMESE,
           isFavorite: false,
+          originalCvUrl: request.originalCvUrl ?? null,
+          oldRawText: request.oldRawText ?? null,
         };
 
         const savedCv = await this.aiCvRepository.create(aiCvData);
@@ -1010,6 +1012,8 @@ export class TaskWorker extends WorkerHost {
           jobDescription: request.jobDescription || null,
           language: request.language || CvLanguageEnum.VIETNAMESE,
           isFavorite: false,
+          originalCvUrl: request.originalCvUrl ?? null,
+          oldRawText: request.oldRawText ?? null,
         };
 
         const savedCv = await this.aiCvRepository.create(aiCvData);
