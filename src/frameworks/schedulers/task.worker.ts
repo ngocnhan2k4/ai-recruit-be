@@ -29,6 +29,7 @@ import {
   NewAiCv,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
   RoadmapGenerationStatusEnum,
   RoadmapSkillData,
   SkillOption,
@@ -87,6 +88,10 @@ export class TaskWorker extends WorkerHost {
 
       if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
         return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION_V2) {
+        return this.processOptimizeCvV2(job.data as TaskData, runOptions);
       }
 
       this.logger.warn(`[process] Unknown task job name: ${job.name}`);
@@ -929,12 +934,92 @@ export class TaskWorker extends WorkerHost {
           jobDescription: request.jobDescription || null,
           language: request.language || CvLanguageEnum.VIETNAMESE,
           isFavorite: false,
+          originalCvUrl: request.originalCvUrl ?? null,
+          oldRawText: request.oldRawText ?? null,
         };
 
         const savedCv = await this.aiCvRepository.create(aiCvData);
 
         this.logger.log(
           `[${TaskTypeEnum.CV_GENERATION}] Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+        );
+
+        return { data: result, aiCvId: savedCv.id };
+      },
+      options,
+    );
+  }
+
+  private async processOptimizeCvV2(
+    data: TaskData,
+    options?: { attemptsMade?: number; maxAttempts?: number },
+  ) {
+    return this.withTaskLifecycle(
+      data,
+      TaskTypeEnum.CV_GENERATION_V2,
+      {
+        inProgress: "Đang tối ưu CV của bạn...",
+        completed: "CV của bạn đã được tối ưu.",
+        failed:
+          options?.attemptsMade === options?.maxAttempts
+            ? "Đã gặp sự cố khi tối ưu CV, vui lòng thử lại sau."
+            : "Đang gặp sự cố khi tối ưu CV, hệ thống sẽ thử lại...",
+      },
+      async (task, request: OptimizeAtsRequest) => {
+        const result: OptimizeAtsResponseV2 =
+          await this.aiService.optimizeCvAtsV2(request);
+
+        const res = result as any;
+        const cvData = result.cvData || res.cv_data;
+        const originalAtsScore =
+          result.originalAtsScore ?? res.original_ats_score ?? null;
+        const originalScoreBreakdown =
+          result.originalScoreBreakdown || res.original_score_breakdown || null;
+        const atsScore = result.atsScore ?? res.ats_score ?? null;
+        const scoreBreakdown =
+          result.scoreBreakdown || res.score_breakdown || null;
+        const matchingSkills =
+          result.matchingSkills || res.matching_skills || [];
+        const missingSkills = result.missingSkills || res.missing_skills || [];
+        const rawOptimizations =
+          result.optimizationsApplied || res.optimizations_applied || [];
+
+        const optimizationsApplied = rawOptimizations.map((item: any) => ({
+          section: item.section,
+          action: item.action,
+          originalText: item.originalText ?? item.original_text ?? null,
+          optimizedText: item.optimizedText ?? item.optimized_text ?? null,
+          reasoning: item.reasoning,
+        }));
+
+        const title =
+          cvData?.targetJobTitle ||
+          `CV tối ưu - ${new Date().toLocaleDateString("vi-VN")}`;
+
+        const aiCvData: NewAiCv = {
+          userId: task.userId,
+          title,
+          targetJobTitle: cvData?.targetJobTitle || null,
+          cvData,
+          originalAtsScore,
+          originalScoreBreakdown,
+          atsScore,
+          scoreBreakdown,
+          matchingSkills,
+          missingSkills,
+          recommendation: result.recommendation || null,
+          optimizationsApplied,
+          jobDescription: request.jobDescription || null,
+          language: request.language || CvLanguageEnum.VIETNAMESE,
+          isFavorite: false,
+          originalCvUrl: request.originalCvUrl ?? null,
+          oldRawText: request.oldRawText ?? null,
+        };
+
+        const savedCv = await this.aiCvRepository.create(aiCvData);
+
+        this.logger.log(
+          `[${TaskTypeEnum.CV_GENERATION_V2}] Auto-saved optimized CV V2 ${savedCv.id} for user ${task.userId}`,
         );
 
         return { data: result, aiCvId: savedCv.id };

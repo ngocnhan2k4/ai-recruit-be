@@ -1,6 +1,13 @@
 import { ApiPropertyOptional, OmitType, PartialType } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsOptional, ValidateNested } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from "class-validator";
+import { CvTemplateEnum } from "@/core";
 import { AiCvRequestDto } from "./ai-cv.dto";
 import {
   CvCertificateDto,
@@ -25,4 +32,40 @@ export class UpdateAiCvDto extends PartialType(
   @Type(() => UpdateOptimizedCvDataDto)
   @IsOptional()
   cvData?: UpdateOptimizedCvDataDto;
+}
+
+export class UpdateAiCvV2Dto {
+  @ApiPropertyOptional({
+    type: UpdateOptimizedCvDataDto,
+    description: "The edited structured JSON data of the CV",
+  })
+  @ValidateNested()
+  @Type(() => UpdateOptimizedCvDataDto)
+  @IsOptional()
+  editedCvData?: UpdateOptimizedCvDataDto;
+
+  @ApiPropertyOptional({
+    example: "My Optimized CV for Backend Dev",
+    description: "The display title of the CV",
+  })
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @ApiPropertyOptional({
+    enum: CvTemplateEnum,
+    example: CvTemplateEnum.CLASSIC,
+    description: "CV template to use for rendering",
+  })
+  @IsEnum(CvTemplateEnum)
+  @IsOptional()
+  template?: CvTemplateEnum;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: "Whether to mark this CV as a favorite",
+  })
+  @IsBoolean()
+  @IsOptional()
+  isFavorite?: boolean;
 }

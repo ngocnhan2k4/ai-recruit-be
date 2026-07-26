@@ -174,6 +174,7 @@ export const TaskStatusEnum = pgEnum("task_status", [
 export const TaskTypeEnum = pgEnum("task_type", [
   "learning_path_generation",
   "cv_generation",
+  "cv_generation_v2",
 ]);
 
 export const BlogPostStatusEnum = pgEnum("blog_post_status", [
