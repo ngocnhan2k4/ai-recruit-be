@@ -24,8 +24,16 @@ import {
   JobCopilotRequest,
   JobCopilotResponse,
 } from "../entities/job-copilot.entity";
+import type {
+  CandidateBriefAiRequest,
+  CandidateBriefAnalysis,
+} from "../entities/candidate-brief.entity";
 
 export abstract class IAIService {
+  abstract runCandidateBrief(
+    request: CandidateBriefAiRequest,
+  ): Promise<CandidateBriefAnalysis>;
+
   abstract runJobCopilot(
     request: JobCopilotRequest,
   ): Promise<JobCopilotResponse>;
