@@ -31,10 +31,37 @@ export class AiCvDto {
   @IsOptional()
   targetJobTitle: string | null;
 
-  @ApiProperty({ type: OptimizedCvDataDto })
+  @ApiPropertyOptional({ type: OptimizedCvDataDto })
   @ValidateNested()
   @Type(() => OptimizedCvDataDto)
   cvData: OptimizedCvDataDto;
+
+  @ApiPropertyOptional({ type: OptimizedCvDataDto, nullable: true })
+  @ValidateNested()
+  @Type(() => OptimizedCvDataDto)
+  @IsOptional()
+  editedCvData?: OptimizedCvDataDto | null;
+
+  @ApiPropertyOptional({ example: 70, nullable: true })
+  @IsNumber()
+  @IsOptional()
+  originalAtsScore?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  originalScoreBreakdown?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  scoreBreakdown?: Record<string, any> | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  optimizationsApplied?: Record<string, any>[] | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  fieldSuggestionLogs?: Record<string, any>[] | null;
 
   @ApiPropertyOptional({ example: 85, nullable: true })
   @IsNumber()
@@ -78,6 +105,14 @@ export class AiCvDto {
   @IsString()
   @IsOptional()
   originalCvFilename: string | null;
+
+  @ApiPropertyOptional({
+    example: "https://res.cloudinary.com/.../original.pdf",
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  originalCvUrl?: string | null;
 
   @ApiProperty({ enum: CvLanguageEnum, example: "en" })
   language: CvLanguageEnum;

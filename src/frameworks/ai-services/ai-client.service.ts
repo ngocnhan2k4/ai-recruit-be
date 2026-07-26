@@ -24,10 +24,12 @@ import {
   ExtractCvRequest,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
 } from "@/core";
 import {
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  CvFieldSuggestionResponseV2,
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
 } from "@/core";
@@ -269,6 +271,19 @@ export class AIClientService implements IAIService {
     });
   }
 
+  // Optimize CV for ATS compatibility V2 (Explainable AI)
+  async optimizeCvAtsV2(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/optimize-cv-ats/v2`;
+
+    return this.postWithRetry<OptimizeAtsRequest, OptimizeAtsResponseV2>({
+      url,
+      body: request,
+      errorContext: "AI Service CV optimization V2 failed",
+    });
+  }
+
   // Suggest CV field value
   async suggestCvField(
     request: CvFieldSuggestionRequest,
@@ -286,6 +301,26 @@ export class AIClientService implements IAIService {
       url,
       body: request,
       errorContext: "AI Service CV field suggestion failed",
+    });
+  }
+
+  // Suggest CV field value (V2 - multiple reasoned candidates)
+  async suggestCvFieldV2(
+    request: CvFieldSuggestionRequest,
+  ): Promise<CvFieldSuggestionResponseV2> {
+    const url = `${this.aiServiceUrl}/api/v1/cv/suggest-cv/v2`;
+
+    this.logger.debug(
+      `Requesting CV field suggestion (v2) for: ${request.targetField}`,
+    );
+
+    return this.postWithRetry<
+      CvFieldSuggestionRequest,
+      CvFieldSuggestionResponseV2
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service CV field suggestion (v2) failed",
     });
   }
 
