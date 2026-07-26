@@ -58,6 +58,7 @@ export * from "./feedback.entity";
 export * from "./job.entity";
 export * from "./job-copilot.entity";
 export * from "./job-copilot-draft.entity";
+export * from "./job-salary-insight.entity";
 export * from "./learning-path.entity";
 export * from "./organization.entity";
 export * from "./otp.entity";

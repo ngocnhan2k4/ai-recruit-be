@@ -23,6 +23,7 @@ import {
   JobCopilotResponseDto,
   SaveJobCopilotDraftDto,
   JobCopilotDraftResponseDto,
+  JobSalaryInsightDto,
 } from "@/interfaces/dtos";
 import {
   JwtAuthGuard,
@@ -144,5 +145,20 @@ export class OrganizationJobController {
     @Param("orgId") orgId: string,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
+  }
+
+  @ApiOperation({
+    summary: "Get salary market insight for a job",
+    description:
+      "Query Elasticsearch for similar active jobs posted in the last 12 months and return the median salary range for market comparison.",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @ApiResponseDto(JobSalaryInsightDto)
+  @Get("jobs/:jobId/salary-insight")
+  async getSalaryInsight(
+    @Param("jobId") jobId: string,
+    @Param("orgId") orgId: string,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    return this.jobUseCases.getSalaryInsight(jobId, orgId);
   }
 }

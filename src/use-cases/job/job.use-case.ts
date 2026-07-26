@@ -1,95 +1,101 @@
 import {
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+  ROOM_NOTIFICATIONS,
+} from "@/common/constants";
+import {
+  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
+  RECOMMENDED_CV_MIN_MATCHING_SCORE,
+  RECOMMENDED_CV_SEARCH_POOL_MIN,
+  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+} from "@/common/constants/job-matching";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import { convertDateToStr, getJobStatus } from "@/common/utils";
+import {
+  ApplyJobFilters,
+  ApplyJobResponse,
+  ApplyStatusEnum,
+  Category,
+  FeatureCodeEnum,
+  GetAllUserResponse,
+  IFeatureService,
+  Job,
+  JobAnswer,
+  JobEventType,
+  JobFilters,
+  JobResponse,
+  JobStatusEnum,
+  Notification,
+  NotificationType,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  StatisticsJobFilter,
+  WorkTypeEnum,
+} from "@/core";
+import {
+  IBloomFilterService,
+  ICvRepository,
+  ICvSearchService,
+  ICvService,
+  IJobRepository,
+  IJobSearchService,
+  INotificationRepository,
+  IOrganizationRepository,
+  IUserRepository,
+} from "@/core/abstracts";
+import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
+import {
+  ApiResponse,
+  AppliedJobsResponseDto,
+  ApplyJobDto,
+  ApplyJobQueryDto,
+  ApplyJobResponseDto,
+  CompareStatisticsFilterRequestDto,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
+  CreateJobDto,
+  JobCandidateRecommendationDto,
+  JobCountsDto,
+  JobDto,
+  JobMatchResultDto,
+  JobResponseDto,
+  JobSalaryInsightDto,
+  JobTrendsQueryDto,
+  JobTrendsResponseDto,
+  OrganizationWithDetailsDto,
+  SavedJobsResponseDto,
+  StatisticsJobFilterRequestDto,
+  StatisticsJobResponse,
+  TopInMarketDtoResponse,
+  UpdateApplyJobDto,
+  UpdateJobDto,
+  UserInteractionResponseDto,
+} from "@/interfaces/dtos";
+import {
+  GeneralQueryDto,
+  PaginatedResultDto,
+} from "@/interfaces/dtos/common/query";
+import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
+import { MultipartFile } from "@fastify/multipart";
+import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  IJobRepository,
-  IOrganizationRepository,
-  IJobSearchService,
-  ICvRepository,
-  IUserRepository,
-  INotificationRepository,
-  ICvSearchService,
-  ICvService,
-  IBloomFilterService,
-} from "@/core/abstracts";
-import {
-  ApiResponse,
-  JobCandidateRecommendationDto,
-  JobCountsDto,
-  OrganizationWithDetailsDto,
-  StatisticsJobResponse,
-  TopInMarketDtoResponse,
-  CompareStatisticsResponseDto,
-  CompareTopInMarketResponseDto,
-  JobTrendsResponseDto,
-  JobTrendsQueryDto,
-  JobMatchResultDto,
-} from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import {
-  RECOMMENDED_CV_MIN_MATCHING_SCORE,
-  RECOMMENDED_CV_SEARCH_POOL_MIN,
-  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
-  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
-} from "@/common/constants/job-matching";
+import { ConfigService } from "@nestjs/config";
 import { Dictionary, isEqual, keyBy, omit } from "lodash";
-import {
-  StatisticsJobFilterRequestDto,
-  CompareStatisticsFilterRequestDto,
-  ApplyJobResponseDto,
-  UserInteractionResponseDto,
-  CreateJobDto,
-  UpdateJobDto,
-  ApplyJobDto,
-  UpdateApplyJobDto,
-  ApplyJobQueryDto,
-} from "@/interfaces/dtos";
-import {
-  Skill,
-  Job,
-  Province,
-  JobStatusEnum,
-  WorkTypeEnum,
-  OrganizationWithDetails,
-  Notification,
-  Category,
-  JobResponse,
-  NotificationType,
-  FeatureCodeEnum,
-  GetAllUserResponse,
-  JobAnswer,
-  ApplyStatusEnum,
-} from "@/core";
-import { BadRequestException } from "@nestjs/common";
-import {
-  JobDto,
-  SavedJobsResponseDto,
-  AppliedJobsResponseDto,
-  JobResponseDto,
-} from "@/interfaces/dtos";
-import {
-  ApplyJobResponse,
-  ApplyJobFilters,
-  JobEventType,
-  JobFilters,
-  StatisticsJobFilter,
-} from "@/core";
-import { convertDateToStr, getJobStatus } from "@/common/utils";
-import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult, TokenPayload } from "@/common/types";
-import { RoleEnum } from "@/common/constants";
-import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
-import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { IFeatureService } from "@/core";
-import { MultipartFile } from "@fastify/multipart";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
-import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
+import {
+  buildSalaryInsightDto,
+  DEFAULT_AT_MARKET_THRESHOLD_RATIO,
+  DEFAULT_MIN_SAMPLE_COUNT,
+} from "./job-salary-insight.helper";
 
 @Injectable()
 export class JobUseCases {
@@ -109,6 +115,7 @@ export class JobUseCases {
     private readonly cvService: ICvService,
     private readonly eventTrackingService: EventTrackingService,
     private readonly bloomFilterService: IBloomFilterService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getJobs(
@@ -1110,10 +1117,10 @@ export class JobUseCases {
       typeof createJobDto.experienceMax !== "undefined" &&
       createJobDto.experienceMin !== null &&
       createJobDto.experienceMax !== null &&
-      createJobDto.experienceMin >= createJobDto.experienceMax
+      createJobDto.experienceMin > createJobDto.experienceMax
     ) {
       throw new BadRequestException({
-        message: "experienceMin must be less than experienceMax",
+        message: "experienceMin must be less than or equal to experienceMax",
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
@@ -1224,16 +1231,16 @@ export class JobUseCases {
       });
     }
 
-    // Validate experience range on update (min < max)
+    // Validate experience range on update (min <= max)
     if (
       typeof updateJobDto.experienceMin !== "undefined" &&
       typeof updateJobDto.experienceMax !== "undefined" &&
       updateJobDto.experienceMin !== null &&
       updateJobDto.experienceMax !== null &&
-      updateJobDto.experienceMin >= updateJobDto.experienceMax
+      updateJobDto.experienceMin > updateJobDto.experienceMax
     ) {
       throw new BadRequestException({
-        message: "experienceMin must be less than experienceMax",
+        message: "experienceMin must be less than or equal to experienceMax",
         code: RESPONSE_CODE.INVALID_REQUEST,
       });
     }
@@ -1887,6 +1894,56 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: recommendations.slice(0, targetLimit),
+    };
+  }
+
+  async getSalaryInsight(
+    jobId: string,
+    orgId: string,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    const jobDetail = await this.jobRepository.getFullJobById(jobId);
+    if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
+        code: RESPONSE_CODE.JOB_NOT_FOUND,
+      });
+    }
+
+    if (jobDetail.job.organizationId !== orgId) {
+      throw new ForbiddenException({
+        message: "You do not have permission to access this job.",
+        code: RESPONSE_CODE.FORBIDDEN,
+      });
+    }
+
+    const { job, category } = jobDetail;
+    const agg = await this.jobSearchService.getSalaryInsight({
+      excludeJobId: jobId,
+      categoryId: category?.id ?? job.categoryId ?? undefined,
+      experienceMin: job.experienceMin ?? undefined,
+      experienceMax: job.experienceMax ?? undefined,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: buildSalaryInsightDto(
+        agg,
+        {
+          salaryMin: job.salaryMin != null ? Number(job.salaryMin) : null,
+          salaryMax: job.salaryMax != null ? Number(job.salaryMax) : null,
+        },
+        {
+          atMarketThresholdRatio: this.configService.get<number>(
+            "SALARY_INSIGHT_AT_MARKET_THRESHOLD_RATIO",
+            DEFAULT_AT_MARKET_THRESHOLD_RATIO,
+          ),
+          minSampleCount: this.configService.get<number>(
+            "SALARY_INSIGHT_MIN_SAMPLE_COUNT",
+            DEFAULT_MIN_SAMPLE_COUNT,
+          ),
+        },
+      ),
     };
   }
 
