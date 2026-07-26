@@ -56,6 +56,7 @@ export const RESPONSE_CODE = {
   APPLICATION_NOT_UPDATED: "APPLICATION_NOT_UPDATED",
   APPLICATION_NOT_FOUND: "APPLICATION_NOT_FOUND",
   ALREADY_APPLIED: "ALREADY_APPLIED",
+  CV_REQUIRED_FOR_JOB: "CV_REQUIRED_FOR_JOB",
 
   // --- Organization ---
   ORGANIZATION_NOT_FOUND: "ORGANIZATION_NOT_FOUND",
@@ -98,6 +99,7 @@ export const RESPONSE_CODE = {
   // --- Skills & learning path ---
   SKILL_NOT_FOUND: "SKILL_NOT_FOUND",
   ROADMAP_NOT_FOUND: "ROADMAP_NOT_FOUND",
+  ROADMAP_NOT_READY: "ROADMAP_NOT_READY",
   SKILL_NOT_FOUND_IN_ROADMAP: "SKILL_NOT_FOUND_IN_ROADMAP",
 
   // --- AI-generated CV ---
@@ -161,6 +163,8 @@ export const RESPONSE_MESSAGE = {
   // --- Job ---
   JOB_NOT_FOUND: "Job not found.",
   JOB_NOT_ACTIVE: "Only active jobs can be applied.",
+  CV_REQUIRED_FOR_JOB: "A CV is required to apply for this job.",
+  ALREADY_APPLIED: "You have already applied for this job.",
 
   // --- Organization ---
   ORGANIZATION_NOT_FOUND: "Organization not found.",

@@ -82,6 +82,8 @@ export abstract class IOrganizationRepository extends IGenericRepository<Organiz
     tx?: DBDrizzleTransaction,
   ): Promise<OrganizationWithDetails>;
 
+  abstract invalidateCache(id: string): Promise<void>;
+
   abstract getOrganizationsByTypes(
     types: OrganizationTypeEnum[],
   ): Promise<OrganizationWithDetails[]>;

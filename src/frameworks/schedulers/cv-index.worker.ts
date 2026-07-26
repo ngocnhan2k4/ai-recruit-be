@@ -3,7 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { CV_INDEX_QUEUE } from "@/common/constants";
-import { ICvService, ISearchService } from "@/core/abstracts";
+import {
+  ICvService,
+  ISearchService,
+  IUserOnboardingRepository,
+} from "@/core/abstracts";
 import { ICvRepository } from "@/core/abstracts";
 import { transformCvToDocument } from "@/frameworks/data-services/elasticsearch/indices/cv.index";
 import { CvEventType } from "@/core";
@@ -27,6 +31,7 @@ export class CvIndexWorker extends WorkerHost {
     private readonly configService: ConfigService,
     private readonly cvRepository: ICvRepository,
     private readonly cvService: ICvService,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {
     super();
   }
@@ -50,7 +55,7 @@ export class CvIndexWorker extends WorkerHost {
     data: CvIndexData,
   ): Promise<void> {
     const indexName = this.configService.get<string>(
-      "ELASTICSEARCH_INDEX_JOBS",
+      "ELASTICSEARCH_INDEX_CVS",
     )!;
 
     this.logger.log(
@@ -98,7 +103,10 @@ export class CvIndexWorker extends WorkerHost {
       return;
     }
 
-    const extractedData = await this.cvService.extractCv(cv);
+    const [extractedData, [onboarding]] = await Promise.all([
+      this.cvService.extractCv(cv),
+      this.userOnboardingRepository.getByField({ userId: cv.userId }),
+    ]);
 
     const document = transformCvToDocument({
       id: data.cvId,
@@ -111,7 +119,8 @@ export class CvIndexWorker extends WorkerHost {
       skillIds: extractedData.skillIds || [],
       provinceIds: extractedData.provinceIds || [],
       categoryIds: extractedData.categoryIds || [],
-      experienceYears: extractedData.experienceYears ?? undefined,
+      experienceYears:
+        extractedData.experienceYears ?? onboarding?.experienceYears ?? null,
       skillNames: extractedData.skillNames || [],
       provinceNames: extractedData.provinceNames || [],
       categoryNames: extractedData.categoryNames || [],

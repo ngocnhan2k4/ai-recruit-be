@@ -12,25 +12,18 @@ import { Observable, tap } from "rxjs";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "../config/env.config";
 import {
-  REQUEST_ID_HEADER,
-  serializeRequestCookies,
   serializeRequestHeaders,
   serializeRequestPayload,
 } from "@/common/utils/request-log";
-import { getRequestId, getRequestStartTime } from "../utils";
-
-type RequestWithMeta = FastifyRequest & {
-  requestId?: string;
-  cookies?: Record<string, unknown>;
-};
+import { getRequestStartTime } from "../utils";
 
 type RequestSnapshot = {
   method: string;
   url: string;
+  ip?: string;
   query?: string;
   body?: string;
   headers?: string;
-  cookies?: string;
 };
 
 @Injectable()
@@ -51,14 +44,9 @@ export class LoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const ctx = context.switchToHttp();
-    const req = ctx.getRequest<RequestWithMeta>();
+    const req = ctx.getRequest<FastifyRequest>();
     const res = ctx.getResponse<FastifyReply>();
     const start = getRequestStartTime() ?? performance.now();
-    const requestId =
-      getRequestId() ||
-      req.requestId ||
-      (req.headers[REQUEST_ID_HEADER] as string | undefined) ||
-      "-";
 
     const requestSnapshot = this.captureRequest(req);
 
@@ -66,7 +54,6 @@ export class LoggingInterceptor implements NestInterceptor {
       tap({
         next: (data) => {
           this.logHttpExchange(
-            requestId,
             requestSnapshot,
             res.statusCode,
             performance.now() - start,
@@ -87,7 +74,6 @@ export class LoggingInterceptor implements NestInterceptor {
                 ? { message: err.message, name: err.name }
                 : err;
           this.logHttpExchange(
-            requestId,
             requestSnapshot,
             statusCode,
             performance.now() - start,
@@ -98,19 +84,18 @@ export class LoggingInterceptor implements NestInterceptor {
     );
   }
 
-  private captureRequest(req: RequestWithMeta): RequestSnapshot {
+  private captureRequest(req: FastifyRequest): RequestSnapshot {
     return {
       method: req.method,
       url: req.originalUrl,
+      ip: req.ip,
       query: serializeRequestPayload(req.query),
       body: serializeRequestPayload(req.body),
       headers: serializeRequestHeaders(req.headers as Record<string, unknown>),
-      cookies: serializeRequestCookies(req.cookies),
     };
   }
 
   private logHttpExchange(
-    requestId: string,
     request: RequestSnapshot,
     statusCode: number,
     duration: number,
@@ -120,15 +105,14 @@ export class LoggingInterceptor implements NestInterceptor {
     const response = serializeRequestPayload(responseBody);
 
     const payload = {
-      requestId,
       method: request.method,
       url: request.url,
+      ip: request.ip,
       statusCode,
       durationMs: Number(durationStr),
       query: request.query,
       body: request.body,
       headers: request.headers,
-      cookies: request.cookies,
       response,
     };
 
@@ -141,7 +125,7 @@ export class LoggingInterceptor implements NestInterceptor {
         void this.loggerService.logError({
           type: "SLOW_API",
           content: message,
-          note: `Threshold: ${this.slowApiThreshold}ms | requestId=${requestId}`,
+          note: `Threshold: ${this.slowApiThreshold}ms`,
         });
       }
     } else if (statusCode >= 400) {

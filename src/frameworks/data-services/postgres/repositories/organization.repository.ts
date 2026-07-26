@@ -127,6 +127,20 @@ export class OrganizationRepository
     return data;
   }
 
+  async invalidateCache(id: string): Promise<void> {
+    await this.cacheManager
+      .mdel([
+        CACHE_KEYS.organization.get(id),
+        CACHE_KEYS.organization.getWithDetail(id),
+      ])
+      .catch((err) =>
+        this.logger.warn(
+          `[cache] Failed to invalidate cache for organization ${id}:`,
+          err,
+        ),
+      );
+  }
+
   async getOrganizationById(
     id: string,
   ): Promise<OrganizationWithDetails | null> {

@@ -51,4 +51,9 @@ export abstract class IQuestionRepository extends IGenericRepository<Question> {
       "questionText" | "options" | "correctAnswer"
     >,
   ): Promise<QuestionTranslationRecord>;
+
+  abstract checkDuplicate(
+    skillId: string,
+    questionText: string,
+  ): Promise<boolean>;
 }

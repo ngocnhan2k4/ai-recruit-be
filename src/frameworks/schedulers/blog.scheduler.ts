@@ -18,6 +18,7 @@ export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
   private readonly aiBlogAuthorId?: string;
   private readonly aiBlogRangeDays: number;
+  private readonly timeZone: string;
 
   constructor(
     private readonly cacheService: ICacheService,
@@ -32,6 +33,8 @@ export class BlogScheduler {
       1,
       this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
     );
+    this.timeZone =
+      this.configService.get<string>("TIMEZONE") || "Asia/Ho_Chi_Minh";
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -118,7 +121,7 @@ export class BlogScheduler {
   }
 
   @Cron("0 0 0 * * 0", {
-    timeZone: "Asia/Ho_Chi_Minh",
+    timeZone: process.env.TIMEZONE || "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
     await this.generateAiBlogOnce();
@@ -127,12 +130,12 @@ export class BlogScheduler {
   private async generateAiBlogOnce(): Promise<void> {
     try {
       this.logger.log(
-        "Running scheduled weekly AI blog generation cron job...",
+        "[scheduler.generateAiBlogOnce] Running scheduled weekly AI blog generation cron job...",
       );
 
       if (!this.aiBlogAuthorId) {
         this.logger.warn(
-          "Skipping weekly AI blog generation because AI_BLOG_AUTHOR_ID is not configured.",
+          "[scheduler.generateAiBlogOnce] Skipping weekly AI blog generation because AI_BLOG_AUTHOR_ID is not configured.",
         );
         return;
       }
@@ -140,7 +143,7 @@ export class BlogScheduler {
       const author = await this.userRepository.get(this.aiBlogAuthorId);
       if (!author) {
         this.logger.warn(
-          `Skipping weekly AI blog generation because author ${this.aiBlogAuthorId} was not found.`,
+          `[scheduler.generateAiBlogOnce] Skipping weekly AI blog generation because author ${this.aiBlogAuthorId} was not found.`,
         );
         return;
       }
@@ -150,7 +153,7 @@ export class BlogScheduler {
       const existing = await this.blogRepository.getPostBySlug(slug);
       if (existing) {
         this.logger.log(
-          `Skipping weekly AI blog generation because slug ${slug} already exists.`,
+          `[scheduler.generateAiBlogOnce] Skipping weekly AI blog generation because slug ${slug} already exists.`,
         );
         return;
       }
@@ -166,7 +169,7 @@ export class BlogScheduler {
 
       if (!categoryId) {
         this.logger.warn(
-          "Skipping AI blog generation because the AI payload did not include a categoryId.",
+          "[scheduler.generateAiBlogOnce] Skipping AI blog generation because the AI payload did not include a categoryId.",
         );
         return;
       }
@@ -185,7 +188,9 @@ export class BlogScheduler {
         tags: normalizedTags,
       });
 
-      this.logger.log(`Created AI blog successfully with slug ${slug}.`);
+      this.logger.log(
+        `[scheduler.generateAiBlogOnce] Created AI blog successfully with slug ${slug}.`,
+      );
     } catch (error) {
       const err = error as Error;
       this.logger.error(
@@ -203,7 +208,7 @@ export class BlogScheduler {
 
   private formatVietnamDate(date: Date): string {
     return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
+      timeZone: this.timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

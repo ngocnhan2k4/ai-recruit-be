@@ -33,6 +33,7 @@ export interface JobFilters extends GeneralQuery {
   fields?: string[];
   ids?: string[];
   excludeJobIds?: string[];
+  includeEmbedding?: boolean;
 }
 
 export interface ApplyJobFilters extends GeneralQuery {
@@ -97,7 +98,7 @@ export interface JobCounts {
 }
 
 export interface TopInMarketResponse {
-  id?: string;
+  id: string;
   name: string;
   logoUrl?: string;
   count?: number;

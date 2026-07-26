@@ -805,7 +805,7 @@ CREATE UNIQUE INDEX "idx_user_answers_user_test_question_unique" ON "user_answer
 CREATE UNIQUE INDEX "features_code_unique" ON "features" USING btree ("code");--> statement-breakpoint
 CREATE UNIQUE INDEX "features_code_name" ON "subscriptions" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "user_feature_usages_feature_idx" ON "user_feature_usages" USING btree ("feature_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "unique_active_subscription_per_user" ON "user_subscriptions" USING btree ("user_id") WHERE "user_subscriptions"."status" = 'active'::user_subscription_status;--> statement-breakpoint
+CREATE UNIQUE INDEX "unique_active_subscription_per_user" ON "user_subscriptions" USING btree ("user_id") WHERE "user_subscriptions"."status"::text = 'active';--> statement-breakpoint
 CREATE INDEX "user_subscriptions_user_status_idx" ON "user_subscriptions" USING btree ("user_id","status");--> statement-breakpoint
 CREATE INDEX "user_subscriptions_user_idx" ON "user_subscriptions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_subscriptions_subscription_idx" ON "user_subscriptions" USING btree ("subscription_id");--> statement-breakpoint

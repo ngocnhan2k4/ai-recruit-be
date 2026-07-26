@@ -16,7 +16,6 @@ export interface PaginatedResult<T> {
     hasNextPage?: boolean;
     total?: number;
   };
-  /** Optional aggregates (e.g. Casbin policies tab: totals by ptype). */
   summary?: Record<string, number>;
 }
 

@@ -18,15 +18,18 @@ import {
   INotificationRepository,
   ISubpathRepository,
 } from "@/core/abstracts";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   AILearningRoadmapResult,
+  AISubpathResult,
   CvLanguageEnum,
   NotificationType,
   NewAiCv,
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  RoadmapGenerationStatusEnum,
   RoadmapSkillData,
   SkillOption,
   Task,
@@ -37,10 +40,8 @@ import { PreviewRoadmapDto } from "@/interfaces/dtos";
 import { keyBy } from "lodash";
 import {
   formatTrackedErrorLog,
-  formatWorkerErrorLog,
   runJobWithContext,
 } from "@/common/utils/job-context";
-import { getRequestId } from "@/common/utils";
 
 type TaskData = {
   taskId: string;
@@ -64,6 +65,7 @@ export class TaskWorker extends WorkerHost {
     private readonly skillRepository: IRoadmapSkillRepository,
     private readonly skillOptionRepository: IRoadmapSkillOptionRepository,
     private readonly notificationRepository: INotificationRepository,
+    private readonly notificationService: INotificationService,
     private readonly aiCvRepository: IAiCvRepository,
     private readonly messageQueueService: IMessageQueueService,
     private readonly subpathRepository: ISubpathRepository,
@@ -77,22 +79,17 @@ export class TaskWorker extends WorkerHost {
         attemptsMade: job.attemptsMade,
         maxAttempts: job.opts.attempts,
       };
-      try {
-        if (
-          (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
-        ) {
-          return this.processLearningPath(job.data as TaskData, runOptions);
-        }
-
-        if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
-          return this.processOptimizeCv(job.data as TaskData, runOptions);
-        }
-
-        this.logger.warn(`[process] Unknown task job name: ${job.name}`);
-      } catch (error) {
-        this.logger.error(formatWorkerErrorLog("task.worker", job, error));
-        throw error;
+      if (
+        (job.name as TaskTypeEnum) === TaskTypeEnum.LEARNING_PATH_GENERATION
+      ) {
+        return this.processLearningPath(job.data as TaskData, runOptions);
       }
+
+      if ((job.name as TaskTypeEnum) === TaskTypeEnum.CV_GENERATION) {
+        return this.processOptimizeCv(job.data as TaskData, runOptions);
+      }
+
+      this.logger.warn(`[process] Unknown task job name: ${job.name}`);
     });
   }
 
@@ -108,8 +105,15 @@ export class TaskWorker extends WorkerHost {
       result?: Record<string, any> | null;
       error?: string | null;
     };
+    templateData?: Record<string, any>;
   }) {
     const { notificationId, userId, payload, message, taskId } = params;
+    const template = this.resolveTaskNotificationTemplate({
+      taskType: params.taskData.type,
+      status: params.taskData.status,
+      message,
+      templateData: params.templateData,
+    });
 
     await this.taskRepository.executeWithTransaction(async (tx) => {
       await this.taskRepository.update(
@@ -125,6 +129,8 @@ export class TaskWorker extends WorkerHost {
             taskId,
             ...payload,
           },
+          templateKey: template.templateKey,
+          templateData: template.templateData,
           message,
           updatedAt: new Date(),
         },
@@ -132,10 +138,13 @@ export class TaskWorker extends WorkerHost {
       );
     });
 
-    this.webSocketGateway.sendToUser({ userId }, {
+    await this.notificationService.sendNotification({
       id: notificationId,
       receiverId: userId,
+      title: "",
       message,
+      templateKey: template.templateKey,
+      templateData: template.templateData,
       type: NotificationType.SYSTEM,
       payload,
       task: {
@@ -143,6 +152,43 @@ export class TaskWorker extends WorkerHost {
         ...params.taskData,
       },
     } as any);
+  }
+
+  private resolveTaskNotificationTemplate(params: {
+    taskType: TaskTypeEnum;
+    status: TaskStatusEnum;
+    message: string;
+    templateData?: Record<string, any>;
+  }) {
+    const baseData = params.templateData ?? {};
+
+    if (params.taskType === TaskTypeEnum.LEARNING_PATH_GENERATION) {
+      return {
+        templateKey:
+          params.status === TaskStatusEnum.IN_PROGRESS
+            ? "system_learning_path_in_progress"
+            : params.status === TaskStatusEnum.COMPLETED
+              ? "system_learning_path_completed"
+              : "system_learning_path_failed",
+        templateData:
+          params.status === TaskStatusEnum.FAILED
+            ? { ...baseData, errorMessage: params.message }
+            : baseData,
+      };
+    }
+
+    return {
+      templateKey:
+        params.status === TaskStatusEnum.IN_PROGRESS
+          ? "system_cv_generation_in_progress"
+          : params.status === TaskStatusEnum.COMPLETED
+            ? "system_cv_generation_completed"
+            : "system_cv_generation_failed",
+      templateData:
+        params.status === TaskStatusEnum.FAILED
+          ? { ...baseData, errorMessage: params.message }
+          : baseData,
+    };
   }
 
   private buildPrimaryKey(...args: string[]) {
@@ -189,20 +235,27 @@ export class TaskWorker extends WorkerHost {
             if (existing) return;
 
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,
@@ -218,7 +271,7 @@ export class TaskWorker extends WorkerHost {
               } as any);
             } catch (err: any) {
               this.logger.error(
-                `[worker] Subpath gen failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath gen failed for "${optionName}": ${err.message}`,
               );
               this.webSocketGateway.sendToUser({ userId: params.userId }, {
                 type: NotificationType.SKILL_READY,
@@ -247,26 +300,33 @@ export class TaskWorker extends WorkerHost {
 
     if (missing.length > 0) {
       this.logger.warn(
-        `[worker] Verification pass: ${missing.length} options still missing snapshots — retrying`,
+        `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass: ${missing.length} options still missing snapshots — retrying`,
       );
       await Promise.all(
         missing.map(
           async ({ skillId, skillName, optionId, optionName, keyConcepts }) => {
             try {
-              const aiResult = await this.aiService.generateSubPath({
+              let shared = await this.subpathRepository.findSharedByNaturalKey({
                 optionName,
-                keyConcepts,
                 targetRole: params.targetRole,
                 currentRole: params.currentRole,
               });
-              const shared = await this.subpathRepository.createFromAIResult(
-                {
+              if (!shared) {
+                const aiResult = await this.aiService.generateSubPath({
                   optionName,
+                  keyConcepts,
                   targetRole: params.targetRole,
                   currentRole: params.currentRole,
-                },
-                aiResult,
-              );
+                });
+                shared = await this.subpathRepository.createFromAIResult(
+                  {
+                    optionName,
+                    targetRole: params.targetRole,
+                    currentRole: params.currentRole,
+                  },
+                  aiResult,
+                );
+              }
               await this.subpathRepository.cloneSharedSubpathForUser(
                 shared.id,
                 optionId,
@@ -281,11 +341,11 @@ export class TaskWorker extends WorkerHost {
                 failed: false,
               } as any);
               this.logger.log(
-                `[worker] Verification pass recovered "${optionName}"`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass recovered "${optionName}"`,
               );
             } catch (err: any) {
               this.logger.error(
-                `[worker] Verification pass also failed for "${optionName}": ${err.message}`,
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Verification pass also failed for "${optionName}": ${err.message}`,
               );
             }
           },
@@ -294,7 +354,7 @@ export class TaskWorker extends WorkerHost {
     }
 
     this.logger.log(
-      `[worker] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Subpath generation complete for ${allOptions.length} options in roadmap ${params.roadmapId}`,
     );
   }
 
@@ -333,203 +393,64 @@ export class TaskWorker extends WorkerHost {
   }
 
   private async persistRoadmapFromPreview(data: {
+    roadmapId: string;
     userId: string;
     request: PreviewRoadmapDto;
     result: AILearningRoadmapResult;
     sourceLanguage: string;
   }) {
-    const { userId, request, result, sourceLanguage } = data;
+    const { roadmapId, userId, request, result, sourceLanguage } = data;
     const preview = result.previewData;
     const phases = preview.phases || [];
 
     const persisted = await this.roadmapRepository.executeWithTransaction(
-      async (tx) => {
-        // Step 1: Create Roadmap
-        const newRoadmap = await this.roadmapRepository.create(
-          {
-            userId,
-            title: request.targetRole,
-            currentRole: request.currentRole,
-            targetRole: request.targetRole,
-            timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
-            currentSkills: request.currentSkills,
-            totalWeeks: preview.totalWeeks,
-            gapAnalysis: preview.gapAnalysis,
-          } as any,
-          tx,
-        );
+      async () => {
+        const newRoadmap = await this.updateRoadmapRecord({
+          roadmapId,
+          userId,
+          request,
+          preview,
+        });
 
-        // Step 2: Build phases and create them in DB
-        const newPhases = phases.map(
-          (
-            phase: {
-              name: string;
-              description: string;
-              durationWeeks: number;
-              orderIndex: number;
-              skills: RoadmapSkillData[];
-            },
-            index: number,
-          ) => ({
+        const { createdPhases, phaseMap } = await this.createPhasesFromPreview({
+          roadmapId: newRoadmap.id,
+          phases,
+        });
+
+        const { createdSkills, skillMap } = await this.createSkillsFromPreview({
+          roadmapId: newRoadmap.id,
+          phases,
+          phaseMap,
+        });
+
+        const { readySubpaths, skillIdMap } =
+          await this.createSkillOptionsFromPreview({
             roadmapId: newRoadmap.id,
-            name: phase.name,
-            description: phase.description,
-            durationWeeks: phase.durationWeeks,
-            orderIndex: index,
-          }),
-        );
-        const createdPhases = await this.phaseRepository.createMany(
-          newPhases,
-          tx,
-        );
+            phases,
+            phaseMap,
+            skillMap,
+          });
 
-        // Step 3: Build phase map to link
-        const phaseMap = keyBy(createdPhases, (phase) =>
-          this.buildPrimaryKey(
-            phase.roadmapId,
-            phase.name,
-            String(phase.orderIndex),
-          ),
-        );
-
-        // Step 4: Build skills and create them in DB
-        const newSkills = phases
-          .map(
-            (
-              phase: {
-                name: string;
-                description: string;
-                durationWeeks: number;
-                orderIndex: number;
-                skills: RoadmapSkillData[];
-              },
-              phaseIndex: number,
-            ) =>
-              (phase.skills || []).map(
-                (skill: RoadmapSkillData, skillIndex: number) => {
-                  const phaseKey = this.buildPrimaryKey(
-                    newRoadmap.id,
-                    phase.name,
-                    String(phaseIndex),
-                  );
-                  const matchedPhase = phaseMap[phaseKey];
-
-                  return {
-                    phaseId: matchedPhase.id,
-                    skill: skill.skill,
-                    description: skill.description,
-                    weekStart: skill.weekStart,
-                    weekEnd: skill.weekEnd,
-                    orderIndex: skillIndex,
-                    prerequisites: [],
-                  };
-                },
-              ),
-          )
-          .flat();
-
-        const createdSkills = await this.skillRepository.createMany(
-          newSkills,
-          tx,
-        );
-
-        // Step 5: Build skill map to link
-        const skillMap = keyBy(createdSkills, (skill) =>
-          this.buildPrimaryKey(
-            skill.phaseId,
-            skill.skill,
-            String(skill.orderIndex),
-          ),
-        );
-
-        const skillIdMap = new Map<string, string>();
-        const newSkillOptions = phases
-          .map(
-            (
-              phase: {
-                name: string;
-                description: string;
-                durationWeeks: number;
-                orderIndex: number;
-                skills: RoadmapSkillData[];
-              },
-              phaseIndex: number,
-            ) =>
-              (phase.skills || []).map(
-                (skill: RoadmapSkillData, skillIndex: number) => {
-                  const phaseKey = this.buildPrimaryKey(
-                    newRoadmap.id,
-                    phase.name,
-                    String(phaseIndex),
-                  );
-                  const matchedPhase = phaseMap[phaseKey];
-
-                  const skillKey = this.buildPrimaryKey(
-                    matchedPhase.id,
-                    skill.skill,
-                    String(skillIndex),
-                  );
-                  const matchedSkill = skillMap[skillKey];
-                  if (skill.skillId) {
-                    skillIdMap.set(skill.skillId, matchedSkill.id);
-                  }
-
-                  return (skill.options || []).map((option: SkillOption) => ({
-                    roadmapSkillId: matchedSkill.id,
-                    optionId: option.optionId,
-                    optionName: option.optionName ?? "",
-                    resources: option.resources || [],
-                    keyConcepts: option.keyConcepts || [],
-                  }));
-                },
-              ),
-          )
-          .flat(2);
-
-        await this.skillOptionRepository.createMany(newSkillOptions, tx);
-
-        for (const phase of preview.phases) {
-          if (phase.skills?.length) {
-            for (const skillData of phase.skills) {
-              const aiSkillId = skillData.skillId;
-              if (skillData.prerequisites?.length && aiSkillId) {
-                const dbSkillId = skillIdMap.get(aiSkillId);
-                if (dbSkillId) {
-                  // Map AI skillIds to database skillIds
-                  const mappedPrerequisites = skillData.prerequisites
-                    .map((prereqSkillId: string) => {
-                      const mapped = skillIdMap.get(prereqSkillId);
-                      if (!mapped) {
-                        this.logger.warn(
-                          `[worker.task] [persistRoadmapFromPreview] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
-                        );
-                      }
-                      return mapped;
-                    })
-                    .filter(
-                      (id: string | undefined): id is string =>
-                        id !== undefined,
-                    );
-
-                  // Update skill with mapped prerequisites
-                  await this.skillRepository.update(
-                    { id: dbSkillId },
-                    { prerequisites: mappedPrerequisites },
-                    tx,
-                  );
-                }
-              }
-            }
-          }
-        }
+        await this.mapSkillPrerequisites({
+          phases,
+          skillIdMap,
+        });
 
         return {
           roadmap: newRoadmap,
           phaseIds: createdPhases.map((item) => item.id),
           skillIds: createdSkills.map((item) => item.id),
+          readySubpaths,
         };
       },
     );
+
+    await this.persistEagerlyGeneratedSubpaths({
+      userId,
+      targetRole: request.targetRole ?? "",
+      currentRole: request.currentRole ?? "",
+      readySubpaths: persisted.readySubpaths,
+    });
 
     await this.enqueueRoadmapTranslationJobs({
       phaseIds: persisted.phaseIds,
@@ -538,6 +459,244 @@ export class TaskWorker extends WorkerHost {
     });
 
     return persisted.roadmap;
+  }
+
+  private async updateRoadmapRecord(params: {
+    roadmapId: string;
+    userId: string;
+    request: PreviewRoadmapDto;
+    preview: AILearningRoadmapResult["previewData"];
+  }) {
+    const { roadmapId, userId, request, preview } = params;
+    const [updated] = await this.roadmapRepository.update(
+      { id: roadmapId, userId },
+      {
+        title: request.targetRole,
+        currentRole: request.currentRole,
+        targetRole: request.targetRole,
+        timeCommitmentHoursPerWeek: request.timeCommitmentHoursPerWeek,
+        currentSkills: request.currentSkills,
+        totalWeeks: preview.totalWeeks,
+        gapAnalysis: preview.gapAnalysis,
+        generationStatus: RoadmapGenerationStatusEnum.COMPLETED,
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    );
+
+    if (!updated) {
+      throw new Error(`Roadmap skeleton not found: ${roadmapId}`);
+    }
+
+    return updated;
+  }
+
+  private async createPhasesFromPreview(params: {
+    roadmapId: string;
+    phases: Array<{
+      name: string;
+      description: string;
+      durationWeeks: number;
+      skills: RoadmapSkillData[];
+    }>;
+  }) {
+    const { roadmapId, phases } = params;
+    const createdPhases = await this.phaseRepository.createMany(
+      phases.map((phase, index) => ({
+        roadmapId,
+        name: phase.name,
+        description: phase.description,
+        durationWeeks: phase.durationWeeks,
+        orderIndex: index,
+      })),
+    );
+
+    const phaseMap = keyBy(createdPhases, (phase) =>
+      this.buildPrimaryKey(
+        phase.roadmapId,
+        phase.name,
+        String(phase.orderIndex),
+      ),
+    );
+
+    return { createdPhases, phaseMap };
+  }
+
+  private async createSkillsFromPreview(params: {
+    roadmapId: string;
+    phases: Array<{
+      name: string;
+      skills: RoadmapSkillData[];
+    }>;
+    phaseMap: Record<string, { id: string }>;
+  }) {
+    const { roadmapId, phases, phaseMap } = params;
+
+    const newSkills = phases.flatMap((phase, phaseIndex) =>
+      (phase.skills || []).map((skill, skillIndex) => {
+        const matchedPhase =
+          phaseMap[
+            this.buildPrimaryKey(roadmapId, phase.name, String(phaseIndex))
+          ];
+
+        return {
+          phaseId: matchedPhase.id,
+          skill: skill.skill,
+          description: skill.description,
+          weekStart: skill.weekStart,
+          weekEnd: skill.weekEnd,
+          orderIndex: skillIndex,
+          prerequisites: [] as string[],
+        };
+      }),
+    );
+
+    const createdSkills = await this.skillRepository.createMany(newSkills);
+    const skillMap = keyBy(createdSkills, (skill) =>
+      this.buildPrimaryKey(
+        skill.phaseId,
+        skill.skill,
+        String(skill.orderIndex),
+      ),
+    );
+
+    return { createdSkills, skillMap };
+  }
+
+  private async createSkillOptionsFromPreview(params: {
+    roadmapId: string;
+    phases: Array<{
+      name: string;
+      skills: RoadmapSkillData[];
+    }>;
+    phaseMap: Record<string, { id: string }>;
+    skillMap: Record<string, { id: string }>;
+  }) {
+    const { roadmapId, phases, phaseMap, skillMap } = params;
+    const skillIdMap = new Map<string, string>();
+
+    const newSkillOptions = phases.flatMap((phase, phaseIndex) =>
+      (phase.skills || []).flatMap((skill, skillIndex) => {
+        const matchedPhase =
+          phaseMap[
+            this.buildPrimaryKey(roadmapId, phase.name, String(phaseIndex))
+          ];
+        const matchedSkill =
+          skillMap[
+            this.buildPrimaryKey(
+              matchedPhase.id,
+              skill.skill,
+              String(skillIndex),
+            )
+          ];
+
+        if (skill.skillId) {
+          skillIdMap.set(skill.skillId, matchedSkill.id);
+        }
+
+        return (skill.options || []).map((option: SkillOption) => ({
+          roadmapSkillId: matchedSkill.id,
+          optionId: option.optionId,
+          optionName: option.optionName ?? "",
+          resources: option.resources || [],
+          keyConcepts: option.keyConcepts || [],
+          subpath: option.subpath,
+        }));
+      }),
+    );
+
+    const createdOptions = await this.skillOptionRepository.createMany(
+      newSkillOptions.map(({ subpath: _subpath, ...rest }) => rest),
+    );
+
+    const optionIdToDbId = new Map(
+      createdOptions.map((row) => [row.optionId, row.id]),
+    );
+
+    const readySubpaths = newSkillOptions
+      .filter((o) => o.subpath && optionIdToDbId.has(o.optionId))
+      .map((o) => ({
+        roadmapSkillOptionId: optionIdToDbId.get(o.optionId)!,
+        optionName: o.optionName,
+        subpath: o.subpath!,
+      }));
+
+    return { readySubpaths, skillIdMap };
+  }
+
+  private async mapSkillPrerequisites(params: {
+    phases: Array<{ skills: RoadmapSkillData[] }>;
+    skillIdMap: Map<string, string>;
+  }) {
+    const { phases, skillIdMap } = params;
+
+    for (const phase of phases) {
+      for (const skillData of phase.skills || []) {
+        const aiSkillId = skillData.skillId;
+        if (!skillData.prerequisites?.length || !aiSkillId) continue;
+
+        const dbSkillId = skillIdMap.get(aiSkillId);
+        if (!dbSkillId) continue;
+
+        const mappedPrerequisites = skillData.prerequisites
+          .map((prereqSkillId: string) => {
+            const mapped = skillIdMap.get(prereqSkillId);
+            if (!mapped) {
+              this.logger.warn(
+                `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Prerequisite skillId ${prereqSkillId} not found in skillIdMap for skill ${aiSkillId}`,
+              );
+            }
+            return mapped;
+          })
+          .filter((id: string | undefined): id is string => id !== undefined);
+
+        await this.skillRepository.update(
+          { id: dbSkillId },
+          { prerequisites: mappedPrerequisites },
+        );
+      }
+    }
+  }
+
+  private async persistEagerlyGeneratedSubpaths(params: {
+    userId: string;
+    targetRole: string;
+    currentRole: string;
+    readySubpaths: Array<{
+      roadmapSkillOptionId: string;
+      optionName: string;
+      subpath: AISubpathResult;
+    }>;
+  }) {
+    const { userId, targetRole, currentRole, readySubpaths } = params;
+    if (!readySubpaths.length) return;
+
+    await Promise.all(
+      readySubpaths.map(
+        async ({ roadmapSkillOptionId, optionName, subpath }) => {
+          try {
+            const shared = await this.subpathRepository.createFromAIResult(
+              { optionName, targetRole, currentRole },
+              subpath,
+            );
+
+            await this.subpathRepository.cloneSharedSubpathForUser(
+              shared.id,
+              roadmapSkillOptionId,
+              userId,
+            );
+          } catch (err: any) {
+            this.logger.error(
+              `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Failed to persist eagerly-generated subpath for "${optionName}": ${err.message}`,
+            );
+          }
+        },
+      ),
+    );
+
+    this.logger.log(
+      `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Persisted ${readySubpaths.length} eagerly-generated subpath(s)`,
+    );
   }
 
   private async withTaskLifecycle<TResult>(
@@ -569,6 +728,8 @@ export class TaskWorker extends WorkerHost {
         throw new Error(`Task input missing userId/request: ${taskId}`);
       }
 
+      const templateData = this.buildTaskTemplateData(taskType, request);
+
       await this.emitAndPersistTask({
         taskId,
         notificationId,
@@ -579,6 +740,7 @@ export class TaskWorker extends WorkerHost {
           type: taskType,
           status: TaskStatusEnum.IN_PROGRESS,
         },
+        templateData,
       });
 
       const result = await coreLogic(task, request);
@@ -598,9 +760,11 @@ export class TaskWorker extends WorkerHost {
             attempts,
           },
         },
+        templateData,
       });
     } catch (error: any) {
       if (task) {
+        const request = (task.input as any)?.request;
         await this.emitAndPersistTask({
           taskId,
           notificationId,
@@ -616,12 +780,27 @@ export class TaskWorker extends WorkerHost {
             }),
             result: null,
           },
+          templateData: this.buildTaskTemplateData(taskType, request),
         });
+
+        const roadmapId = (task.input as any)?.roadmapId;
+        if (
+          taskType === TaskTypeEnum.LEARNING_PATH_GENERATION &&
+          typeof roadmapId === "string" &&
+          roadmapId.length > 0
+        ) {
+          await this.roadmapRepository.update(
+            { id: roadmapId, userId: task.userId },
+            {
+              generationStatus: RoadmapGenerationStatusEnum.FAILED,
+              updatedAt: new Date(),
+            },
+          );
+        }
       }
       this.logger.error(
         formatTrackedErrorLog({
           worker: "task.worker",
-          requestId: getRequestId(),
           queue: TASK_QUEUE,
           jobId: taskId,
           jobName: taskType,
@@ -632,6 +811,20 @@ export class TaskWorker extends WorkerHost {
       );
       throw error;
     }
+  }
+
+  private buildTaskTemplateData(
+    taskType: TaskTypeEnum,
+    request: Record<string, any> | null | undefined,
+  ): Record<string, any> {
+    if (
+      taskType === TaskTypeEnum.LEARNING_PATH_GENERATION &&
+      request?.targetRole
+    ) {
+      return { targetRole: request.targetRole };
+    }
+
+    return {};
   }
 
   private async processLearningPath(
@@ -654,6 +847,13 @@ export class TaskWorker extends WorkerHost {
       async (task, request: PreviewRoadmapDto) => {
         const sourceLanguage =
           (task.input as any)?.sourceLanguage || DEFAULT_LANGUAGE_CODE;
+        const roadmapId = (task.input as any)?.roadmapId;
+
+        if (!roadmapId || typeof roadmapId !== "string") {
+          throw new Error(
+            `Task input missing roadmapId for learning path generation: ${task.id}`,
+          );
+        }
 
         const roadmapRequest = {
           currentRole: request.currentRole,
@@ -667,6 +867,7 @@ export class TaskWorker extends WorkerHost {
           await this.aiService.generateRoadmapV2(roadmapRequest);
 
         const roadmap = await this.persistRoadmapFromPreview({
+          roadmapId,
           userId: task.userId,
           request,
           result: resultData,
@@ -680,6 +881,11 @@ export class TaskWorker extends WorkerHost {
           targetRole: roadmap.targetRole ?? "",
           currentRole: roadmap.currentRole ?? "",
         });
+
+        const elapsedMs = Date.now() - new Date(task.createdAt).getTime();
+        this.logger.log(
+          `[${TaskTypeEnum.LEARNING_PATH_GENERATION}] Task ${task.id} completed in ${elapsedMs}ms (${(elapsedMs / 1000).toFixed(1)}s) — now - createdAt`,
+        );
 
         return { roadmapId: roadmap.id, data: resultData };
       },
@@ -728,7 +934,7 @@ export class TaskWorker extends WorkerHost {
         const savedCv = await this.aiCvRepository.create(aiCvData);
 
         this.logger.log(
-          `Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
+          `[${TaskTypeEnum.CV_GENERATION}] Auto-saved optimized CV ${savedCv.id} for user ${task.userId}`,
         );
 
         return { data: result, aiCvId: savedCv.id };
