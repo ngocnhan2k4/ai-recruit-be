@@ -5,17 +5,27 @@ import type {
   JobCopilotLocalizedWorkspaces,
   JobCopilotMode,
   JobCopilotResponse,
-  JobCopilotSkill,
+  JobCopilotSuggestedSkill,
   JobQuality,
   JobQualityCriterion,
   JobQualityCriterionKey,
   JobQualityLabel,
   JobSuggestion,
+  JobSuggestionResolutionKind,
   JobSuggestionSeverity,
   JobSuggestionTarget,
+  JobSuggestionType,
   ScreeningQuestion,
   ScreeningQuestionType,
 } from "@/core/entities/job-copilot.entity";
+
+export class JobCopilotSuggestedSkillDto implements JobCopilotSuggestedSkill {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+}
 
 export class JobCopilotGeneratedDraftDto implements JobCopilotGeneratedDraft {
   @ApiProperty()
@@ -60,6 +70,19 @@ export class JobSuggestionDto implements JobSuggestion {
   @ApiProperty()
   id: string;
 
+  @ApiProperty({ enum: ["missing_input", "content_improvement"] })
+  type: JobSuggestionType;
+
+  @ApiProperty({
+    enum: [
+      "salary",
+      "title_category_conflict",
+      "role_skills_conflict",
+      "free_text",
+    ],
+  })
+  resolutionKind: JobSuggestionResolutionKind;
+
   @ApiProperty()
   category: string;
 
@@ -94,14 +117,6 @@ export class ScreeningQuestionDto implements ScreeningQuestion {
 
   @ApiProperty()
   enabled: boolean;
-}
-
-export class JobCopilotSkillDto implements JobCopilotSkill {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  name: string;
 }
 
 export class JobCopilotLocalizedWorkspaceDto
@@ -140,6 +155,6 @@ export class JobCopilotResponseDto implements JobCopilotResponse {
   @ApiProperty({ type: JobCopilotLocalizedWorkspacesDto })
   locales: JobCopilotLocalizedWorkspacesDto;
 
-  @ApiProperty({ type: [JobCopilotSkillDto] })
-  suggestedSkills: JobCopilotSkillDto[];
+  @ApiProperty({ type: [JobCopilotSuggestedSkillDto] })
+  suggestedSkills: JobCopilotSuggestedSkillDto[];
 }

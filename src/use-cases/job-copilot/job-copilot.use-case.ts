@@ -21,18 +21,20 @@ export class JobCopilotUseCase {
   async run(
     request: JobCopilotRequest,
   ): Promise<ApiResponse<JobCopilotResponse>> {
-    const workspace = await this.aiService.runJobCopilot(request);
+    const aiWorkspace = await this.aiService.runJobCopilot(request);
     const suggestedSkills =
       await this.skillRepository.resolveApprovedSkillsByNames(
-        workspace.suggestedSkills,
+        (aiWorkspace.suggestedSkills ?? []).slice(0, 8),
       );
+    const workspace: JobCopilotResponse = {
+      ...aiWorkspace,
+      suggestedSkills,
+    };
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,
-      data: {
-        ...workspace,
-        suggestedSkills,
-      },
+      data: workspace,
     };
   }
 }

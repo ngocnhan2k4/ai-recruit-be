@@ -45,8 +45,8 @@ import {
   RoadmapChatResponse,
 } from "@/core/entities/learning-path.entity";
 import {
-  JobCopilotRequest,
   JobCopilotAiResponse,
+  JobCopilotRequest,
 } from "@/core/entities/job-copilot.entity";
 import type {
   CandidateBriefAiRequest,
