@@ -30,6 +30,7 @@ export class JobCopilotUseCase {
       ...aiWorkspace,
       suggestedSkills,
     };
+
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: RESPONSE_MESSAGE.SUCCESS,

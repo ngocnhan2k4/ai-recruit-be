@@ -268,33 +268,48 @@ export class SkillRepository
     const normalizedNames = Array.from(
       new Set(
         names
-          .map((name) => name.trim().toLowerCase())
+          .map((name) => this.normalizeSkillName(name))
           .filter((name) => name.length > 0),
       ),
     );
-    if (!normalizedNames.length) return [];
+    if (normalizedNames.length === 0) return [];
 
-    const normalizedNameExpr = sql<string>`lower(trim(${skills.name}))`;
-    const normalizedAliasExpr = sql<string>`lower(trim(${skillsSynonyms.aliasName}))`;
-
-    return this.db
-      .selectDistinct({
+    const rows = await this.db
+      .select({
         id: skills.id,
         name: skills.name,
+        aliasName: skillsSynonyms.aliasName,
       })
       .from(skills)
       .leftJoin(skillsSynonyms, eq(skillsSynonyms.masterSkillId, skills.id))
-      .where(
-        and(
-          isNull(skills.deletedAt),
-          eq(skills.isApproved, true),
-          or(
-            inArray(normalizedNameExpr, normalizedNames),
-            inArray(normalizedAliasExpr, normalizedNames),
-          ),
-        ),
-      )
-      .orderBy(asc(skills.name));
+      .where(and(eq(skills.isApproved, true), isNull(skills.deletedAt)));
+
+    const rowByNormalizedName = new Map<string, { id: string; name: string }>();
+    for (const row of rows) {
+      const skill = { id: row.id, name: row.name };
+      rowByNormalizedName.set(this.normalizeSkillName(row.name), skill);
+      if (row.aliasName) {
+        rowByNormalizedName.set(this.normalizeSkillName(row.aliasName), skill);
+      }
+    }
+
+    const resolved: Pick<Skill, "id" | "name">[] = [];
+    const resolvedIds = new Set<string>();
+    for (const normalizedName of normalizedNames) {
+      const skill = rowByNormalizedName.get(normalizedName);
+      if (!skill || resolvedIds.has(skill.id)) continue;
+      resolved.push(skill);
+      resolvedIds.add(skill.id);
+    }
+    return resolved;
+  }
+
+  private normalizeSkillName(value: string): string {
+    return value
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
   }
 
   async bulkReviewSkills(

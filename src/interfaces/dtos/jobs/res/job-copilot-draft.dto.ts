@@ -8,6 +8,8 @@ export class JobCopilotDraftResponseDto implements JobCopilotDraftRecord {
   organizationId: string;
   @ApiProperty()
   createdBy: string;
+  @ApiProperty({ enum: ["vi", "en"] })
+  locale: JobCopilotDraftRecord["locale"];
   @ApiProperty({ type: Object })
   formData: JobCopilotDraftRecord["formData"];
   @ApiProperty({ type: Object, nullable: true })

@@ -107,17 +107,28 @@ export interface JobCopilotSuggestedSkill {
   name: string;
 }
 
-export interface JobCopilotAiResponse {
-  analysisId: string;
-  mode: JobCopilotMode;
+export interface JobCopilotLocalizedWorkspace {
   draft: JobCopilotGeneratedDraft;
   quality: JobQuality;
   suggestions: JobSuggestion[];
   screeningQuestions: ScreeningQuestion[];
+}
+
+export type JobCopilotLocalizedWorkspaces = Record<
+  JobCopilotLocale,
+  JobCopilotLocalizedWorkspace
+>;
+
+export interface JobCopilotAiResponse {
+  analysisId: string;
+  mode: JobCopilotMode;
+  locales: JobCopilotLocalizedWorkspaces;
   suggestedSkills: string[];
 }
 
-export interface JobCopilotResponse
-  extends Omit<JobCopilotAiResponse, "suggestedSkills"> {
+export interface JobCopilotResponse {
+  analysisId: string;
+  mode: JobCopilotMode;
+  locales: JobCopilotLocalizedWorkspaces;
   suggestedSkills: JobCopilotSuggestedSkill[];
 }
