@@ -1,7 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import type {
   JobCopilotGeneratedDraft,
+  JobCopilotLocalizedWorkspace,
+  JobCopilotLocalizedWorkspaces,
+  JobCopilotMode,
   JobCopilotResponse,
+  JobCopilotSkill,
   JobQuality,
   JobQualityCriterion,
   JobQualityCriterionKey,
@@ -92,10 +96,17 @@ export class ScreeningQuestionDto implements ScreeningQuestion {
   enabled: boolean;
 }
 
-export class JobCopilotResponseDto implements JobCopilotResponse {
+export class JobCopilotSkillDto implements JobCopilotSkill {
   @ApiProperty()
-  analysisId: string;
+  id: string;
 
+  @ApiProperty()
+  name: string;
+}
+
+export class JobCopilotLocalizedWorkspaceDto
+  implements JobCopilotLocalizedWorkspace
+{
   @ApiProperty({ type: JobCopilotGeneratedDraftDto })
   draft: JobCopilotGeneratedDraftDto;
 
@@ -107,4 +118,28 @@ export class JobCopilotResponseDto implements JobCopilotResponse {
 
   @ApiProperty({ type: [ScreeningQuestionDto] })
   screeningQuestions: ScreeningQuestionDto[];
+}
+
+export class JobCopilotLocalizedWorkspacesDto
+  implements JobCopilotLocalizedWorkspaces
+{
+  @ApiProperty({ type: JobCopilotLocalizedWorkspaceDto })
+  vi: JobCopilotLocalizedWorkspaceDto;
+
+  @ApiProperty({ type: JobCopilotLocalizedWorkspaceDto })
+  en: JobCopilotLocalizedWorkspaceDto;
+}
+
+export class JobCopilotResponseDto implements JobCopilotResponse {
+  @ApiProperty()
+  analysisId: string;
+
+  @ApiProperty({ enum: ["generate", "review"] })
+  mode: JobCopilotMode;
+
+  @ApiProperty({ type: JobCopilotLocalizedWorkspacesDto })
+  locales: JobCopilotLocalizedWorkspacesDto;
+
+  @ApiProperty({ type: [JobCopilotSkillDto] })
+  suggestedSkills: JobCopilotSkillDto[];
 }

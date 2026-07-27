@@ -17,7 +17,11 @@ import {
   extractExternalErrorInfo,
   wrapExternalError,
 } from "@/common/utils/external-error";
-import { serializeRequestPayload } from "@/common/utils/request-log";
+import {
+  REQUEST_ID_HEADER,
+  serializeRequestPayload,
+} from "@/common/utils/request-log";
+import { getRequestId } from "@/common/utils/context";
 
 import {
   ExtractCvResponse,
@@ -42,7 +46,7 @@ import {
 } from "@/core/entities/learning-path.entity";
 import {
   JobCopilotRequest,
-  JobCopilotResponse,
+  JobCopilotAiResponse,
 } from "@/core/entities/job-copilot.entity";
 import type {
   CandidateBriefAiRequest,
@@ -97,10 +101,12 @@ export class AIClientService implements IAIService {
     });
   }
 
-  async runJobCopilot(request: JobCopilotRequest): Promise<JobCopilotResponse> {
+  async runJobCopilot(
+    request: JobCopilotRequest,
+  ): Promise<JobCopilotAiResponse> {
     const url = `${this.aiServiceUrl}/api/v1/job-copilot`;
 
-    return this.postWithRetry<JobCopilotRequest, JobCopilotResponse>({
+    return this.postWithRetry<JobCopilotRequest, JobCopilotAiResponse>({
       url,
       body: request,
       errorContext: "AI Service Job Copilot generation failed",
@@ -143,6 +149,16 @@ export class AIClientService implements IAIService {
     return error.message || "Unknown error";
   }
 
+  private buildHeaders(): Record<string, string> {
+    const requestId = getRequestId();
+
+    return {
+      "Content-Type": "application/json",
+      "X-API-Key": this.apiKey,
+      ...(requestId ? { [REQUEST_ID_HEADER]: requestId } : {}),
+    };
+  }
+
   generateRoadmap(request: RoadmapGenerateRequest): Observable<MessageEvent> {
     const url = `${this.aiServiceUrl}/api/v1/generate-roadmap-stream`;
 
@@ -151,10 +167,7 @@ export class AIClientService implements IAIService {
         try {
           const response = await firstValueFrom(
             this.httpService.post(url, request, {
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": this.apiKey,
-              },
+              headers: this.buildHeaders(),
               responseType: "stream",
               timeout: this.aiServiceTimeout,
             }),
@@ -224,10 +237,7 @@ export class AIClientService implements IAIService {
     return firstValueFrom(
       this.httpService
         .post<AISubpathResult>(url, request, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.apiKey,
-          },
+          headers: this.buildHeaders(),
         })
         .pipe(
           timeout(this.aiServiceTimeout * 2),
@@ -357,10 +367,7 @@ export class AIClientService implements IAIService {
     return firstValueFrom(
       this.httpService
         .post<TResponse>(url, body, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": this.apiKey,
-          },
+          headers: this.buildHeaders(),
         })
         .pipe(
           timeout(timeoutMs),

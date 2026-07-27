@@ -74,10 +74,33 @@ export interface ScreeningQuestion {
   enabled: boolean;
 }
 
-export interface JobCopilotResponse {
-  analysisId: string;
+export interface JobCopilotSkill {
+  id: string;
+  name: string;
+}
+
+export interface JobCopilotLocalizedWorkspace {
   draft: JobCopilotGeneratedDraft;
   quality: JobQuality;
   suggestions: JobSuggestion[];
   screeningQuestions: ScreeningQuestion[];
+}
+
+export type JobCopilotLocalizedWorkspaces = Record<
+  JobCopilotLocale,
+  JobCopilotLocalizedWorkspace
+>;
+
+export interface JobCopilotAiResponse {
+  analysisId: string;
+  mode: JobCopilotMode;
+  locales: JobCopilotLocalizedWorkspaces;
+  suggestedSkills: string[];
+}
+
+export interface JobCopilotResponse {
+  analysisId: string;
+  mode: JobCopilotMode;
+  locales: JobCopilotLocalizedWorkspaces;
+  suggestedSkills: JobCopilotSkill[];
 }

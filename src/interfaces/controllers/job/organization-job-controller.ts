@@ -8,6 +8,7 @@ import {
   UseGuards,
   Post,
   Get,
+  Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { GetUser } from "@/common/decorators";
@@ -22,6 +23,7 @@ import {
   JobCopilotRequestDto,
   JobCopilotResponseDto,
   SaveJobCopilotDraftDto,
+  JobCopilotDraftLocaleDto,
   JobCopilotDraftResponseDto,
   GenerateCandidateBriefDto,
   CandidateBriefViewDto,
@@ -81,8 +83,9 @@ export class OrganizationJobController {
   getJobCopilotDraft(
     @Param("orgId") orgId: string,
     @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotDraftLocaleDto,
   ) {
-    return this.jobCopilotDraftUseCase.get(orgId, user.userId);
+    return this.jobCopilotDraftUseCase.get(orgId, user.userId, query.locale);
   }
 
   @ApiOperation({ summary: "Create or update a Job Copilot draft" })
