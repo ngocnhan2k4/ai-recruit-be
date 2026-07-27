@@ -20,7 +20,7 @@ export abstract class IJobSearchService {
 }
 
 export interface SalaryInsightCriteria {
-  excludeJobId: string;
+  excludeJobId?: string;
   categoryId?: string;
   title?: string;
   provinceIds?: string[];

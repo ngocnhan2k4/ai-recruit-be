@@ -15,6 +15,7 @@ import {
   JobCopilotResponseDto,
   JobDto,
   JobSalaryInsightDto,
+  SalaryInsightPreviewQueryDto,
   SaveJobCopilotDraftDto,
   UpdateJobDto,
 } from "@/interfaces/dtos";
@@ -31,6 +32,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -181,17 +183,16 @@ export class OrganizationJobController {
   }
 
   @ApiOperation({
-    summary: "Get salary market insight for a job",
+    summary: "Preview salary market insight while creating/editing a job",
     description:
-      "Query Elasticsearch for similar active jobs posted in the last 12 months and return the median salary range for market comparison.",
+      "Query Elasticsearch for similar active jobs posted in the last 12 months using the criteria currently entered in the job form (no saved job required). When editing, pass jobId to exclude the job itself from comparison.",
   })
   @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
   @ApiResponseDto(JobSalaryInsightDto)
-  @Get("jobs/:jobId/salary-insight")
-  async getSalaryInsight(
-    @Param("jobId") jobId: string,
-    @Param("orgId") orgId: string,
+  @Get("jobs/salary-insight-preview")
+  async getSalaryInsightPreview(
+    @Query() query: SalaryInsightPreviewQueryDto,
   ): Promise<ApiResponse<JobSalaryInsightDto>> {
-    return this.jobUseCases.getSalaryInsight(jobId, orgId);
+    return this.jobUseCases.getSalaryInsightPreview(query);
   }
 }

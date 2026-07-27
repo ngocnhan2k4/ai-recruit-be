@@ -11,7 +11,7 @@ export interface SalaryInsightConfig {
 const MATCH_TIERS: readonly SalaryInsightMatchTier[] = ["exact"];
 
 function buildBaseFilters(
-  excludeJobId: string,
+  excludeJobId: string | undefined,
   lookbackMonths: number,
 ): { must: any[]; mustNot: any[] } {
   const fromDate = new Date();
@@ -41,7 +41,7 @@ function buildBaseFilters(
       { range: { salaryMin: { gt: 0 } } },
       { range: { salaryMax: { gt: 0 } } },
     ],
-    mustNot: [{ term: { id: excludeJobId } }],
+    mustNot: excludeJobId ? [{ term: { id: excludeJobId } }] : [],
   };
 }
 
@@ -54,7 +54,7 @@ function buildBaseFilters(
 function buildTierFilters(
   criteria: SalaryInsightCriteria,
 ): Record<SalaryInsightMatchTier, any[]> {
-  const { categoryId, experienceMin, experienceMax } = criteria;
+  const { categoryId, experienceMin, experienceMax, provinceIds } = criteria;
 
   const categoryFilter = categoryId
     ? [{ term: { categoryId } }]
@@ -69,8 +69,12 @@ function buildTierFilters(
       : null,
   ].filter(Boolean);
 
+  const provinceFilter = provinceIds?.length
+    ? [{ terms: { provinceIds } }]
+    : [];
+
   return {
-    exact: [...categoryFilter, ...experienceFilter],
+    exact: [...categoryFilter, ...experienceFilter, ...provinceFilter],
   };
 }
 

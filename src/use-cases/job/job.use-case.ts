@@ -67,6 +67,7 @@ import {
   JobTrendsQueryDto,
   JobTrendsResponseDto,
   OrganizationWithDetailsDto,
+  SalaryInsightPreviewQueryDto,
   SavedJobsResponseDto,
   StatisticsJobFilterRequestDto,
   StatisticsJobResponse,
@@ -1897,31 +1898,15 @@ export class JobUseCases {
     };
   }
 
-  async getSalaryInsight(
-    jobId: string,
-    orgId: string,
+  async getSalaryInsightPreview(
+    query: SalaryInsightPreviewQueryDto,
   ): Promise<ApiResponse<JobSalaryInsightDto>> {
-    const jobDetail = await this.jobRepository.getFullJobById(jobId);
-    if (!jobDetail || !jobDetail.job || jobDetail.job.deletedAt) {
-      throw new BadRequestException({
-        message: RESPONSE_MESSAGE.JOB_NOT_FOUND,
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-      });
-    }
-
-    if (jobDetail.job.organizationId !== orgId) {
-      throw new ForbiddenException({
-        message: "You do not have permission to access this job.",
-        code: RESPONSE_CODE.FORBIDDEN,
-      });
-    }
-
-    const { job, category } = jobDetail;
     const agg = await this.jobSearchService.getSalaryInsight({
-      excludeJobId: jobId,
-      categoryId: category?.id ?? job.categoryId ?? undefined,
-      experienceMin: job.experienceMin ?? undefined,
-      experienceMax: job.experienceMax ?? undefined,
+      excludeJobId: query.jobId,
+      categoryId: query.categoryId,
+      experienceMin: query.experienceMin,
+      experienceMax: query.experienceMax,
+      provinceIds: query.provinceIds,
     });
 
     return {
@@ -1930,8 +1915,8 @@ export class JobUseCases {
       data: buildSalaryInsightDto(
         agg,
         {
-          salaryMin: job.salaryMin != null ? Number(job.salaryMin) : null,
-          salaryMax: job.salaryMax != null ? Number(job.salaryMax) : null,
+          salaryMin: query.salaryMin ?? null,
+          salaryMax: query.salaryMax ?? null,
         },
         {
           atMarketThresholdRatio: this.configService.get<number>(
