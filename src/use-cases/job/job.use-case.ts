@@ -613,7 +613,11 @@ export class JobUseCases {
 
     // Fetch ALL categories for each metric independently (2 batch queries)
     const [appliedData, employerData] = await Promise.all([
-      this.jobRepository.getTopAppliedJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getTopAppliedJobsByCategories(
+        categoryIds,
+        baseFilter,
+        5,
+      ),
       this.jobRepository.getTopEmployersByCategories(
         categoryIds,
         baseFilter,
