@@ -41,8 +41,8 @@ import {
   RoadmapChatResponse,
 } from "@/core/entities/learning-path.entity";
 import {
+  JobCopilotAiResponse,
   JobCopilotRequest,
-  JobCopilotResponse,
 } from "@/core/entities/job-copilot.entity";
 import type {
   CandidateBriefAiRequest,
@@ -97,10 +97,12 @@ export class AIClientService implements IAIService {
     });
   }
 
-  async runJobCopilot(request: JobCopilotRequest): Promise<JobCopilotResponse> {
+  async runJobCopilot(
+    request: JobCopilotRequest,
+  ): Promise<JobCopilotAiResponse> {
     const url = `${this.aiServiceUrl}/api/v1/job-copilot`;
 
-    return this.postWithRetry<JobCopilotRequest, JobCopilotResponse>({
+    return this.postWithRetry<JobCopilotRequest, JobCopilotAiResponse>({
       url,
       body: request,
       errorContext: "AI Service Job Copilot generation failed",

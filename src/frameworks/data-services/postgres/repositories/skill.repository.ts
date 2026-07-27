@@ -34,6 +34,7 @@ import {
   gte,
   lte,
   isNotNull,
+  isNull,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -259,6 +260,41 @@ export class SkillRepository
       .limit(1);
 
     return skill[0] ?? null;
+  }
+
+  async resolveApprovedSkillsByNames(
+    names: string[],
+  ): Promise<Pick<Skill, "id" | "name">[]> {
+    const normalizedNames = Array.from(
+      new Set(
+        names
+          .map((name) => name.trim().toLowerCase())
+          .filter((name) => name.length > 0),
+      ),
+    );
+    if (!normalizedNames.length) return [];
+
+    const normalizedNameExpr = sql<string>`lower(trim(${skills.name}))`;
+    const normalizedAliasExpr = sql<string>`lower(trim(${skillsSynonyms.aliasName}))`;
+
+    return this.db
+      .selectDistinct({
+        id: skills.id,
+        name: skills.name,
+      })
+      .from(skills)
+      .leftJoin(skillsSynonyms, eq(skillsSynonyms.masterSkillId, skills.id))
+      .where(
+        and(
+          isNull(skills.deletedAt),
+          eq(skills.isApproved, true),
+          or(
+            inArray(normalizedNameExpr, normalizedNames),
+            inArray(normalizedAliasExpr, normalizedNames),
+          ),
+        ),
+      )
+      .orderBy(asc(skills.name));
   }
 
   async bulkReviewSkills(
