@@ -1,38 +1,41 @@
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  CreateJobDto,
+  GenerateCandidateBriefDto,
+  JobCandidateRecommendationDto,
+  JobCopilotDraftResponseDto,
+  JobCopilotRequestDto,
+  JobCopilotResponseDto,
+  JobDto,
+  JobSalaryInsightDto,
+  SalaryInsightPreviewQueryDto,
+  SaveJobCopilotDraftDto,
+  UpdateJobDto,
+} from "@/interfaces/dtos";
+import { CandidateBriefViewDto } from "@/interfaces/dtos/jobs/res/candidate-brief.dto";
+import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
+import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
+import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
 import { JobUseCases } from "@/use-cases/job/job.use-case";
 import {
   Body,
   Controller,
   Delete,
-  Put,
-  Param,
-  UseGuards,
-  Post,
   Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { GetUser } from "@/common/decorators";
-import { type TokenPayload } from "@/common/types";
-import {
-  ApiResponse,
-  ApiResponseDto,
-  CreateJobDto,
-  UpdateJobDto,
-  JobDto,
-  JobCandidateRecommendationDto,
-  JobCopilotRequestDto,
-  JobCopilotResponseDto,
-  SaveJobCopilotDraftDto,
-  JobCopilotDraftResponseDto,
-  GenerateCandidateBriefDto,
-  CandidateBriefViewDto,
-} from "@/interfaces/dtos";
-import {
-  JwtAuthGuard,
-  OrganizationAuthorizeGuard,
-} from "@/frameworks/auth-services/guards";
-import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
-import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
-import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
 
 @ApiTags("Organization Jobs")
 @ApiBearerAuth()
@@ -177,5 +180,19 @@ export class OrganizationJobController {
     @Param("orgId") orgId: string,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
+  }
+
+  @ApiOperation({
+    summary: "Preview salary market insight while creating/editing a job",
+    description:
+      "Query Elasticsearch for similar active jobs posted in the last 12 months using the criteria currently entered in the job form (no saved job required). When editing, pass jobId to exclude the job itself from comparison.",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @ApiResponseDto(JobSalaryInsightDto)
+  @Get("jobs/salary-insight-preview")
+  async getSalaryInsightPreview(
+    @Query() query: SalaryInsightPreviewQueryDto,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    return this.jobUseCases.getSalaryInsightPreview(query);
   }
 }

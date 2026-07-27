@@ -2,16 +2,16 @@ import {
   aiCvs,
   applyJobs,
   areas,
+  candidateBriefs,
   categories,
   comments,
   companies,
   cvs,
   features,
   feedbacks,
+  jobCopilotDrafts,
   jobProvinces,
   jobs,
-  jobCopilotDrafts,
-  candidateBriefs,
   notifications,
   organizationInvitations,
   organizationLocations,
@@ -51,15 +51,16 @@ import { OptimizedCvData } from "./ai-cv.entity";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./ai-cv.entity";
 export * from "./blog.entity";
+export * from "./candidate-brief.entity";
 export * from "./comment.entity";
 export * from "./cv.entity";
 export * from "./email.entity";
 export * from "./enum.entity";
 export * from "./feedback.entity";
-export * from "./job.entity";
-export * from "./job-copilot.entity";
 export * from "./job-copilot-draft.entity";
-export * from "./candidate-brief.entity";
+export * from "./job-copilot.entity";
+export * from "./job-salary-insight.entity";
+export * from "./job.entity";
 export * from "./learning-path.entity";
 export * from "./organization.entity";
 export * from "./otp.entity";
