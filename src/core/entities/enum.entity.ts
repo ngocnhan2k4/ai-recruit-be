@@ -133,6 +133,11 @@ export enum SkillLevelEnum {
   ADVANCED = "advanced",
 }
 
+/** How a row in user_skills was created. */
+export enum UserSkillSourceEnum {
+  EXAM = "exam",
+}
+
 export enum SkillResolutionStatusEnum {
   MATCHED = "matched",
   PENDING = "pending",
