@@ -5,18 +5,27 @@ import {
   IsInt,
   IsObject,
   IsOptional,
+  IsUUID,
   Min,
 } from "class-validator";
 import type { SaveJobCopilotDraft } from "@/core";
 import type { JobCopilotLocale } from "@/core";
 
 export class JobCopilotDraftLocaleDto {
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
   @ApiProperty({ enum: ["vi", "en"] })
   @IsIn(["vi", "en"])
   locale: JobCopilotLocale;
 }
 
 export class SaveJobCopilotDraftDto implements SaveJobCopilotDraft {
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
   @ApiProperty({ enum: ["vi", "en"] })
   @IsIn(["vi", "en"])
   locale: JobCopilotLocale;

@@ -14,6 +14,7 @@ import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
 import { JobCopilotUseCase } from "../job-copilot/job-copilot.use-case";
 import { JobCopilotDraftUseCase } from "../job-copilot/job-copilot-draft.use-case";
 import { CandidateBriefUseCase } from "../candidate-brief/candidate-brief.use-case";
+import { JobCopilotChatUseCase } from "../job-copilot/job-copilot-chat.use-case";
 
 @Module({
   imports: [
@@ -34,12 +35,14 @@ import { CandidateBriefUseCase } from "../candidate-brief/candidate-brief.use-ca
     JobCopilotUseCase,
     JobCopilotDraftUseCase,
     CandidateBriefUseCase,
+    JobCopilotChatUseCase,
   ],
   exports: [
     JobUseCases,
     JobCopilotUseCase,
     JobCopilotDraftUseCase,
     CandidateBriefUseCase,
+    JobCopilotChatUseCase,
   ],
 })
 export class JobUseCasesModule {}

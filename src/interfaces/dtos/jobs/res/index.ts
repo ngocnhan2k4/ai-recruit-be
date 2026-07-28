@@ -4,6 +4,7 @@ export * from "./job-base.dto";
 export * from "./job-candidate.dto";
 export * from "./job-copilot-draft.dto";
 export * from "./job-copilot.dto";
+export * from "./job-copilot-chat.dto";
 export * from "./job-interaction.dto";
 export * from "./job-matching.dto";
 export * from "./job-salary-insight.dto";

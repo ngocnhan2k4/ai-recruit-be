@@ -9,6 +9,7 @@ export abstract class IJobCopilotDraftRepository {
     organizationId: string,
     createdBy: string,
     locale: JobCopilotLocale,
+    conversationId?: string,
   ): Promise<JobCopilotDraftRecord | null>;
 
   abstract save(
@@ -20,5 +21,6 @@ export abstract class IJobCopilotDraftRepository {
   abstract softDelete(
     organizationId: string,
     createdBy: string,
+    conversationId?: string,
   ): Promise<boolean>;
 }
