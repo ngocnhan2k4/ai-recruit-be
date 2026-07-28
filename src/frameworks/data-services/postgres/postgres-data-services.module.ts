@@ -36,6 +36,7 @@ import {
   IUserActionRepository,
   ICommentRepository,
   IJobCopilotDraftRepository,
+  IJobCopilotConversationRepository,
   ICandidateBriefRepository,
 } from "@/core";
 
@@ -88,6 +89,7 @@ import { BlogRepository } from "./repositories/blog.repository";
 import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
 import { JobCopilotDraftRepository } from "./repositories/job-copilot-draft.repository";
+import { JobCopilotConversationRepository } from "./repositories/job-copilot-conversation.repository";
 import { CandidateBriefRepository } from "./repositories/candidate-brief.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
@@ -196,6 +198,10 @@ import { createLoggerQuery, retry } from "@/common/utils";
     {
       provide: IJobCopilotDraftRepository,
       useClass: JobCopilotDraftRepository,
+    },
+    {
+      provide: IJobCopilotConversationRepository,
+      useClass: JobCopilotConversationRepository,
     },
     {
       provide: ICandidateBriefRepository,
@@ -362,6 +368,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
     ICvRepository,
     IJobRepository,
     IJobCopilotDraftRepository,
+    IJobCopilotConversationRepository,
     ICandidateBriefRepository,
     IProvinceRepository,
     ISkillRepository,

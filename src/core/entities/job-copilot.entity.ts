@@ -1,4 +1,4 @@
-export type JobCopilotMode = "generate" | "review";
+export type JobCopilotMode = "generate" | "review" | "revise";
 export type JobCopilotLocale = "vi" | "en";
 export type JobQualityLabel = "needs_work" | "fair" | "good" | "excellent";
 export type JobQualityCriterionKey =
@@ -42,6 +42,8 @@ export interface JobCopilotRequest {
   mode: JobCopilotMode;
   locale: JobCopilotLocale;
   draft: JobCopilotDraft;
+  localizedDrafts?: Record<JobCopilotLocale, JobCopilotGeneratedDraft>;
+  instruction?: string;
   scoreContext?: JobCopilotScoreContext;
 }
 

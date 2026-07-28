@@ -16,12 +16,14 @@ export interface JobCopilotDraftState {
 }
 
 export interface SaveJobCopilotDraft extends JobCopilotDraftState {
+  conversationId?: string;
   locale: JobCopilotLocale;
   expectedVersion: number;
 }
 
 export interface JobCopilotDraftRecord extends JobCopilotDraftState {
   id: string;
+  conversationId: string | null;
   organizationId: string;
   createdBy: string;
   locale: JobCopilotLocale;

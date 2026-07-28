@@ -28,6 +28,10 @@ import type {
   CandidateBriefAiRequest,
   CandidateBriefAnalysis,
 } from "../entities/candidate-brief.entity";
+import type {
+  JobCopilotChatExtractRequest,
+  JobCopilotChatExtractResponse,
+} from "../entities/job-copilot-conversation.entity";
 
 export abstract class IAIService {
   abstract runCandidateBrief(
@@ -37,6 +41,10 @@ export abstract class IAIService {
   abstract runJobCopilot(
     request: JobCopilotRequest,
   ): Promise<JobCopilotAiResponse>;
+
+  abstract extractJobCopilotChat(
+    request: JobCopilotChatExtractRequest,
+  ): Promise<JobCopilotChatExtractResponse>;
 
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,

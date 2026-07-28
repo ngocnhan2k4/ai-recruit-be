@@ -52,6 +52,10 @@ import type {
   CandidateBriefAiRequest,
   CandidateBriefAnalysis,
 } from "@/core/entities/candidate-brief.entity";
+import type {
+  JobCopilotChatExtractRequest,
+  JobCopilotChatExtractResponse,
+} from "@/core/entities/job-copilot-conversation.entity";
 
 @Injectable()
 export class AIClientService implements IAIService {
@@ -111,6 +115,22 @@ export class AIClientService implements IAIService {
       body: request,
       errorContext: "AI Service Job Copilot generation failed",
       timeoutMs: this.aiServiceTimeout * 2,
+      retryCount: 1,
+    });
+  }
+
+  async extractJobCopilotChat(
+    request: JobCopilotChatExtractRequest,
+  ): Promise<JobCopilotChatExtractResponse> {
+    const url = `${this.aiServiceUrl}/api/v1/job-copilot/chat/extract`;
+    return this.postWithRetry<
+      JobCopilotChatExtractRequest,
+      JobCopilotChatExtractResponse
+    >({
+      url,
+      body: request,
+      errorContext: "AI Service Job Copilot chat extraction failed",
+      timeoutMs: this.aiServiceTimeout,
       retryCount: 1,
     });
   }

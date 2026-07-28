@@ -4,6 +4,8 @@ import type { JobCopilotDraftRecord } from "@/core";
 export class JobCopilotDraftResponseDto implements JobCopilotDraftRecord {
   @ApiProperty()
   id: string;
+  @ApiProperty({ nullable: true })
+  conversationId: string | null;
   @ApiProperty()
   organizationId: string;
   @ApiProperty()
