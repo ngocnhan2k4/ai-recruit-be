@@ -153,6 +153,11 @@ export class JobRepository
     if (sortBy === "datePosted") {
       return direction(this.getEffectivePostedDateExpr());
     }
+    if (sortBy === "applications") {
+      return direction(
+        sql`COALESCE(total_applications_lateral.total_applications, 0)`,
+      );
+    }
     return null;
   }
 
@@ -444,13 +449,14 @@ export class JobRepository
 
     const fields = filters?.fields || [];
 
-    const totalApplyLateral = fields.includes("totalApplications")
-      ? sql`LATERAL (
+    const totalApplyLateral =
+      fields.includes("totalApplications") || filters?.sortBy === "applications"
+        ? sql`LATERAL (
         SELECT COUNT(*) AS total_applications
         FROM ${applyJobs} aj
         WHERE aj.job_id = ${jobs.id}
       ) total_applications_lateral`
-      : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
+        : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
 
     // Add one extra item to check if there's a next page
     const query = this.db
