@@ -4,6 +4,7 @@ import { ApiResponse } from "@/interfaces/dtos";
 import {
   CreateBlogCategoryDto,
   CreateBlogTagDto,
+  GenerateAiBlogDto,
   QueryBlogCategoriesDto,
   QueryBlogsDto,
   QueryBlogTagsDto,
@@ -46,29 +47,13 @@ export class AdminBlogController {
   }
 
   @ApiOperation({
-    summary: "Get blog detail by ID",
-    description: "Retrieve blog detail for admin including DRAFT status.",
-  })
-  @ApiParam({ name: "id", description: "Blog post ID" })
-  @Get(":id")
-  async getAdminBlogById(
-    @Param("id") id: string,
-  ): Promise<ApiResponse<BlogPostDetailDto>> {
-    return this.blogUseCases.getAdminBlogById(id);
-  }
-
-  @ApiOperation({
-    summary: "Update blog status (review)",
+    summary: "Generate weekly AI job-market blog",
     description:
-      "Approve or reject a blog post. Used to review CRAWLED and AI-generated posts. Changes status to PUBLISHED (approved) or REJECTED. Cannot be used on DRAFT.",
+      "Manually trigger AI blog generation for backfill. Pass `date` (YYYY-MM-DD) as the inclusive end of the job window; omit to use today. Skips if slug for that date already exists.",
   })
-  @ApiParam({ name: "id", description: "Blog post ID" })
-  @Put(":id/status")
-  async updateBlogStatus(
-    @Param("id") id: string,
-    @Body() request: UpdateBlogStatusRequest,
-  ) {
-    return this.blogUseCases.updateBlogStatus(id, request);
+  @Post("generate-ai")
+  async generateAiBlog(@Body() body: GenerateAiBlogDto) {
+    return await this.blogUseCases.generateWeeklyAiBlog(body);
   }
 
   @ApiOperation({
@@ -105,5 +90,31 @@ export class AdminBlogController {
   @Get("tags")
   async getTags(@Query() query: QueryBlogTagsDto) {
     return this.blogUseCases.getTagsPaginated(query);
+  }
+
+  @ApiOperation({
+    summary: "Get blog detail by ID",
+    description: "Retrieve blog detail for admin including DRAFT status.",
+  })
+  @ApiParam({ name: "id", description: "Blog post ID" })
+  @Get(":id")
+  async getAdminBlogById(
+    @Param("id") id: string,
+  ): Promise<ApiResponse<BlogPostDetailDto>> {
+    return this.blogUseCases.getAdminBlogById(id);
+  }
+
+  @ApiOperation({
+    summary: "Update blog status (review)",
+    description:
+      "Approve or reject a blog post. Used to review CRAWLED and AI-generated posts. Changes status to PUBLISHED (approved) or REJECTED. Cannot be used on DRAFT.",
+  })
+  @ApiParam({ name: "id", description: "Blog post ID" })
+  @Put(":id/status")
+  async updateBlogStatus(
+    @Param("id") id: string,
+    @Body() request: UpdateBlogStatusRequest,
+  ) {
+    return this.blogUseCases.updateBlogStatus(id, request);
   }
 }
