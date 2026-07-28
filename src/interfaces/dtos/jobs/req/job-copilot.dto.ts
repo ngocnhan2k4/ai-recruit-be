@@ -1,9 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  ArrayMinSize,
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -18,7 +20,19 @@ import type {
   JobCopilotLocale,
   JobCopilotMode,
   JobCopilotRequest,
+  JobCopilotAppliedSuggestion,
+  JobCopilotBaselineCriterion,
+  JobCopilotScoreContext,
+  JobQualityCriterionKey,
 } from "@/core/entities/job-copilot.entity";
+
+const QUALITY_CRITERIA = [
+  "clarity",
+  "attractiveness",
+  "inclusiveness",
+  "completeness",
+  "consistency",
+] as const;
 
 export class JobCopilotDraftDto implements JobCopilotDraft {
   @ApiProperty({ example: "Senior Frontend Engineer" })
@@ -77,6 +91,14 @@ export class JobCopilotDraftDto implements JobCopilotDraft {
   @Min(0)
   salaryMax?: number;
 
+  @ApiProperty({ enum: ["VND"], default: "VND" })
+  @IsIn(["VND"])
+  salaryCurrency: "VND";
+
+  @ApiProperty({ enum: ["million"], default: "million" })
+  @IsIn(["million"])
+  salaryUnit: "million";
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
@@ -96,6 +118,61 @@ export class JobCopilotDraftDto implements JobCopilotDraft {
   benefits?: string;
 }
 
+export class JobCopilotBaselineCriterionDto
+  implements JobCopilotBaselineCriterion
+{
+  @ApiProperty({ enum: QUALITY_CRITERIA })
+  @IsIn(QUALITY_CRITERIA)
+  key: JobQualityCriterionKey;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  score: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  maxScore: number;
+}
+
+export class JobCopilotAppliedSuggestionDto
+  implements JobCopilotAppliedSuggestion
+{
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  id: string;
+
+  @ApiProperty({ enum: QUALITY_CRITERIA })
+  @IsIn(QUALITY_CRITERIA)
+  criterionKey: JobQualityCriterionKey;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  scoreGain: number;
+}
+
+export class JobCopilotScoreContextDto implements JobCopilotScoreContext {
+  @ApiProperty({ type: [JobCopilotBaselineCriterionDto] })
+  @IsArray()
+  @ArrayMinSize(5)
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => JobCopilotBaselineCriterionDto)
+  baselineCriteria: JobCopilotBaselineCriterionDto[];
+
+  @ApiProperty({ type: [JobCopilotAppliedSuggestionDto] })
+  @IsArray()
+  @ArrayMaxSize(8)
+  @ValidateNested({ each: true })
+  @Type(() => JobCopilotAppliedSuggestionDto)
+  appliedSuggestions: JobCopilotAppliedSuggestionDto[];
+}
+
 export class JobCopilotRequestDto implements JobCopilotRequest {
   @ApiProperty({ enum: ["generate", "review"] })
   @IsIn(["generate", "review"])
@@ -109,4 +186,10 @@ export class JobCopilotRequestDto implements JobCopilotRequest {
   @ValidateNested()
   @Type(() => JobCopilotDraftDto)
   draft: JobCopilotDraftDto;
+
+  @ApiProperty({ required: false, type: JobCopilotScoreContextDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => JobCopilotScoreContextDto)
+  scoreContext?: JobCopilotScoreContextDto;
 }

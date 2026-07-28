@@ -10,6 +10,7 @@ import {
   CreateJobDto,
   GenerateCandidateBriefDto,
   JobCandidateRecommendationDto,
+  JobCopilotDraftLocaleDto,
   JobCopilotDraftResponseDto,
   JobCopilotRequestDto,
   JobCopilotResponseDto,
@@ -84,8 +85,9 @@ export class OrganizationJobController {
   getJobCopilotDraft(
     @Param("orgId") orgId: string,
     @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotDraftLocaleDto,
   ) {
-    return this.jobCopilotDraftUseCase.get(orgId, user.userId);
+    return this.jobCopilotDraftUseCase.get(orgId, user.userId, query.locale);
   }
 
   @ApiOperation({ summary: "Create or update a Job Copilot draft" })

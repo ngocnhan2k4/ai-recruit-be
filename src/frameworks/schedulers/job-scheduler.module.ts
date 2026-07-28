@@ -22,6 +22,7 @@ import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
 import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { NotificationModule } from "@/frameworks/notification/notification.module";
+import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { NotificationModule } from "@/frameworks/notification/notification.modul
     RedisModule,
     TranslationModule,
     NotificationModule,
+    BlogUseCasesModule,
   ],
   providers: [
     JobMatchingScheduler,

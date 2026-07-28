@@ -2,7 +2,7 @@ import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { CACHE_KEYS } from "@/common/constants/cache";
 import { PaginatedResult, TokenPayload } from "@/common/types";
 import { generateSlug } from "@/common/utils/string";
-import { ICacheService } from "@/core";
+import { IAIService, ICacheService } from "@/core";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.abstract";
 import { ICommentRepository } from "@/core/abstracts/repositories/comment-repository.abstract";
@@ -10,10 +10,12 @@ import { IUserActionRepository } from "@/core/abstracts/repositories/user-action
 import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
 import {
   BlogCategory,
+  BlogGeneratedLocaleMap,
   BlogPost,
   BlogPostStatus,
   BlogSourceType,
   Comment,
+  GenerateJobBlogPostResponse,
   NotificationType,
   ObjectType,
   Tag,
@@ -30,6 +32,7 @@ import {
   CreateBlogCategoryDto,
   CreateBlogPostDto,
   CreateBlogTagDto,
+  GenerateAiBlogDto,
   QueryBlogCategoriesDto,
   QueryBlogsDto,
   QueryBlogTagsDto,
@@ -52,10 +55,12 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class BlogUseCases {
   private readonly logger = new Logger(BlogUseCases.name);
+  private readonly timeZone: string;
 
   constructor(
     private readonly blogRepository: IBlogRepository,
@@ -66,7 +71,12 @@ export class BlogUseCases {
     private readonly userRepository: IUserRepository,
     private readonly notificationService: INotificationService,
     private readonly commentService: CommentService,
-  ) {}
+    private readonly aiService: IAIService,
+    private readonly configService: ConfigService,
+  ) {
+    this.timeZone =
+      this.configService.get<string>("TIMEZONE") || "Asia/Ho_Chi_Minh";
+  }
 
   private resolveLegacyBlogField(
     field: "title" | "summary" | "content",
@@ -927,5 +937,163 @@ export class BlogUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       data: paginated,
     };
+  }
+
+  async generateWeeklyAiBlog(input: GenerateAiBlogDto = {}): Promise<
+    ApiResponse<{
+      created: boolean;
+      slug: string;
+      postId?: string;
+      asOf: string;
+      reason?: string;
+    }>
+  > {
+    const asOf = this.resolveAsOfDate(input.date);
+    const dateKey = this.formatVietnamDate(asOf);
+    const slug = `weekly-ai-job-market-${dateKey}`;
+    const aiBlogAuthorId =
+      this.configService.get<string>("AI_BLOG_AUTHOR_ID") || undefined;
+    const aiBlogRangeDays = Math.max(
+      1,
+      this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
+    );
+
+    this.logger.log(
+      `[generateWeeklyAiBlog] Starting AI blog generation asOf=${dateKey}`,
+    );
+
+    if (!aiBlogAuthorId) {
+      throw new BadRequestException({
+        message: "AI_BLOG_AUTHOR_ID is not configured",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const author = await this.userRepository.get(aiBlogAuthorId);
+    if (!author) {
+      throw new NotFoundException({
+        message: `AI blog author ${aiBlogAuthorId} was not found`,
+        code: RESPONSE_CODE.USER_NOT_FOUND,
+      });
+    }
+
+    const existing = await this.blogRepository.getPostBySlug(slug);
+    if (existing) {
+      this.logger.log(
+        `[generateWeeklyAiBlog] Skipping because slug ${slug} already exists`,
+      );
+      return {
+        code: RESPONSE_CODE.SUCCESS,
+        message: RESPONSE_MESSAGE.SUCCESS,
+        data: {
+          created: false,
+          slug,
+          postId: existing.id,
+          asOf: dateKey,
+          reason: "already_exists",
+        },
+      };
+    }
+
+    const payload = await this.aiService.generateJobBlogPost({
+      rangeDays: aiBlogRangeDays,
+      asOf: dateKey,
+    });
+
+    const categoryId = payload.categoryId ?? payload.category;
+    if (!categoryId) {
+      throw new BadRequestException({
+        message: "AI payload did not include a categoryId",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const normalizedTags = (payload.tagInputs || [])
+      .filter((item) => item.tagId || item.skillId)
+      .map((item) => ({
+        tagId: item.tagId ?? null,
+        skillId: item.skillId ?? null,
+      }));
+
+    const created = await this.blogRepository.createPost({
+      title: payload.title,
+      slug,
+      summary: payload.summary,
+      thumbnail: payload.thumbnail ?? null,
+      content: payload.content,
+      locales: this.buildGeneratedBlogLocales(payload),
+      categoryId,
+      authorId: author.id,
+      status: BlogPostStatus.PENDING,
+      sourceType: BlogSourceType.AI,
+      tags: normalizedTags,
+    });
+
+    this.logger.log(
+      `[generateWeeklyAiBlog] Created AI blog successfully with slug ${slug}`,
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: RESPONSE_MESSAGE.SUCCESS,
+      data: {
+        created: true,
+        slug,
+        postId: created.id,
+        asOf: dateKey,
+      },
+    };
+  }
+
+  private buildGeneratedBlogLocales(
+    payload: GenerateJobBlogPostResponse,
+  ): BlogGeneratedLocaleMap {
+    const locales: BlogGeneratedLocaleMap = {};
+
+    for (const languageCode of ["vi", "en"] as const) {
+      locales[languageCode] = {
+        title: payload.locales?.[languageCode]?.title ?? payload.title,
+        summary: payload.locales?.[languageCode]?.summary ?? payload.summary,
+        content: payload.locales?.[languageCode]?.content ?? payload.content,
+      };
+    }
+
+    return locales;
+  }
+
+  private resolveAsOfDate(dateInput?: string): Date {
+    if (!dateInput) {
+      return new Date();
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateInput);
+    if (!match) {
+      throw new BadRequestException({
+        message: "date must be YYYY-MM-DD",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const [, year, month, day] = match;
+    const parsed = new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day)),
+    );
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException({
+        message: "Invalid date",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    return parsed;
+  }
+
+  private formatVietnamDate(date: Date): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: this.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
   }
 }

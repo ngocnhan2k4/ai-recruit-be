@@ -874,9 +874,9 @@ export class JobRepository
         );
         whereConditions.push(
           sql`(
-            lower(j.title) LIKE '%thực tập%' OR 
-            lower(j.title) LIKE '%intern%' OR 
-            lower(j.title) LIKE '%trainee%' OR 
+            lower(j.title) LIKE '%thực tập%' OR
+            lower(j.title) LIKE '%intern%' OR
+            lower(j.title) LIKE '%trainee%' OR
             (j.salary_max IS NOT NULL AND j.salary_max <= 5.00)
           )`,
         );

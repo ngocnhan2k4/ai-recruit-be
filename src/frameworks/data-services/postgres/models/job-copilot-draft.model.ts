@@ -5,6 +5,7 @@ import {
   pgTable,
   uniqueIndex,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organizations } from "./organization.model";
@@ -21,6 +22,7 @@ export const jobCopilotDrafts = pgTable(
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id),
+    locale: varchar("locale", { length: 5 }).notNull().default("vi"),
     formData: jsonb("form_data").$type<Record<string, unknown>>().notNull(),
     analysisResult: jsonb("analysis_result"),
     analyzedContent: jsonb("analyzed_content"),
@@ -30,12 +32,13 @@ export const jobCopilotDrafts = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("uniq_active_job_copilot_draft_recruiter_org")
-      .on(table.organizationId, table.createdBy)
+    uniqueIndex("uniq_active_job_copilot_draft_recruiter_org_locale")
+      .on(table.organizationId, table.createdBy, table.locale)
       .where(sql`${table.deletedAt} IS NULL`),
     index("idx_job_copilot_drafts_org_user").on(
       table.organizationId,
       table.createdBy,
+      table.locale,
     ),
   ],
 );
