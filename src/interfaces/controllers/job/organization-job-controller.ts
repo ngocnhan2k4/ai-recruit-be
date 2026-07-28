@@ -1,35 +1,42 @@
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  CreateJobDto,
+  GenerateCandidateBriefDto,
+  JobCandidateRecommendationDto,
+  JobCopilotDraftLocaleDto,
+  JobCopilotDraftResponseDto,
+  JobCopilotRequestDto,
+  JobCopilotResponseDto,
+  JobDto,
+  JobSalaryInsightDto,
+  SalaryInsightPreviewQueryDto,
+  SaveJobCopilotDraftDto,
+  UpdateJobDto,
+} from "@/interfaces/dtos";
+import { CandidateBriefViewDto } from "@/interfaces/dtos/jobs/res/candidate-brief.dto";
+import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
+import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
+import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
 import { JobUseCases } from "@/use-cases/job/job.use-case";
 import {
   Body,
   Controller,
   Delete,
-  Put,
-  Param,
-  UseGuards,
-  Post,
   Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { GetUser } from "@/common/decorators";
-import { type TokenPayload } from "@/common/types";
-import {
-  ApiResponse,
-  ApiResponseDto,
-  CreateJobDto,
-  UpdateJobDto,
-  JobDto,
-  JobCandidateRecommendationDto,
-  JobCopilotRequestDto,
-  JobCopilotResponseDto,
-  SaveJobCopilotDraftDto,
-  JobCopilotDraftResponseDto,
-} from "@/interfaces/dtos";
-import {
-  JwtAuthGuard,
-  OrganizationAuthorizeGuard,
-} from "@/frameworks/auth-services/guards";
-import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
-import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
 
 @ApiTags("Organization Jobs")
 @ApiBearerAuth()
@@ -39,7 +46,37 @@ export class OrganizationJobController {
     private readonly jobUseCases: JobUseCases,
     private readonly jobCopilotUseCase: JobCopilotUseCase,
     private readonly jobCopilotDraftUseCase: JobCopilotDraftUseCase,
+    private readonly candidateBriefUseCase: CandidateBriefUseCase,
   ) {}
+
+  @ApiOperation({ summary: "Get a saved Candidate Brief and stale state" })
+  @ApiResponseDto(CandidateBriefViewDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("applications/:applicationId/candidate-brief")
+  getCandidateBrief(
+    @Param("orgId") orgId: string,
+    @Param("applicationId") applicationId: string,
+  ) {
+    return this.candidateBriefUseCase.get(orgId, applicationId);
+  }
+
+  @ApiOperation({ summary: "Generate or regenerate a Candidate Brief" })
+  @ApiResponseDto(CandidateBriefViewDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Post("applications/:applicationId/candidate-brief")
+  generateCandidateBrief(
+    @Param("orgId") orgId: string,
+    @Param("applicationId") applicationId: string,
+    @GetUser() user: TokenPayload,
+    @Body() input: GenerateCandidateBriefDto,
+  ) {
+    return this.candidateBriefUseCase.generate(
+      orgId,
+      applicationId,
+      user.userId,
+      input.locale,
+    );
+  }
 
   @ApiOperation({ summary: "Get the recruiter's active Job Copilot draft" })
   @ApiResponseDto(JobCopilotDraftResponseDto)
@@ -48,8 +85,9 @@ export class OrganizationJobController {
   getJobCopilotDraft(
     @Param("orgId") orgId: string,
     @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotDraftLocaleDto,
   ) {
-    return this.jobCopilotDraftUseCase.get(orgId, user.userId);
+    return this.jobCopilotDraftUseCase.get(orgId, user.userId, query.locale);
   }
 
   @ApiOperation({ summary: "Create or update a Job Copilot draft" })
@@ -144,5 +182,19 @@ export class OrganizationJobController {
     @Param("orgId") orgId: string,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
+  }
+
+  @ApiOperation({
+    summary: "Preview salary market insight while creating/editing a job",
+    description:
+      "Query Elasticsearch for similar active jobs posted in the last 12 months using the criteria currently entered in the job form (no saved job required). When editing, pass jobId to exclude the job itself from comparison.",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @ApiResponseDto(JobSalaryInsightDto)
+  @Get("jobs/salary-insight-preview")
+  async getSalaryInsightPreview(
+    @Query() query: SalaryInsightPreviewQueryDto,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    return this.jobUseCases.getSalaryInsightPreview(query);
   }
 }

@@ -4,6 +4,12 @@ export interface OptimizeAtsRequest {
   cvText: string;
   jobDescription?: string;
   language?: CvLanguageEnum;
+  /** Language for reasoning/recommendation text; defaults to `language` if omitted. Usually the frontend's current UI language. */
+  reasoningLanguage?: CvLanguageEnum;
+  /** Cloudinary URL of the originally uploaded CV file, if any. */
+  originalCvUrl?: string;
+  /** Raw text extracted from the originally uploaded CV file, if any. */
+  oldRawText?: string;
 }
 
 export class CvSocialLink {
@@ -89,6 +95,39 @@ export class OptimizeAtsResponse {
   language: CvLanguageEnum;
 }
 
+export class ScoreCriteria {
+  score: number;
+  feedback: string;
+}
+
+export class ScoreBreakdown {
+  format: ScoreCriteria;
+  skills: ScoreCriteria;
+  experience: ScoreCriteria;
+  relevance: ScoreCriteria;
+}
+
+export class OptimizationApplied {
+  section: string;
+  action: "update" | "delete" | "add";
+  originalText: string | null;
+  optimizedText: string | null;
+  reasoning: string;
+}
+
+export class OptimizeAtsResponseV2 {
+  cvData: OptimizedCvData;
+  originalAtsScore: number;
+  originalScoreBreakdown: ScoreBreakdown;
+  atsScore: number;
+  scoreBreakdown: ScoreBreakdown;
+  matchingSkills: string[];
+  missingSkills: string[];
+  recommendation: string;
+  optimizationsApplied: OptimizationApplied[];
+  generatedAt: string;
+}
+
 export interface CvFieldContext {
   index?: number;
   position?: string;
@@ -104,10 +143,33 @@ export interface CvFieldSuggestionRequest {
   targetField: string;
   fieldContext?: CvFieldContext | null;
   jobDescription?: string | null;
+  /** The CV's own content language; suggested text must be written in this language. */
+  cvLanguage?: CvLanguageEnum;
+  /** Language for the reasoning/explanation text; usually the frontend's current UI language. */
+  reasoningLanguage?: CvLanguageEnum;
 }
 
 export interface CvFieldSuggestionResponse {
   targetField: string;
   suggestion: string;
   generatedAt: string;
+}
+
+export interface SuggestionChunk {
+  action: "update" | "add";
+  originalText: string | null;
+  suggestedText: string;
+  reasoning: string;
+}
+
+export interface CvFieldSuggestionResponseV2 {
+  targetField: string;
+  suggestions: SuggestionChunk[];
+  generatedAt: string;
+}
+
+export interface SuggestionLogEntry extends SuggestionChunk {
+  targetField: string;
+  decision: "accepted" | "rejected";
+  decidedAt: string;
 }

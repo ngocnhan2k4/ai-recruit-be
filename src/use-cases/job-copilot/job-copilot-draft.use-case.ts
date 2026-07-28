@@ -4,6 +4,7 @@ import type {
   JobCopilotDraftRecord,
   SaveJobCopilotDraft,
 } from "../../core/entities/job-copilot-draft.entity";
+import type { JobCopilotLocale } from "../../core/entities/job-copilot.entity";
 import {
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
@@ -17,8 +18,13 @@ export class JobCopilotDraftUseCase {
   async get(
     organizationId: string,
     userId: string,
+    locale: JobCopilotLocale,
   ): Promise<ApiResponse<JobCopilotDraftRecord | null>> {
-    const draft = await this.repository.findActive(organizationId, userId);
+    const draft = await this.repository.findActive(
+      organizationId,
+      userId,
+      locale,
+    );
     return this.success(draft);
   }
 
@@ -29,9 +35,10 @@ export class JobCopilotDraftUseCase {
   ): Promise<ApiResponse<JobCopilotDraftRecord>> {
     const draft = await this.repository.save(organizationId, userId, input);
     if (!draft) {
-      throw new ConflictException(
-        "Bản nháp đã được cập nhật ở nơi khác. Vui lòng tải lại dữ liệu.",
-      );
+      throw new ConflictException({
+        message: RESPONSE_MESSAGE.JOB_COPILOT_DRAFT_CONFLICT,
+        code: RESPONSE_CODE.JOB_COPILOT_DRAFT_CONFLICT,
+      });
     }
 
     return this.success(draft);

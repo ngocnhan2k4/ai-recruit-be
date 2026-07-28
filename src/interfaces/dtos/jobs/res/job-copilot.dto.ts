@@ -1,17 +1,31 @@
 import { ApiProperty } from "@nestjs/swagger";
 import type {
   JobCopilotGeneratedDraft,
+  JobCopilotLocalizedWorkspace,
+  JobCopilotLocalizedWorkspaces,
+  JobCopilotMode,
   JobCopilotResponse,
+  JobCopilotSuggestedSkill,
   JobQuality,
   JobQualityCriterion,
   JobQualityCriterionKey,
   JobQualityLabel,
   JobSuggestion,
+  JobSuggestionResolutionKind,
   JobSuggestionSeverity,
   JobSuggestionTarget,
+  JobSuggestionType,
   ScreeningQuestion,
   ScreeningQuestionType,
 } from "@/core/entities/job-copilot.entity";
+
+export class JobCopilotSuggestedSkillDto implements JobCopilotSuggestedSkill {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+}
 
 export class JobCopilotGeneratedDraftDto implements JobCopilotGeneratedDraft {
   @ApiProperty()
@@ -56,6 +70,19 @@ export class JobSuggestionDto implements JobSuggestion {
   @ApiProperty()
   id: string;
 
+  @ApiProperty({ enum: ["missing_input", "content_improvement"] })
+  type: JobSuggestionType;
+
+  @ApiProperty({
+    enum: [
+      "salary",
+      "title_category_conflict",
+      "role_skills_conflict",
+      "free_text",
+    ],
+  })
+  resolutionKind: JobSuggestionResolutionKind;
+
   @ApiProperty()
   category: string;
 
@@ -92,10 +119,9 @@ export class ScreeningQuestionDto implements ScreeningQuestion {
   enabled: boolean;
 }
 
-export class JobCopilotResponseDto implements JobCopilotResponse {
-  @ApiProperty()
-  analysisId: string;
-
+export class JobCopilotLocalizedWorkspaceDto
+  implements JobCopilotLocalizedWorkspace
+{
   @ApiProperty({ type: JobCopilotGeneratedDraftDto })
   draft: JobCopilotGeneratedDraftDto;
 
@@ -107,4 +133,28 @@ export class JobCopilotResponseDto implements JobCopilotResponse {
 
   @ApiProperty({ type: [ScreeningQuestionDto] })
   screeningQuestions: ScreeningQuestionDto[];
+}
+
+export class JobCopilotLocalizedWorkspacesDto
+  implements JobCopilotLocalizedWorkspaces
+{
+  @ApiProperty({ type: JobCopilotLocalizedWorkspaceDto })
+  vi: JobCopilotLocalizedWorkspaceDto;
+
+  @ApiProperty({ type: JobCopilotLocalizedWorkspaceDto })
+  en: JobCopilotLocalizedWorkspaceDto;
+}
+
+export class JobCopilotResponseDto implements JobCopilotResponse {
+  @ApiProperty()
+  analysisId: string;
+
+  @ApiProperty({ enum: ["generate", "review"] })
+  mode: JobCopilotMode;
+
+  @ApiProperty({ type: JobCopilotLocalizedWorkspacesDto })
+  locales: JobCopilotLocalizedWorkspacesDto;
+
+  @ApiProperty({ type: [JobCopilotSuggestedSkillDto] })
+  suggestedSkills: JobCopilotSuggestedSkillDto[];
 }

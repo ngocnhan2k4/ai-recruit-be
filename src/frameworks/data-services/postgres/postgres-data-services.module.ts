@@ -36,6 +36,7 @@ import {
   IUserActionRepository,
   ICommentRepository,
   IJobCopilotDraftRepository,
+  ICandidateBriefRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -87,6 +88,7 @@ import { BlogRepository } from "./repositories/blog.repository";
 import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
 import { JobCopilotDraftRepository } from "./repositories/job-copilot-draft.repository";
+import { CandidateBriefRepository } from "./repositories/candidate-brief.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
 import { RoadmapChatMessageRepository } from "./repositories/roadmap-chat-message.repository";
@@ -113,13 +115,20 @@ import { createLoggerQuery, retry } from "@/common/utils";
       useFactory: async (configService: ConfigService): Promise<DBDrizzle> => {
         const logger = new Logger("PostgresDataServicesModule");
         try {
+          const poolMax = configService.get<number>("DATABASE_POOL_MAX") ?? 10;
+          const poolMin = configService.get<number>("DATABASE_POOL_MIN") ?? 2;
+          const connectionTimeoutMillis =
+            configService.get<number>("DATABASE_POOL_CONNECTION_TIMEOUT_MS") ??
+            10000;
+
           const pool = new Pool({
             connectionString: configService.get<string>("DATABASE_URL"),
             ssl: { rejectUnauthorized: false },
-            max: 20, // Maximum number of connections in the pool
-            min: 5, // Minimum number of connections in the pool
-            idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-            connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
+            // Keep max modest so multiple replicas/workers don't exhaust DO slots
+            max: poolMax,
+            min: poolMin,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis,
           });
 
           (pool as any).query = createLoggerQuery(pool, { logger });
@@ -141,7 +150,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
             { retries: 3, interval: 1000 },
           );
           logger.log(
-            `Database connection established successfully (attempt ${attempt}).`,
+            `Database connection established successfully (attempt ${attempt}, pool max=${poolMax}, min=${poolMin}, timeout=${connectionTimeoutMillis}ms).`,
           );
 
           const db = drizzle(pool, {
@@ -187,6 +196,10 @@ import { createLoggerQuery, retry } from "@/common/utils";
     {
       provide: IJobCopilotDraftRepository,
       useClass: JobCopilotDraftRepository,
+    },
+    {
+      provide: ICandidateBriefRepository,
+      useClass: CandidateBriefRepository,
     },
     {
       provide: IProvinceRepository,
@@ -349,6 +362,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
     ICvRepository,
     IJobRepository,
     IJobCopilotDraftRepository,
+    ICandidateBriefRepository,
     IProvinceRepository,
     ISkillRepository,
     ISkillsSynonymsRepository,

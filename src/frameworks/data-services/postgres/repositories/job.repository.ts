@@ -1,85 +1,77 @@
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
 import {
-  eq,
-  and,
-  gt,
-  isNotNull,
-  lte,
-  gte,
-  countDistinct,
-  or,
-  isNull,
-  SQL,
-  sql,
-  ilike,
-  asc,
-  desc,
-  inArray,
-  lt,
-  getTableColumns,
-} from "drizzle-orm";
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import {
-  jobs,
-  skills,
-  jobSkills,
-  categories,
-  provinces,
-  userInteractions,
-  applyJobs,
-  cvs,
-  jobRaws,
-  users,
-  jobProvinces,
-} from "../models";
+  ApplyJob,
+  ApplyJobFilters,
+  ApplyJobResponse,
+  ApplyStatusEnum,
+  Category,
+  ICacheService,
+  IJobRepository,
+  INotificationRepository,
+  IOrganizationRepository,
+  Job,
+  JobAnswer,
+  JobCounts,
+  JobDetailFilter,
+  JobFilters,
+  JobResponse,
+  JobStatusEnum,
+  JobTrends,
+  JobTrendsQuery,
+  JobTrendTypeEnum,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  StatisticsJobFilter,
+  TopInMarketResponse,
+  User,
+  UserInteractionEnum,
+  UserInteractionResponse,
+  UserStatusEnum,
+  WorkTypeEnum,
+} from "@/core";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
-import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { GenericRepository } from "./generic-repository";
-import {
-  IJobRepository,
-  INotificationRepository,
-  IOrganizationRepository,
-  JobStatusEnum,
-  WorkTypeEnum,
-  Notification,
-  Category,
-  User,
-  UserInteractionEnum,
-  ApplyJob,
-  JobDetailFilter,
-  UserStatusEnum,
-} from "@/core";
-import {
-  Job,
-  Province,
-  Skill,
-  OrganizationWithDetails,
-  ApplyStatusEnum,
-} from "@/core";
-import {
-  ApplyJobResponse,
-  UserInteractionResponse,
-  JobAnswer,
-  JobCounts,
-  TopInMarketResponse,
-  JobTrendTypeEnum,
-  JobTrendsQuery,
-  JobTrends,
-} from "@/core";
-import { PaginatedResult, GeneralQuery } from "@/common/types";
-import { organizations } from "../models/organization.model";
-import {
-  ApplyJobFilters,
-  JobFilters,
-  JobResponse,
-  StatisticsJobFilter,
-} from "@/core";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
-import { ICacheService } from "@/core";
+import {
+  and,
+  asc,
+  countDistinct,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  SQL,
+  sql,
+} from "drizzle-orm";
+import {
+  applyJobs,
+  categories,
+  cvs,
+  jobProvinces,
+  jobRaws,
+  jobs,
+  jobSkills,
+  provinces,
+  skills,
+  userInteractions,
+  users,
+} from "../models";
+import { organizations } from "../models/organization.model";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class JobRepository
@@ -241,17 +233,11 @@ export class JobRepository
       filters?.sortDirection,
     );
 
-    const { embedding: _embedding, ...jobColumnsWithoutEmbedding } =
-      getTableColumns(jobs);
-    const jobColumns = filters?.includeEmbedding
-      ? getTableColumns(jobs)
-      : jobColumnsWithoutEmbedding;
-
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
         job: {
-          ...jobColumns,
+          ...jobs,
           applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
             "applyUrl",
           ),
@@ -812,6 +798,278 @@ export class JobRepository
     return categoryIds
       .filter((id) => map.has(id))
       .map((id) => ({ categoryId: id, salaryStatistics: map.get(id)! }));
+  }
+
+  async getSalaryBenchmark(filter: {
+    categoryId?: string;
+    title?: string;
+    experienceMin?: number;
+    experienceMax?: number;
+    provinceId?: string;
+    skillIds?: string[];
+    excludeJobId?: string;
+  }): Promise<{
+    medianSalaryMin: number | null;
+    medianSalaryMax: number | null;
+    medianSalaryMidpoint: number | null;
+    sampleJobCount: number;
+    isFallback: boolean;
+    sampleJobs?: Array<{
+      id: string;
+      title: string;
+      salaryMin: number | null;
+      salaryMax: number | null;
+      experienceMin: number | null;
+      experienceMax: number | null;
+      createdAt?: string;
+    }>;
+  }> {
+    if (!filter.categoryId) {
+      return {
+        medianSalaryMin: null,
+        medianSalaryMax: null,
+        medianSalaryMidpoint: null,
+        sampleJobCount: 0,
+        isFallback: false,
+      };
+    }
+
+    const targetMinExp = filter.experienceMin ?? 0;
+    const targetMaxExp = filter.experienceMax ?? targetMinExp + 2;
+
+    const TITLE_SIMILARITY_HIGH = 0.3;
+    const TITLE_SIMILARITY_LOW = 0.1;
+
+    const runQuery = async (options: {
+      useTitle: boolean;
+      titleThreshold?: number;
+      useProvince: boolean;
+      useSkills: boolean;
+    }) => {
+      const whereConditions: SQL[] = [
+        sql`(j.salary_min IS NOT NULL OR j.salary_max IS NOT NULL)`,
+        sql`(COALESCE(j.salary_min, 0) > 0 OR COALESCE(j.salary_max, 0) > 0)`,
+        sql`j.category_id = ${filter.categoryId}`,
+        sql`j.status = 'active'`,
+        sql`j.deleted_at IS NULL`,
+        sql`j.created_at >= NOW() - INTERVAL '12 months'`,
+      ];
+
+      if (filter.excludeJobId) {
+        whereConditions.push(sql`j.id != ${filter.excludeJobId}`);
+      }
+
+      // 1. Strict Experience Band Fencing
+      if (targetMaxExp === 0) {
+        // Intern role (0-0 yrs): STRICTLY 0 to 1 year max AND must match Intern keywords or stipend <= 5M
+        whereConditions.push(sql`COALESCE(j.experience_min, 0) <= 0`);
+        whereConditions.push(
+          sql`(j.experience_max IS NULL OR j.experience_max <= 1)`,
+        );
+        whereConditions.push(
+          sql`(
+            lower(j.title) LIKE '%thực tập%' OR
+            lower(j.title) LIKE '%intern%' OR
+            lower(j.title) LIKE '%trainee%' OR
+            (j.salary_max IS NOT NULL AND j.salary_max <= 5.00)
+          )`,
+        );
+      } else {
+        // Other roles: Strict upper and lower bounds on experience range
+        const allowedMinExp = Math.max(0, targetMinExp - 1);
+        const allowedMaxExp = targetMaxExp + 2;
+
+        whereConditions.push(
+          sql`COALESCE(j.experience_min, 0) >= ${allowedMinExp}`,
+        );
+        whereConditions.push(
+          sql`COALESCE(j.experience_min, 0) <= ${targetMaxExp + 1}`,
+        );
+        whereConditions.push(
+          sql`COALESCE(j.experience_max, COALESCE(j.experience_min, 0)) <= ${allowedMaxExp}`,
+        );
+      }
+
+      // 3. Optional Province Filter
+      if (options.useProvince && filter.provinceId) {
+        whereConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${jobProvinces} jp
+            WHERE jp.job_id = j.id
+            AND jp.province_id = ${filter.provinceId}
+          )`,
+        );
+      }
+
+      // 4. Optional Skill Overlap (only when caller supplies selected skills)
+      if (options.useSkills && filter.skillIds && filter.skillIds.length > 0) {
+        whereConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${jobSkills} js
+            WHERE js.job_id = j.id
+            AND js.skill_id IN (${sql.join(
+              filter.skillIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})
+          )`,
+        );
+      }
+
+      // 5. Title Similarity (trigram, accent/case-insensitive) with configurable threshold
+      if (
+        options.useTitle &&
+        options.titleThreshold !== undefined &&
+        filter.title &&
+        filter.title.trim().length > 0
+      ) {
+        whereConditions.push(
+          sql`similarity(immutable_unaccent(lower(j.title)), immutable_unaccent(lower(${filter.title.trim()}))) > ${options.titleThreshold}`,
+        );
+      }
+
+      const res = await this.db.execute(sql`
+        WITH filtered_jobs AS (
+          SELECT
+            j.id,
+            j.title,
+            j.salary_min,
+            j.salary_max,
+            j.experience_min,
+            j.experience_max,
+            j.created_at
+          FROM jobs j
+          WHERE ${sql.join(whereConditions, sql` AND `)}
+        ),
+        stats AS (
+          SELECT
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fj.salary_min) AS median_min,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fj.salary_max) AS median_max,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (fj.salary_min + fj.salary_max) / 2.0) AS median_mid,
+            COUNT(*) AS sample_count
+          FROM filtered_jobs fj
+        ),
+        samples AS (
+          SELECT * FROM filtered_jobs
+          ORDER BY created_at DESC
+          LIMIT 10
+        )
+        SELECT
+          s.median_min,
+          s.median_max,
+          s.median_mid,
+          s.sample_count,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', sm.id,
+                'title', sm.title,
+                'salary_min', sm.salary_min,
+                'salary_max', sm.salary_max,
+                'experience_min', sm.experience_min,
+                'experience_max', sm.experience_max,
+                'created_at', sm.created_at
+              )
+            ) FILTER (WHERE sm.id IS NOT NULL),
+            '[]'::json
+          ) AS sample_jobs
+        FROM stats s
+        LEFT JOIN samples sm ON true
+        GROUP BY s.median_min, s.median_max, s.median_mid, s.sample_count
+      `);
+
+      const row = (res.rows as any[])[0];
+      const count = Number(row?.sample_count || 0);
+
+      const rawSamples = Array.isArray(row?.sample_jobs)
+        ? row.sample_jobs
+        : typeof row?.sample_jobs === "string"
+          ? JSON.parse(row.sample_jobs)
+          : [];
+
+      const sampleJobs = rawSamples.map((r: any) => ({
+        id: String(r.id),
+        title: String(r.title),
+        salaryMin:
+          r.salary_min !== null
+            ? Math.round(Number(r.salary_min) * 10) / 10
+            : null,
+        salaryMax:
+          r.salary_max !== null
+            ? Math.round(Number(r.salary_max) * 10) / 10
+            : null,
+        experienceMin:
+          r.experience_min !== null ? Number(r.experience_min) : null,
+        experienceMax:
+          r.experience_max !== null ? Number(r.experience_max) : null,
+        createdAt: r.created_at
+          ? new Date(r.created_at).toISOString()
+          : undefined,
+      }));
+
+      return {
+        medianSalaryMin:
+          row?.median_min !== null && row?.median_min !== undefined
+            ? Math.round(Number(row.median_min) * 10) / 10
+            : null,
+        medianSalaryMax:
+          row?.median_max !== null && row?.median_max !== undefined
+            ? Math.round(Number(row.median_max) * 10) / 10
+            : null,
+        medianSalaryMidpoint:
+          row?.median_mid !== null && row?.median_mid !== undefined
+            ? Math.round(Number(row.median_mid) * 10) / 10
+            : null,
+        sampleJobCount: count,
+        sampleJobs,
+      };
+    };
+
+    // Fallback cascade: start with the tightest match (skills + high-similarity
+    // title + province), then progressively relax skills, province, and title
+    // similarity, and finally drop title matching altogether rather than
+    // returning an empty result.
+    const steps = [
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: true,
+        useSkills: true,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: false,
+        useSkills: true,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: false,
+        useSkills: false,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_LOW,
+        useProvince: false,
+        useSkills: false,
+      },
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      const result = await runQuery(steps[i]);
+      if (result.sampleJobCount > 0) {
+        return { ...result, isFallback: i > 0 };
+      }
+    }
+
+    return {
+      medianSalaryMin: null,
+      medianSalaryMax: null,
+      medianSalaryMidpoint: null,
+      sampleJobCount: 0,
+      isFallback: false,
+      sampleJobs: [],
+    };
   }
 
   async getTopAppliedJobsByCategories(

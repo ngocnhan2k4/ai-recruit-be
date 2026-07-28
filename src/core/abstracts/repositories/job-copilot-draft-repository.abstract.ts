@@ -2,11 +2,13 @@ import type {
   JobCopilotDraftRecord,
   SaveJobCopilotDraft,
 } from "@/core/entities/job-copilot-draft.entity";
+import type { JobCopilotLocale } from "@/core/entities/job-copilot.entity";
 
 export abstract class IJobCopilotDraftRepository {
   abstract findActive(
     organizationId: string,
     createdBy: string,
+    locale: JobCopilotLocale,
   ): Promise<JobCopilotDraftRecord | null>;
 
   abstract save(

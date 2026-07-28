@@ -6,3 +6,4 @@ export * from "./compare-statistics.dto";
 export * from "./job-trends.dto";
 export * from "./job-copilot.dto";
 export * from "./job-copilot-draft.dto";
+export * from "./candidate-brief.dto";

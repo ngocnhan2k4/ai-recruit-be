@@ -4,6 +4,7 @@ import type {
   JobCopilotDraftRecord,
   SaveJobCopilotDraft,
 } from "@/core/entities/job-copilot-draft.entity";
+import type { JobCopilotLocale } from "@/core/entities/job-copilot.entity";
 import { IJobCopilotDraftRepository } from "@/core";
 import type { DBDrizzle } from "../types";
 import { jobCopilotDrafts } from "../models";
@@ -15,6 +16,7 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
   async findActive(
     organizationId: string,
     createdBy: string,
+    locale: JobCopilotLocale,
   ): Promise<JobCopilotDraftRecord | null> {
     const [draft] = await this.db
       .select()
@@ -23,6 +25,7 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
         and(
           eq(jobCopilotDrafts.organizationId, organizationId),
           eq(jobCopilotDrafts.createdBy, createdBy),
+          eq(jobCopilotDrafts.locale, locale),
           isNull(jobCopilotDrafts.deletedAt),
         ),
       )
@@ -36,7 +39,11 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
     createdBy: string,
     draft: SaveJobCopilotDraft,
   ): Promise<JobCopilotDraftRecord | null> {
-    const current = await this.findActive(organizationId, createdBy);
+    const current = await this.findActive(
+      organizationId,
+      createdBy,
+      draft.locale,
+    );
     const state = {
       formData: draft.formData,
       analysisResult: draft.analysisResult,
@@ -51,7 +58,13 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
       try {
         const [created] = await this.db
           .insert(jobCopilotDrafts)
-          .values({ organizationId, createdBy, ...state, version: 1 })
+          .values({
+            organizationId,
+            createdBy,
+            locale: draft.locale,
+            ...state,
+            version: 1,
+          })
           .returning();
         return (created as JobCopilotDraftRecord | undefined) ?? null;
       } catch (error) {

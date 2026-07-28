@@ -1,8 +1,26 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsInt, IsObject, IsOptional, Min } from "class-validator";
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  Min,
+} from "class-validator";
 import type { SaveJobCopilotDraft } from "@/core";
+import type { JobCopilotLocale } from "@/core";
+
+export class JobCopilotDraftLocaleDto {
+  @ApiProperty({ enum: ["vi", "en"] })
+  @IsIn(["vi", "en"])
+  locale: JobCopilotLocale;
+}
 
 export class SaveJobCopilotDraftDto implements SaveJobCopilotDraft {
+  @ApiProperty({ enum: ["vi", "en"] })
+  @IsIn(["vi", "en"])
+  locale: JobCopilotLocale;
+
   @ApiProperty({ type: Object })
   @IsObject()
   formData: Record<string, unknown>;

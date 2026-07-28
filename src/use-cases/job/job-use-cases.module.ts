@@ -13,6 +13,7 @@ import { NotificationModule } from "@/frameworks/notification/notification.modul
 import { AIServicesModule } from "@/frameworks/ai-services/ai-services.module";
 import { JobCopilotUseCase } from "../job-copilot/job-copilot.use-case";
 import { JobCopilotDraftUseCase } from "../job-copilot/job-copilot-draft.use-case";
+import { CandidateBriefUseCase } from "../candidate-brief/candidate-brief.use-case";
 
 @Module({
   imports: [
@@ -28,7 +29,17 @@ import { JobCopilotDraftUseCase } from "../job-copilot/job-copilot-draft.use-cas
     NotificationModule,
     AIServicesModule,
   ],
-  providers: [JobUseCases, JobCopilotUseCase, JobCopilotDraftUseCase],
-  exports: [JobUseCases, JobCopilotUseCase, JobCopilotDraftUseCase],
+  providers: [
+    JobUseCases,
+    JobCopilotUseCase,
+    JobCopilotDraftUseCase,
+    CandidateBriefUseCase,
+  ],
+  exports: [
+    JobUseCases,
+    JobCopilotUseCase,
+    JobCopilotDraftUseCase,
+    CandidateBriefUseCase,
+  ],
 })
 export class JobUseCasesModule {}

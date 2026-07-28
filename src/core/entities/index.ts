@@ -2,15 +2,16 @@ import {
   aiCvs,
   applyJobs,
   areas,
+  candidateBriefs,
   categories,
   comments,
   companies,
   cvs,
   features,
   feedbacks,
+  jobCopilotDrafts,
   jobProvinces,
   jobs,
-  jobCopilotDrafts,
   notifications,
   organizationInvitations,
   organizationLocations,
@@ -50,14 +51,16 @@ import { OptimizedCvData } from "./ai-cv.entity";
 import { SchoolTypeEnum } from "./enum.entity";
 export * from "./ai-cv.entity";
 export * from "./blog.entity";
+export * from "./candidate-brief.entity";
 export * from "./comment.entity";
 export * from "./cv.entity";
 export * from "./email.entity";
 export * from "./enum.entity";
 export * from "./feedback.entity";
-export * from "./job.entity";
-export * from "./job-copilot.entity";
 export * from "./job-copilot-draft.entity";
+export * from "./job-copilot.entity";
+export * from "./job-salary-insight.entity";
+export * from "./job.entity";
 export * from "./learning-path.entity";
 export * from "./organization.entity";
 export * from "./otp.entity";
@@ -78,6 +81,7 @@ export type Job = InferSelectModel<typeof jobs> & {
 };
 
 export type NewJobCopilotDraft = InferInsertModel<typeof jobCopilotDrafts>;
+export type NewCandidateBrief = InferInsertModel<typeof candidateBriefs>;
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
@@ -165,6 +169,8 @@ export type OrganizationWithDetails = Organization & {
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
   locations?: OrganizationLocation[];
+  activeJobsCount?: number;
+  totalMembersCount?: number;
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {

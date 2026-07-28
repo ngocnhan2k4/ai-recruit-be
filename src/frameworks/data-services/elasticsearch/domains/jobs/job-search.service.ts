@@ -1,8 +1,20 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ISearchService, IJobSearchService } from "@/core/abstracts";
+import {
+  ISearchService,
+  IJobSearchService,
+  SalaryInsightCriteria,
+} from "@/core/abstracts";
 import { JobFilters, JobSearchDocument, UserProfile } from "@/core/entities";
+import { SalaryInsightAggResult } from "@/core/entities/job-salary-insight.entity";
 import { PaginatedResult } from "@/common/types";
 import { ConfigService } from "@nestjs/config";
+import {
+  buildSalaryInsightQuery,
+  parseSalaryInsightResponse,
+} from "./job-salary-insight-query.helper";
+
+const SALARY_INSIGHT_LOOKBACK_MONTHS_DEFAULT = 12;
+const SALARY_INSIGHT_MIN_SAMPLE_COUNT_DEFAULT = 1;
 
 @Injectable()
 export class JobSearchService implements IJobSearchService {
@@ -490,6 +502,24 @@ export class JobSearchService implements IJobSearchService {
       query: { term: { id: jobId } },
     });
     return response?.hits?.hits?.[0]?._source ?? null;
+  }
+
+  async getSalaryInsight(
+    criteria: SalaryInsightCriteria,
+  ): Promise<SalaryInsightAggResult> {
+    const index = this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
+    const lookbackMonths = this.configService.get<number>(
+      "SALARY_INSIGHT_LOOKBACK_MONTHS",
+      SALARY_INSIGHT_LOOKBACK_MONTHS_DEFAULT,
+    );
+    const minSampleCount = this.configService.get<number>(
+      "SALARY_INSIGHT_MIN_SAMPLE_COUNT",
+      SALARY_INSIGHT_MIN_SAMPLE_COUNT_DEFAULT,
+    );
+
+    const body = buildSalaryInsightQuery(criteria, { lookbackMonths });
+    const response = await this.searchService.search(index, body);
+    return parseSalaryInsightResponse(response, minSampleCount);
   }
 
   private async getVectorsForJobs(
