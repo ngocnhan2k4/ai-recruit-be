@@ -4,6 +4,8 @@ import {
   SalaryInsightMatchTier,
 } from "@/core/entities/job-salary-insight.entity";
 
+export const DEFAULT_LOOKBACK_MONTHS = 12;
+
 export interface SalaryInsightConfig {
   lookbackMonths: number;
 }
@@ -56,9 +58,7 @@ function buildTierFilters(
 ): Record<SalaryInsightMatchTier, any[]> {
   const { categoryId, experienceMin, experienceMax, provinceIds } = criteria;
 
-  const categoryFilter = categoryId
-    ? [{ term: { categoryId } }]
-    : [{ term: { categoryId: "__NO_CATEGORY_MATCH__" } }];
+  const categoryFilter = categoryId ? [{ term: { categoryId } }] : [];
 
   const experienceFilter = [
     experienceMax !== undefined
