@@ -1,7 +1,14 @@
+import { GetUser, UploadFileAndBody } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
+import { OrganizationWithDetails } from "@/core";
 import {
   JwtAuthGuard,
+  OptionalJwtAuthGuard,
   OrganizationAuthorizeGuard,
 } from "@/frameworks/auth-services/guards";
+import { OrganizationQueryDto } from "@/interfaces/dtos";
+import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
+import { MultipartFile } from "@fastify/multipart";
 import {
   Body,
   Controller,
@@ -15,33 +22,27 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  ApiResponse,
   ApiResponseDto,
   CheckOrganizationNameResponseDto,
   CompanyDto,
-  GetCompanyDto,
-  CreateOrganizationDto,
-  ApiResponse,
-  PaginatedResultDto,
-  OrganizationWithDetailsDto,
-  GeneralQueryDto,
-  UpdateOrganizationEmailDto,
   ConfirmUpdateOrganizationEmailDto,
+  CreateOrganizationDto,
   DeleteOrganizationDto,
-  UpdateOrganizationBasicInfoDto,
-  UpdateOrganizationLocationDto,
-  UpdateOrganizationAdditionalInfoDto,
-  SendEmailVerificationDto,
-  VerifyOrganizationEmailDto,
+  GeneralQueryDto,
+  GetCompanyDto,
   JobPaginationResponseDto,
   OrganizationJobQueryDto,
+  OrganizationOverviewStatsDto,
+  OrganizationWithDetailsDto,
+  PaginatedResultDto,
+  SendEmailVerificationDto,
+  UpdateOrganizationAdditionalInfoDto,
+  UpdateOrganizationBasicInfoDto,
+  UpdateOrganizationEmailDto,
+  UpdateOrganizationLocationDto,
+  VerifyOrganizationEmailDto,
 } from "../../dtos";
-import { GetUser, UploadFileAndBody } from "@/common/decorators";
-import { type TokenPayload } from "@/common/types";
-import { OrganizationUseCase } from "@/use-cases/organization/organization.use-case";
-import { OrganizationQueryDto } from "@/interfaces/dtos";
-import { OrganizationWithDetails } from "@/core";
-import { OptionalJwtAuthGuard } from "@/frameworks/auth-services/guards";
-import { MultipartFile } from "@fastify/multipart";
 
 @ApiTags("Organization")
 @Controller("organizations")
@@ -94,6 +95,19 @@ export class OrganizationController {
       orgId,
       user?.userId,
     );
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get("/:orgId/overview-stats")
+  @ApiOperation({
+    summary: "Get organization overview stats",
+    description: "Retrieve overview stats for an organization",
+  })
+  @ApiResponseDto(OrganizationOverviewStatsDto)
+  async getOrganizationOverviewStats(
+    @Param("orgId") orgId: string,
+  ): Promise<ApiResponse<OrganizationOverviewStatsDto>> {
+    return await this.organizationUseCase.getOrganizationOverviewStats(orgId);
   }
 
   @UseGuards(JwtAuthGuard)

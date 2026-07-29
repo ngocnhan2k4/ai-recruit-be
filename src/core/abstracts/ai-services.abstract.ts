@@ -1,8 +1,10 @@
 import {
   OptimizeAtsRequest,
   OptimizeAtsResponse,
+  OptimizeAtsResponseV2,
   CvFieldSuggestionRequest,
   CvFieldSuggestionResponse,
+  CvFieldSuggestionResponseV2,
   GenerateJobBlogPostRequest,
   GenerateJobBlogPostResponse,
   ExtractCvRequest,
@@ -18,8 +20,32 @@ import {
 } from "../entities/learning-path.entity";
 import { Observable } from "rxjs";
 import { MessageEvent } from "@nestjs/common";
+import {
+  JobCopilotAiResponse,
+  JobCopilotRequest,
+} from "../entities/job-copilot.entity";
+import type {
+  CandidateBriefAiRequest,
+  CandidateBriefAnalysis,
+} from "../entities/candidate-brief.entity";
+import type {
+  JobCopilotChatExtractRequest,
+  JobCopilotChatExtractResponse,
+} from "../entities/job-copilot-conversation.entity";
 
 export abstract class IAIService {
+  abstract runCandidateBrief(
+    request: CandidateBriefAiRequest,
+  ): Promise<CandidateBriefAnalysis>;
+
+  abstract runJobCopilot(
+    request: JobCopilotRequest,
+  ): Promise<JobCopilotAiResponse>;
+
+  abstract extractJobCopilotChat(
+    request: JobCopilotChatExtractRequest,
+  ): Promise<JobCopilotChatExtractResponse>;
+
   abstract generateRoadmap(
     request: RoadmapGenerateRequest,
   ): Observable<MessageEvent>;
@@ -36,9 +62,17 @@ export abstract class IAIService {
     request: OptimizeAtsRequest,
   ): Promise<OptimizeAtsResponse>;
 
+  abstract optimizeCvAtsV2(
+    request: OptimizeAtsRequest,
+  ): Promise<OptimizeAtsResponseV2>;
+
   abstract suggestCvField(
     request: CvFieldSuggestionRequest,
   ): Promise<CvFieldSuggestionResponse>;
+
+  abstract suggestCvFieldV2(
+    request: CvFieldSuggestionRequest,
+  ): Promise<CvFieldSuggestionResponseV2>;
 
   abstract generateJobBlogPost(
     request: GenerateJobBlogPostRequest,

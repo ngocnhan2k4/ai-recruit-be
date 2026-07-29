@@ -10,6 +10,7 @@ import {
   IUserTestRepository,
   IUserAnswerRepository,
   ISkillRepository,
+  IUserSkillRepository,
   Question,
 } from "@/core";
 import {
@@ -32,11 +33,18 @@ import {
 } from "./services";
 import {
   EXAM_MAX_QUESTIONS,
+  EXAM_USER_SKILL_MIN_SCORE,
+  USER_SKILL_SOURCE_EXAM,
   TranslationJobType,
   TRANSLATION_SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
 } from "@/common/constants";
-import { getRequestLanguage } from "@/common/utils";
+import {
+  getExplicitRequestLanguage,
+  getRequestLanguage,
+  inferSupportedLanguageFromText,
+  normalizeLanguageCode,
+} from "@/common/utils";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
 import { UpdateQuestionTranslationDto } from "@/interfaces/dtos/exam";
 
@@ -50,30 +58,44 @@ export class ExamUseCases {
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
     private readonly skillRepo: ISkillRepository,
+    private readonly userSkillRepo: IUserSkillRepository,
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
     private readonly scoringService: ExamScoringService,
     private readonly messageQueueService: IMessageQueueService,
   ) {}
 
-  private resolveTranslationTargets() {
-    return [...TRANSLATION_SUPPORTED_LANGUAGES];
+  private resolveTranslationTargets(sourceLanguage: string) {
+    const normalizedSourceLanguage = normalizeLanguageCode(sourceLanguage);
+    return TRANSLATION_SUPPORTED_LANGUAGES.filter(
+      (language) => language !== normalizedSourceLanguage,
+    );
   }
 
   private async enqueueQuestionTranslation(
     questionId: string,
     sourceLanguage: string,
   ) {
-    const targetLanguages = this.resolveTranslationTargets();
+    const normalizedSourceLanguage = normalizeLanguageCode(sourceLanguage);
+    const targetLanguages = this.resolveTranslationTargets(
+      normalizedSourceLanguage,
+    );
     if (!targetLanguages.length) {
       return;
     }
 
     await this.messageQueueService.addTranslation(TranslationJobType.QUESTION, {
       questionId,
-      sourceLanguage,
+      sourceLanguage: normalizedSourceLanguage,
       targetLanguages,
     });
+  }
+
+  private resolveQuestionSourceLanguage(questionText: string) {
+    return normalizeLanguageCode(
+      getExplicitRequestLanguage() ??
+        inferSupportedLanguageFromText(questionText),
+    );
   }
 
   private addAnswerKeys(question: Question): Question {
@@ -244,7 +266,7 @@ export class ExamUseCases {
   // ==================== QUESTION MANAGEMENT ====================
 
   async createQuestion(dto: CreateQuestionDto) {
-    const sourceLanguage = getRequestLanguage();
+    const sourceLanguage = this.resolveQuestionSourceLanguage(dto.questionText);
     const isDuplicate = await this.questionRepo.checkDuplicate(
       dto.skillId,
       dto.questionText,
@@ -267,11 +289,13 @@ export class ExamUseCases {
   }
 
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
-    const sourceLanguage = getRequestLanguage();
     const existing = await this.questionRepo.get(id);
     if (!existing) {
       throw new NotFoundException("Question not found");
     }
+    const sourceLanguage = this.resolveQuestionSourceLanguage(
+      dto.questionText ?? existing.questionText,
+    );
 
     const [updated] = await this.questionRepo.update(
       { id },
@@ -506,11 +530,67 @@ export class ExamUseCases {
     };
   }
 
+  /**
+   * Re-enqueue translation jobs for existing questions so that questions which
+   * were imported/created before translations existed (or whose translation job
+   * failed) get their other-language translation generated. Without a
+   * translation row for the requested language, the exam falls back to the
+   * source language — which is why switching the UI language appears to do
+   * nothing for those questions.
+   *
+   * The source language is inferred per-question from its text, and the
+   * translation worker upserts, so this is safe to run repeatedly.
+   */
+  async backfillQuestionTranslations(options?: { onlyActive?: boolean }) {
+    const limit = 200;
+    let page = 1;
+    let enqueued = 0;
+    let scanned = 0;
+
+    for (;;) {
+      const result = await this.questionRepo.getPaginatedQuestions({
+        limit,
+        page,
+        ...(options?.onlyActive ? { isActive: true } : {}),
+      });
+
+      const items = result.data ?? [];
+      if (items.length === 0) {
+        break;
+      }
+
+      for (const question of items) {
+        scanned++;
+        const sourceLanguage = inferSupportedLanguageFromText(
+          question.questionText,
+        );
+        await this.enqueueQuestionTranslation(question.id, sourceLanguage);
+        enqueued++;
+      }
+
+      if (items.length < limit) {
+        break;
+      }
+      page++;
+    }
+
+    this.logger.log(
+      `Backfill enqueued ${enqueued} question translation job(s) (scanned ${scanned})`,
+    );
+
+    return {
+      success: true,
+      message: "Question translation backfill enqueued",
+      data: { scanned, enqueued },
+    };
+  }
+
   // ==================== LEVEL MANAGEMENT ====================
 
   // ==================== EXAM FLOW ====================
 
   async startExam(userId: string, dto: StartExamDto) {
+    const languageCode = getRequestLanguage();
     // Fetch all active questions for single skill and optional difficulty levels
     const allQuestions = await this.questionRepo.getActiveQuestionsBySkills(
       [dto.skillId],
@@ -545,12 +625,9 @@ export class ExamUseCases {
       },
     );
 
-    // Randomize answer options
-    const questionsWithRandomOptions =
-      this.randomizerService.randomizeOptions(selectedQuestions);
-
-    // Create user test record with question IDs
-    const questionIds = questionsWithRandomOptions.map((q) => q.id);
+    // Create user test record first so we can seed a STABLE option order by
+    // its id. Question order is already randomized above (selectedQuestions).
+    const questionIds = selectedQuestions.map((q) => q.id);
     const userTest = await this.userTestRepo.create({
       userId,
       selectedSkillIds: [dto.skillId],
@@ -558,6 +635,15 @@ export class ExamUseCases {
       questionIds: questionIds,
       totalScore: null, // Explicitly set to null for unsubmitted tests
     });
+
+    // Deterministically randomize answer options, seeded by the test id, so the
+    // order stays identical on every subsequent fetch (e.g. continuing the exam
+    // or switching UI language) instead of reshuffling each time.
+    const questionsWithRandomOptions =
+      this.randomizerService.randomizeOptionsDeterministic(
+        selectedQuestions,
+        userTest.id,
+      );
 
     // Return questions without correct answers
     const questionsForUser = questionsWithRandomOptions.map((q) => ({
@@ -575,6 +661,7 @@ export class ExamUseCases {
       message: "Exam started successfully",
       data: {
         userTestId: userTest.id,
+        languageCode,
         questions: questionsForUser,
       },
     };
@@ -668,6 +755,27 @@ export class ExamUseCases {
       );
     });
 
+    // Upsert assessed skills into user_skills only when score meets threshold
+    if (examResult.totalScore >= EXAM_USER_SKILL_MIN_SCORE) {
+      const assessedSkillIds = Array.from(
+        new Set([
+          ...(userTest.selectedSkillIds ?? []),
+          ...Object.keys(examResult.skillLevelsAssessed ?? {}),
+        ]),
+      ).filter(Boolean);
+
+      if (assessedSkillIds.length > 0) {
+        await this.userSkillRepo.createMany(
+          assessedSkillIds.map((skillId) => ({
+            userId,
+            skillId,
+            organizationId: null,
+            source: USER_SKILL_SOURCE_EXAM,
+          })),
+        );
+      }
+    }
+
     // Since it's single skill, extract the single level
     const skillId = validQuestions[0].skillId;
     const levelAssessed = examResult.skillLevelsAssessed[skillId] || "Beginner";
@@ -724,6 +832,7 @@ export class ExamUseCases {
       message: "Test details fetched successfully",
       data: {
         test,
+        languageCode: getRequestLanguage(),
         questions,
         answers,
       },
@@ -785,9 +894,14 @@ export class ExamUseCases {
       savedAnswers.map((a) => [a.questionId, a.chosenAnswer]),
     );
 
-    // Randomize answer options for each question
+    // Deterministically order answer options, seeded by the test id, so the
+    // order matches what was shown when the exam started and stays stable across
+    // refetches (including UI language switches) instead of reshuffling.
     const questionsWithRandomOptions =
-      this.randomizerService.randomizeOptions(validQuestions);
+      this.randomizerService.randomizeOptionsDeterministic(
+        validQuestions,
+        testId,
+      );
 
     // Return questions with saved answers (if any)
     const questionsForUser = questionsWithRandomOptions.map((q) => ({
@@ -804,6 +918,7 @@ export class ExamUseCases {
       message: "Incomplete exam questions fetched successfully",
       data: {
         userTestId: testId,
+        languageCode: getRequestLanguage(),
         questions: questionsForUser,
         answeredCount: savedAnswers.length,
         totalCount: questionsForUser.length,

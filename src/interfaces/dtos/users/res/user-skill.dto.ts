@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class UserSkillDto {
   @ApiProperty()
@@ -6,6 +6,19 @@ export class UserSkillDto {
 
   @ApiProperty()
   name: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Origin of the skill, e.g. "exam"',
+  })
+  source: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "Assessed level from latest qualifying exam: Beginner | Intermediate | Advanced",
+  })
+  level: string | null;
 }
 
 export class DeleteUserSkillResponseDto {

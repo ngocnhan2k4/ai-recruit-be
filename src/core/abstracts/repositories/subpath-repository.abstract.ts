@@ -23,11 +23,15 @@ export abstract class ISubpathRepository extends IGenericRepository<Subpath> {
       currentRole: string;
     },
     aiResult: AISubpathResult,
-  ): Promise<SubpathWithDetails>;
+  ): Promise<{ id: string }>;
 
   abstract getUserSubpathByOptionId(
     optionId: string,
   ): Promise<{ id: string; snapshotOfId: string } | null>;
+
+  abstract findExistingSnapshotOptionIds(
+    optionIds: string[],
+  ): Promise<Set<string>>;
 
   abstract cloneSharedSubpathForUser(
     sharedSubpathId: string,

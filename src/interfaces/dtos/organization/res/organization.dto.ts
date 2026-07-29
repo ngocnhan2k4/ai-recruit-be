@@ -27,5 +27,12 @@ export class OrganizationWithDetailsDto extends OrganizationDto {
   companyRawId?: number | null;
   schoolType?: SchoolTypeEnum | null;
   locations?: OrganizationLocation[] | null;
+
+  @ApiProperty({ type: "number", required: false })
+  activeJobsCount?: number;
+
+  @ApiProperty({ type: "number", required: false })
+  totalMembersCount?: number;
+
   role: OrganizationRoleEnum = OrganizationRoleEnum.ANONYMOUSLY;
 }

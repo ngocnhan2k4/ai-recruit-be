@@ -106,6 +106,8 @@ import { TranslationUseCasesModule } from "@/use-cases/translation/translation-u
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
 import { ContextMiddleware } from "./common/middlewares/context.middleware";
 import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
+import { HomeUseCasesModule } from "./use-cases/home/home-use-cases.module";
+import { HomeController } from "./interfaces/controllers/home/home.controller";
 
 @Module({
   imports: [
@@ -183,6 +185,7 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     TranslationUseCasesModule,
     TaskUseCasesModule,
     EventTrackingModule,
+    HomeUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -194,6 +197,7 @@ import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.m
     CategoryController,
     UploadController,
     HealthController,
+    HomeController,
     ProvinceController,
     CvController,
     SkillController,

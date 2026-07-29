@@ -26,8 +26,16 @@ export const aiCvs = pgTable(
 
     // CV Data
     cvData: jsonb("cv_data").notNull(), // OptimizedCvDataDto structure
+    editedCvData: jsonb("edited_cv_data"),
+
+    // Explainable AI
+    originalScoreBreakdown: jsonb("original_score_breakdown"),
+    scoreBreakdown: jsonb("score_breakdown"),
+    optimizationsApplied: jsonb("optimizations_applied"),
+    fieldSuggestionLogs: jsonb("field_suggestion_logs").default([]),
 
     // AI Analysis Results
+    originalAtsScore: integer("original_ats_score"), // 0-100
     atsScore: integer("ats_score"), // 0-100
     matchingSkills: text("matching_skills").array(),
     missingSkills: text("missing_skills").array(),
@@ -36,6 +44,8 @@ export const aiCvs = pgTable(
     // Original Context
     jobDescription: text("job_description"),
     originalCvFilename: varchar("original_cv_filename", { length: 255 }),
+    originalCvUrl: text("original_cv_url"),
+    oldRawText: text("old_raw_text"),
 
     // Settings
     language: LanguageEnum("language").default("vi").notNull(),
