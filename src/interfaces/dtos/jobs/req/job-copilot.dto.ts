@@ -47,6 +47,15 @@ export class JobCopilotDraftDto implements JobCopilotDraft {
   @MaxLength(150)
   category: string;
 
+  @ApiProperty({
+    required: false,
+    example: "Bảo trì và hiện đại hóa hệ thống legacy .NET",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  roleContext?: string;
+
   @ApiProperty({ required: false, example: 4 })
   @IsOptional()
   @IsNumber()

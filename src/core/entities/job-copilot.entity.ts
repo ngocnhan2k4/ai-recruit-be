@@ -24,6 +24,7 @@ export type ScreeningQuestionType =
 export interface JobCopilotDraft {
   title: string;
   category: string;
+  roleContext?: string;
   experienceMin?: number;
   experienceMax?: number;
   workType: string;

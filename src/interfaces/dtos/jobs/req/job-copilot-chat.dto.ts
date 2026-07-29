@@ -1,13 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
   MinLength,
 } from "class-validator";
-import type { SendJobCopilotMessage } from "@/core/entities";
+import type {
+  JobCopilotChatBrief,
+  SendJobCopilotMessage,
+} from "@/core/entities";
 
 export class SendJobCopilotMessageDto implements SendJobCopilotMessage {
   @ApiPropertyOptional()
@@ -28,6 +32,11 @@ export class SendJobCopilotMessageDto implements SendJobCopilotMessage {
   @ApiProperty({ enum: ["vi", "en"] })
   @IsIn(["vi", "en"])
   locale: "vi" | "en";
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  currentBrief?: JobCopilotChatBrief;
 }
 
 export class JobCopilotConversationQueryDto {

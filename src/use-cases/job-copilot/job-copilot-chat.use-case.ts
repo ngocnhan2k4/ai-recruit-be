@@ -13,6 +13,7 @@ import {
 } from "@/core/abstracts";
 import type {
   JobCopilotChatBrief,
+  JobCopilotChatExtractResponse,
   JobCopilotChatResult,
   JobCopilotConversationRecord,
   JobCopilotConversationView,
@@ -21,6 +22,7 @@ import type {
 import type { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { JobCopilotUseCase } from "./job-copilot.use-case";
+import { mergeJobCopilotBriefPatch } from "./job-copilot-brief-patch";
 import { findMatchingProvince } from "./job-copilot-location";
 
 const EXPERIENCE_RANGES = {
@@ -40,6 +42,22 @@ const GENERIC_CATEGORY_TOKENS = new Set([
   "engineer",
   "manager",
   "specialist",
+]);
+
+const CONFIRMATION_MESSAGES = new Set([
+  "ok",
+  "okay",
+  "okroi",
+  "okroia",
+  "roi",
+  "roia",
+  "duocroi",
+  "tieptuc",
+  "xong",
+  "xongroi",
+  "done",
+  "continue",
+  "looksgood",
 ]);
 
 @Injectable()
@@ -117,24 +135,45 @@ export class JobCopilotChatUseCase {
     );
 
     try {
-      const extracted = await this.aiService.extractJobCopilotChat({
-        message: input.content.trim(),
-        currentBrief: conversation.briefData,
-        locale: input.locale,
-        hasWorkspace: hadWorkspace,
-      });
-      const normalized = await this.normalizeBrief(extracted.brief);
-      const missing = new Set(extracted.missingFields);
+      const currentBrief = input.currentBrief
+        ? {
+            ...conversation.briefData,
+            ...input.currentBrief,
+          }
+        : conversation.briefData;
+      const extracted: JobCopilotChatExtractResponse =
+        this.isConfirmationMessage(input.content) &&
+        this.isBriefReady(currentBrief)
+          ? {
+              briefPatch: {},
+              intent: "update_brief",
+            }
+          : await this.aiService.extractJobCopilotChat({
+              message: input.content.trim(),
+              currentBrief,
+              locale: input.locale,
+              hasWorkspace: hadWorkspace,
+            });
+      const mergedBrief = mergeJobCopilotBriefPatch(
+        currentBrief,
+        extracted.briefPatch,
+      );
+      const normalized = await this.normalizeBrief(mergedBrief);
+      const missing = new Set<string>();
+      if (!normalized.title) missing.add("title");
+      if (!normalized.level) missing.add("level");
       if (!normalized.categoryId) missing.add("category");
+      if (!normalized.workType) missing.add("workType");
+      if (normalized.locations.length === 0) missing.add("locations");
       if (normalized.locationIds.length !== normalized.locations.length) {
         missing.add("locations");
       }
 
-      if (!extracted.readyToGenerate || missing.size > 0) {
-        const content =
-          missing.size > 0
-            ? this.buildClarification(Array.from(missing), input.locale)
-            : extracted.assistantMessage;
+      if (missing.size > 0) {
+        const content = this.buildClarification(
+          Array.from(missing),
+          input.locale,
+        );
         const saved = await this.repository.finishCollecting({
           conversationId: conversation.id,
           requestId,
@@ -170,7 +209,7 @@ export class JobCopilotChatUseCase {
 
       const range = EXPERIENCE_RANGES[normalized.level!];
       if (hadWorkspace && extracted.intent === "revise_jd") {
-        normalized.skills = conversation.briefData.skills ?? [];
+        normalized.skills = currentBrief.skills ?? [];
         const [viDraft, enDraft] = await Promise.all([
           this.draftRepository.findActive(
             organizationId,
@@ -204,6 +243,7 @@ export class JobCopilotChatUseCase {
           draft: {
             title: normalized.title!,
             category: normalized.category!,
+            roleContext: normalized.roleContext,
             experienceMin: range.min,
             experienceMax: range.max,
             workType: normalized.workType!,
@@ -266,6 +306,7 @@ export class JobCopilotChatUseCase {
         draft: {
           title: normalized.title!,
           category: normalized.category!,
+          roleContext: normalized.roleContext,
           experienceMin: range.min,
           experienceMax: range.max,
           workType: normalized.workType!,
@@ -417,13 +458,34 @@ export class JobCopilotChatUseCase {
       workType: "hình thức làm việc",
       locations: "địa điểm",
     };
-    return locale === "vi"
-      ? `Bạn vui lòng xác nhận ${fields.map((field) => vi[field] ?? field).join(", ")}.`
-      : `Please confirm the ${fields.join(", ")}.`;
+    if (locale !== "vi") {
+      return `Please provide the ${fields.join(", ")}.`;
+    }
+
+    const labels = fields.map((field) => vi[field] ?? field);
+    const fieldList =
+      labels.length > 1
+        ? `${labels.slice(0, -1).join(", ")} và ${labels.at(-1)}`
+        : labels[0];
+    return `Vui lòng cung cấp ${fieldList}.`;
   }
 
   private normalize(value: string) {
     return this.normalizeSearchText(value).replace(/[^a-z0-9]/g, "");
+  }
+
+  private isConfirmationMessage(value: string) {
+    return CONFIRMATION_MESSAGES.has(this.normalize(value));
+  }
+
+  private isBriefReady(brief: JobCopilotChatBrief) {
+    return Boolean(
+      brief.title &&
+        brief.level &&
+        brief.category &&
+        brief.workType &&
+        brief.locations.length > 0,
+    );
   }
 
   private normalizeSearchText(value: string) {
