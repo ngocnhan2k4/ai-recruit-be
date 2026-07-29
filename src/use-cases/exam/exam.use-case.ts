@@ -10,6 +10,7 @@ import {
   IUserTestRepository,
   IUserAnswerRepository,
   ISkillRepository,
+  IUserSkillRepository,
   Question,
 } from "@/core";
 import {
@@ -32,6 +33,8 @@ import {
 } from "./services";
 import {
   EXAM_MAX_QUESTIONS,
+  EXAM_USER_SKILL_MIN_SCORE,
+  USER_SKILL_SOURCE_EXAM,
   TranslationJobType,
   TRANSLATION_SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
@@ -55,6 +58,7 @@ export class ExamUseCases {
     private readonly userTestRepo: IUserTestRepository,
     private readonly userAnswerRepo: IUserAnswerRepository,
     private readonly skillRepo: ISkillRepository,
+    private readonly userSkillRepo: IUserSkillRepository,
     private readonly importService: QuestionImportService,
     private readonly randomizerService: QuestionRandomizerService,
     private readonly scoringService: ExamScoringService,
@@ -750,6 +754,27 @@ export class ExamUseCases {
         tx,
       );
     });
+
+    // Upsert assessed skills into user_skills only when score meets threshold
+    if (examResult.totalScore >= EXAM_USER_SKILL_MIN_SCORE) {
+      const assessedSkillIds = Array.from(
+        new Set([
+          ...(userTest.selectedSkillIds ?? []),
+          ...Object.keys(examResult.skillLevelsAssessed ?? {}),
+        ]),
+      ).filter(Boolean);
+
+      if (assessedSkillIds.length > 0) {
+        await this.userSkillRepo.createMany(
+          assessedSkillIds.map((skillId) => ({
+            userId,
+            skillId,
+            organizationId: null,
+            source: USER_SKILL_SOURCE_EXAM,
+          })),
+        );
+      }
+    }
 
     // Since it's single skill, extract the single level
     const skillId = validQuestions[0].skillId;
