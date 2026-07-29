@@ -1,7 +1,11 @@
 import { IGenericRepository } from "./generic-repository.abstract";
-import { Skill, UserSkill } from "@/core/entities";
+import { NewUserSkill, UserSkill, UserSkillResponse } from "@/core/entities";
 
 export abstract class IUserSkillRepository extends IGenericRepository<UserSkill> {
-  abstract getUserSkills(username: string): Promise<Skill[]>;
-  abstract createMany(userSkills: UserSkill[]): Promise<UserSkill[]>;
+  abstract getUserSkills(userId: string): Promise<UserSkillResponse[]>;
+  abstract createMany(
+    userSkills: Array<
+      Pick<NewUserSkill, "userId" | "skillId"> & Partial<NewUserSkill>
+    >,
+  ): Promise<UserSkill[]>;
 }

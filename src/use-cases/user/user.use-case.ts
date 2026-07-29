@@ -66,8 +66,8 @@ import {
   OrganizationTypeEnum,
   OrganizationWithDetails,
   ProviderEnum,
-  Skill,
   User,
+  UserSkillResponse,
   UserStatusEnum,
 } from "../../core";
 import {
@@ -867,11 +867,13 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserSkills(username: string): Promise<ApiResponse<Skill[]>> {
-    const userSkills = await this.userSkillRepository.getUserSkills(username);
+  async getUserSkills(
+    userId: string,
+  ): Promise<ApiResponse<UserSkillResponse[]>> {
+    const userSkills = await this.userSkillRepository.getUserSkills(userId);
     if (!userSkills) {
       throw new NotFoundException({
-        message: "[getUserSkills] - [getByUserId] User skills not found",
+        message: "[getUserSkills] - [getByUserId] User skill not found",
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }

@@ -184,7 +184,6 @@ export class JobUseCases {
     const hasSearchOrFilters = !!(
       filters.keyword ||
       filters.categoryId ||
-      filters.provinceId ||
       (filters.skillIds && filters.skillIds.length > 0)
     );
     const shouldApplyBloomFilter = bloomKey && !hasSearchOrFilters;
