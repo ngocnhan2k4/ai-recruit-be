@@ -19,6 +19,7 @@ export interface JobCopilotChatBrief {
   level?: "intern" | "fresher" | "junior" | "middle" | "senior" | "lead";
   category?: string;
   categoryId?: string;
+  roleContext?: string;
   workType?: "onsite" | "remote" | "hybrid";
   locations: string[];
   locationIds: string[];
@@ -62,11 +63,20 @@ export interface JobCopilotChatExtractRequest {
   hasWorkspace: boolean;
 }
 
+export interface JobCopilotChatBriefPatch {
+  title?: string | null;
+  level?: JobCopilotChatBrief["level"] | null;
+  category?: string | null;
+  roleContext?: string | null;
+  workType?: JobCopilotChatBrief["workType"] | null;
+  locations?: string[] | null;
+  salaryNegotiable?: boolean | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+}
+
 export interface JobCopilotChatExtractResponse {
-  brief: Omit<JobCopilotChatBrief, "categoryId" | "locationIds" | "skills">;
-  missingFields: string[];
-  assistantMessage: string;
-  readyToGenerate: boolean;
+  briefPatch: JobCopilotChatBriefPatch;
   intent: "update_brief" | "revise_jd";
 }
 
@@ -75,6 +85,7 @@ export interface SendJobCopilotMessage {
   clientMessageId: string;
   content: string;
   locale: "vi" | "en";
+  currentBrief?: JobCopilotChatBrief;
 }
 
 export interface JobCopilotConversationView {
