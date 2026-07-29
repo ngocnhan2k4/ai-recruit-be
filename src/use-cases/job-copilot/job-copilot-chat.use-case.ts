@@ -21,6 +21,7 @@ import type {
 import type { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants/response";
 import { JobCopilotUseCase } from "./job-copilot.use-case";
+import { findMatchingProvince } from "./job-copilot-location";
 
 const EXPERIENCE_RANGES = {
   intern: { min: 0, max: 0 },
@@ -387,15 +388,7 @@ export class JobCopilotChatUseCase {
     const locationIds: string[] = [];
     const locationNames: string[] = [];
     for (const name of extracted.locations ?? []) {
-      const normalizedName = this.normalizeLocation(name);
-      const province = provinces.find((item) => {
-        const candidate = this.normalizeLocation(item.name);
-        return (
-          candidate === normalizedName ||
-          candidate.includes(normalizedName) ||
-          normalizedName.includes(candidate)
-        );
-      });
+      const province = findMatchingProvince(name, provinces);
       if (province) {
         if (!locationIds.includes(province.id)) {
           locationIds.push(province.id);
@@ -430,12 +423,15 @@ export class JobCopilotChatUseCase {
   }
 
   private normalize(value: string) {
+    return this.normalizeSearchText(value).replace(/[^a-z0-9]/g, "");
+  }
+
+  private normalizeSearchText(value: string) {
     return value
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/đ/g, "d")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+      .toLowerCase();
   }
 
   private resolveCategory<T extends { name: string }>(
@@ -476,21 +472,7 @@ export class JobCopilotChatUseCase {
   }
 
   private categoryTokens(value: string) {
-    return (
-      value
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/Ä‘/g, "d")
-        .toLowerCase()
-        .match(/[a-z0-9]+/g) ?? []
-    );
-  }
-
-  private normalizeLocation(value: string) {
-    return this.normalize(value)
-      .replace(/^thanhpho/, "")
-      .replace(/^tp/, "")
-      .replace(/city$/, "");
+    return this.normalizeSearchText(value).match(/[a-z0-9]+/g) ?? [];
   }
 
   private draftContent(formData: Record<string, unknown>) {
