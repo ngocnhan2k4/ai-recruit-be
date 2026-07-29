@@ -5,8 +5,7 @@ import {
   UploadFileAndBody,
 } from "@/common/decorators";
 import { type TokenPayload } from "@/common/types";
-import { ProviderEnum, UserStatusEnum } from "@/core";
-import { Skill } from "@/core/entities";
+import { ProviderEnum, UserSkillResponse, UserStatusEnum } from "@/core";
 import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
 import { CasbinGuard, JwtAuthGuard } from "@/frameworks/auth-services/guards";
 import {
@@ -290,14 +289,15 @@ export class UserController {
     return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
   @ApiResponseDto(UserSkillDto, { isArray: true })
   async getUserSkills(
-    @Param("userName") userName: string,
-  ): Promise<ApiResponse<Skill[]>> {
-    return this.userUseCases.getUserSkills(userName);
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserSkillResponse[]>> {
+    return this.userUseCases.getUserSkills(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
