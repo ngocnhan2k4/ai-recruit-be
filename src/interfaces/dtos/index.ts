@@ -1,4 +1,5 @@
 // Export all DTOs from their respective directories
+export * from "./internal";
 export * from "./users";
 export * from "./auth";
 export * from "./jobs";
