@@ -84,6 +84,7 @@ import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching
 import { JobMatchingSchedulerModule } from "@/frameworks/schedulers/job-scheduler.module";
 import { ElasticsearchModule } from "@/frameworks/data-services/elasticsearch/elasticsearch.module";
 import { JobSyncUseCaseModule } from "@/use-cases/job-sync/job-sync.use-case.module";
+import { InternalModule } from "@/use-cases/internal/internal.module";
 import { CvSyncUseCaseModule } from "@/use-cases/cv-sync/cv-sync.use-case.module";
 import { OtpModule } from "@/frameworks/otp-services/otp.module";
 import { OtpStorageModule } from "./frameworks/otp-services/otp-storage-services/otp-storage.module";
@@ -171,6 +172,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
     JobMatchingSchedulerModule,
     ElasticsearchModule,
     JobSyncUseCaseModule,
+    InternalModule,
     CvSyncUseCaseModule,
     OtpModule,
     OtpStorageModule,
