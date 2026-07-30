@@ -38,6 +38,8 @@ import {
   TranslationJobType,
   TRANSLATION_SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGE_CODES,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
 } from "@/common/constants";
 import {
   getExplicitRequestLanguage,
@@ -131,9 +133,10 @@ export class ExamUseCases {
     const normalized = languageCode.trim().toLowerCase().split("-")[0];
 
     if (!SUPPORTED_LANGUAGE_CODES.includes(normalized as "vi" | "en")) {
-      throw new BadRequestException(
-        `Unsupported language code: ${languageCode}`,
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_UNSUPPORTED_LANGUAGE,
+        code: RESPONSE_CODE.EXAM_UNSUPPORTED_LANGUAGE,
+      });
     }
 
     return normalized;
@@ -149,9 +152,10 @@ export class ExamUseCases {
     );
 
     if (correctAnswerIndex < 0) {
-      throw new BadRequestException(
-        "Correct answer must match one of the provided options",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS,
+        code: RESPONSE_CODE.EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS,
+      });
     }
 
     return {
@@ -181,9 +185,10 @@ export class ExamUseCases {
       );
 
       if (correctAnswerIndex < 0) {
-        throw new BadRequestException(
-          "Correct answer must match one of the provided options",
-        );
+        throw new BadRequestException({
+          message: RESPONSE_MESSAGE.EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS,
+          code: RESPONSE_CODE.EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS,
+        });
       }
 
       payload.options = nextOptions;
@@ -210,7 +215,10 @@ export class ExamUseCases {
   async updateArea(id: string, dto: UpdateAreaDto) {
     const existing = await this.areaRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Area not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_AREA_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_AREA_NOT_FOUND,
+      });
     }
 
     const [updated] = await this.areaRepo.update({ id }, dto);
@@ -225,7 +233,10 @@ export class ExamUseCases {
   async deleteArea(id: string) {
     const existing = await this.areaRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Area not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_AREA_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_AREA_NOT_FOUND,
+      });
     }
 
     await this.areaRepo.deletePermanently({ id });
@@ -253,7 +264,10 @@ export class ExamUseCases {
   async getAreaById(id: string) {
     const area = await this.areaRepo.get(id);
     if (!area) {
-      throw new NotFoundException("Area not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_AREA_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_AREA_NOT_FOUND,
+      });
     }
 
     return {
@@ -272,9 +286,10 @@ export class ExamUseCases {
       dto.questionText,
     );
     if (isDuplicate) {
-      throw new BadRequestException(
-        "Question already exists for this skill (case-insensitive)",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_ALREADY_EXISTS,
+        code: RESPONSE_CODE.EXAM_QUESTION_ALREADY_EXISTS,
+      });
     }
     const question = await this.questionRepo.create(
       this.buildQuestionCreatePayload(dto),
@@ -291,7 +306,10 @@ export class ExamUseCases {
   async updateQuestion(id: string, dto: UpdateQuestionDto) {
     const existing = await this.questionRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
     const sourceLanguage = this.resolveQuestionSourceLanguage(
       dto.questionText ?? existing.questionText,
@@ -315,7 +333,10 @@ export class ExamUseCases {
   async deleteQuestion(id: string) {
     const existing = await this.questionRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
 
     await this.questionRepo.deletePermanently({ id });
@@ -330,7 +351,10 @@ export class ExamUseCases {
   async toggleQuestionStatus(id: string, dto: ToggleQuestionStatusDto) {
     const existing = await this.questionRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
 
     const updated = await this.questionRepo.toggleActive(id, dto.isActive);
@@ -366,13 +390,19 @@ export class ExamUseCases {
   async assignQuestionsToSkill(skillId: string, dto: AddQuestionsToSkillDto) {
     const skill = await this.skillRepo.get(skillId);
     if (!skill) {
-      throw new NotFoundException("Skill not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.SKILL_NOT_FOUND,
+        code: RESPONSE_CODE.SKILL_NOT_FOUND,
+      });
     }
 
     for (const questionId of dto.questionIds) {
       const question = await this.questionRepo.get(questionId);
       if (!question) {
-        throw new NotFoundException(`Question not found: ${questionId}`);
+        throw new NotFoundException({
+          message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+          code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+        });
       }
     }
 
@@ -404,7 +434,10 @@ export class ExamUseCases {
   async getQuestionById(id: string) {
     const question = await this.questionRepo.getQuestionByIdWithLanguage(id);
     if (!question) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
 
     return {
@@ -419,7 +452,10 @@ export class ExamUseCases {
       this.normalizeSupportedLanguageCode(languageCode);
     const existing = await this.questionRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
 
     const question = this.addAnswerKeys(existing);
@@ -452,7 +488,10 @@ export class ExamUseCases {
       this.normalizeSupportedLanguageCode(languageCode);
     const existing = await this.questionRepo.get(id);
     if (!existing) {
-      throw new NotFoundException("Question not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_QUESTION_NOT_FOUND,
+      });
     }
 
     const question = this.addAnswerKeys(existing);
@@ -460,19 +499,24 @@ export class ExamUseCases {
     const normalizedOptions = dto.options.map((option) => option.trim());
 
     if (!trimmedQuestionText) {
-      throw new BadRequestException("Question translation text is required");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_QUESTION_TRANSLATION_TEXT_REQUIRED,
+        code: RESPONSE_CODE.EXAM_QUESTION_TRANSLATION_TEXT_REQUIRED,
+      });
     }
 
     if (normalizedOptions.length !== question.options.length) {
-      throw new BadRequestException(
-        `Translated options must contain exactly ${question.options.length} items`,
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TRANSLATED_OPTIONS_COUNT_MISMATCH,
+        code: RESPONSE_CODE.EXAM_TRANSLATED_OPTIONS_COUNT_MISMATCH,
+      });
     }
 
     if (normalizedOptions.some((option) => !option)) {
-      throw new BadRequestException(
-        "Translated options must not contain empty values",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TRANSLATED_OPTIONS_EMPTY,
+        code: RESPONSE_CODE.EXAM_TRANSLATED_OPTIONS_EMPTY,
+      });
     }
 
     const correctAnswerIndex = question.optionKeys.findIndex(
@@ -482,9 +526,10 @@ export class ExamUseCases {
       correctAnswerIndex < 0 ||
       correctAnswerIndex >= normalizedOptions.length
     ) {
-      throw new BadRequestException(
-        "Unable to determine the correct answer mapping for this question",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_CORRECT_ANSWER_MAPPING_FAILED,
+        code: RESPONSE_CODE.EXAM_CORRECT_ANSWER_MAPPING_FAILED,
+      });
     }
 
     await this.questionRepo.upsertQuestionTranslation(
@@ -601,15 +646,17 @@ export class ExamUseCases {
     );
 
     if (allQuestionsWithKeys.length === 0) {
-      throw new BadRequestException(
-        "No active questions found for selected skill and difficulty levels",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_NO_ACTIVE_QUESTIONS,
+        code: RESPONSE_CODE.EXAM_NO_ACTIVE_QUESTIONS,
+      });
     }
 
     if (allQuestionsWithKeys.length < EXAM_MAX_QUESTIONS) {
-      throw new BadRequestException(
-        `Not enough questions for this skill. Found ${allQuestionsWithKeys.length}, need ${EXAM_MAX_QUESTIONS}. Try selecting different difficulty levels or contact admin.`,
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_NOT_ENOUGH_QUESTIONS,
+        code: RESPONSE_CODE.EXAM_NOT_ENOUGH_QUESTIONS,
+      });
     }
 
     // Randomize and select questions (use available count or EXAM_MAX_QUESTIONS, whichever is less)
@@ -671,23 +718,33 @@ export class ExamUseCases {
     // Validate user test exists and belongs to user
     const userTest = await this.userTestRepo.get(dto.userTestId);
     if (!userTest) {
-      throw new NotFoundException("Test not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_FOUND,
+      });
     }
 
     if (userTest.userId !== userId) {
-      throw new BadRequestException("Test does not belong to this user");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_OWNED,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_OWNED,
+      });
     }
 
     // Check if test is already submitted (totalScore is not null/undefined and > 0)
     if (userTest.totalScore != null && userTest.totalScore >= 0) {
-      throw new BadRequestException("Test already submitted");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_ALREADY_SUBMITTED,
+        code: RESPONSE_CODE.EXAM_TEST_ALREADY_SUBMITTED,
+      });
     }
 
     // Validate that all questions from the exam are answered
     if (!userTest.questionIds || userTest.questionIds.length === 0) {
-      throw new BadRequestException(
-        "Test questions not found. Please restart the exam.",
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+      });
     }
 
     const submittedQuestionIds = new Set(dto.answers.map((a) => a.questionId));
@@ -696,9 +753,10 @@ export class ExamUseCases {
     );
 
     if (missingQuestionIds.length > 0) {
-      throw new BadRequestException(
-        `Please answer all questions before submitting. Missing answers for ${missingQuestionIds.length} question(s).`,
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_MISSING_ANSWERS,
+        code: RESPONSE_CODE.EXAM_MISSING_ANSWERS,
+      });
     }
 
     // Validate all submitted answers have a non-empty stable answer key/text
@@ -706,9 +764,10 @@ export class ExamUseCases {
       (a) => this.resolveChosenAnswerKey(a) === "",
     );
     if (emptyAnswers.length > 0) {
-      throw new BadRequestException(
-        `Please provide answers for all questions. ${emptyAnswers.length} question(s) have empty answers.`,
-      );
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_EMPTY_ANSWERS,
+        code: RESPONSE_CODE.EXAM_EMPTY_ANSWERS,
+      });
     }
 
     // Get all questions from the test
@@ -719,7 +778,10 @@ export class ExamUseCases {
     ).map((question) => this.addAnswerKeys(question));
 
     if (validQuestions.length !== userTest.questionIds.length) {
-      throw new BadRequestException("Some questions not found");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_SOME_QUESTIONS_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_SOME_QUESTIONS_NOT_FOUND,
+      });
     }
 
     // Calculate score and evaluate per-skill levels
@@ -813,11 +875,17 @@ export class ExamUseCases {
   async getTestDetails(userId: string, testId: string) {
     const test = await this.userTestRepo.getUserTestWithSkills(testId);
     if (!test) {
-      throw new NotFoundException("Test not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_FOUND,
+      });
     }
 
     if (test.userId !== userId) {
-      throw new BadRequestException("Test does not belong to this user");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_OWNED,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_OWNED,
+      });
     }
 
     const answers = await this.userAnswerRepo.getTestAnswers(testId);
@@ -862,19 +930,31 @@ export class ExamUseCases {
   async getIncompleteExamQuestions(userId: string, testId: string) {
     const userTest = await this.userTestRepo.get(testId);
     if (!userTest) {
-      throw new NotFoundException("Test not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_FOUND,
+      });
     }
 
     if (userTest.userId !== userId) {
-      throw new BadRequestException("Test does not belong to this user");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_OWNED,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_OWNED,
+      });
     }
 
     if (userTest.totalScore != null && userTest.totalScore >= 0) {
-      throw new BadRequestException("Test already submitted");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_ALREADY_SUBMITTED,
+        code: RESPONSE_CODE.EXAM_TEST_ALREADY_SUBMITTED,
+      });
     }
 
     if (!userTest.questionIds || userTest.questionIds.length === 0) {
-      throw new BadRequestException("Test questions not found");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+      });
     }
 
     // Get all questions
@@ -885,7 +965,10 @@ export class ExamUseCases {
     ).map((question) => this.addAnswerKeys(question));
 
     if (validQuestions.length !== userTest.questionIds.length) {
-      throw new BadRequestException("Some questions not found");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_SOME_QUESTIONS_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_SOME_QUESTIONS_NOT_FOUND,
+      });
     }
 
     // Get saved answers
@@ -937,19 +1020,31 @@ export class ExamUseCases {
   ) {
     const userTest = await this.userTestRepo.get(testId);
     if (!userTest) {
-      throw new NotFoundException("Test not found");
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_FOUND,
+      });
     }
 
     if (userTest.userId !== userId) {
-      throw new BadRequestException("Test does not belong to this user");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_NOT_OWNED,
+        code: RESPONSE_CODE.EXAM_TEST_NOT_OWNED,
+      });
     }
 
     if (userTest.totalScore != null && userTest.totalScore >= 0) {
-      throw new BadRequestException("Test already submitted");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_ALREADY_SUBMITTED,
+        code: RESPONSE_CODE.EXAM_TEST_ALREADY_SUBMITTED,
+      });
     }
 
     if (!userTest.questionIds || userTest.questionIds.length === 0) {
-      throw new BadRequestException("Test questions not found");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+        code: RESPONSE_CODE.EXAM_TEST_QUESTIONS_NOT_FOUND,
+      });
     }
 
     // Validate that all provided answers belong to this test
@@ -959,7 +1054,10 @@ export class ExamUseCases {
     );
 
     if (invalidAnswers.length > 0) {
-      throw new BadRequestException("Some answers do not belong to this test");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_ANSWERS_NOT_IN_TEST,
+        code: RESPONSE_CODE.EXAM_ANSWERS_NOT_IN_TEST,
+      });
     }
 
     // Filter out empty answers (user might want to clear previous answer by not sending it)
@@ -968,7 +1066,10 @@ export class ExamUseCases {
     );
 
     if (validAnswers.length === 0) {
-      throw new BadRequestException("At least one valid answer is required");
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.EXAM_AT_LEAST_ONE_ANSWER_REQUIRED,
+        code: RESPONSE_CODE.EXAM_AT_LEAST_ONE_ANSWER_REQUIRED,
+      });
     }
 
     // Upsert answers (save or update) - only save non-empty answers
