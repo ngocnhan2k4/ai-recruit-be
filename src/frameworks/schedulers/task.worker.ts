@@ -17,6 +17,7 @@ import {
   IRoadmapSkillOptionRepository,
   INotificationRepository,
   ISubpathRepository,
+  IFeatureService,
 } from "@/core/abstracts";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
@@ -25,6 +26,7 @@ import {
   AILearningRoadmapResult,
   AISubpathResult,
   CvLanguageEnum,
+  FeatureCodeEnum,
   NotificationType,
   NewAiCv,
   OptimizeAtsRequest,
@@ -81,6 +83,7 @@ export class TaskWorker extends WorkerHost {
     private readonly aiCvRepository: IAiCvRepository,
     private readonly messageQueueService: IMessageQueueService,
     private readonly subpathRepository: ISubpathRepository,
+    private readonly featureService: IFeatureService,
   ) {
     super();
   }
@@ -833,6 +836,9 @@ export class TaskWorker extends WorkerHost {
         templateData,
       });
     } catch (error: any) {
+      const isFinalAttempt =
+        (options?.attemptsMade ?? 0) + 1 >= (options?.maxAttempts ?? 1);
+
       if (task) {
         const request = (task.input as any)?.request;
         await this.emitAndPersistTask({
@@ -866,6 +872,22 @@ export class TaskWorker extends WorkerHost {
               updatedAt: new Date(),
             },
           );
+
+          if (isFinalAttempt) {
+            try {
+              await this.featureService.releaseFeature(
+                task.userId,
+                FeatureCodeEnum.LEARNING_PATH,
+              );
+              this.logger.log(
+                `[${taskType}] Released learning path quota for user ${task.userId} after failed task ${taskId}`,
+              );
+            } catch (releaseError: any) {
+              this.logger.error(
+                `[${taskType}] Failed to release learning path quota for user ${task.userId}: ${releaseError?.message || releaseError}`,
+              );
+            }
+          }
         }
       }
       this.logger.error(
