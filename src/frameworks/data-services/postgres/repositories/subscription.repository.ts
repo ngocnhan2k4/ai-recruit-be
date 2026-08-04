@@ -109,6 +109,9 @@ export class SubscriptionRepository
     if (query.exactName) {
       whereConditions.push(eq(subscriptions.name, query.exactName));
     }
+    if (query.isActive !== undefined) {
+      whereConditions.push(eq(subscriptions.isActive, query.isActive));
+    }
 
     const selectedField = {
       id: subscriptions.id,

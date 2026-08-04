@@ -105,6 +105,7 @@ import { CommentUseCasesModule } from "@/use-cases/comment/comment.use-case.modu
 import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { TranslationUseCasesModule } from "@/use-cases/translation/translation-use-cases.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
+import { SubscriptionController } from "./interfaces/controllers/subscription/subscription.controller";
 import { AuditInterceptor } from "./common/audit/audit.interceptor";
 import { ContextMiddleware } from "./common/middlewares/context.middleware";
 import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
@@ -228,6 +229,7 @@ import { AdminActivityController } from "./interfaces/controllers/activity/admin
     ExamController,
     AiCvController,
     AdminSubscriptionController,
+    SubscriptionController,
     AdminFeatureController,
     SkillSynonymController,
     AdminDeploymentController,

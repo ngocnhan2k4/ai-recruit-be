@@ -20,6 +20,9 @@ import { UserScheduler } from "./user.scheduler";
 import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
+import { PaymentWorker } from "./payment.worker";
+import { SubscriptionScheduler } from "./subscription.scheduler";
+import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscription-use-cases.module";
 import { ActivityLogWorker } from "./activity-log.worker";
 import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { NotificationModule } from "@/frameworks/notification/notification.module";
@@ -40,6 +43,7 @@ import { FeatureModule } from "@/services";
     CvModule,
     UserUseCasesModule,
     RedisModule,
+    SubscriptionUseCasesModule,
     TranslationModule,
     NotificationModule,
     BlogUseCasesModule,
@@ -55,6 +59,8 @@ import { FeatureModule } from "@/services";
     TranslationWorker,
     UserScheduler,
     BlogScheduler,
+    PaymentWorker,
+    SubscriptionScheduler,
     ActivityLogWorker,
   ],
 })

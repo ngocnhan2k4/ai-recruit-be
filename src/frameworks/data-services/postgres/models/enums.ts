@@ -143,7 +143,7 @@ export const BillingCycleSubscriptionEnum = pgEnum(
 );
 
 export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
-  "incomplete",
+  "pending_activation",
   "active",
   "canceled",
   // "expired",

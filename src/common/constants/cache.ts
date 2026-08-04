@@ -37,6 +37,9 @@ export const CACHE_KEYS = {
   aiCv: {
     get: (aiCvId: string) => `aiCv:${aiCvId}:get`,
   },
+  exchangeRate: {
+    vndPerUsd: () => "exchange-rate:vnd-per-usd",
+  },
   blog: {
     patternDetail: (postId: string) => `blog:${postId}:*`,
     patternSlugDetail: (slug: string) => `blog:slug:${slug}:*`,

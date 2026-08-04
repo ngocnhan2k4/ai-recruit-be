@@ -26,3 +26,11 @@ export class SubscriptionDto {
   @ApiProperty({ required: false, nullable: true })
   updatedAt: Date | null;
 }
+
+export class RegisterUserSubscriptionResponseDto {
+  @ApiProperty({ example: "https://example.com/payment" })
+  paymentUrl: string;
+
+  @ApiProperty({ example: "https://example.com/qr" })
+  qrUrl: string;
+}

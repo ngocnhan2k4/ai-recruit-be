@@ -11,6 +11,7 @@ export * from "./user-profile";
 export * from "./context";
 export * from "./backoff";
 export * from "./user-profile";
+export * from "./currency";
 export * from "./language";
 export * from "./db-error";
 export * from "./request-log";
