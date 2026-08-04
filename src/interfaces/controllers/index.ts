@@ -6,6 +6,7 @@ export * from "./user/admin-user.controller";
 export * from "./job/job.controller";
 export * from "./job-sync/admin-job-sync.controller";
 export * from "./cv-sync/admin-cv-sync.controller";
+export * from "./internal/internal.controller";
 export * from "./job-matching/job-matching.controller";
 export * from "./auth/auth.controller";
 

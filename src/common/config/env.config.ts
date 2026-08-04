@@ -42,6 +42,21 @@ export class EnvironmentVariables {
   @IsString()
   DATABASE_ADAPTER_URL: string;
 
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MAX: number = 10;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MIN: number = 2;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_CONNECTION_TIMEOUT_MS: number = 10000;
+
   @IsString()
   JWT_SECRET: string;
 

@@ -1,5 +1,6 @@
 import type {
   JobCopilotGeneratedDraft,
+  JobCopilotLocale,
   JobCopilotResponse,
   ScreeningQuestion,
 } from "./job-copilot.entity";
@@ -15,13 +16,17 @@ export interface JobCopilotDraftState {
 }
 
 export interface SaveJobCopilotDraft extends JobCopilotDraftState {
+  conversationId?: string;
+  locale: JobCopilotLocale;
   expectedVersion: number;
 }
 
 export interface JobCopilotDraftRecord extends JobCopilotDraftState {
   id: string;
+  conversationId: string | null;
   organizationId: string;
   createdBy: string;
+  locale: JobCopilotLocale;
   version: number;
   createdAt: Date;
   updatedAt: Date | null;

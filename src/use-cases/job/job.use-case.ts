@@ -1,40 +1,72 @@
 import {
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+  ROOM_NOTIFICATIONS,
+} from "@/common/constants";
+import {
+  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
+  RECOMMENDED_CV_MIN_MATCHING_SCORE,
+  RECOMMENDED_CV_SEARCH_POOL_MIN,
+  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
+} from "@/common/constants/job-matching";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import { convertDateToStr, getJobStatus } from "@/common/utils";
+import {
+  ApplyJobFilters,
+  ApplyJobResponse,
+  ApplyStatusEnum,
+  Category,
+  FeatureCodeEnum,
+  GetAllUserResponse,
+  IFeatureService,
+  Job,
+  JobAnswer,
+  JobEventType,
+  JobFilters,
+  JobResponse,
+  JobStatusEnum,
+  Notification,
+  NotificationType,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  StatisticsJobFilter,
+  WorkTypeEnum,
+} from "@/core";
+import {
+  IBloomFilterService,
+  ICvRepository,
+  ICvSearchService,
+  ICvService,
+  IJobRepository,
+  IJobSearchService,
+  INotificationRepository,
+  IOrganizationRepository,
+  IUserRepository,
+} from "@/core/abstracts";
+import {
+  ApiResponse,
+  CompareStatisticsResponseDto,
+  CompareTopInMarketResponseDto,
+  JobCandidateRecommendationDto,
+  JobCountsDto,
+  JobMatchResultDto,
+  JobSalaryInsightDto,
+  JobTrendsQueryDto,
+  JobTrendsResponseDto,
+  OrganizationWithDetailsDto,
+  SalaryInsightPreviewQueryDto,
+  StatisticsJobResponse,
+  TopInMarketDtoResponse,
+} from "@/interfaces/dtos";
+import {
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  IJobRepository,
-  IOrganizationRepository,
-  IJobSearchService,
-  ICvRepository,
-  IUserRepository,
-  INotificationRepository,
-  ICvSearchService,
-  ICvService,
-  IBloomFilterService,
-} from "@/core/abstracts";
-import {
-  ApiResponse,
-  JobCandidateRecommendationDto,
-  JobCountsDto,
-  OrganizationWithDetailsDto,
-  StatisticsJobResponse,
-  TopInMarketDtoResponse,
-  CompareStatisticsResponseDto,
-  CompareTopInMarketResponseDto,
-  JobTrendsResponseDto,
-  JobTrendsQueryDto,
-  JobMatchResultDto,
-} from "@/interfaces/dtos";
-import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import {
-  RECOMMENDED_CV_MIN_MATCHING_SCORE,
-  RECOMMENDED_CV_SEARCH_POOL_MIN,
-  RECOMMENDED_CV_SEARCH_POOL_MULTIPLIER,
-  CV_MATCH_COMPLETENESS_MIN_FOR_RECOMMEND,
-} from "@/common/constants/job-matching";
+import { ConfigService } from "@nestjs/config";
 import { Dictionary, isEqual, keyBy, omit } from "lodash";
 import {
   StatisticsJobFilterRequestDto,
@@ -47,22 +79,7 @@ import {
   UpdateApplyJobDto,
   ApplyJobQueryDto,
 } from "@/interfaces/dtos";
-import {
-  Skill,
-  Job,
-  Province,
-  JobStatusEnum,
-  WorkTypeEnum,
-  OrganizationWithDetails,
-  Notification,
-  Category,
-  JobResponse,
-  NotificationType,
-  FeatureCodeEnum,
-  GetAllUserResponse,
-  JobAnswer,
-  ApplyStatusEnum,
-} from "@/core";
+
 import { BadRequestException } from "@nestjs/common";
 import {
   JobDto,
@@ -70,27 +87,21 @@ import {
   AppliedJobsResponseDto,
   JobResponseDto,
 } from "@/interfaces/dtos";
-import {
-  ApplyJobResponse,
-  ApplyJobFilters,
-  JobEventType,
-  JobFilters,
-  StatisticsJobFilter,
-} from "@/core";
-import { convertDateToStr, getJobStatus } from "@/common/utils";
+
 import { setAuditContext } from "@/common/audit/set-audit-context";
 import { GeneralQueryDto } from "@/interfaces/dtos/common/query";
 import { PaginatedResultDto } from "@/interfaces/dtos/common/query";
-import { PaginatedResult, TokenPayload } from "@/common/types";
-import { RoleEnum } from "@/common/constants";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
 import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { IMessageQueueService } from "@/core/abstracts/message-queue.abstract";
-import { ROOM_NOTIFICATIONS } from "@/common/constants";
-import { IFeatureService } from "@/core";
-import { MultipartFile } from "@fastify/multipart";
 import { EventTypeEnum } from "@/interfaces/dtos/event-tracking/event-tracking.dto";
 import { EventTrackingService } from "../event-tracking/event-tracking.service";
+import {
+  buildSalaryInsightDto,
+  DEFAULT_AT_MARKET_THRESHOLD_RATIO,
+  DEFAULT_MIN_SAMPLE_COUNT,
+} from "./job-salary-insight.helper";
+import { MultipartFile } from "@fastify/multipart";
 
 @Injectable()
 export class JobUseCases {
@@ -110,6 +121,7 @@ export class JobUseCases {
     private readonly cvService: ICvService,
     private readonly eventTrackingService: EventTrackingService,
     private readonly bloomFilterService: IBloomFilterService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getJobs(
@@ -177,7 +189,6 @@ export class JobUseCases {
     const hasSearchOrFilters = !!(
       filters.keyword ||
       filters.categoryId ||
-      filters.provinceId ||
       (filters.skillIds && filters.skillIds.length > 0)
     );
     const shouldApplyBloomFilter = bloomKey && !hasSearchOrFilters;
@@ -606,7 +617,11 @@ export class JobUseCases {
 
     // Fetch ALL categories for each metric independently (2 batch queries)
     const [appliedData, employerData] = await Promise.all([
-      this.jobRepository.getTopAppliedJobsByCategories(categoryIds, baseFilter),
+      this.jobRepository.getTopAppliedJobsByCategories(
+        categoryIds,
+        baseFilter,
+        5,
+      ),
       this.jobRepository.getTopEmployersByCategories(
         categoryIds,
         baseFilter,
@@ -1136,10 +1151,10 @@ export class JobUseCases {
       typeof createJobDto.experienceMax !== "undefined" &&
       createJobDto.experienceMin !== null &&
       createJobDto.experienceMax !== null &&
-      createJobDto.experienceMin >= createJobDto.experienceMax
+      createJobDto.experienceMin > createJobDto.experienceMax
     ) {
       throw new BadRequestException({
-        message: "experienceMin must be less than experienceMax",
+        message: "experienceMin must be less than or equal to experienceMax",
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
@@ -1254,16 +1269,16 @@ export class JobUseCases {
       });
     }
 
-    // Validate experience range on update (min < max)
+    // Validate experience range on update (min <= max)
     if (
       typeof updateJobDto.experienceMin !== "undefined" &&
       typeof updateJobDto.experienceMax !== "undefined" &&
       updateJobDto.experienceMin !== null &&
       updateJobDto.experienceMax !== null &&
-      updateJobDto.experienceMin >= updateJobDto.experienceMax
+      updateJobDto.experienceMin > updateJobDto.experienceMax
     ) {
       throw new BadRequestException({
-        message: "experienceMin must be less than experienceMax",
+        message: "experienceMin must be less than or equal to experienceMax",
         code: RESPONSE_CODE.INVALID_REQUEST,
       });
     }
@@ -1956,6 +1971,40 @@ export class JobUseCases {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
       data: recommendations.slice(0, targetLimit),
+    };
+  }
+
+  async getSalaryInsightPreview(
+    query: SalaryInsightPreviewQueryDto,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    const agg = await this.jobSearchService.getSalaryInsight({
+      excludeJobId: query.jobId,
+      categoryId: query.categoryId,
+      experienceMin: query.experienceMin,
+      experienceMax: query.experienceMax,
+      provinceIds: query.provinceIds,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: buildSalaryInsightDto(
+        agg,
+        {
+          salaryMin: query.salaryMin ?? null,
+          salaryMax: query.salaryMax ?? null,
+        },
+        {
+          atMarketThresholdRatio: this.configService.get<number>(
+            "SALARY_INSIGHT_AT_MARKET_THRESHOLD_RATIO",
+            DEFAULT_AT_MARKET_THRESHOLD_RATIO,
+          ),
+          minSampleCount: this.configService.get<number>(
+            "SALARY_INSIGHT_MIN_SAMPLE_COUNT",
+            DEFAULT_MIN_SAMPLE_COUNT,
+          ),
+        },
+      ),
     };
   }
 

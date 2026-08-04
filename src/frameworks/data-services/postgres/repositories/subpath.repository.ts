@@ -90,6 +90,26 @@ export class SubpathRepository
     return row ?? null;
   }
 
+  async findExistingSnapshotOptionIds(
+    optionIds: string[],
+  ): Promise<Set<string>> {
+    if (optionIds.length === 0) return new Set();
+
+    const rows = await this.db
+      .select({
+        optionId: userSubpathSnapshots.roadmapSkillOptionId,
+      })
+      .from(userSubpathSnapshots)
+      .where(
+        and(
+          inArray(userSubpathSnapshots.roadmapSkillOptionId, optionIds),
+          isNull(userSubpathSnapshots.deletedAt),
+        ),
+      );
+
+    return new Set(rows.map((row) => row.optionId));
+  }
+
   async cloneSharedSubpathForUser(
     sharedSubpathId: string,
     roadmapSkillOptionId: string,
@@ -145,62 +165,69 @@ export class SubpathRepository
         )
         .returning();
 
-      // Copy resources and quiz questions for each module
-      for (let i = 0; i < sharedModules.length; i++) {
-        const [sharedResources, sharedQuiz] = await Promise.all([
-          db
-            .select()
-            .from(subpathResources)
-            .where(
-              and(
-                eq(subpathResources.moduleId, sharedModules[i].id),
-                isNull(subpathResources.deletedAt),
-              ),
-            ),
-          db
-            .select()
-            .from(subpathQuizQuestions)
-            .where(
-              and(
-                eq(subpathQuizQuestions.moduleId, sharedModules[i].id),
-                isNull(subpathQuizQuestions.deletedAt),
-              ),
-            ),
-        ]);
+      const sharedModuleIds = sharedModules.map((m) => m.id);
+      const moduleIdMap = new Map(
+        sharedModules.map((m, i) => [m.id, copiedModules[i].id]),
+      );
 
-        if (sharedResources.length > 0) {
-          await db.insert(subpathResources).values(
-            sharedResources.map((r) => ({
-              moduleId: copiedModules[i].id,
-              title: r.title,
-              url: r.url,
-              type: r.type,
-              description: r.description,
-              isFree: r.isFree,
-              orderIndex: r.orderIndex,
-              quickCheck: r.quickCheck,
-            })),
-          );
-        }
+      const [sharedResources, sharedQuiz] = await Promise.all([
+        db
+          .select()
+          .from(subpathResources)
+          .where(
+            and(
+              inArray(subpathResources.moduleId, sharedModuleIds),
+              isNull(subpathResources.deletedAt),
+            ),
+          ),
+        db
+          .select()
+          .from(subpathQuizQuestions)
+          .where(
+            and(
+              inArray(subpathQuizQuestions.moduleId, sharedModuleIds),
+              isNull(subpathQuizQuestions.deletedAt),
+            ),
+          ),
+      ]);
 
-        if (sharedQuiz.length > 0) {
-          await db.insert(subpathQuizQuestions).values(
-            sharedQuiz.map((q) => ({
-              moduleId: copiedModules[i].id,
-              question: q.question,
-              options: q.options,
-              correctAnswerIndex: q.correctAnswerIndex,
-              explanation: q.explanation,
-              orderIndex: q.orderIndex,
-            })),
-          );
-        }
+      if (sharedResources.length > 0) {
+        await db.insert(subpathResources).values(
+          sharedResources.map((r) => ({
+            moduleId: moduleIdMap.get(r.moduleId)!,
+            title: r.title,
+            url: r.url,
+            type: r.type,
+            description: r.description,
+            isFree: r.isFree,
+            orderIndex: r.orderIndex,
+            quickCheck: r.quickCheck,
+          })),
+        );
+      }
+
+      if (sharedQuiz.length > 0) {
+        await db.insert(subpathQuizQuestions).values(
+          sharedQuiz.map((q) => ({
+            moduleId: moduleIdMap.get(q.moduleId)!,
+            question: q.question,
+            options: q.options,
+            correctAnswerIndex: q.correctAnswerIndex,
+            explanation: q.explanation,
+            orderIndex: q.orderIndex,
+          })),
+        );
       }
 
       return snapshot;
     });
   }
 
+  /**
+   * Insert shared subpath template from AI result. Callers only need `{ id }`.
+   * On unique conflict another worker already inserted — return that row's id
+   * without loading modules/resources/quiz.
+   */
   async createFromAIResult(
     payload: {
       optionName: string;
@@ -208,7 +235,7 @@ export class SubpathRepository
       currentRole: string;
     },
     ai: AISubpathResult,
-  ): Promise<SubpathWithDetails> {
+  ): Promise<{ id: string }> {
     const run = async (db) => {
       const [subpath] = await db
         .insert(subpaths)
@@ -225,9 +252,9 @@ export class SubpathRepository
         .returning();
 
       if (!subpath) {
-        // Another concurrent writer won — load by natural key
+        // Another concurrent writer won — only need the id for cloning
         const [existing] = await db
-          .select()
+          .select({ id: subpaths.id })
           .from(subpaths)
           .where(
             and(
@@ -238,9 +265,13 @@ export class SubpathRepository
             ),
           )
           .limit(1);
-        return this._loadSubpath(
-          and(eq(subpaths.id, existing.id), isNull(subpaths.deletedAt)),
-        ) as Promise<SubpathWithDetails>;
+
+        if (!existing) {
+          throw new Error(
+            `Subpath conflict resolved but row not found for "${payload.optionName}"`,
+          );
+        }
+        return { id: existing.id };
       }
 
       const createdModules = await db
@@ -269,10 +300,9 @@ export class SubpathRepository
           quickCheck: r.quickCheck?.length ? r.quickCheck : [],
         })),
       );
-      const allResources =
-        resourceRows.length > 0
-          ? await db.insert(subpathResources).values(resourceRows).returning()
-          : [];
+      if (resourceRows.length > 0) {
+        await db.insert(subpathResources).values(resourceRows);
+      }
 
       const quizRows = ai.subNodes.flatMap((mod, i) =>
         mod.quiz.map((q) => ({
@@ -284,32 +314,11 @@ export class SubpathRepository
           orderIndex: q.orderIndex,
         })),
       );
-      const allQuiz =
-        quizRows.length > 0
-          ? await db.insert(subpathQuizQuestions).values(quizRows).returning()
-          : [];
-
-      // Group resources and quiz back by moduleId
-      const resourcesByModule = new Map<string, typeof allResources>();
-      for (const r of allResources) {
-        const list = resourcesByModule.get(r.moduleId) ?? [];
-        list.push(r);
-        resourcesByModule.set(r.moduleId, list);
-      }
-      const quizByModule = new Map<string, typeof allQuiz>();
-      for (const q of allQuiz) {
-        const list = quizByModule.get(q.moduleId) ?? [];
-        list.push(q);
-        quizByModule.set(q.moduleId, list);
+      if (quizRows.length > 0) {
+        await db.insert(subpathQuizQuestions).values(quizRows);
       }
 
-      const subNodesWithChildren = createdModules.map((mod) => ({
-        ...mod,
-        resources: resourcesByModule.get(mod.id) ?? [],
-        quizQuestions: quizByModule.get(mod.id) ?? [],
-      }));
-
-      return { ...subpath, subNodes: subNodesWithChildren };
+      return { id: subpath.id };
     };
 
     return this.executeWithTransaction(run);
@@ -360,33 +369,55 @@ export class SubpathRepository
       )
       .orderBy(subpathModules.orderIndex);
 
-    const subNodesWithChildren = await Promise.all(
-      modules.map(async (mod) => {
-        const [resources, quizQuestions] = await Promise.all([
-          this.db
-            .select()
-            .from(subpathResources)
-            .where(
-              and(
-                eq(subpathResources.moduleId, mod.id),
-                isNull(subpathResources.deletedAt),
-              ),
-            )
-            .orderBy(subpathResources.orderIndex),
-          this.db
-            .select()
-            .from(subpathQuizQuestions)
-            .where(
-              and(
-                eq(subpathQuizQuestions.moduleId, mod.id),
-                isNull(subpathQuizQuestions.deletedAt),
-              ),
-            )
-            .orderBy(subpathQuizQuestions.orderIndex),
-        ]);
-        return { ...mod, resources, quizQuestions };
-      }),
-    );
+    if (modules.length === 0) {
+      return { ...subpath, subNodes: [] };
+    }
+
+    const moduleIds = modules.map((mod) => mod.id);
+
+    // 2 queries total instead of 2N — avoids exhausting the PG pool
+    const [allResources, allQuiz] = await Promise.all([
+      this.db
+        .select()
+        .from(subpathResources)
+        .where(
+          and(
+            inArray(subpathResources.moduleId, moduleIds),
+            isNull(subpathResources.deletedAt),
+          ),
+        )
+        .orderBy(subpathResources.orderIndex),
+      this.db
+        .select()
+        .from(subpathQuizQuestions)
+        .where(
+          and(
+            inArray(subpathQuizQuestions.moduleId, moduleIds),
+            isNull(subpathQuizQuestions.deletedAt),
+          ),
+        )
+        .orderBy(subpathQuizQuestions.orderIndex),
+    ]);
+
+    const resourcesByModule = new Map<string, typeof allResources>();
+    for (const resource of allResources) {
+      const list = resourcesByModule.get(resource.moduleId) ?? [];
+      list.push(resource);
+      resourcesByModule.set(resource.moduleId, list);
+    }
+
+    const quizByModule = new Map<string, typeof allQuiz>();
+    for (const quiz of allQuiz) {
+      const list = quizByModule.get(quiz.moduleId) ?? [];
+      list.push(quiz);
+      quizByModule.set(quiz.moduleId, list);
+    }
+
+    const subNodesWithChildren = modules.map((mod) => ({
+      ...mod,
+      resources: resourcesByModule.get(mod.id) ?? [],
+      quizQuestions: quizByModule.get(mod.id) ?? [],
+    }));
 
     return { ...subpath, subNodes: subNodesWithChildren };
   }

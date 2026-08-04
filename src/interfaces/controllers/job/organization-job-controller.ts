@@ -1,38 +1,48 @@
+import { GetUser } from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
+import {
+  JwtAuthGuard,
+  OrganizationAuthorizeGuard,
+} from "@/frameworks/auth-services/guards";
+import {
+  ApiResponse,
+  ApiResponseDto,
+  CreateJobDto,
+  GenerateCandidateBriefDto,
+  JobCandidateRecommendationDto,
+  JobCopilotDraftLocaleDto,
+  JobCopilotDraftResponseDto,
+  JobCopilotRequestDto,
+  JobCopilotResponseDto,
+  JobDto,
+  JobSalaryInsightDto,
+  SalaryInsightPreviewQueryDto,
+  SaveJobCopilotDraftDto,
+  SendJobCopilotMessageDto,
+  UndoJobCopilotRevisionDto,
+  JobCopilotConversationQueryDto,
+  JobCopilotConversationViewDto,
+  JobCopilotChatResultDto,
+  UpdateJobDto,
+} from "@/interfaces/dtos";
+import { CandidateBriefViewDto } from "@/interfaces/dtos/jobs/res/candidate-brief.dto";
+import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
+import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
+import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
+import { JobCopilotChatUseCase } from "@/use-cases/job-copilot/job-copilot-chat.use-case";
 import { JobUseCases } from "@/use-cases/job/job.use-case";
 import {
   Body,
   Controller,
   Delete,
-  Put,
-  Param,
-  UseGuards,
-  Post,
   Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { GetUser } from "@/common/decorators";
-import { type TokenPayload } from "@/common/types";
-import {
-  ApiResponse,
-  ApiResponseDto,
-  CreateJobDto,
-  UpdateJobDto,
-  JobDto,
-  JobCandidateRecommendationDto,
-  JobCopilotRequestDto,
-  JobCopilotResponseDto,
-  SaveJobCopilotDraftDto,
-  JobCopilotDraftResponseDto,
-  GenerateCandidateBriefDto,
-  CandidateBriefViewDto,
-} from "@/interfaces/dtos";
-import {
-  JwtAuthGuard,
-  OrganizationAuthorizeGuard,
-} from "@/frameworks/auth-services/guards";
-import { JobCopilotUseCase } from "@/use-cases/job-copilot/job-copilot.use-case";
-import { JobCopilotDraftUseCase } from "@/use-cases/job-copilot/job-copilot-draft.use-case";
-import { CandidateBriefUseCase } from "@/use-cases/candidate-brief/candidate-brief.use-case";
 
 @ApiTags("Organization Jobs")
 @ApiBearerAuth()
@@ -43,7 +53,72 @@ export class OrganizationJobController {
     private readonly jobCopilotUseCase: JobCopilotUseCase,
     private readonly jobCopilotDraftUseCase: JobCopilotDraftUseCase,
     private readonly candidateBriefUseCase: CandidateBriefUseCase,
+    private readonly jobCopilotChatUseCase: JobCopilotChatUseCase,
   ) {}
+
+  @ApiOperation({ summary: "Get a Job Copilot conversation and messages" })
+  @ApiResponseDto(JobCopilotConversationViewDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("job-copilot/conversation")
+  getJobCopilotConversation(
+    @Param("orgId") orgId: string,
+    @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotConversationQueryDto,
+  ) {
+    return this.jobCopilotChatUseCase.get(
+      orgId,
+      user.userId,
+      query.conversationId,
+    );
+  }
+
+  @ApiOperation({
+    summary: "Chat, fill the brief and automatically generate a JD",
+  })
+  @ApiResponseDto(JobCopilotChatResultDto)
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Post("job-copilot/chat")
+  sendJobCopilotMessage(
+    @Param("orgId") orgId: string,
+    @GetUser() user: TokenPayload,
+    @Body() input: SendJobCopilotMessageDto,
+  ) {
+    return this.jobCopilotChatUseCase.send(orgId, user.userId, input);
+  }
+
+  @ApiOperation({ summary: "Undo the latest Job Copilot JD revision" })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Post("job-copilot/conversations/:conversationId/undo")
+  undoJobCopilotRevision(
+    @Param("orgId") orgId: string,
+    @Param("conversationId") conversationId: string,
+    @GetUser() user: TokenPayload,
+    @Body() input: UndoJobCopilotRevisionDto,
+  ) {
+    return this.jobCopilotChatUseCase.undo(
+      orgId,
+      user.userId,
+      conversationId,
+      input.locale,
+    );
+  }
+
+  @ApiOperation({
+    summary: "Start over by soft deleting a Job Copilot workspace",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Delete("job-copilot/conversations/:conversationId")
+  deleteJobCopilotConversation(
+    @Param("orgId") orgId: string,
+    @Param("conversationId") conversationId: string,
+    @GetUser() user: TokenPayload,
+  ) {
+    return this.jobCopilotChatUseCase.remove(
+      orgId,
+      user.userId,
+      conversationId,
+    );
+  }
 
   @ApiOperation({ summary: "Get a saved Candidate Brief and stale state" })
   @ApiResponseDto(CandidateBriefViewDto)
@@ -81,8 +156,14 @@ export class OrganizationJobController {
   getJobCopilotDraft(
     @Param("orgId") orgId: string,
     @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotDraftLocaleDto,
   ) {
-    return this.jobCopilotDraftUseCase.get(orgId, user.userId);
+    return this.jobCopilotDraftUseCase.get(
+      orgId,
+      user.userId,
+      query.locale,
+      query.conversationId,
+    );
   }
 
   @ApiOperation({ summary: "Create or update a Job Copilot draft" })
@@ -103,8 +184,13 @@ export class OrganizationJobController {
   deleteJobCopilotDraft(
     @Param("orgId") orgId: string,
     @GetUser() user: TokenPayload,
+    @Query() query: JobCopilotConversationQueryDto,
   ) {
-    return this.jobCopilotDraftUseCase.remove(orgId, user.userId);
+    return this.jobCopilotDraftUseCase.remove(
+      orgId,
+      user.userId,
+      query.conversationId,
+    );
   }
 
   @ApiOperation({
@@ -177,5 +263,19 @@ export class OrganizationJobController {
     @Param("orgId") orgId: string,
   ): Promise<ApiResponse<JobCandidateRecommendationDto[]>> {
     return this.jobUseCases.getRecommendedCvsForJob(jobId, orgId);
+  }
+
+  @ApiOperation({
+    summary: "Preview salary market insight while creating/editing a job",
+    description:
+      "Query Elasticsearch for similar active jobs posted in the last 12 months using the criteria currently entered in the job form (no saved job required). When editing, pass jobId to exclude the job itself from comparison.",
+  })
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @ApiResponseDto(JobSalaryInsightDto)
+  @Get("jobs/salary-insight-preview")
+  async getSalaryInsightPreview(
+    @Query() query: SalaryInsightPreviewQueryDto,
+  ): Promise<ApiResponse<JobSalaryInsightDto>> {
+    return this.jobUseCases.getSalaryInsightPreview(query);
   }
 }

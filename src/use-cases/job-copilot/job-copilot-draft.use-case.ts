@@ -4,6 +4,7 @@ import type {
   JobCopilotDraftRecord,
   SaveJobCopilotDraft,
 } from "../../core/entities/job-copilot-draft.entity";
+import type { JobCopilotLocale } from "../../core/entities/job-copilot.entity";
 import {
   RESPONSE_CODE,
   RESPONSE_MESSAGE,
@@ -17,8 +18,15 @@ export class JobCopilotDraftUseCase {
   async get(
     organizationId: string,
     userId: string,
+    locale: JobCopilotLocale,
+    conversationId?: string,
   ): Promise<ApiResponse<JobCopilotDraftRecord | null>> {
-    const draft = await this.repository.findActive(organizationId, userId);
+    const draft = await this.repository.findActive(
+      organizationId,
+      userId,
+      locale,
+      conversationId,
+    );
     return this.success(draft);
   }
 
@@ -41,8 +49,13 @@ export class JobCopilotDraftUseCase {
   async remove(
     organizationId: string,
     userId: string,
+    conversationId?: string,
   ): Promise<ApiResponse<{ deleted: boolean }>> {
-    const deleted = await this.repository.softDelete(organizationId, userId);
+    const deleted = await this.repository.softDelete(
+      organizationId,
+      userId,
+      conversationId,
+    );
     return this.success({ deleted });
   }
 

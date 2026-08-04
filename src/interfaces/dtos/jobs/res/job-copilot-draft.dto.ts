@@ -4,10 +4,14 @@ import type { JobCopilotDraftRecord } from "@/core";
 export class JobCopilotDraftResponseDto implements JobCopilotDraftRecord {
   @ApiProperty()
   id: string;
+  @ApiProperty({ nullable: true })
+  conversationId: string | null;
   @ApiProperty()
   organizationId: string;
   @ApiProperty()
   createdBy: string;
+  @ApiProperty({ enum: ["vi", "en"] })
+  locale: JobCopilotDraftRecord["locale"];
   @ApiProperty({ type: Object })
   formData: JobCopilotDraftRecord["formData"];
   @ApiProperty({ type: Object, nullable: true })

@@ -1,9 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type {
   JobCopilotDraftRecord,
   SaveJobCopilotDraft,
 } from "@/core/entities/job-copilot-draft.entity";
+import type { JobCopilotLocale } from "@/core/entities/job-copilot.entity";
 import { IJobCopilotDraftRepository } from "@/core";
 import type { DBDrizzle } from "../types";
 import { jobCopilotDrafts } from "../models";
@@ -15,6 +16,8 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
   async findActive(
     organizationId: string,
     createdBy: string,
+    locale: JobCopilotLocale,
+    conversationId?: string,
   ): Promise<JobCopilotDraftRecord | null> {
     const [draft] = await this.db
       .select()
@@ -23,8 +26,16 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
         and(
           eq(jobCopilotDrafts.organizationId, organizationId),
           eq(jobCopilotDrafts.createdBy, createdBy),
+          eq(jobCopilotDrafts.locale, locale),
+          conversationId
+            ? eq(jobCopilotDrafts.conversationId, conversationId)
+            : isNull(jobCopilotDrafts.conversationId),
           isNull(jobCopilotDrafts.deletedAt),
         ),
+      )
+      .orderBy(
+        desc(jobCopilotDrafts.updatedAt),
+        desc(jobCopilotDrafts.createdAt),
       )
       .limit(1);
 
@@ -36,7 +47,12 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
     createdBy: string,
     draft: SaveJobCopilotDraft,
   ): Promise<JobCopilotDraftRecord | null> {
-    const current = await this.findActive(organizationId, createdBy);
+    const current = await this.findActive(
+      organizationId,
+      createdBy,
+      draft.locale,
+      draft.conversationId,
+    );
     const state = {
       formData: draft.formData,
       analysisResult: draft.analysisResult,
@@ -51,7 +67,14 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
       try {
         const [created] = await this.db
           .insert(jobCopilotDrafts)
-          .values({ organizationId, createdBy, ...state, version: 1 })
+          .values({
+            organizationId,
+            createdBy,
+            conversationId: draft.conversationId,
+            locale: draft.locale,
+            ...state,
+            version: 1,
+          })
           .returning();
         return (created as JobCopilotDraftRecord | undefined) ?? null;
       } catch (error) {
@@ -86,6 +109,7 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
   async softDelete(
     organizationId: string,
     createdBy: string,
+    conversationId?: string,
   ): Promise<boolean> {
     const deleted = await this.db
       .update(jobCopilotDrafts)
@@ -94,6 +118,9 @@ export class JobCopilotDraftRepository implements IJobCopilotDraftRepository {
         and(
           eq(jobCopilotDrafts.organizationId, organizationId),
           eq(jobCopilotDrafts.createdBy, createdBy),
+          conversationId
+            ? eq(jobCopilotDrafts.conversationId, conversationId)
+            : isNull(jobCopilotDrafts.conversationId),
           isNull(jobCopilotDrafts.deletedAt),
         ),
       )

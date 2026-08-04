@@ -134,6 +134,7 @@ export interface BlogPostTagInput {
 
 export interface GenerateJobBlogPostRequest {
   rangeDays: number;
+  asOf?: string;
 }
 
 export interface GenerateJobBlogPostResponse {

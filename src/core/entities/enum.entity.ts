@@ -133,6 +133,11 @@ export enum SkillLevelEnum {
   ADVANCED = "advanced",
 }
 
+/** How a row in user_skills was created. */
+export enum UserSkillSourceEnum {
+  EXAM = "exam",
+}
+
 export enum SkillResolutionStatusEnum {
   MATCHED = "matched",
   PENDING = "pending",
@@ -235,6 +240,7 @@ export enum TaskStatusEnum {
 export enum TaskTypeEnum {
   LEARNING_PATH_GENERATION = "learning_path_generation",
   CV_GENERATION = "cv_generation",
+  CV_GENERATION_V2 = "cv_generation_v2",
 }
 
 export enum ExperienceLevelEnum {

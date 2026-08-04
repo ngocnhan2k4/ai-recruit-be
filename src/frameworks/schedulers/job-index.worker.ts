@@ -77,6 +77,11 @@ export class JobIndexWorker extends WorkerHost {
           throw new Error(`[processEvent] Job ${data.jobId} not found`);
         }
 
+        if (!job.category?.id) {
+          this.logger.warn(`[processEvent] Job ${data.jobId} has no category`);
+          return;
+        }
+
         let embedding = (job.job as any).embedding as number[] | undefined;
 
         if (job.job.status === (JobStatusEnum.ACTIVE as string)) {

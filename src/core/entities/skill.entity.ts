@@ -17,6 +17,15 @@ export type GetListSkillResponse = Pick<Skill, "name" | "id"> & {
   questionCount?: number;
 };
 
+/** User skill profile row enriched for API responses. */
+export type UserSkillResponse = {
+  id: string;
+  name: string;
+  source: string | null;
+  /** From latest qualifying user_tests.skill_levels_assessed when source is exam. */
+  level: string | null;
+};
+
 export enum SkillReviewStatus {
   APPROVED = "APPROVED",
   REJECTED = "REJECTED",

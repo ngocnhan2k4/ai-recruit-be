@@ -144,6 +144,8 @@ export const userSkills = pgTable(
       .notNull()
       .references(() => skills.id),
     organizationId: uuid("organization_id").references(() => organizations.id),
+    /** Origin of the skill link, e.g. "exam" when added from a passed skill test. */
+    source: varchar("source", { length: 50 }),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.skillId] }),

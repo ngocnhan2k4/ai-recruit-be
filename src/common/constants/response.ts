@@ -129,6 +129,31 @@ export const RESPONSE_CODE = {
 
   // --- Job Copilot ---
   JOB_COPILOT_DRAFT_CONFLICT: "JOB_COPILOT_DRAFT_CONFLICT",
+
+  // --- Exam ---
+  EXAM_AREA_NOT_FOUND: "EXAM_AREA_NOT_FOUND",
+  EXAM_QUESTION_NOT_FOUND: "EXAM_QUESTION_NOT_FOUND",
+  EXAM_QUESTION_ALREADY_EXISTS: "EXAM_QUESTION_ALREADY_EXISTS",
+  EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS:
+    "EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS",
+  EXAM_UNSUPPORTED_LANGUAGE: "EXAM_UNSUPPORTED_LANGUAGE",
+  EXAM_QUESTION_TRANSLATION_TEXT_REQUIRED:
+    "EXAM_QUESTION_TRANSLATION_TEXT_REQUIRED",
+  EXAM_TRANSLATED_OPTIONS_COUNT_MISMATCH:
+    "EXAM_TRANSLATED_OPTIONS_COUNT_MISMATCH",
+  EXAM_TRANSLATED_OPTIONS_EMPTY: "EXAM_TRANSLATED_OPTIONS_EMPTY",
+  EXAM_CORRECT_ANSWER_MAPPING_FAILED: "EXAM_CORRECT_ANSWER_MAPPING_FAILED",
+  EXAM_NO_ACTIVE_QUESTIONS: "EXAM_NO_ACTIVE_QUESTIONS",
+  EXAM_NOT_ENOUGH_QUESTIONS: "EXAM_NOT_ENOUGH_QUESTIONS",
+  EXAM_TEST_NOT_FOUND: "EXAM_TEST_NOT_FOUND",
+  EXAM_TEST_NOT_OWNED: "EXAM_TEST_NOT_OWNED",
+  EXAM_TEST_ALREADY_SUBMITTED: "EXAM_TEST_ALREADY_SUBMITTED",
+  EXAM_TEST_QUESTIONS_NOT_FOUND: "EXAM_TEST_QUESTIONS_NOT_FOUND",
+  EXAM_MISSING_ANSWERS: "EXAM_MISSING_ANSWERS",
+  EXAM_EMPTY_ANSWERS: "EXAM_EMPTY_ANSWERS",
+  EXAM_SOME_QUESTIONS_NOT_FOUND: "EXAM_SOME_QUESTIONS_NOT_FOUND",
+  EXAM_ANSWERS_NOT_IN_TEST: "EXAM_ANSWERS_NOT_IN_TEST",
+  EXAM_AT_LEAST_ONE_ANSWER_REQUIRED: "EXAM_AT_LEAST_ONE_ANSWER_REQUIRED",
 } as const;
 
 export const RESPONSE_MESSAGE = {
@@ -219,4 +244,41 @@ export const RESPONSE_MESSAGE = {
   // --- Job Copilot ---
   JOB_COPILOT_DRAFT_CONFLICT:
     "This draft was updated elsewhere. Please reload the data.",
+
+  // --- Skills & learning path ---
+  SKILL_NOT_FOUND: "Skill not found.",
+  ROADMAP_NOT_FOUND: "Roadmap not found.",
+  ROADMAP_NOT_READY: "Roadmap is not ready yet.",
+  SKILL_NOT_FOUND_IN_ROADMAP: "Skill not found in roadmap.",
+
+  // --- Exam ---
+  EXAM_AREA_NOT_FOUND: "Area not found.",
+  EXAM_QUESTION_NOT_FOUND: "Question not found.",
+  EXAM_QUESTION_ALREADY_EXISTS:
+    "Question already exists for this skill (case-insensitive).",
+  EXAM_CORRECT_ANSWER_MUST_MATCH_OPTIONS:
+    "Correct answer must match one of the provided options.",
+  EXAM_UNSUPPORTED_LANGUAGE: "Unsupported language code.",
+  EXAM_QUESTION_TRANSLATION_TEXT_REQUIRED:
+    "Question translation text is required.",
+  EXAM_TRANSLATED_OPTIONS_COUNT_MISMATCH:
+    "Translated options must match the number of original options.",
+  EXAM_TRANSLATED_OPTIONS_EMPTY:
+    "Translated options must not contain empty values.",
+  EXAM_CORRECT_ANSWER_MAPPING_FAILED:
+    "Unable to determine the correct answer mapping for this question.",
+  EXAM_NO_ACTIVE_QUESTIONS:
+    "No questions match this skill and difficulty. Clear or change the difficulty selection.",
+  EXAM_NOT_ENOUGH_QUESTIONS:
+    "Not enough questions to start. Select more difficulties, or clear the selection to use all levels.",
+  EXAM_TEST_NOT_FOUND: "Test not found.",
+  EXAM_TEST_NOT_OWNED: "Test does not belong to this user.",
+  EXAM_TEST_ALREADY_SUBMITTED: "Test already submitted.",
+  EXAM_TEST_QUESTIONS_NOT_FOUND:
+    "Test questions not found. Please restart the exam.",
+  EXAM_MISSING_ANSWERS: "Please answer all questions before submitting.",
+  EXAM_EMPTY_ANSWERS: "Please provide answers for all questions.",
+  EXAM_SOME_QUESTIONS_NOT_FOUND: "Some questions not found.",
+  EXAM_ANSWERS_NOT_IN_TEST: "Some answers do not belong to this test.",
+  EXAM_AT_LEAST_ONE_ANSWER_REQUIRED: "At least one valid answer is required.",
 } as const;
