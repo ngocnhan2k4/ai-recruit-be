@@ -23,6 +23,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:load": "ts-node test/load-test/run.ts",
+    "test:load:smoke": "npm run test:load -- --scenario smoke --concurrency 5 --duration 15",
+    "test:load:stress": "bash test/load-test/run-profiles.sh stress",
+    "test:load:1k": "bash test/load-test/run-profiles.sh 1k",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:generate": "drizzle-kit generate",
@@ -38,7 +42,9 @@
     "casbin:migrate": "ts-node migrate-casbin.ts",
     "swagger:json": "node scripts/fetch-swagger-json.js",
     "swagger:json:generate": "ts-node -r tsconfig-paths/register scripts/generate-swagger-json.ts",
-    "sync:firebase-identities": "ts-node -r tsconfig-paths/register scripts/sync-firebase-user-identities.ts"
+    "sync:firebase-identities": "ts-node -r tsconfig-paths/register scripts/sync-firebase-user-identities.ts",
+    "create:system-user": "ts-node -r tsconfig-paths/register scripts/9.create-system-user/create-system-user.ts",
+    "blog:backfill-locales": "ts-node -r tsconfig-paths/register scripts/backfill-blog-post-locales.ts"
   },
   "husky": {
     "hooks": {
@@ -111,6 +117,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-vault": "^0.10.9",
     "nodemailer": "^7.0.11",
+    "openai": "^6.39.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdf-parse": "^2.4.5",
@@ -167,6 +174,9 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

@@ -24,6 +24,7 @@ import {
   count,
   ilike,
   and,
+  or,
   SQL,
   sql,
   asc,
@@ -32,6 +33,8 @@ import {
   inArray,
   gte,
   lte,
+  isNotNull,
+  isNull,
 } from "drizzle-orm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import type { Cache } from "cache-manager";
@@ -163,6 +166,40 @@ export class SkillRepository
     };
   }
 
+  /**
+   * Strip spaces / punctuation so "nodejs" matches "node.js", "Node JS", etc.
+   */
+  private buildSkillKeywordCondition(keyword: string): SQL {
+    const trimmed = keyword.trim();
+    const likePattern = `%${trimmed}%`;
+    const normalizedKeyword = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedNameExpr = sql`regexp_replace(lower(${skills.name}), '[^a-z0-9]', '', 'g')`;
+    const normalizedAliasExpr = sql`regexp_replace(lower(${skillsSynonyms.aliasName}), '[^a-z0-9]', '', 'g')`;
+
+    const nameMatch = or(
+      ilike(skills.name, likePattern),
+      normalizedKeyword
+        ? sql`${normalizedNameExpr} LIKE ${`%${normalizedKeyword}%`}`
+        : undefined,
+    );
+
+    const synonymMatch = sql`EXISTS (
+      SELECT 1
+      FROM ${skillsSynonyms}
+      WHERE ${skillsSynonyms.masterSkillId} = ${skills.id}
+        AND (
+          ${skillsSynonyms.aliasName} ILIKE ${likePattern}
+          ${
+            normalizedKeyword
+              ? sql`OR ${normalizedAliasExpr} LIKE ${`%${normalizedKeyword}%`}`
+              : sql``
+          }
+        )
+    )`;
+
+    return or(nameMatch, synonymMatch)!;
+  }
+
   private buildWhereCondition(query: SkillFilter) {
     const keyword = query.keyword ?? "";
     const skillIds = query.skillIds || [];
@@ -171,7 +208,7 @@ export class SkillRepository
     const whereConditions: SQL[] = [eq(skills.isApproved, isApproved)];
 
     if (keyword) {
-      whereConditions.push(ilike(skills.name, `%${keyword}%`));
+      whereConditions.push(this.buildSkillKeywordCondition(keyword));
     }
 
     if (skillIds.length > 0) {
@@ -183,6 +220,12 @@ export class SkillRepository
         SELECT 1 FROM ${questions}
         WHERE ${questions.skillId} = ${skills.id}
       )`);
+    }
+
+    if (query.minQuestionCount != null && query.minQuestionCount > 0) {
+      whereConditions.push(
+        sql`(SELECT COUNT(*)::int FROM ${questions} WHERE ${questions.skillId} = ${skills.id}) >= ${query.minQuestionCount}`,
+      );
     }
 
     if ((query.exactNames?.length || 0) > 0) {
@@ -219,6 +262,56 @@ export class SkillRepository
     return skill[0] ?? null;
   }
 
+  async resolveApprovedSkillsByNames(
+    names: string[],
+  ): Promise<Pick<Skill, "id" | "name">[]> {
+    const normalizedNames = Array.from(
+      new Set(
+        names
+          .map((name) => this.normalizeSkillName(name))
+          .filter((name) => name.length > 0),
+      ),
+    );
+    if (normalizedNames.length === 0) return [];
+
+    const rows = await this.db
+      .select({
+        id: skills.id,
+        name: skills.name,
+        aliasName: skillsSynonyms.aliasName,
+      })
+      .from(skills)
+      .leftJoin(skillsSynonyms, eq(skillsSynonyms.masterSkillId, skills.id))
+      .where(and(eq(skills.isApproved, true), isNull(skills.deletedAt)));
+
+    const rowByNormalizedName = new Map<string, { id: string; name: string }>();
+    for (const row of rows) {
+      const skill = { id: row.id, name: row.name };
+      rowByNormalizedName.set(this.normalizeSkillName(row.name), skill);
+      if (row.aliasName) {
+        rowByNormalizedName.set(this.normalizeSkillName(row.aliasName), skill);
+      }
+    }
+
+    const resolved: Pick<Skill, "id" | "name">[] = [];
+    const resolvedIds = new Set<string>();
+    for (const normalizedName of normalizedNames) {
+      const skill = rowByNormalizedName.get(normalizedName);
+      if (!skill || resolvedIds.has(skill.id)) continue;
+      resolved.push(skill);
+      resolvedIds.add(skill.id);
+    }
+    return resolved;
+  }
+
+  private normalizeSkillName(value: string): string {
+    return value
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
   async bulkReviewSkills(
     ids: string[],
     status: SkillReviewStatus,
@@ -246,8 +339,12 @@ export class SkillRepository
     fromDate?: Date,
     toDate?: Date,
     provinceId?: string,
+    categoryId?: string,
   ): Promise<{ name: string; jobCount: number }[]> {
-    const conditions: SQL[] = [eq(skills.isApproved, true)];
+    const conditions: SQL[] = [
+      eq(skills.isApproved, true),
+      isNotNull(jobs.datePosted),
+    ];
 
     if (fromDate) {
       conditions.push(gte(jobs.datePosted, convertDateToStr(fromDate)));
@@ -263,6 +360,9 @@ export class SkillRepository
           AND jp.province_id = ${provinceId}
         )`,
       );
+    }
+    if (categoryId) {
+      conditions.push(eq(jobs.categoryId, categoryId));
     }
 
     const result = await this.db
@@ -505,5 +605,14 @@ export class SkillRepository
 
     await this.cacheManager.del(CACHE_KEYS.skill.getAll());
     await this.cacheManager.del(CACHE_KEYS.skillSynonym.getAll());
+  }
+
+  async getJobIdsBySkillIds(skillIds: string[]): Promise<string[]> {
+    if (skillIds.length === 0) return [];
+    const result = await this.db
+      .select({ jobId: jobSkills.jobId })
+      .from(jobSkills)
+      .where(inArray(jobSkills.skillId, skillIds));
+    return [...new Set(result.map((r) => r.jobId).filter(Boolean))];
   }
 }

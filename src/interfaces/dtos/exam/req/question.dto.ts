@@ -66,6 +66,22 @@ export class CreateQuestionDto {
 
 export class UpdateQuestionDto extends PartialType(CreateQuestionDto) {}
 
+export class UpdateQuestionTranslationDto {
+  @ApiProperty({ example: "TypeScript la gi?" })
+  @IsString()
+  @IsNotEmpty()
+  questionText: string;
+
+  @ApiProperty({
+    example: ["Mot ngon ngu lap trinh", "Mot framework", "Mot thu vien"],
+    type: [String],
+  })
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  options: string[];
+}
+
 export class ToggleQuestionStatusDto {
   @ApiProperty({ example: true })
   @IsBoolean()

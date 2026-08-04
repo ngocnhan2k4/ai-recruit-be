@@ -1,36 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import {
-  BlogPostStatus,
-  GenerateJobBlogPostResponse,
-  IAIService,
-  IBlogRepository,
-  ICacheService,
-  IUserRepository,
-} from "@/core";
+import { IBlogRepository, ICacheService } from "@/core";
 import { CACHE_KEYS } from "@/common/constants";
+import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
 
 @Injectable()
 export class BlogScheduler {
   private readonly logger = new Logger(BlogScheduler.name);
-  private readonly aiBlogAuthorId?: string;
-  private readonly aiBlogRangeDays: number;
 
   constructor(
     private readonly cacheService: ICacheService,
     private readonly blogRepository: IBlogRepository,
-    private readonly userRepository: IUserRepository,
-    private readonly aiService: IAIService,
-    private readonly configService: ConfigService,
-  ) {
-    this.aiBlogAuthorId =
-      this.configService.get<string>("AI_BLOG_AUTHOR_ID") || undefined;
-    this.aiBlogRangeDays = Math.max(
-      1,
-      this.configService.get<number>("AI_BLOG_RANGE_DAYS") || 7,
-    );
-  }
+    private readonly blogUseCases: BlogUseCases,
+  ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
   async syncBlogViewCount(): Promise<void> {
@@ -65,7 +47,6 @@ export class BlogScheduler {
         ...keys,
       );
 
-      // 3. build updates
       const updates: { postId: string; viewCount: number }[] = [];
 
       for (let i = 0; i < postIds.length; i++) {
@@ -78,12 +59,10 @@ export class BlogScheduler {
         }
       }
 
-      // 4. update DB (batch)
       if (updates.length > 0) {
         await this.blogRepository.incrementViewCount(updates);
       }
 
-      // 5. remove post ids from dirty set
       await this.cacheService.removeFromSet(
         CACHE_KEYS.blog.viewDirty(),
         ...postIds,
@@ -93,88 +72,30 @@ export class BlogScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to sync blog view counts: ${err.message}`,
+        `[scheduler.syncBlogViewCount] Failed to sync blog view counts: ${err.message}`,
         err.stack,
       );
     }
   }
 
   @Cron("0 0 0 * * 0", {
-    timeZone: "Asia/Ho_Chi_Minh",
+    timeZone: process.env.TIMEZONE || "Asia/Ho_Chi_Minh",
   })
   async generateWeeklyAiBlog(): Promise<void> {
     try {
       this.logger.log(
-        "Running scheduled weekly AI blog generation cron job...",
+        "[scheduler.generateWeeklyAiBlog] Running scheduled weekly AI blog generation...",
       );
-
-      if (!this.aiBlogAuthorId) {
-        this.logger.warn(
-          "Skipping weekly AI blog generation because AI_BLOG_AUTHOR_ID is not configured.",
-        );
-        return;
-      }
-
-      const author = await this.userRepository.get(this.aiBlogAuthorId);
-      if (!author) {
-        this.logger.warn(
-          `Skipping weekly AI blog generation because author ${this.aiBlogAuthorId} was not found.`,
-        );
-        return;
-      }
-
-      const dateKey = this.formatVietnamDate(new Date());
-      const slug = `weekly-ai-job-market-${dateKey}`;
-      const existing = await this.blogRepository.getPostBySlug(slug);
-      if (existing) {
-        this.logger.log(
-          `Skipping weekly AI blog generation because slug ${slug} already exists.`,
-        );
-        return;
-      }
-
-      const payload = await this.requestWeeklyAiBlog();
-      const normalizedTags = (payload.tagInputs || [])
-        .filter((item) => item.tagId || item.skillId)
-        .map((item) => ({
-          tagId: item.tagId ?? null,
-          skillId: item.skillId ?? null,
-        }));
-
-      await this.blogRepository.createPost({
-        title: payload.title,
-        slug,
-        summary: payload.summary,
-        thumbnail: payload.thumbnail ?? null,
-        content: payload.content,
-        categoryId: payload.category,
-        authorId: author.id,
-        status: BlogPostStatus.PENDING,
-        tags: normalizedTags,
-      });
-
-      this.logger.log(`Created weekly AI blog successfully with slug ${slug}.`);
+      const result = await this.blogUseCases.generateWeeklyAiBlog();
+      this.logger.log(
+        `[scheduler.generateWeeklyAiBlog] Done: ${JSON.stringify(result.data)}`,
+      );
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to generate weekly AI blog: ${err.message}`,
+        `[scheduler.generateWeeklyAiBlog] Failed to generate AI blog: ${err.message}`,
         err.stack,
       );
     }
-  }
-
-  private async requestWeeklyAiBlog(): Promise<GenerateJobBlogPostResponse> {
-    return this.aiService.generateJobBlogPost({
-      rangeDays: this.aiBlogRangeDays,
-    });
-  }
-
-  private formatVietnamDate(date: Date): string {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
   }
 }

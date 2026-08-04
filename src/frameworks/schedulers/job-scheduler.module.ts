@@ -6,6 +6,7 @@ import { JobIndexWorker } from "./job-index.worker";
 import { TaskWorker } from "./task.worker";
 import { ScoreCvWorker } from "./score-cv.worker";
 import { EmailWorker } from "./email.worker";
+import { TranslationWorker } from "./translation.worker";
 import { CvIndexWorker } from "./cv-index.worker";
 import { LoggerServiceModule } from "../logger-services/logger.module";
 import { JobMatchingUseCasesModule } from "@/use-cases/job-matching/job-matching.use-cases.module";
@@ -22,6 +23,10 @@ import { BlogScheduler } from "./blog.scheduler";
 import { PaymentWorker } from "./payment.worker";
 import { SubscriptionScheduler } from "./subscription.scheduler";
 import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscription-use-cases.module";
+import { TranslationModule } from "@/frameworks/translation/translation.module";
+import { NotificationModule } from "@/frameworks/notification/notification.module";
+import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
+import { FeatureModule } from "@/services";
 
 @Module({
   imports: [
@@ -38,6 +43,10 @@ import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscriptio
     UserUseCasesModule,
     RedisModule,
     SubscriptionUseCasesModule,
+    TranslationModule,
+    NotificationModule,
+    BlogUseCasesModule,
+    FeatureModule,
   ],
   providers: [
     JobMatchingScheduler,
@@ -46,8 +55,7 @@ import { SubscriptionUseCasesModule } from "@/use-cases/subscription/subscriptio
     TaskWorker,
     ScoreCvWorker,
     EmailWorker,
-    TaskWorker,
-    EmailWorker,
+    TranslationWorker,
     UserScheduler,
     BlogScheduler,
     PaymentWorker,

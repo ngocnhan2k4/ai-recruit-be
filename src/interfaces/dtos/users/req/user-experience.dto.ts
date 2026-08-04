@@ -46,6 +46,11 @@ export class CreateUserExperienceRequestDto {
   @IsOptional()
   @IsString({ each: true })
   skillNames?: string[];
+
+  @ApiProperty({ required: false, example: "vi" })
+  @IsOptional()
+  @IsString()
+  languageCode?: string;
 }
 
 export class UpdateUserExperienceRequestDto {

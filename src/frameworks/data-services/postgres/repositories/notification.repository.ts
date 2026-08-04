@@ -1,33 +1,33 @@
-import { GenericRepository } from "./generic-repository";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable } from "@nestjs/common";
-import { notifications, userNotifications } from "../models/notification.model";
-import {
-  NotiGroupTypeEnum,
-  Notification,
-  NewNotification,
-  NewUserNotification,
-} from "@/core/entities";
+import { PaginatedResult } from "@/common/types";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import {
-  eq,
+  NewNotification,
+  NewUserNotification,
+  NotiGroupTypeEnum,
+  Notification,
+} from "@/core/entities";
+import { NotificationFilter } from "@/core/entities/notification.entity";
+import { Inject, Injectable } from "@nestjs/common";
+import {
   and,
-  isNull,
-  desc,
   count,
-  lt,
+  desc,
+  eq,
   inArray,
+  isNull,
+  lt,
   notInArray,
   sql,
 } from "drizzle-orm";
-import { NotificationFilter } from "@/core/entities/notification.entity";
-import { PaginatedResult } from "@/common/types";
 import {
   organizationInvitations,
   organizations,
   tasks,
   users,
 } from "../models";
+import { notifications, userNotifications } from "../models/notification.model";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class NotificationRepository
@@ -146,9 +146,153 @@ export class NotificationRepository
       return createdUserNotifications.map((d) => ({
         ...d,
         ...createdNotification,
-        senderInfo,
-        organizationInfo,
+        sender: senderInfo?.[0] ?? null,
+        organization: organizationInfo?.[0] ?? null,
       }));
+    });
+  }
+
+  async upsertAggregatedNotification(params: {
+    recipientId: string;
+    senderId: string;
+    objectId: string;
+    type: string;
+    title: string;
+    buildMessage: (actorNames: string[], actorCount: number) => string;
+    templateKey?: string;
+    buildTemplateData?: (
+      actorNames: string[],
+      actorCount: number,
+    ) => Record<string, any>;
+    payload: Record<string, any>;
+  }): Promise<Notification | null> {
+    const {
+      recipientId,
+      senderId,
+      objectId,
+      type,
+      title,
+      buildMessage,
+      templateKey,
+      buildTemplateData,
+      payload,
+    } = params;
+
+    return this.executeWithTransaction(async (tx) => {
+      const existingRows = await tx
+        .select({
+          userNotification: userNotifications,
+          notification: notifications,
+        })
+        .from(userNotifications)
+        .innerJoin(
+          notifications,
+          eq(userNotifications.notificationId, notifications.id),
+        )
+        .where(
+          and(
+            eq(userNotifications.receiverId, recipientId),
+            isNull(userNotifications.deletedAt),
+            eq(
+              notifications.type,
+              type as (typeof notifications.$inferSelect)["type"],
+            ),
+            sql`(${notifications.payload} ->> 'blogId') = ${objectId}`,
+          ),
+        )
+        .limit(1);
+
+      const existing = existingRows[0];
+
+      const currentActorIds =
+        (existing?.notification.actorIds as string[]) ?? [];
+      const updatedActorIds = currentActorIds.includes(senderId)
+        ? currentActorIds
+        : [...currentActorIds, senderId];
+      const actorCount = updatedActorIds.length;
+
+      const topActorIds = updatedActorIds.slice(-2).reverse();
+      const actorUsers = topActorIds.length
+        ? await tx
+            .select({
+              id: users.id,
+              name: users.name,
+              avatarUrl: users.avatarUrl,
+            })
+            .from(users)
+            .where(inArray(users.id, topActorIds))
+        : [];
+
+      const actorNames = topActorIds.map(
+        (id) => actorUsers.find((u) => u.id === id)?.name ?? "Người dùng",
+      );
+      const message = buildMessage(actorNames, actorCount);
+      const templateData = buildTemplateData
+        ? buildTemplateData(actorNames, actorCount)
+        : {};
+
+      // Reuse actorUsers (already fetched) to get sender info for avatar display
+      const senderInfo = actorUsers.find((u) => u.id === senderId) ?? null;
+
+      if (existing) {
+        const [updated] = await tx
+          .update(notifications)
+          .set({
+            actorIds: updatedActorIds,
+            actorCount,
+            message,
+            templateKey,
+            templateData,
+            updatedAt: new Date(),
+          })
+          .where(eq(notifications.id, existing.notification.id))
+          .returning();
+
+        await tx
+          .update(userNotifications)
+          .set({ readAt: null })
+          .where(eq(userNotifications.id, existing.userNotification.id));
+
+        return {
+          ...existing.userNotification,
+          readAt: null,
+          ...updated,
+          sender: senderInfo,
+          organization: null,
+          orgInvitation: null,
+          task: null,
+        };
+      }
+
+      // Tạo notification mới
+      const [created] = await tx
+        .insert(notifications)
+        .values({
+          senderId,
+          title,
+          message,
+          type: type as (typeof notifications.$inferSelect)["type"],
+          templateKey,
+          templateData,
+          payload: payload as (typeof notifications.$inferSelect)["payload"],
+          actorIds: updatedActorIds,
+          actorCount,
+        })
+        .returning();
+
+      const [userNotif] = await tx
+        .insert(userNotifications)
+        .values({ notificationId: created.id, receiverId: recipientId })
+        .returning();
+
+      return {
+        ...userNotif,
+        ...created,
+        sender: senderInfo,
+        organization: null,
+        orgInvitation: null,
+        task: null,
+      };
     });
   }
 
@@ -246,9 +390,7 @@ export class NotificationRepository
       : notificationsResult;
 
     const nextCursor = hasNextPage
-      ? slicedResults[
-          slicedResults.length - 1
-        ].notification.createdAt.toISOString()
+      ? slicedResults.at(-1)!.notification.createdAt.toISOString()
       : null;
 
     return {

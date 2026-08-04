@@ -1,52 +1,65 @@
-import { GenericRepository } from "./generic-repository";
-import { DBDrizzleTransaction, type DBDrizzle } from "../types";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { CACHE_KEYS, RoleEnum, SHORT_TTL } from "@/common/constants";
+import { PaginatedResult, SortDirection } from "@/common/types";
 import {
+  cacheWithDedup,
+  convertDateToStr,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
+import { buildSort } from "@/common/utils/db";
+import {
+  ProviderEnum,
+  UserStatusEnum,
+  UserSubscriptionStatusEnum,
+} from "@/core";
+import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
+import {
+  GetAllUserResponse,
+  GetUserQuery,
+  NewUserIdentity,
+  User,
+  UserCvData,
+  UserProfile,
+  UserTrends,
+  UserTrendsQuery,
+} from "@/core/entities";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import type { Cache } from "cache-manager";
+import { differenceInYears, endOfDay, startOfDay } from "date-fns";
+import {
+  and,
+  arrayOverlaps,
+  asc,
+  count,
+  countDistinct,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  not,
+  or,
+  sql,
+  SQL,
+} from "drizzle-orm";
+import {
+  categories,
+  skills,
+  subscriptions,
+  userEducations,
+  userExperiences,
+  userIdentities,
+  userOnboardings,
   users,
   userSkills,
-  userExperiences,
-  userOnboardings,
-  userEducations,
-  skills,
-  userIdentities,
-  subscriptions,
   userSubscriptions,
 } from "../models";
 import { organizations } from "../models/organization.model";
-import {
-  User,
-  UserProfile,
-  UserCvData,
-  NewUserIdentity,
-  GetAllUserResponse,
-} from "@/core/entities";
-import {
-  ilike,
-  or,
-  eq,
-  isNotNull,
-  isNull,
-  and,
-  sql,
-  SQL,
-  not,
-  arrayOverlaps,
-  gte,
-  lte,
-  countDistinct,
-  asc,
-  inArray,
-} from "drizzle-orm";
-import { PaginatedResult, SortDirection } from "@/common/types";
-import { GetUserQuery, UserTrends, UserTrendsQuery } from "@/core/entities";
-import { IUserRepository } from "@/core/abstracts/repositories/user-repository.abstract";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants";
-import { differenceInYears, endOfDay, startOfDay } from "date-fns";
-import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { ProviderEnum, UserStatusEnum } from "@/core";
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import type { Cache } from "cache-manager";
-import { buildSort } from "@/common/utils/db";
+import { DBDrizzleTransaction, type DBDrizzle } from "../types";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class UserRepository
@@ -74,6 +87,25 @@ export class UserRepository
         logger: this.logger,
       },
     );
+  }
+
+  private async getLocalizedRows<T>(params: {
+    getRowsByLanguage: (languageCode: string) => Promise<T[]>;
+    getFallbackRows: () => Promise<T[]>;
+  }): Promise<T[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+
+    let rows = await params.getRowsByLanguage(requestLanguage);
+    if (!rows.length && requestLanguage !== fallbackLanguage) {
+      rows = await params.getRowsByLanguage(fallbackLanguage);
+    }
+
+    if (!rows.length) {
+      rows = await params.getFallbackRows();
+    }
+
+    return rows;
   }
 
   async getByField(
@@ -162,8 +194,10 @@ export class UserRepository
     identity: NewUserIdentity,
     tx?: DBDrizzleTransaction,
   ): Promise<void> {
+    const now = new Date();
     const set: Record<string, any> = {
-      updatedAt: new Date(),
+      updatedAt: now,
+      deletedAt: null,
     };
     if (identity.providerUserId !== undefined)
       set.providerUserId = identity.providerUserId;
@@ -174,7 +208,9 @@ export class UserRepository
     if (identity.providerPicture !== undefined)
       set.providerPicture = identity.providerPicture;
 
-    await (tx || this.db)
+    const dbClient = tx || this.db;
+
+    await dbClient
       .insert(userIdentities)
       .values(identity)
       .onConflictDoUpdate({
@@ -276,26 +312,64 @@ export class UserRepository
     const offset = (page - 1) * limit;
 
     const fields = this.ensureGetUsersColumns(query);
-    const { db, countDb } = this.joinGetUsersBuilder(fields);
+    const { db, countDb } = this.joinGetUsersBuilder(fields, query);
     const conditions = this.buildGetAllAdminUsersQuery(query);
 
-    const [items, totalRow] = await Promise.all([
+    const [items, totalRow, summaryRow] = await Promise.all([
       db
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .limit(limit)
         .offset(offset)
         .orderBy(this.buildSort(query.sortBy, query.sortDirection)),
       countDb.where(conditions.length > 0 ? and(...conditions) : undefined),
+      this.db
+        .select({
+          total: count(),
+          verified: sql<number>`count(*) filter (where ${users.emailVerified} = true or ${users.phoneVerified} = true)`,
+          admin: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[])`,
+          user: sql<number>`count(*) filter (where ${users.roles} && array[${RoleEnum.USER}]::varchar[] and not (${users.roles} && array[${RoleEnum.ADMIN},${RoleEnum.SUPER_ADMIN}]::varchar[]))`,
+        })
+        .from(users)
+        .where(isNull(users.deletedAt)),
     ]);
 
     const total = Number(totalRow[0]?.count ?? 0);
+    const summary = {
+      total: Number(summaryRow[0]?.total ?? 0),
+      verified: Number(summaryRow[0]?.verified ?? 0),
+      admin: Number(summaryRow[0]?.admin ?? 0),
+      user: Number(summaryRow[0]?.user ?? 0),
+    };
 
     return {
       data: items,
       pagination: {
         total,
       },
+      summary,
     };
+  }
+
+  async getEmailRecipients(
+    query: GetUserQuery,
+    limit: number,
+  ): Promise<{ id: string; email: string | null; name: string | null }[]> {
+    const fields = this.ensureGetUsersColumns(query);
+    const { db } = this.joinGetUsersBuilder(fields, query);
+    const conditions = this.buildGetAllAdminUsersQuery(query);
+
+    const items = await db
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit + 1)
+      .orderBy(sql`${users.createdAt} DESC`);
+
+    return items.map(
+      (row: { id: string; email: string | null; name: string | null }) => ({
+        id: row.id,
+        email: row.email,
+        name: row.name,
+      }),
+    );
   }
 
   private buildSort(sortBy?: string, sortDirection?: SortDirection) {
@@ -330,7 +404,29 @@ export class UserRepository
     return fields;
   }
 
-  private joinGetUsersBuilder(fields: string[]) {
+  private buildUserSubscriptionJoinCondition(query?: GetUserQuery) {
+    const conditions: SQL[] = [
+      eq(userSubscriptions.userId, users.id),
+      isNull(userSubscriptions.deletedAt),
+    ];
+
+    if (query?.subscriptionId) {
+      conditions.push(
+        eq(userSubscriptions.subscriptionId, query.subscriptionId),
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+      );
+    } else if (query?.statusSubscription) {
+      conditions.push(eq(userSubscriptions.status, query.statusSubscription));
+    } else {
+      conditions.push(
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
+      );
+    }
+
+    return and(...conditions);
+  }
+
+  private joinGetUsersBuilder(fields: string[], query?: GetUserQuery) {
     let needSubscription = false;
     let needUserSubscription = false;
     let needOnboarding = false;
@@ -377,6 +473,8 @@ export class UserRepository
           needUserSubscription = true;
           break;
         case "onboarding":
+          selectedFields["expectedSalary"] = userOnboardings.expectedSalary;
+          selectedFields["experienceYears"] = userOnboardings.experienceYears;
           needOnboarding = true;
           break;
         default:
@@ -392,14 +490,10 @@ export class UserRepository
       .from(users);
 
     if (needUserSubscription) {
-      db = db.leftJoin(
-        userSubscriptions,
-        eq(userSubscriptions.userId, users.id),
-      );
-      countDb = countDb.leftJoin(
-        userSubscriptions,
-        eq(userSubscriptions.userId, users.id),
-      );
+      const subscriptionJoinCondition =
+        this.buildUserSubscriptionJoinCondition(query);
+      db = db.leftJoin(userSubscriptions, subscriptionJoinCondition);
+      countDb = countDb.leftJoin(userSubscriptions, subscriptionJoinCondition);
     }
 
     if (needSubscription) {
@@ -427,6 +521,7 @@ export class UserRepository
       const keyword = `%${query.keyword.toLowerCase()}%`;
       conditions.push(
         or(
+          ilike(sql`${users.id}::text`, keyword),
           ilike(sql`coalesce(${users.username}, '')`, keyword),
           ilike(sql`coalesce(${users.name}, '')`, keyword),
           ilike(users.email, keyword),
@@ -453,10 +548,9 @@ export class UserRepository
     if (query.subscriptionId) {
       conditions.push(
         eq(userSubscriptions.subscriptionId, query.subscriptionId),
+        eq(userSubscriptions.status, UserSubscriptionStatusEnum.ACTIVE),
       );
-    }
-
-    if (query.statusSubscription) {
+    } else if (query.statusSubscription) {
       conditions.push(eq(userSubscriptions.status, query.statusSubscription));
     }
 
@@ -476,71 +570,120 @@ export class UserRepository
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const user = await this.get(userId);
-    if (!user) {
-      return null;
-    }
+    const key = CACHE_KEYS.user.getUserProfile(userId);
 
-    const [userSkillsResult, userExperiencesResult, userOnboardingResult] =
-      await Promise.all([
-        // Get user skills (skill IDs)
-        this.db
-          .select({ skillId: userSkills.skillId })
-          .from(userSkills)
-          .where(eq(userSkills.userId, userId)),
+    return cacheWithDedup<UserProfile | null>(
+      key,
+      async () => {
+        const cached = await this.cacheManager.get<UserProfile | null>(key);
+        return cached;
+      },
+      async () => {
+        const user = await this.get(userId);
+        if (!user) {
+          return null;
+        }
 
-        // Get user experiences for calculating years
-        this.db
-          .select({
-            startDate: userExperiences.startDate,
-            endDate: userExperiences.endDate,
-          })
-          .from(userExperiences)
-          .where(eq(userExperiences.userId, userId)),
+        const [userSkillsResult, userExperiencesResult, userOnboardingResult] =
+          await Promise.all([
+            // Get user skills (skill IDs and names)
+            this.db
+              .select({ skillId: userSkills.skillId, skillName: skills.name })
+              .from(userSkills)
+              .leftJoin(skills, eq(userSkills.skillId, skills.id))
+              .where(eq(userSkills.userId, userId)),
 
-        // Get user onboarding preferences
-        this.db
-          .select({
-            provinceIds: userOnboardings.provinceIds,
-            categoryIds: userOnboardings.categoryIds,
-            expectedSalary: userOnboardings.expectedSalary,
-            experienceYears: userOnboardings.experienceYears,
-            isSeekingJob: userOnboardings.isSeekingJob,
-          })
-          .from(userOnboardings)
-          .where(eq(userOnboardings.userId, userId)),
-      ]);
+            // Get user experiences for calculating years
+            this.getLocalizedRows({
+              getRowsByLanguage: (languageCode) =>
+                this.db
+                  .select({
+                    startDate: userExperiences.startDate,
+                    endDate: userExperiences.endDate,
+                  })
+                  .from(userExperiences)
+                  .where(
+                    and(
+                      eq(userExperiences.userId, userId),
+                      eq(userExperiences.languageCode, languageCode),
+                    ),
+                  ),
+              getFallbackRows: () =>
+                this.db
+                  .select({
+                    startDate: userExperiences.startDate,
+                    endDate: userExperiences.endDate,
+                  })
+                  .from(userExperiences)
+                  .where(eq(userExperiences.userId, userId)),
+            }),
 
-    const skillIds = userSkillsResult.map((row) => row.skillId);
+            // Get user onboarding preferences
+            this.db
+              .select({
+                provinceIds: userOnboardings.provinceIds,
+                categoryIds: userOnboardings.categoryIds,
+                expectedSalary: userOnboardings.expectedSalary,
+                experienceYears: userOnboardings.experienceYears,
+                isSeekingJob: userOnboardings.isSeekingJob,
+              })
+              .from(userOnboardings)
+              .where(eq(userOnboardings.userId, userId)),
+          ]);
 
-    let experienceYears = 0;
-    if (userExperiencesResult.length > 0) {
-      const totalYears = userExperiencesResult.reduce((sum, exp) => {
-        const startDate = new Date(exp.startDate);
-        const endDate = exp.endDate ? new Date(exp.endDate) : new Date();
-        const years = differenceInYears(endDate, startDate);
-        return sum + years;
-      }, 0);
-      experienceYears = Math.max(0, totalYears);
-    }
+        const onboarding = userOnboardingResult[0];
+        const categoryIdsFromOnboarding = onboarding?.categoryIds || [];
 
-    const onboarding = userOnboardingResult[0];
-    const experienceYearsFromOnboarding = onboarding?.experienceYears;
+        // Fetch category names if category IDs exist
+        let categoryNames: string[] = [];
+        if (categoryIdsFromOnboarding.length > 0) {
+          const cats = await this.db
+            .select({ name: categories.name })
+            .from(categories)
+            .where(inArray(categories.id, categoryIdsFromOnboarding));
+          categoryNames = cats.map((c) => c.name);
+        }
 
-    return {
-      userId: user.id,
-      skillIds,
-      experienceYears:
-        typeof experienceYearsFromOnboarding === "number"
-          ? Math.max(0, experienceYearsFromOnboarding)
-          : experienceYears,
-      provinceIds: onboarding?.provinceIds || [],
-      categoryIds: onboarding?.categoryIds || [],
-      expectedSalary: onboarding?.expectedSalary
-        ? Number(onboarding.expectedSalary)
-        : undefined,
-      isSeekingJob: onboarding?.isSeekingJob ?? false,
-    };
+        const skillIds = userSkillsResult.map((row) => row.skillId);
+        const skillNames = userSkillsResult
+          .map((row) => row.skillName)
+          .filter(Boolean) as string[];
+
+        let experienceYears = 0;
+        if (userExperiencesResult.length > 0) {
+          const totalYears = userExperiencesResult.reduce((sum, exp) => {
+            const startDate = new Date(exp.startDate);
+            const endDate = exp.endDate ? new Date(exp.endDate) : new Date();
+            const years = differenceInYears(endDate, startDate);
+            return sum + years;
+          }, 0);
+          experienceYears = Math.max(0, totalYears);
+        }
+
+        const experienceYearsFromOnboarding = onboarding?.experienceYears;
+
+        return {
+          userId: user.id,
+          skillIds,
+          skillNames,
+          experienceYears:
+            typeof experienceYearsFromOnboarding === "number"
+              ? Math.max(0, experienceYearsFromOnboarding)
+              : experienceYears,
+          provinceIds: onboarding?.provinceIds || [],
+          categoryIds: categoryIdsFromOnboarding,
+          categoryNames,
+          expectedSalary: onboarding?.expectedSalary
+            ? Number(onboarding.expectedSalary)
+            : undefined,
+          isSeekingJob: onboarding?.isSeekingJob ?? false,
+        };
+      },
+      (data: UserProfile | null) => this.cacheManager.set(key, data, SHORT_TTL), // Cache for 10 minutes (or configure LONG_TTL)
+      {
+        logger: this.logger,
+      },
+    );
   }
 
   // [TODO] split to 3 function to usecase call(code respository can reuse after)
@@ -560,37 +703,84 @@ export class UserRepository
           .where(eq(userSkills.userId, userId)),
 
         // Get user experiences with organization names
-        this.db
-          .select({
-            position: userExperiences.position,
-            jobTitle: userExperiences.jobTitle,
-            organizationName: organizations.name,
-            startDate: userExperiences.startDate,
-            endDate: userExperiences.endDate,
-            description: userExperiences.description,
-          })
-          .from(userExperiences)
-          .innerJoin(
-            organizations,
-            eq(userExperiences.organizationId, organizations.id),
-          )
-          .where(eq(userExperiences.userId, userId)),
+        this.getLocalizedRows({
+          getRowsByLanguage: (languageCode) =>
+            this.db
+              .select({
+                position: userExperiences.position,
+                jobTitle: userExperiences.jobTitle,
+                organizationName: organizations.name,
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+                description: userExperiences.description,
+              })
+              .from(userExperiences)
+              .innerJoin(
+                organizations,
+                eq(userExperiences.organizationId, organizations.id),
+              )
+              .where(
+                and(
+                  eq(userExperiences.userId, userId),
+                  eq(userExperiences.languageCode, languageCode),
+                ),
+              ),
+          getFallbackRows: () =>
+            this.db
+              .select({
+                position: userExperiences.position,
+                jobTitle: userExperiences.jobTitle,
+                organizationName: organizations.name,
+                startDate: userExperiences.startDate,
+                endDate: userExperiences.endDate,
+                description: userExperiences.description,
+              })
+              .from(userExperiences)
+              .innerJoin(
+                organizations,
+                eq(userExperiences.organizationId, organizations.id),
+              )
+              .where(eq(userExperiences.userId, userId)),
+        }),
 
         // Get user educations with school names
-        this.db
-          .select({
-            degree: userEducations.educationLevel,
-            major: userEducations.major,
-            schoolName: organizations.name,
-            startDate: userEducations.startDate,
-            endDate: userEducations.endDate,
-          })
-          .from(userEducations)
-          .innerJoin(
-            organizations,
-            eq(userEducations.schoolId, organizations.id),
-          )
-          .where(eq(userEducations.userId, userId)),
+        this.getLocalizedRows({
+          getRowsByLanguage: (languageCode) =>
+            this.db
+              .select({
+                degree: userEducations.educationLevel,
+                major: userEducations.major,
+                schoolName: organizations.name,
+                startDate: userEducations.startDate,
+                endDate: userEducations.endDate,
+              })
+              .from(userEducations)
+              .innerJoin(
+                organizations,
+                eq(userEducations.schoolId, organizations.id),
+              )
+              .where(
+                and(
+                  eq(userEducations.userId, userId),
+                  eq(userEducations.languageCode, languageCode),
+                ),
+              ),
+          getFallbackRows: () =>
+            this.db
+              .select({
+                degree: userEducations.educationLevel,
+                major: userEducations.major,
+                schoolName: organizations.name,
+                startDate: userEducations.startDate,
+                endDate: userEducations.endDate,
+              })
+              .from(userEducations)
+              .innerJoin(
+                organizations,
+                eq(userEducations.schoolId, organizations.id),
+              )
+              .where(eq(userEducations.userId, userId)),
+        }),
       ]);
 
     return {

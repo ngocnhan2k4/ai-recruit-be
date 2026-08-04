@@ -5,40 +5,58 @@ import { type DBDrizzle } from "../types";
 import { userOnboardings, users } from "../models";
 import { UserOnboarding, User } from "@/core/entities";
 import { eq } from "drizzle-orm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import type { Cache } from "cache-manager";
+import { CACHE_KEYS } from "@/common/constants";
 
 @Injectable()
 export class UserOnboardingRepository
   extends GenericRepository<UserOnboarding, typeof userOnboardings>
   implements IUserOnboardingRepository
 {
-  constructor(@Inject("DRIZZLE") protected db: DBDrizzle) {
+  constructor(
+    @Inject("DRIZZLE") protected db: DBDrizzle,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     super(db, userOnboardings);
+  }
+
+  private async invalidateUserProfileCache(userId: string): Promise<void> {
+    await this.cacheManager.del(CACHE_KEYS.user.getUserProfile(userId));
   }
   async createOnboardingForUser(
     userId: string,
     onboardingData: UserOnboarding,
-    userData: Pick<User, "name" | "gender" | "dob">,
+    userData: Partial<
+      Pick<User, "name" | "gender" | "dob" | "onboardingCompleted">
+    >,
   ): Promise<void> {
-    try {
-      await this.db.transaction(async (tx) => {
-        const insertPromise = tx.insert(userOnboardings).values(onboardingData);
+    await this.db.transaction(async (tx) => {
+      const { userId: _userId, ...onboardingUpdate } = onboardingData;
 
-        const updatePromise = tx
-          .update(users)
-          .set({
-            name: userData.name,
-            gender: userData.gender,
-            dob: userData.dob,
-          })
-          .where(eq(users.id, userId));
+      await tx
+        .insert(userOnboardings)
+        .values(onboardingData)
+        .onConflictDoUpdate({
+          target: [userOnboardings.userId],
+          set: onboardingUpdate,
+        });
 
-        await Promise.all([insertPromise, updatePromise]);
-      });
-    } catch (error) {
-      throw new Error(
-        "[Onboarding]Transaction failed: " + (error as Error).message,
-      );
-    }
+      const userUpdate: Partial<
+        Pick<User, "name" | "gender" | "dob" | "onboardingCompleted">
+      > = {};
+      if (userData.name !== undefined) userUpdate.name = userData.name;
+      if (userData.gender !== undefined) userUpdate.gender = userData.gender;
+      if (userData.dob !== undefined) userUpdate.dob = userData.dob;
+      if (userData.onboardingCompleted !== undefined)
+        userUpdate.onboardingCompleted = userData.onboardingCompleted;
+
+      if (Object.keys(userUpdate).length > 0) {
+        await tx.update(users).set(userUpdate).where(eq(users.id, userId));
+      }
+    });
+
+    await this.invalidateUserProfileCache(userId);
   }
 
   async upsert(
@@ -55,5 +73,7 @@ export class UserOnboardingRepository
         target: [userOnboardings.userId],
         set: onboardingData,
       });
+
+    await this.invalidateUserProfileCache(userId);
   }
 }

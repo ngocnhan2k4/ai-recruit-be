@@ -1,23 +1,24 @@
+import { Environment } from "@/common/config";
+import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
 import {
+  BadRequestException,
   Body,
   Controller,
   Post,
-  Res,
   Req,
-  BadRequestException,
+  Res,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { ApiBody, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { type FastifyReply, type FastifyRequest } from "fastify";
 import { AuthUseCases } from "src/use-cases/auth/auth.use-case";
 import {
-  LoginRequestDto,
-  ApiResponse,
-  LoginResponseDto,
-  ApiResponseDto,
   AccessTokenResponseDto,
+  ApiResponse,
+  ApiResponseDto,
+  LoginRequestDto,
+  LoginResponseDto,
 } from "../../dtos";
-import { ApiTags, ApiOperation, ApiBody } from "@nestjs/swagger";
-import { type FastifyRequest, type FastifyReply } from "fastify";
-import { REFRESH_TOKEN, RESPONSE_CODE } from "@/common/constants";
-import { ConfigService } from "@nestjs/config";
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
@@ -49,12 +50,22 @@ export class AuthController {
         message: "Login failed",
       });
 
+    const refreshExpiresInDays =
+      this.configService.get<number>("REFRESH_EXPIRES_IN")!;
+    const cookieMaxAge = loginDto.rememberMe
+      ? refreshExpiresInDays * 24 * 60 * 60 // seconds
+      : undefined; // session cookie
+
     res.cookie(REFRESH_TOKEN, result.data.tokens.refreshToken, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Set to true in production with HTTPS
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically in dev
+      ...(cookieMaxAge !== undefined && { maxAge: cookieMaxAge }),
     });
 
     return {
@@ -92,8 +103,11 @@ export class AuthController {
 
     res.cookie(REFRESH_TOKEN, result.data.refreshToken, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Set to true in production with HTTPS
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Use "lax" for development, "none" for cross-origin in production
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Set to true in production with HTTPS
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Use "lax" for development, "none" for cross-origin in production
       path: "/",
       domain: undefined, // Let browser set automatically
     });
@@ -126,8 +140,11 @@ export class AuthController {
     }
     res.clearCookie(REFRESH_TOKEN, {
       httpOnly: true,
-      secure: !(this.configService.get("NODE_ENV") === "local"), // Must match the original cookie settings
-      sameSite: this.configService.get("NODE_ENV") === "local" ? "lax" : "none", // Must match the original cookie settings
+      secure: !(this.configService.get("NODE_ENV") === Environment.Local), // Must match the original cookie settings
+      sameSite:
+        this.configService.get("NODE_ENV") === Environment.Local
+          ? "lax"
+          : "none", // Must match the original cookie settings
       path: "/",
       domain: undefined, // Must match the original cookie settings
     });

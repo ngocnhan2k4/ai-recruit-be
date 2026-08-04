@@ -7,6 +7,7 @@ import {
   Query,
   Patch,
   Delete,
+  Post,
 } from "@nestjs/common";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
 import {
@@ -25,8 +26,11 @@ import {
   GetUserResponseDto,
   UserTrendsQueryDto,
   UserTrendsResponseDto,
+  AdminSendEmailRequestDto,
+  AdminSendEmailResponseDto,
+  AdminEmailTemplateResponseDto,
+  AdminUpdateUserRequestDto,
 } from "@/interfaces/dtos";
-import { AdminUpdateUserRequestDto } from "@/interfaces/dtos";
 
 @ApiTags("Admin Users")
 @ApiBearerAuth()
@@ -47,6 +51,23 @@ export class AdminUserController {
   @Get()
   async getAllUsers(@Query() query: GetUserQueryDto) {
     return await this.userUseCases.getAllUsers(query);
+  }
+
+  @ApiOperation({ summary: "List admin bulk email templates" })
+  @ApiResponseDto(AdminEmailTemplateResponseDto, { isArray: true })
+  @Get("email-templates")
+  getEmailTemplates(): ApiResponse<AdminEmailTemplateResponseDto[]> {
+    return this.userUseCases.getAdminEmailTemplates();
+  }
+
+  @ApiOperation({ summary: "Queue bulk emails to selected users" })
+  @ApiBody({ type: AdminSendEmailRequestDto })
+  @ApiResponseDto(AdminSendEmailResponseDto)
+  @Post("send-email")
+  async sendEmail(
+    @Body() body: AdminSendEmailRequestDto,
+  ): Promise<ApiResponse<AdminSendEmailResponseDto>> {
+    return await this.userUseCases.adminSendEmail(body);
   }
 
   @ApiOperation({ summary: "Update user" })

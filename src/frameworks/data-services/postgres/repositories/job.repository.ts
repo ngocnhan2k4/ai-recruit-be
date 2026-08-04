@@ -1,91 +1,77 @@
+import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
+import { GeneralQuery, PaginatedResult } from "@/common/types";
+import { cacheWithDedup, convertDateToStr } from "@/common/utils";
 import {
-  eq,
-  and,
-  gt,
-  isNotNull,
-  lte,
-  gte,
-  countDistinct,
-  or,
-  isNull,
-  SQL,
-  sql,
-  ilike,
-  asc,
-  desc,
-  inArray,
-  lt,
-} from "drizzle-orm";
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
-import {
-  jobs,
-  skills,
-  jobSkills,
-  categories,
-  provinces,
-  userInteractions,
-  applyJobs,
-  cvs,
-  jobRaws,
-  users,
-  jobProvinces,
-} from "../models";
+  ApplyJob,
+  ApplyJobFilters,
+  ApplyJobResponse,
+  ApplyStatusEnum,
+  Category,
+  ICacheService,
+  IJobRepository,
+  INotificationRepository,
+  IOrganizationRepository,
+  Job,
+  JobAnswer,
+  JobCounts,
+  JobDetailFilter,
+  JobFilters,
+  JobResponse,
+  JobStatusEnum,
+  JobTrends,
+  JobTrendsQuery,
+  JobTrendTypeEnum,
+  OrganizationWithDetails,
+  Province,
+  Skill,
+  StatisticsJobFilter,
+  TopInMarketResponse,
+  User,
+  UserInteractionEnum,
+  UserInteractionResponse,
+  UserStatusEnum,
+  WorkTypeEnum,
+} from "@/core";
 import {
   DBDrizzleTransaction,
   type DBDrizzle,
 } from "@/frameworks/data-services/postgres/types";
-import { cacheWithDedup, convertDateToStr } from "@/common/utils";
-import { GenericRepository } from "./generic-repository";
-import {
-  IJobRepository,
-  INotificationRepository,
-  IOrganizationRepository,
-  JobStatusEnum,
-  WorkTypeEnum,
-  Notification,
-  NotificationType,
-  Category,
-  User,
-  UserInteractionEnum,
-  ApplyJob,
-  JobDetailFilter,
-} from "@/core";
-import {
-  Job,
-  Province,
-  Skill,
-  OrganizationWithDetails,
-  ApplyStatusEnum,
-} from "@/core";
-import {
-  ApplyJobResponse,
-  UserInteractionResponse,
-  JobAnswer,
-  JobCounts,
-  TopInMarketResponse,
-  JobTrendTypeEnum,
-  JobTrendsQuery,
-  JobTrends,
-} from "@/core";
-import { PaginatedResult, GeneralQuery } from "@/common/types";
-import { organizations } from "../models/organization.model";
-import {
-  ApplyJobFilters,
-  JobFilters,
-  JobResponse,
-  StatisticsJobFilter,
-} from "@/core";
-import { CACHE_KEYS, SHORT_TTL } from "@/common/constants/cache";
-import { exists } from "drizzle-orm";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { endOfDay } from "date-fns/endOfDay";
 import { startOfDay } from "date-fns/startOfDay";
-import { RESPONSE_CODE } from "@/common/constants";
-import { ICacheService } from "@/core";
+import {
+  and,
+  asc,
+  countDistinct,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  SQL,
+  sql,
+} from "drizzle-orm";
+import {
+  applyJobs,
+  categories,
+  cvs,
+  jobProvinces,
+  jobRaws,
+  jobs,
+  jobSkills,
+  provinces,
+  skills,
+  userInteractions,
+  users,
+} from "../models";
+import { organizations } from "../models/organization.model";
+import { GenericRepository } from "./generic-repository";
 
 @Injectable()
 export class JobRepository
@@ -164,8 +150,13 @@ export class JobRepository
     if (sortBy === "salary") {
       return direction(this.getAverageSalaryExpr());
     }
-    if (sortBy === "date_posted") {
+    if (sortBy === "datePosted") {
       return direction(this.getEffectivePostedDateExpr());
+    }
+    if (sortBy === "applications") {
+      return direction(
+        sql`COALESCE(total_applications_lateral.total_applications, 0)`,
+      );
     }
     return null;
   }
@@ -250,7 +241,12 @@ export class JobRepository
     // Add one extra item to check if there's a next page
     const result = (await this.db
       .select({
-        job: jobs,
+        job: {
+          ...jobs,
+          applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
+            "applyUrl",
+          ),
+        },
         organization: organizations,
         skills: sql`COALESCE(s_lateral.skills, '[]')`.as("skills"),
         provinces: sql`COALESCE(p_lateral.provinces, '[]')`.as("provinces"),
@@ -258,6 +254,7 @@ export class JobRepository
       })
       .from(jobs)
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
+      .leftJoin(jobRaws, eq(jobs.jobRawId, jobRaws.id))
       .leftJoin(
         sql`LATERAL (
           SELECT json_agg(p) AS provinces
@@ -272,7 +269,8 @@ export class JobRepository
           SELECT json_agg(
             json_build_object(
               'id', s.id,
-              'name', s.name
+              'name', s.name,
+              'isApproved', s.is_approved
             )
           ) AS skills
           FROM ${jobSkills} js
@@ -451,13 +449,14 @@ export class JobRepository
 
     const fields = filters?.fields || [];
 
-    const totalApplyLateral = fields.includes("totalApplications")
-      ? sql`LATERAL (
+    const totalApplyLateral =
+      fields.includes("totalApplications") || filters?.sortBy === "applications"
+        ? sql`LATERAL (
         SELECT COUNT(*) AS total_applications
         FROM ${applyJobs} aj
         WHERE aj.job_id = ${jobs.id}
       ) total_applications_lateral`
-      : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
+        : sql`LATERAL (SELECT NULL::integer AS total_applications) total_applications_lateral`;
 
     // Add one extra item to check if there's a next page
     const query = this.db
@@ -527,7 +526,8 @@ export class JobRepository
           SELECT json_agg(
             json_build_object(
               'id', s.id,
-              'name', s.name
+              'name', s.name,
+              'isApproved', s.is_approved
             )
           ) AS skills
           FROM ${jobSkills} js
@@ -806,6 +806,278 @@ export class JobRepository
       .map((id) => ({ categoryId: id, salaryStatistics: map.get(id)! }));
   }
 
+  async getSalaryBenchmark(filter: {
+    categoryId?: string;
+    title?: string;
+    experienceMin?: number;
+    experienceMax?: number;
+    provinceId?: string;
+    skillIds?: string[];
+    excludeJobId?: string;
+  }): Promise<{
+    medianSalaryMin: number | null;
+    medianSalaryMax: number | null;
+    medianSalaryMidpoint: number | null;
+    sampleJobCount: number;
+    isFallback: boolean;
+    sampleJobs?: Array<{
+      id: string;
+      title: string;
+      salaryMin: number | null;
+      salaryMax: number | null;
+      experienceMin: number | null;
+      experienceMax: number | null;
+      createdAt?: string;
+    }>;
+  }> {
+    if (!filter.categoryId) {
+      return {
+        medianSalaryMin: null,
+        medianSalaryMax: null,
+        medianSalaryMidpoint: null,
+        sampleJobCount: 0,
+        isFallback: false,
+      };
+    }
+
+    const targetMinExp = filter.experienceMin ?? 0;
+    const targetMaxExp = filter.experienceMax ?? targetMinExp + 2;
+
+    const TITLE_SIMILARITY_HIGH = 0.3;
+    const TITLE_SIMILARITY_LOW = 0.1;
+
+    const runQuery = async (options: {
+      useTitle: boolean;
+      titleThreshold?: number;
+      useProvince: boolean;
+      useSkills: boolean;
+    }) => {
+      const whereConditions: SQL[] = [
+        sql`(j.salary_min IS NOT NULL OR j.salary_max IS NOT NULL)`,
+        sql`(COALESCE(j.salary_min, 0) > 0 OR COALESCE(j.salary_max, 0) > 0)`,
+        sql`j.category_id = ${filter.categoryId}`,
+        sql`j.status = 'active'`,
+        sql`j.deleted_at IS NULL`,
+        sql`j.created_at >= NOW() - INTERVAL '12 months'`,
+      ];
+
+      if (filter.excludeJobId) {
+        whereConditions.push(sql`j.id != ${filter.excludeJobId}`);
+      }
+
+      // 1. Strict Experience Band Fencing
+      if (targetMaxExp === 0) {
+        // Intern role (0-0 yrs): STRICTLY 0 to 1 year max AND must match Intern keywords or stipend <= 5M
+        whereConditions.push(sql`COALESCE(j.experience_min, 0) <= 0`);
+        whereConditions.push(
+          sql`(j.experience_max IS NULL OR j.experience_max <= 1)`,
+        );
+        whereConditions.push(
+          sql`(
+            lower(j.title) LIKE '%thực tập%' OR
+            lower(j.title) LIKE '%intern%' OR
+            lower(j.title) LIKE '%trainee%' OR
+            (j.salary_max IS NOT NULL AND j.salary_max <= 5.00)
+          )`,
+        );
+      } else {
+        // Other roles: Strict upper and lower bounds on experience range
+        const allowedMinExp = Math.max(0, targetMinExp - 1);
+        const allowedMaxExp = targetMaxExp + 2;
+
+        whereConditions.push(
+          sql`COALESCE(j.experience_min, 0) >= ${allowedMinExp}`,
+        );
+        whereConditions.push(
+          sql`COALESCE(j.experience_min, 0) <= ${targetMaxExp + 1}`,
+        );
+        whereConditions.push(
+          sql`COALESCE(j.experience_max, COALESCE(j.experience_min, 0)) <= ${allowedMaxExp}`,
+        );
+      }
+
+      // 3. Optional Province Filter
+      if (options.useProvince && filter.provinceId) {
+        whereConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${jobProvinces} jp
+            WHERE jp.job_id = j.id
+            AND jp.province_id = ${filter.provinceId}
+          )`,
+        );
+      }
+
+      // 4. Optional Skill Overlap (only when caller supplies selected skills)
+      if (options.useSkills && filter.skillIds && filter.skillIds.length > 0) {
+        whereConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${jobSkills} js
+            WHERE js.job_id = j.id
+            AND js.skill_id IN (${sql.join(
+              filter.skillIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})
+          )`,
+        );
+      }
+
+      // 5. Title Similarity (trigram, accent/case-insensitive) with configurable threshold
+      if (
+        options.useTitle &&
+        options.titleThreshold !== undefined &&
+        filter.title &&
+        filter.title.trim().length > 0
+      ) {
+        whereConditions.push(
+          sql`similarity(immutable_unaccent(lower(j.title)), immutable_unaccent(lower(${filter.title.trim()}))) > ${options.titleThreshold}`,
+        );
+      }
+
+      const res = await this.db.execute(sql`
+        WITH filtered_jobs AS (
+          SELECT
+            j.id,
+            j.title,
+            j.salary_min,
+            j.salary_max,
+            j.experience_min,
+            j.experience_max,
+            j.created_at
+          FROM jobs j
+          WHERE ${sql.join(whereConditions, sql` AND `)}
+        ),
+        stats AS (
+          SELECT
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fj.salary_min) AS median_min,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fj.salary_max) AS median_max,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (fj.salary_min + fj.salary_max) / 2.0) AS median_mid,
+            COUNT(*) AS sample_count
+          FROM filtered_jobs fj
+        ),
+        samples AS (
+          SELECT * FROM filtered_jobs
+          ORDER BY created_at DESC
+          LIMIT 10
+        )
+        SELECT
+          s.median_min,
+          s.median_max,
+          s.median_mid,
+          s.sample_count,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', sm.id,
+                'title', sm.title,
+                'salary_min', sm.salary_min,
+                'salary_max', sm.salary_max,
+                'experience_min', sm.experience_min,
+                'experience_max', sm.experience_max,
+                'created_at', sm.created_at
+              )
+            ) FILTER (WHERE sm.id IS NOT NULL),
+            '[]'::json
+          ) AS sample_jobs
+        FROM stats s
+        LEFT JOIN samples sm ON true
+        GROUP BY s.median_min, s.median_max, s.median_mid, s.sample_count
+      `);
+
+      const row = (res.rows as any[])[0];
+      const count = Number(row?.sample_count || 0);
+
+      const rawSamples = Array.isArray(row?.sample_jobs)
+        ? row.sample_jobs
+        : typeof row?.sample_jobs === "string"
+          ? JSON.parse(row.sample_jobs)
+          : [];
+
+      const sampleJobs = rawSamples.map((r: any) => ({
+        id: String(r.id),
+        title: String(r.title),
+        salaryMin:
+          r.salary_min !== null
+            ? Math.round(Number(r.salary_min) * 10) / 10
+            : null,
+        salaryMax:
+          r.salary_max !== null
+            ? Math.round(Number(r.salary_max) * 10) / 10
+            : null,
+        experienceMin:
+          r.experience_min !== null ? Number(r.experience_min) : null,
+        experienceMax:
+          r.experience_max !== null ? Number(r.experience_max) : null,
+        createdAt: r.created_at
+          ? new Date(r.created_at).toISOString()
+          : undefined,
+      }));
+
+      return {
+        medianSalaryMin:
+          row?.median_min !== null && row?.median_min !== undefined
+            ? Math.round(Number(row.median_min) * 10) / 10
+            : null,
+        medianSalaryMax:
+          row?.median_max !== null && row?.median_max !== undefined
+            ? Math.round(Number(row.median_max) * 10) / 10
+            : null,
+        medianSalaryMidpoint:
+          row?.median_mid !== null && row?.median_mid !== undefined
+            ? Math.round(Number(row.median_mid) * 10) / 10
+            : null,
+        sampleJobCount: count,
+        sampleJobs,
+      };
+    };
+
+    // Fallback cascade: start with the tightest match (skills + high-similarity
+    // title + province), then progressively relax skills, province, and title
+    // similarity, and finally drop title matching altogether rather than
+    // returning an empty result.
+    const steps = [
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: true,
+        useSkills: true,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: false,
+        useSkills: true,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_HIGH,
+        useProvince: false,
+        useSkills: false,
+      },
+      {
+        useTitle: true,
+        titleThreshold: TITLE_SIMILARITY_LOW,
+        useProvince: false,
+        useSkills: false,
+      },
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      const result = await runQuery(steps[i]);
+      if (result.sampleJobCount > 0) {
+        return { ...result, isFallback: i > 0 };
+      }
+    }
+
+    return {
+      medianSalaryMin: null,
+      medianSalaryMax: null,
+      medianSalaryMidpoint: null,
+      sampleJobCount: 0,
+      isFallback: false,
+      sampleJobs: [],
+    };
+  }
+
   async getTopAppliedJobsByCategories(
     categoryIds: string[],
     filter: Omit<StatisticsJobFilter, "categoryId">,
@@ -817,6 +1089,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          j.id,
           j.title AS name,
           COUNT(DISTINCT aj.id) AS count,
           ROW_NUMBER() OVER (PARTITION BY j.category_id ORDER BY COUNT(DISTINCT aj.id) DESC) AS rn
@@ -829,17 +1102,24 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, j.title
+        GROUP BY j.category_id, j.id, j.title
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
     `);
 
-    const map = new Map<string, { name: string; count: number }[]>();
+    const map = new Map<
+      string,
+      { id: string; name: string; count: number }[]
+    >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({ name: String(r.name), count: Number(r.count) });
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
+        name: String(r.name),
+        count: Number(r.count),
+      });
     }
 
     return categoryIds
@@ -850,6 +1130,7 @@ export class JobRepository
         return {
           categoryId: id,
           topAppliedJobs: items.map((i) => ({
+            id: i.id,
             name: i.name,
             count: i.count,
             percentage: total > 0 ? Math.round((i.count / total) * 100) : 0,
@@ -869,6 +1150,7 @@ export class JobRepository
       SELECT * FROM (
         SELECT
           j.category_id,
+          o.id,
           o.name,
           o.logo_url,
           COUNT(DISTINCT j.id) AS count,
@@ -883,7 +1165,7 @@ export class JobRepository
           ${filter.fromDate ? sql`AND j.date_posted >= ${convertDateToStr(filter.fromDate)}` : sql``}
           ${filter.toDate ? sql`AND j.date_posted <= ${convertDateToStr(filter.toDate)}` : sql``}
           ${filter.provinceId ? sql`AND EXISTS (SELECT 1 FROM ${jobProvinces} jp WHERE jp.job_id = j.id AND jp.province_id = ${filter.provinceId})` : sql``}
-        GROUP BY j.category_id, o.name, o.logo_url
+        GROUP BY j.category_id, o.id, o.name, o.logo_url
       ) sub
       WHERE sub.rn <= ${limit}
       ORDER BY sub.category_id, sub.rn
@@ -891,12 +1173,13 @@ export class JobRepository
 
     const map = new Map<
       string,
-      { name: string; logoUrl: string | null; count: number }[]
+      { id: string; name: string; logoUrl: string | null; count: number }[]
     >();
     for (const r of result.rows as any[]) {
-      const id = String(r.category_id);
-      if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push({
+      const categoryId = String(r.category_id);
+      if (!map.has(categoryId)) map.set(categoryId, []);
+      map.get(categoryId)!.push({
+        id: String(r.id),
         name: String(r.name),
         logoUrl: r.logo_url ? String(r.logo_url) : null,
         count: Number(r.count),
@@ -911,6 +1194,7 @@ export class JobRepository
         return {
           categoryId: id,
           topEmployers: items.map((i) => ({
+            id: i.id,
             name: i.name,
             logoUrl: i.logoUrl ?? undefined,
             count: i.count,
@@ -1170,58 +1454,24 @@ export class JobRepository
     };
   }
 
-  // [TODO]: Refactor here - move logic to usecase layer, this method is doing too many things
-  /**
-   * Apply for a job. If `sendNotifications` is true AND `senderUserId` is provided,
-   * this will create notifications for the job's organization members.
-   */
   async applyJob({
     jobId,
     userCvId,
-    sendNotifications = false,
     senderUserId,
     answers,
   }: {
     jobId: string;
-    userCvId: string;
-    sendNotifications?: boolean;
+    userCvId?: string;
     senderUserId: string;
     answers?: JobAnswer[];
-  }): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notifications: Notification[];
-        jobTitle?: string;
-      }
-  > {
-    const newApplication = await this.db.transaction(async (tx) => {
-      const [existingApplication] = await tx
-        .select({
-          exists: exists(
-            tx
-              .select({ id: applyJobs.id })
-              .from(applyJobs)
-              .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-              .where(
-                and(eq(cvs.userId, senderUserId), eq(applyJobs.jobId, jobId)),
-              ),
-          ),
-        })
-        .from(applyJobs);
-
-      if (existingApplication.exists) {
-        throw new BadRequestException({
-          code: RESPONSE_CODE.ALREADY_APPLIED,
-          message: "User has already applied for this job",
-        });
-      }
-
+  }): Promise<ApplyJobResponse> {
+    const newApplication = await this.executeWithTransaction(async (tx) => {
       const [inserted] = await tx
         .insert(applyJobs)
         .values({
           jobId,
           cvId: userCvId,
+          userId: senderUserId,
           answers,
           status: ApplyStatusEnum.PENDING,
         })
@@ -1230,162 +1480,28 @@ export class JobRepository
       return inserted as ApplyJobResponse;
     });
 
-    this.db
-      .update(cvs)
-      .set({ lastUsed: new Date() })
-      .where(eq(cvs.id, userCvId))
-      .catch(() => {});
-
-    // Notifications outside transaction to avoid holding locks on applyJobs and related tables
-    if (!sendNotifications || !senderUserId) {
-      return newApplication;
-    }
-
-    const jobInfo = await this.db
-      .select({ title: jobs.title, organizationId: jobs.organizationId })
-      .from(jobs)
-      .where(eq(jobs.id, jobId))
-      .limit(1);
-
-    if (jobInfo.length === 0) {
-      throw new BadRequestException({
-        code: RESPONSE_CODE.JOB_NOT_FOUND,
-        message: "Job not found",
-      });
-    }
-
-    const { title: jobTitle, organizationId } = jobInfo[0];
-
-    const adminUsers =
-      await this.organizationRepository.getMemberIdsOfOrganization(
-        organizationId,
-      );
-
-    const recipients = adminUsers.map((m) => ({
-      receiverId: m.id,
-      organizationId,
-    }));
-
-    const notifications =
-      await this.notificationRepository.createNotificationWithRecipients(
-        {
-          title: "Đơn ứng tuyển mới",
-          message: `Có một đơn ứng tuyển mới cho vị trí "${jobTitle}"`,
-          type: NotificationType.JOB_APPLIED,
-          senderId: senderUserId,
-          payload: {
-            jobId,
-            applyId: newApplication.id,
-            orgId: organizationId,
-          },
-        },
-        recipients,
-      );
-
-    return {
-      application: newApplication,
-      notifications,
-      jobTitle,
-    };
+    await this.invalidateJobCache(jobId);
+    return newApplication;
   }
 
   async updateApplyJob(
     applyId: string,
-    status: ApplyStatusEnum | undefined,
-    sendNotifications = false,
-    senderUserId?: string,
-    userCvId?: string,
-    answers?: JobAnswer[],
-  ): Promise<
-    | ApplyJobResponse
-    | {
-        application: ApplyJobResponse;
-        notification: Notification;
-        jobTitle: string;
-      }
-  > {
-    const result = await this.db.transaction(async (tx) => {
-      // Get existing application with job info
-      const existingApp = await tx
-        .select({
-          application: applyJobs,
-          userId: cvs.userId,
-          jobTitle: jobs.title,
-          jobId: jobs.id,
-          organizationId: jobs.organizationId,
-        })
-        .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-        .where(eq(applyJobs.id, applyId))
-        .limit(1);
+    data: Record<string, any>,
+  ): Promise<ApplyJobResponse> {
+    const [updatedApplication] = await this.getExecutor()
+      .update(applyJobs)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(applyJobs.id, applyId))
+      .returning();
 
-      if (existingApp.length === 0) {
-        throw new Error("Application not found");
-      }
+    if (updatedApplication?.jobId) {
+      await this.invalidateJobCache(updatedApplication.jobId);
+    }
 
-      const { userId, jobTitle, jobId, organizationId } = existingApp[0];
-
-      // Update the application
-      const [updatedApplication] = await tx
-        .update(applyJobs)
-        .set({
-          status: status || existingApp[0].application.status,
-          cvId: userCvId || existingApp[0].application.cvId,
-          answers: answers || existingApp[0].application.answers,
-          updatedAt: new Date(),
-        })
-        .where(eq(applyJobs.id, applyId))
-        .returning();
-
-      let notification: Notification | null = null;
-
-      if (
-        status &&
-        status !== existingApp[0].application.status &&
-        sendNotifications &&
-        senderUserId
-      ) {
-        const notificationTitle =
-          status == ApplyStatusEnum.ACCEPTED
-            ? "Đơn ứng tuyển được chấp nhận"
-            : "Đơn ứng tuyển bị từ chối";
-        const notificationMessage = `Đơn ứng tuyển của bạn cho vị trí "${jobTitle}" đã được ${status == ApplyStatusEnum.ACCEPTED ? "chấp nhận" : "từ chối"}`;
-
-        const notifications =
-          await this.notificationRepository.createNotificationWithRecipients(
-            {
-              title: notificationTitle,
-              message: notificationMessage,
-              type:
-                status == ApplyStatusEnum.ACCEPTED
-                  ? NotificationType.CV_APPROVED
-                  : NotificationType.CV_REJECTED,
-              senderId: senderUserId,
-              payload: {
-                jobId: jobId,
-                applyId: applyId,
-                orgId: organizationId,
-              },
-            },
-            [{ receiverId: userId, organizationId }],
-          );
-
-        notification = notifications[0] || null;
-      }
-
-      if (notification) {
-        return {
-          application: updatedApplication as ApplyJobResponse,
-          notification,
-          jobTitle,
-        };
-      } else {
-        return updatedApplication as ApplyJobResponse;
-      }
-    });
-
-    return result;
+    return updatedApplication as ApplyJobResponse;
   }
 
   async getApplyJobById(applyId: string): Promise<ApplyJobResponse | null> {
@@ -1398,7 +1514,6 @@ export class JobRepository
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
         matchingCriteria: applyJobs.matchingCriteria,
-        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
       })
@@ -1412,13 +1527,19 @@ export class JobRepository
   async getApplyJobs(
     filters: ApplyJobFilters,
   ): Promise<PaginatedResult<ApplyJobResponse>> {
-    const { jobId } = filters;
+    const { jobId, ids = [] } = filters;
     const limit = Math.max(filters?.limit ?? 10, 1);
     const cursor = filters?.cursor;
 
-    const whereConditions: SQL[] = [eq(applyJobs.jobId, jobId)];
+    const whereConditions: SQL[] = [];
+    if (jobId) {
+      whereConditions.push(eq(applyJobs.jobId, jobId));
+    }
     if (cursor && !isNaN(Number(cursor))) {
       whereConditions.push(lt(applyJobs.createdAt, new Date(Number(cursor))));
+    }
+    if (ids.length > 0) {
+      whereConditions.push(inArray(applyJobs.id, ids));
     }
 
     const data = await this.db
@@ -1429,7 +1550,6 @@ export class JobRepository
         answers: applyJobs.answers,
         matchingScore: applyJobs.matchingScore,
         matchingCriteria: applyJobs.matchingCriteria,
-        scoredAt: applyJobs.scoredAt,
         createdAt: applyJobs.createdAt,
         updatedAt: applyJobs.updatedAt,
         user: {
@@ -1448,7 +1568,10 @@ export class JobRepository
       })
       .from(applyJobs)
       .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-      .innerJoin(users, eq(cvs.userId, users.id))
+      .innerJoin(
+        users,
+        and(eq(cvs.userId, users.id), eq(users.status, UserStatusEnum.ACTIVE)),
+      )
       .where(and(...whereConditions))
       .orderBy(desc(applyJobs.createdAt))
       .limit(limit + 1);
@@ -1462,6 +1585,7 @@ export class JobRepository
       status: item.status,
       answers: item.answers,
       matchingScore: item.matchingScore,
+      matchingCriteria: item.matchingCriteria,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       user: item.user,
@@ -1481,75 +1605,15 @@ export class JobRepository
     };
   }
 
-  // async saveJob(
-  //   userId: string,
-  //   jobId: string,
-  //   save: boolean,
-  // ): Promise<UserInteractionResponse | null> {
-  //   const dbClient = this.getExecutor();
-  //   // Check if user already has a save interaction for this job
-  //   const existingInteraction = await dbClient
-  //     .select()
-  //     .from(userInteractions)
-  //     .where(
-  //       and(
-  //         eq(userInteractions.userId, userId),
-  //         eq(userInteractions.jobId, jobId),
-  //         eq(userInteractions.type, "save"),
-  //       ),
-  //     )
-  //     .limit(1);
+  async getAppliedUserIdsByJobId(jobId: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ userId: cvs.userId })
+      .from(applyJobs)
+      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .where(eq(applyJobs.jobId, jobId));
 
-  //   if (save) {
-  //     // User wants to save the job
-  //     if (existingInteraction.length > 0) {
-  //       // Job already saved, return existing interaction
-  //       return existingInteraction[0] as UserInteractionResponse;
-  //     }
-
-  //     // Create new save interaction
-  //     const [newInteraction] = await dbClient
-  //       .insert(userInteractions)
-  //       .values({
-  //         userId,
-  //         jobId,
-  //         type: "save",
-  //       })
-  //       .onConflictDoNothing()
-  //       .returning();
-
-  //     if (newInteraction) return newInteraction as UserInteractionResponse;
-
-  //     // In case of race (insert no-op), fetch existing
-  //     const [row] = await dbClient
-  //       .select()
-  //       .from(userInteractions)
-  //       .where(
-  //         and(
-  //           eq(userInteractions.userId, userId),
-  //           eq(userInteractions.jobId, jobId),
-  //           eq(userInteractions.type, "save"),
-  //         ),
-  //       )
-  //       .limit(1);
-  //     return (row as UserInteractionResponse) ?? null;
-  //   } else {
-  //     // User wants to unsave the job
-  //     if (existingInteraction.length > 0) {
-  //       // Delete the existing interaction
-  //       await dbClient
-  //         .delete(userInteractions)
-  //         .where(
-  //           and(
-  //             eq(userInteractions.userId, userId),
-  //             eq(userInteractions.jobId, jobId),
-  //             eq(userInteractions.type, "save"),
-  //           ),
-  //         );
-  //     }
-  //     return null; // No interaction exists after unsaving
-  //   }
-  // }
+    return rows.map((row) => row.userId);
+  }
 
   async toggleSaveJob(
     userId: string,
@@ -1883,9 +1947,13 @@ export class JobRepository
     filter?: JobDetailFilter,
   ): Promise<JobResponse | null> {
     // Create query to get job information and relations
+    const statuses =
+      filter?.statuses && filter.statuses.length > 0
+        ? [...filter.statuses].sort().join(",")
+        : "all";
     const key = filter?.userId
-      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId)
-      : CACHE_KEYS.job.getWithDetail(jobId);
+      ? CACHE_KEYS.job.getWithDetailByUser(jobId, filter.userId, statuses)
+      : CACHE_KEYS.job.getWithDetail(jobId, statuses);
 
     return cacheWithDedup(
       key,
@@ -2023,9 +2091,14 @@ export class JobRepository
         count: sql`COUNT(*)`.as("count"),
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)));
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      );
     return Number(result[0]?.count ?? 0);
   }
   async getAllAppliedJobs(
@@ -2059,7 +2132,7 @@ export class JobRepository
         companyName: organizations.name,
         logoUrl: organizations.logoUrl,
         workType: jobs.workType,
-        createdAt: jobs.createdAt,
+        createdAt: applyJobs.createdAt,
         endedAt: jobs.endDate,
         provinceNames: sql`(
           SELECT json_agg(p.name) 
@@ -2071,14 +2144,19 @@ export class JobRepository
         applyStatus: applyJobs.status,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
       .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .innerJoin(organizations, eq(jobs.organizationId, organizations.id))
-      .where(and(eq(cvs.userId, userId), isNull(jobs.deletedAt)))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+        ),
+      )
       .orderBy(
         query.sortDirection === "desc"
-          ? desc(jobs.createdAt)
-          : asc(jobs.createdAt),
+          ? desc(applyJobs.createdAt)
+          : asc(applyJobs.createdAt),
       )
       .offset(offset)
       .limit(query.limit + 1);
@@ -2114,7 +2192,7 @@ export class JobRepository
   > {
     const result = await this.db
       .select({
-        userId: cvs.userId,
+        userId: sql<string>`COALESCE(${applyJobs.userId}, ${cvs.userId})`,
         email: users.email,
         name: users.name,
         jobId: applyJobs.jobId,
@@ -2122,8 +2200,14 @@ export class JobRepository
         categoryId: jobs.categoryId,
       })
       .from(applyJobs)
-      .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-      .innerJoin(users, eq(cvs.userId, users.id))
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(
+        users,
+        and(
+          eq(sql`COALESCE(${applyJobs.userId}, ${cvs.userId})`, users.id),
+          eq(users.status, UserStatusEnum.ACTIVE),
+        ),
+      )
       .leftJoin(jobSkills, eq(applyJobs.jobId, jobSkills.jobId))
       .leftJoin(jobs, eq(applyJobs.jobId, jobs.id))
       .where(and(isNotNull(users.email), isNull(users.deletedAt)));
@@ -2307,8 +2391,13 @@ export class JobRepository
           applyId: applyJobs.id,
         })
         .from(applyJobs)
-        .innerJoin(cvs, eq(applyJobs.cvId, cvs.id))
-        .where(and(eq(cvs.userId, userId), inArray(applyJobs.jobId, jobIds))),
+        .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+        .where(
+          and(
+            inArray(applyJobs.jobId, jobIds),
+            or(eq(applyJobs.userId, userId), eq(cvs.userId, userId)),
+          ),
+        ),
     ]);
 
     // Update saved status
@@ -2393,12 +2482,8 @@ export class JobRepository
           id: jobs.id,
           questions: jobs.questions,
         },
-        applyUrl: sql`COALESCE(${jobs.applyUrl}, ${jobRaws.url})`.as(
-          "applyUrl",
-        ),
       })
-      .from(jobs)
-      .leftJoin(jobRaws, eq(jobRaws.id, jobs.jobRawId));
+      .from(jobs);
 
     const whereConditions: SQL[] = [isNull(jobs.deletedAt)];
 
@@ -2418,16 +2503,47 @@ export class JobRepository
 
   async updateMatchingScore(
     applyId: string,
-    score: number,
+    score: number | null,
     criteria: Record<string, any>,
   ): Promise<void> {
     await this.getExecutor()
       .update(applyJobs)
       .set({
-        matchingScore: score.toFixed(2),
+        matchingScore: score === null ? null : score.toFixed(2),
         matchingCriteria: criteria,
         scoredAt: new Date(),
       })
       .where(eq(applyJobs.id, applyId));
+  }
+
+  async getApplyScoreTargetsByUserId(
+    userId: string,
+  ): Promise<Array<{ applyId: string; jobId: string; cvId: string }>> {
+    const rows = await this.db
+      .select({
+        applyId: applyJobs.id,
+        jobId: applyJobs.jobId,
+        cvId: applyJobs.cvId,
+      })
+      .from(applyJobs)
+      .leftJoin(cvs, eq(applyJobs.cvId, cvs.id))
+      .innerJoin(jobs, eq(applyJobs.jobId, jobs.id))
+      .where(
+        and(
+          or(eq(cvs.userId, userId), eq(applyJobs.userId, userId)),
+          isNull(jobs.deletedAt),
+          isNotNull(applyJobs.cvId),
+        ),
+      );
+
+    return rows
+      .filter((row): row is { applyId: string; jobId: string; cvId: string } =>
+        Boolean(row.applyId && row.jobId && row.cvId),
+      )
+      .map((row) => ({
+        applyId: row.applyId,
+        jobId: row.jobId,
+        cvId: row.cvId,
+      }));
   }
 }

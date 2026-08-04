@@ -1,6 +1,11 @@
+import {
+  getExplicitRequestLanguage,
+  getFallbackLanguage,
+  normalizeLanguageCode,
+} from "@/common/utils";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
-import { INotificationRepository } from "@/core";
+import { INotificationRepository, IUserRepository } from "@/core";
 import { NotificationFilter } from "@/core/entities/notification.entity";
 import { ApiResponse, NotificationDto } from "@/interfaces/dtos";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
@@ -16,6 +21,7 @@ import {
   NotificationActionResponseDto,
   UpdateNotificationStatusResponseDto,
 } from "@/interfaces/dtos";
+import { NotificationRendererService } from "@/frameworks/notification/notification-renderer.service";
 
 @Injectable()
 export class NotificationUseCase {
@@ -23,6 +29,8 @@ export class NotificationUseCase {
 
   constructor(
     private readonly notificationRepository: INotificationRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly notificationRenderer: NotificationRendererService,
   ) {}
 
   private getTypeFilters(filter: NotificationFilter, isAdmin: boolean) {
@@ -81,7 +89,11 @@ export class NotificationUseCase {
     const adjustedFilter = this.getTypeFilters(filter, false);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);
-    return this.buildGetNotificationsSuccessResponse(filter, result, false);
+    return this.buildGetNotificationsSuccessResponse(
+      filter,
+      await this.renderNotifications(filter.userId, result),
+      false,
+    );
   }
 
   async getNotificationsByAdmin(
@@ -90,7 +102,40 @@ export class NotificationUseCase {
     const adjustedFilter = this.getTypeFilters(filter, true);
     const result =
       await this.notificationRepository.getNotificationsByUser(adjustedFilter);
-    return this.buildGetNotificationsSuccessResponse(filter, result, true);
+    return this.buildGetNotificationsSuccessResponse(
+      filter,
+      await this.renderNotifications(filter.userId, result),
+      true,
+    );
+  }
+
+  private async renderNotifications(
+    userId: string,
+    result: PaginatedResult<Notification>,
+  ): Promise<PaginatedResult<Notification>> {
+    const user = await this.userRepository.get(userId);
+    const preferredLanguage = user?.preferredLanguage
+      ? normalizeLanguageCode(user.preferredLanguage)
+      : getFallbackLanguage();
+    const requestLanguage = getExplicitRequestLanguage();
+
+    return {
+      ...result,
+      data: result.data.map((notification) => {
+        const rendered = this.notificationRenderer.render(notification, {
+          languagePriority: requestLanguage
+            ? [requestLanguage, preferredLanguage]
+            : [preferredLanguage],
+        });
+
+        return {
+          ...notification,
+          title: rendered.title,
+          message: rendered.message,
+          displayLanguage: rendered.language,
+        };
+      }),
+    };
   }
 
   async updateNotificationStatus(

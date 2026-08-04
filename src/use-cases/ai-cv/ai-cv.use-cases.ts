@@ -1,5 +1,9 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
-import { FileTextExtractor, userCvDataToText } from "@/common/utils";
+import {
+  FileTextExtractor,
+  userCvDataToText,
+  convertCvDataToAtsText,
+} from "@/common/utils";
 import {
   CvLanguageEnum,
   CvTemplateEnum,
@@ -8,7 +12,6 @@ import {
   INotificationRepository,
   ITaskRepository,
   IUserRepository,
-  IWebSocketGateway,
   NewAiCv,
   OptimizeAtsRequest,
   FeatureCodeEnum,
@@ -17,17 +20,21 @@ import {
   TaskStatusEnum,
   IFeatureService,
   OptimizedCvData,
+  SuggestionLogEntry,
 } from "@/core";
 import { IAiCvRepository } from "@/core/abstracts/repositories/ai-cv-repository.abstract";
 import {
   ApiResponse,
   CvFieldSuggestionRequestDto,
-  CvFieldSuggestionResponseDto,
+  CvFieldSuggestionResponseV2Dto,
+  LogSuggestionDecisionDto,
   OptimizeAtsUploadDto,
   AiCvDto,
   AiCvListResponseDto,
   OptimizedCvDataDto,
   UpdateAiCvDto,
+  UpdateAiCvV2Dto,
+  AtsRawTextResponseDto,
 } from "@/interfaces/dtos";
 import { GenerateCvPdfRequestDto } from "@/interfaces/dtos/ai-cv";
 import {
@@ -37,6 +44,9 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { JitterBackoff, retry } from "@/common/utils";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import { CV_FOLDER } from "@/common/constants";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
@@ -50,8 +60,9 @@ export class AiCvUseCases {
     private readonly featureService: IFeatureService,
     private readonly taskRepository: ITaskRepository,
     private readonly notificationRepository: INotificationRepository,
-    private readonly webSocketGateway: IWebSocketGateway,
+    private readonly notificationService: INotificationService,
     private readonly messageQueueService: IMessageQueueService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async exportCvPdf(request: GenerateCvPdfRequestDto): Promise<Buffer> {
@@ -248,6 +259,14 @@ export class AiCvUseCases {
     const aiCvsDto: AiCvDto[] = aiCvs.map((aiCv) => ({
       ...aiCv,
       cvData: aiCv.cvData as OptimizedCvDataDto,
+      editedCvData: (aiCv.editedCvData as OptimizedCvDataDto) ?? null,
+      originalScoreBreakdown:
+        (aiCv.originalScoreBreakdown as Record<string, any>) ?? null,
+      scoreBreakdown: (aiCv.scoreBreakdown as Record<string, any>) ?? null,
+      optimizationsApplied:
+        (aiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (aiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       language: aiCv.language as CvLanguageEnum,
       template: aiCv.template as CvTemplateEnum,
     }));
@@ -259,10 +278,13 @@ export class AiCvUseCases {
     };
   }
 
-  async getAiCvById(aiCvId: string): Promise<ApiResponse<AiCvDto>> {
+  async getAiCvById(
+    aiCvId: string,
+    userId: string,
+  ): Promise<ApiResponse<AiCvDto>> {
     this.logger.log(`[getAiCvById] [get] Getting AI CV by id ${aiCvId}`);
     const aiCv = await this.aiCvRepository.get(aiCvId);
-    if (!aiCv) {
+    if (!aiCv || aiCv.userId !== userId) {
       throw new NotFoundException({
         message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
         code: RESPONSE_CODE.AI_CV_NOT_FOUND,
@@ -271,6 +293,14 @@ export class AiCvUseCases {
 
     const aiCvDto = {
       ...aiCv,
+      editedCvData: (aiCv.editedCvData as OptimizedCvDataDto) ?? null,
+      originalScoreBreakdown:
+        (aiCv.originalScoreBreakdown as Record<string, any>) ?? null,
+      scoreBreakdown: (aiCv.scoreBreakdown as Record<string, any>) ?? null,
+      optimizationsApplied:
+        (aiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (aiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       updatedAt: aiCv.updatedAt ? new Date(aiCv.updatedAt) : undefined,
       createdAt: new Date(aiCv.createdAt),
     } as AiCvDto;
@@ -281,36 +311,6 @@ export class AiCvUseCases {
       data: aiCvDto,
     };
   }
-
-  // async createAiCv(
-  //   userId: string,
-  //   createAiCvDto: AiCvRequestDto,
-  // ): Promise<ApiResponse<AiCvDto>> {
-  //   const aiCvData: NewAiCv = {
-  //     ...createAiCvDto,
-  //     userId: userId,
-  //     isFavorite: createAiCvDto.isFavorite ?? false,
-  //     language: createAiCvDto.language ?? CvLanguageEnum.VIETNAMESE,
-  //     template: createAiCvDto.template ?? CvTemplateEnum.CLASSIC,
-  //   };
-
-  //   const newAiCv = await this.aiCvRepository.create(aiCvData);
-
-  //   const transformedAiCv: AiCvDto = {
-  //     ...newAiCv,
-  //     cvData: newAiCv.cvData as OptimizedCvDataDto,
-  //     language: newAiCv.language as CvLanguageEnum,
-  //     template: newAiCv.template as CvTemplateEnum,
-  //     createdAt: new Date(newAiCv.createdAt),
-  //     updatedAt: newAiCv.updatedAt ? new Date(newAiCv.updatedAt) : null,
-  //   };
-
-  //   return {
-  //     message: RESPONSE_MESSAGE.SUCCESS,
-  //     code: RESPONSE_CODE.SUCCESS,
-  //     data: transformedAiCv,
-  //   };
-  // }
 
   async updateAiCv(
     userId: string,
@@ -347,6 +347,15 @@ export class AiCvUseCases {
     const transformedAiCv: AiCvDto = {
       ...updatedAiCv,
       cvData: updatedAiCv.cvData as OptimizedCvDataDto,
+      editedCvData: (updatedAiCv.editedCvData as OptimizedCvDataDto) ?? null,
+      originalScoreBreakdown:
+        (updatedAiCv.originalScoreBreakdown as Record<string, any>) ?? null,
+      scoreBreakdown:
+        (updatedAiCv.scoreBreakdown as Record<string, any>) ?? null,
+      optimizationsApplied:
+        (updatedAiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (updatedAiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
       language: updatedAiCv.language as CvLanguageEnum,
       template: updatedAiCv.template as CvTemplateEnum,
       createdAt: new Date(updatedAiCv.createdAt),
@@ -398,7 +407,7 @@ export class AiCvUseCases {
   async suggestCvField(
     request: CvFieldSuggestionRequestDto,
     userId: string,
-  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+  ): Promise<ApiResponse<CvFieldSuggestionResponseV2Dto>> {
     this.logger.log(`Generating suggestion for field: ${request.targetField}`);
 
     await this.featureService.consumeFeature(
@@ -406,14 +415,14 @@ export class AiCvUseCases {
       FeatureCodeEnum.SUGGEST_CV_FIELD,
     );
 
-    const result = await this.aiService.suggestCvField({
+    const result = await this.aiService.suggestCvFieldV2({
       ...request,
       cvData: request.cvData as any,
     });
 
-    const response: CvFieldSuggestionResponseDto = {
+    const response: CvFieldSuggestionResponseV2Dto = {
       targetField: result.targetField,
-      suggestion: result.suggestion,
+      suggestions: result.suggestions,
       generatedAt: result.generatedAt,
     };
 
@@ -424,6 +433,88 @@ export class AiCvUseCases {
     };
   }
 
+  async logSuggestionDecision(
+    userId: string,
+    aiCvId: string,
+    decision: LogSuggestionDecisionDto,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const existingAiCv = await this.aiCvRepository.get(aiCvId);
+    if (!existingAiCv || existingAiCv.userId !== userId) {
+      throw new BadRequestException({
+        message: RESPONSE_CODE.UNAUTHORIZED,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const logEntry: SuggestionLogEntry = {
+      targetField: decision.targetField,
+      action: decision.action,
+      originalText: decision.originalText ?? null,
+      suggestedText: decision.suggestedText,
+      reasoning: decision.reasoning,
+      decision: decision.decision,
+      decidedAt: new Date().toISOString(),
+    };
+
+    const fieldSuggestionLogs: SuggestionLogEntry[] = [
+      ...((existingAiCv.fieldSuggestionLogs as SuggestionLogEntry[]) || []),
+      logEntry,
+    ];
+
+    const updateData: Partial<NewAiCv> = {
+      fieldSuggestionLogs,
+      updatedAt: new Date(),
+    };
+
+    await this.aiCvRepository.update({ id: aiCvId }, updateData);
+
+    return {
+      data: { message: "Suggestion decision logged" },
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  private async getOwnedAiCvOrThrow(aiCvId: string, userId: string) {
+    const aiCv = await this.aiCvRepository.get(aiCvId);
+    if (!aiCv || aiCv.userId !== userId) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_FOUND,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+    return aiCv;
+  }
+
+  async getAtsRawText(
+    aiCvId: string,
+    userId: string,
+    version: "original" | "optimized",
+  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
+    const aiCv = await this.getOwnedAiCvOrThrow(aiCvId, userId);
+
+    if (version === "original") {
+      return {
+        message: RESPONSE_MESSAGE.SUCCESS,
+        code: RESPONSE_CODE.SUCCESS,
+        data: {
+          rawText: aiCv.oldRawText ?? null,
+          available: aiCv.oldRawText != null,
+          cached: true,
+        },
+      };
+    }
+
+    const cvData = (aiCv.editedCvData ?? aiCv.cvData) as OptimizedCvDataDto;
+    const rawText = cvData ? convertCvDataToAtsText(cvData) : null;
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: { rawText, available: rawText != null, cached: true },
+    };
+  }
+
   async optimizeCvForAts(
     request: OptimizeAtsUploadDto,
     userId: string,
@@ -431,10 +522,23 @@ export class AiCvUseCases {
   ): Promise<ApiResponse<{ taskId: string }>> {
     // Extract CV text before pushing to queue
     let cvText = "";
+    let originalCvUrl: string | undefined;
 
     if (request?.file) {
       cvText = await FileTextExtractor.extractText(request.file);
       this.logger.log(`Extracted ${cvText.length} chars from CV`);
+
+      try {
+        const uploadResult = await this.cloudinaryService.uploadFile(
+          request.file,
+          { folder: CV_FOLDER },
+        );
+        originalCvUrl = uploadResult?.secure_url;
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to upload original CV to Cloudinary: ${error.message}`,
+        );
+      }
     } else if (request?.cvText) {
       cvText = request.cvText;
     } else if (useUserCV) {
@@ -463,9 +567,15 @@ export class AiCvUseCases {
     const optimizeRequest: OptimizeAtsRequest = {
       cvText,
       language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      reasoningLanguage:
+        request.body.reasoningLanguage ||
+        request.body.language ||
+        CvLanguageEnum.VIETNAMESE,
       ...(request.body.jobDescription && {
         jobDescription: request.body.jobDescription,
       }),
+      ...(originalCvUrl && { originalCvUrl }),
+      ...(request?.file && { oldRawText: cvText }),
     };
 
     const result = await this.taskRepository.executeWithTransaction(
@@ -495,6 +605,8 @@ export class AiCvUseCases {
               title: "CV của bạn đang được tối ưu",
               message:
                 "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              templateKey: "system_cv_generation_pending",
+              templateData: {},
               type: NotificationType.SYSTEM,
               payload: {
                 taskId: task.id,
@@ -509,7 +621,7 @@ export class AiCvUseCases {
       },
     );
 
-    this.webSocketGateway.sendToUser({ userId }, result.notification);
+    await this.notificationService.sendNotification(result.notification);
 
     await retry(
       async () => {
@@ -536,6 +648,206 @@ export class AiCvUseCases {
     return {
       code: RESPONSE_CODE.SUCCESS,
       message: "CV generation started",
+      data: { taskId: result.task.id },
+    };
+  }
+
+  async updateAiCvV2(
+    userId: string,
+    aiCvId: string,
+    updateAiCvV2Dto: UpdateAiCvV2Dto,
+  ): Promise<ApiResponse<AiCvDto>> {
+    const existingAiCv = await this.aiCvRepository.get(aiCvId);
+    if (!existingAiCv || existingAiCv.userId !== userId) {
+      throw new BadRequestException({
+        message: RESPONSE_CODE.UNAUTHORIZED,
+        code: RESPONSE_CODE.AI_CV_NOT_FOUND,
+      });
+    }
+
+    const updateData: Partial<NewAiCv> = {
+      ...updateAiCvV2Dto,
+      updatedAt: new Date(),
+      editedCvData: updateAiCvV2Dto?.editedCvData as
+        | OptimizedCvData
+        | undefined,
+    };
+
+    const updatedRows = await this.aiCvRepository.update(
+      { id: aiCvId },
+      updateData,
+    );
+
+    const updatedAiCv = updatedRows[0];
+    if (!updatedAiCv) {
+      throw new BadRequestException({
+        message: RESPONSE_MESSAGE.AI_CV_NOT_UPDATED,
+        code: RESPONSE_CODE.AI_CV_NOT_UPDATED,
+      });
+    }
+
+    const transformedAiCv: AiCvDto = {
+      ...updatedAiCv,
+      cvData: updatedAiCv.cvData as OptimizedCvDataDto,
+      editedCvData: (updatedAiCv.editedCvData as OptimizedCvDataDto) ?? null,
+      originalScoreBreakdown:
+        (updatedAiCv.originalScoreBreakdown as Record<string, any>) ?? null,
+      scoreBreakdown:
+        (updatedAiCv.scoreBreakdown as Record<string, any>) ?? null,
+      optimizationsApplied:
+        (updatedAiCv.optimizationsApplied as Record<string, any>[]) ?? null,
+      fieldSuggestionLogs:
+        (updatedAiCv.fieldSuggestionLogs as Record<string, any>[]) ?? null,
+      language: updatedAiCv.language as CvLanguageEnum,
+      template: updatedAiCv.template as CvTemplateEnum,
+      createdAt: new Date(updatedAiCv.createdAt),
+      updatedAt: updatedAiCv.updatedAt ? new Date(updatedAiCv.updatedAt) : null,
+    };
+
+    this.logger.log(
+      `Updated AI CV V2 (editedCvData) ${updatedAiCv.id}: ${updatedAiCv.title}`,
+    );
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: transformedAiCv,
+    };
+  }
+
+  async optimizeCvForAtsV2(
+    request: OptimizeAtsUploadDto,
+    userId: string,
+    useUserCV: boolean,
+  ): Promise<ApiResponse<{ taskId: string }>> {
+    // Extract CV text before pushing to queue
+    let cvText = "";
+    let originalCvUrl: string | undefined;
+
+    if (request?.file) {
+      cvText = await FileTextExtractor.extractText(request.file);
+      this.logger.log(`Extracted ${cvText.length} chars from CV`);
+
+      try {
+        const uploadResult = await this.cloudinaryService.uploadFile(
+          request.file,
+          { folder: CV_FOLDER },
+        );
+        originalCvUrl = uploadResult?.secure_url;
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to upload original CV to Cloudinary: ${error.message}`,
+        );
+      }
+    } else if (request?.cvText) {
+      cvText = request.cvText;
+    } else if (useUserCV) {
+      const userCvData = await this.userRepository.getUserCvData(userId);
+      if (userCvData) {
+        cvText = userCvDataToText(userCvData);
+        this.logger.log(`Generated ${cvText.length} chars from user profile`);
+      }
+    }
+
+    if (cvText.length < 100) {
+      if (useUserCV) {
+        throw new BadRequestException({
+          message:
+            "Profile content is too short. Please provide a valid profile.",
+          code: RESPONSE_CODE.PROFILE_TOO_SHORT,
+        });
+      } else {
+        throw new BadRequestException({
+          message: "CV content is too short. Please provide a valid CV.",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+    }
+
+    const optimizeRequest: OptimizeAtsRequest = {
+      cvText,
+      language: request.body.language || CvLanguageEnum.VIETNAMESE,
+      reasoningLanguage:
+        request.body.reasoningLanguage ||
+        request.body.language ||
+        CvLanguageEnum.VIETNAMESE,
+      ...(request.body.jobDescription && {
+        jobDescription: request.body.jobDescription,
+      }),
+      ...(originalCvUrl && { originalCvUrl }),
+      ...(request?.file && { oldRawText: cvText }),
+    };
+
+    const result = await this.taskRepository.executeWithTransaction(
+      async (tx) => {
+        await this.featureService.consumeFeature(
+          userId,
+          FeatureCodeEnum.OPTIMIZE_CV,
+        );
+
+        const task = await this.taskRepository.create(
+          {
+            name: `Optimize AI CV V2 for user: ${userId}`,
+            type: TaskTypeEnum.CV_GENERATION_V2,
+            status: TaskStatusEnum.PENDING,
+            userId,
+            input: {
+              request: optimizeRequest,
+            },
+          },
+          tx,
+        );
+
+        const [notification] =
+          await this.notificationRepository.createNotificationWithRecipients(
+            {
+              senderId: null,
+              title: "CV của bạn đang được tối ưu",
+              message:
+                "Đang tối ưu CV dựa trên yêu cầu của bạn. Vui lòng chờ trong giây lát!",
+              templateKey: "system_cv_generation_pending",
+              templateData: {},
+              type: NotificationType.SYSTEM,
+              payload: {
+                taskId: task.id,
+              },
+            },
+            [{ receiverId: userId }],
+          );
+        return {
+          task,
+          notification,
+        };
+      },
+    );
+
+    await this.notificationService.sendNotification(result.notification);
+
+    await retry(
+      async () => {
+        await this.messageQueueService.addTask(
+          TaskTypeEnum.CV_GENERATION_V2,
+          {
+            taskId: result.task.id,
+            notificationId: result.notification.id,
+          },
+          {
+            jobId: `task-async-${result.task.id}`,
+          },
+        );
+        this.logger.log(
+          `CV generation V2 task added to message queue: ${result.task.id}`,
+        );
+      },
+      {
+        retries: 3,
+        backoff: new JitterBackoff(1000, 10000),
+      },
+    );
+
+    return {
+      code: RESPONSE_CODE.SUCCESS,
+      message: "CV generation V2 started",
       data: { taskId: result.task.id },
     };
   }

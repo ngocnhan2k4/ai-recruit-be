@@ -7,12 +7,14 @@ import {
   AiCvDto,
   AiCvListResponseDto,
   GenerateCvPdfRequestDto,
-  UpdateAiCvDto,
+  UpdateAiCvV2Dto,
 } from "@/interfaces/dtos/ai-cv";
 import { OptimizeAtsUploadDto } from "@/interfaces/dtos/cv";
 import {
   CvFieldSuggestionRequestDto,
-  CvFieldSuggestionResponseDto,
+  CvFieldSuggestionResponseV2Dto,
+  LogSuggestionDecisionDto,
+  AtsRawTextResponseDto,
 } from "@/interfaces/dtos/ai-cv";
 import { AiCvUseCases } from "@/use-cases/ai-cv/ai-cv.use-cases";
 import {
@@ -88,7 +90,7 @@ export class AiCvController {
 
   @Post("optimize-ats")
   @ApiOperation({
-    summary: "Optimize CV for ATS",
+    summary: "Optimize CV for ATS (V2 Explainable AI)",
     description:
       "Optimize CV for ATS compatibility. Accepts either a CV file (PDF/DOCX) OR raw CV text. Supports two optimization modes: 1) Targeted optimization (with jobDescription) - matches CV against specific job requirements. 2) General optimization (without jobDescription) - optimizes CV for general ATS readability.",
   })
@@ -99,7 +101,7 @@ export class AiCvController {
     @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<{ taskId: string }>> {
     if (!request.file && !request.cvText) {
-      return await this.aiCvUseCases.optimizeCvForAts(
+      return await this.aiCvUseCases.optimizeCvForAtsV2(
         request,
         user.userId,
         true,
@@ -113,7 +115,7 @@ export class AiCvController {
       });
     }
 
-    return await this.aiCvUseCases.optimizeCvForAts(
+    return await this.aiCvUseCases.optimizeCvForAtsV2(
       request,
       user.userId,
       false,
@@ -122,16 +124,66 @@ export class AiCvController {
 
   @Post("suggest-field")
   @ApiOperation({
-    summary: "Suggest CV field value",
+    summary: "Suggest CV field value (V2)",
     description:
-      "Generate AI-powered suggestion for a specific CV field. Returns a single suggestion as a raw string. Valid target fields: targetJobTitle, summary, experience.position, experience.achievements, skills.technical, skills.soft, projects.description, projects.technologies",
+      "Generate AI-powered suggestions for a specific CV field. Returns 2-3 reasoned candidate chunks (action, originalText, suggestedText, reasoning) for diff/partial-accept review. Valid target fields: targetJobTitle, summary, experience.position, experience.achievements, skills.technical, skills.soft, projects.description, projects.technologies",
   })
-  @ApiResponseDto(CvFieldSuggestionResponseDto)
+  @ApiResponseDto(CvFieldSuggestionResponseV2Dto)
   async suggestCvField(
     @Body() request: CvFieldSuggestionRequestDto,
     @GetUser() user: TokenPayload,
-  ): Promise<ApiResponse<CvFieldSuggestionResponseDto>> {
+  ): Promise<ApiResponse<CvFieldSuggestionResponseV2Dto>> {
     return await this.aiCvUseCases.suggestCvField(request, user.userId);
+  }
+
+  @Post(":id/suggest-field/decision")
+  @ApiOperation({
+    summary: "Log a suggestion accept/reject decision",
+    description:
+      "Persist the user's accept/reject decision for a reviewed field-suggestion candidate, for audit/analytics.",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "AI CV ID",
+    example: "uuid-ai-cv-id",
+  })
+  async logSuggestionDecision(
+    @Param("id") aiCvId: string,
+    @Body() decision: LogSuggestionDecisionDto,
+    @GetUser() user: TokenPayload,
+  ) {
+    return await this.aiCvUseCases.logSuggestionDecision(
+      user.userId,
+      aiCvId,
+      decision,
+    );
+  }
+
+  @Get(":id/ats-raw-text")
+  @ApiOperation({
+    summary: "View as ATS Bot: get raw extracted text",
+    description:
+      "Returns the linear raw text an ATS parser would extract from the CV. For `version=optimized`, this is generated directly from the CV's structured data (no PDF rendering, always instant).",
+  })
+  @ApiParam({
+    name: "id",
+    required: true,
+    description: "AI CV ID",
+    example: "uuid-ai-cv-id",
+  })
+  @ApiQuery({ name: "version", enum: ["original", "optimized"] })
+  @ApiResponseDto(AtsRawTextResponseDto)
+  async getAtsRawText(
+    @Param("id") aiCvId: string,
+    @Query("version") version: "original" | "optimized",
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<AtsRawTextResponseDto>> {
+    return await this.aiCvUseCases.getAtsRawText(
+      aiCvId,
+      user.userId,
+      version === "original" ? "original" : "optimized",
+    );
   }
 
   @ApiOperation({
@@ -147,37 +199,25 @@ export class AiCvController {
   @Get(":id")
   async getAiCvById(
     @Param("id") aiCvId: string,
+    @GetUser() user: TokenPayload,
   ): Promise<ApiResponse<AiCvDto>> {
-    return this.aiCvUseCases.getAiCvById(aiCvId);
+    return this.aiCvUseCases.getAiCvById(aiCvId, user.userId);
   }
 
-  // @ApiOperation({
-  //   summary: "Create new AI CV",
-  //   description: "Save a new AI-generated CV",
-  // })
-  // @ApiBody({ type: AiCvRequestDto })
-  // @ApiResponseDto(AiCvDto)
-  // @Post()
-  // async createAiCv(
-  //   @GetUser() user: TokenPayload,
-  //   @Body() createAiCvDto: AiCvRequestDto,
-  // ) {
-  //   return this.aiCvUseCases.createAiCv(user.userId, createAiCvDto);
-  // }
-
   @ApiOperation({
-    summary: "Update AI CV",
-    description: "Update an existing AI CV",
+    summary: "Update AI CV (V2)",
+    description:
+      "Update an existing AI CV's editedCvData without mutating original cvData or Explainable AI metrics",
   })
-  @ApiBody({ type: UpdateAiCvDto })
+  @ApiBody({ type: UpdateAiCvV2Dto })
   @ApiResponseDto(AiCvDto)
   @Put(":id")
   async updateAiCv(
     @GetUser() user: TokenPayload,
     @Param("id") aiCvId: string,
-    @Body() updateAiCvDto: UpdateAiCvDto,
+    @Body() updateAiCvV2Dto: UpdateAiCvV2Dto,
   ) {
-    return this.aiCvUseCases.updateAiCv(user.userId, aiCvId, updateAiCvDto);
+    return this.aiCvUseCases.updateAiCvV2(user.userId, aiCvId, updateAiCvV2Dto);
   }
 
   @ApiOperation({

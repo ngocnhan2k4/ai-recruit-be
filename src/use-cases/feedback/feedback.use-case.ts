@@ -26,6 +26,7 @@ import {
   UpdateFeedbackRequestDto,
 } from "@/interfaces/dtos";
 import { PaginatedResult } from "@/common/types";
+import { getRequestLanguage } from "@/common/utils";
 
 @Injectable()
 export class FeedbackUseCase {
@@ -50,6 +51,7 @@ export class FeedbackUseCase {
       email: data.email || user?.email || null,
       subject: data.subject,
       message: data.message,
+      languageCode: getRequestLanguage(),
       images: data.images,
       metadata: data.metadata ?? null,
       userId,
@@ -91,6 +93,7 @@ export class FeedbackUseCase {
   async getFeedbacks(
     filter: FeedbackFilter,
   ): Promise<ApiResponse<PaginatedResult<GetFeedbacksResponseDto>>> {
+    const lang = getRequestLanguage();
     const result = await this.feedbackRepository.getFeedbacks(filter);
 
     this.logger.log(`Retrieved ${result.data.length} feedbacks`);
@@ -100,11 +103,13 @@ export class FeedbackUseCase {
       data: {
         data: result.data.map((feedback) => ({
           ...feedback,
+          canTranslate: feedback.languageCode !== lang,
           type: feedback.type as FeedbackTypeEnum,
           status: feedback.status as FeedbackStatusEnum,
           assignedToUserId: feedback.assignedToUserId ?? null,
         })),
         pagination: result.pagination,
+        summary: result.summary,
       },
       message: "Feedbacks retrieved successfully",
     };
@@ -132,6 +137,8 @@ export class FeedbackUseCase {
     const statusChangedToResolved =
       data.status === FeedbackStatusEnum.RESOLVED &&
       existing.status !== "resolved";
+    const resolutionNote = data.resolutionNote?.trim() || undefined;
+    const { resolutionNote: _resolutionNote, ...updatePayload } = data;
 
     let assignee: Awaited<ReturnType<IUserRepository["get"]>> = null;
     if (data.assignedToUserId != null) {
@@ -148,7 +155,10 @@ export class FeedbackUseCase {
       data.assignedToUserId !== previousAssigneeId;
 
     if (!assigneeChanged) {
-      const updatedRows = await this.feedbackRepository.update({ id }, data);
+      const updatedRows = await this.feedbackRepository.update(
+        { id },
+        updatePayload,
+      );
       if (updatedRows.length === 0) {
         return {
           code: RESPONSE_CODE.FEEDBACK_NOT_FOUND,
@@ -164,6 +174,7 @@ export class FeedbackUseCase {
               to: existing.email,
               recipientName: existing.name,
               feedbackSubject: existing.subject,
+              resolutionNote,
             } as FeedbackResolvedEmailData,
             {
               attempts: 3,
@@ -187,7 +198,7 @@ export class FeedbackUseCase {
     await this.feedbackRepository.executeWithTransaction(async (tx) => {
       const updatedRows = await this.feedbackRepository.update(
         { id },
-        data,
+        updatePayload,
         tx,
       );
       if (updatedRows.length === 0) {
@@ -211,6 +222,10 @@ export class FeedbackUseCase {
         {
           title: "Bạn được giao xử lý feedback",
           message: `Phản hồi: ${messageBody}`,
+          templateKey: "feedback_assigned",
+          templateData: {
+            feedbackSubject: messageBody,
+          },
           type: NotificationType.FEEDBACK_ASSIGNED,
           senderId: assignedByUserId ?? undefined,
           payload: { feedbackId: id },
@@ -251,6 +266,7 @@ export class FeedbackUseCase {
             to: existing.email,
             recipientName: existing.name,
             feedbackSubject: feedbackSubjectForEmail,
+            resolutionNote,
           } as FeedbackResolvedEmailData,
           {
             attempts: 3,

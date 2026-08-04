@@ -3,7 +3,12 @@ import { GenericRepository } from "./generic-repository";
 import { type DBDrizzle } from "../types";
 import { tasks } from "../models/task.model";
 import { users } from "../models";
-import { ListTaskResponse, Task, TaskFilter } from "@/core/entities";
+import {
+  ListTaskResponse,
+  Task,
+  TaskFilter,
+  TaskStatusEnum,
+} from "@/core/entities";
 import { ITaskRepository } from "@/core/abstracts/repositories/task-repository.abstract";
 import { PaginatedResult, RelatedEntity } from "@/common/types";
 import {
@@ -86,7 +91,7 @@ export class TaskRepository
     const whereClause =
       whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
-    const [tasksResult, totalResult] = await Promise.all([
+    const [tasksResult, totalResult, summaryRows] = await Promise.all([
       this.db
         .select({
           id: tasks.id,
@@ -117,11 +122,32 @@ export class TaskRepository
         .from(tasks)
         .leftJoin(users, eq(tasks.userId, users.id))
         .where(whereClause),
+      this.db
+        .select({
+          status: tasks.status,
+          count: count(),
+        })
+        .from(tasks)
+        .where(isNull(tasks.deletedAt))
+        .groupBy(tasks.status),
     ]);
+
+    const statusCounts = Object.fromEntries(
+      summaryRows.map((row) => [row.status, Number(row.count)]),
+    ) as Record<string, number>;
+
+    const summary: Record<string, number> = {
+      total: Object.values(statusCounts).reduce((sum, n) => sum + n, 0),
+      pending: statusCounts[TaskStatusEnum.PENDING] ?? 0,
+      inProgress: statusCounts[TaskStatusEnum.IN_PROGRESS] ?? 0,
+      completed: statusCounts[TaskStatusEnum.COMPLETED] ?? 0,
+      failed: statusCounts[TaskStatusEnum.FAILED] ?? 0,
+    };
 
     return {
       data: tasksResult as ListTaskResponse[],
       pagination: { total: Number(totalResult[0]?.count ?? 0) },
+      summary,
     };
   }
 }

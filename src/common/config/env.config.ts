@@ -32,11 +32,30 @@ export class EnvironmentVariables {
   @IsString()
   GLOBAL_PREFIX: string = "/api/v1";
 
+  @IsOptional()
+  @IsString()
+  TIMEZONE: string = "Asia/Ho_Chi_Minh";
+
   @IsString()
   DATABASE_URL: string;
 
   @IsString()
   DATABASE_ADAPTER_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MAX: number = 10;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MIN: number = 2;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_CONNECTION_TIMEOUT_MS: number = 10000;
 
   @IsString()
   JWT_SECRET: string;
@@ -140,6 +159,10 @@ export class EnvironmentVariables {
   ELASTICSEARCH_INDEX_CVS: string;
 
   @IsOptional()
+  @IsString()
+  ELASTICSEARCH_INDEX_EVENT_TRACKING: string;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   SLOW_API_THRESHOLD_MS: number = 1000;
@@ -152,14 +175,24 @@ export class EnvironmentVariables {
   CORS_ORIGINS: string[];
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      return !["false", "0", "off", "no"].includes(value.toLowerCase());
+    }
+    return true;
+  })
+  RATE_LIMIT_ENABLED: boolean = true;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
-  RATE_LIMIT_CAPACITY: number = 60;
+  RATE_LIMIT_CAPACITY: number;
 
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
-  RATE_LIMIT_REFILL_RATE: number = 1;
+  RATE_LIMIT_REFILL_RATE: number;
 
   @IsOptional()
   @IsString()
@@ -234,9 +267,27 @@ export class EnvironmentVariables {
   EXCHANGE_RATE_API_URL: string = "https://open.er-api.com/v6/latest/USD";
 
   @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_BASE_URL: string;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   EXCHANGE_RATE_TIMEOUT_MS: number = 5000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_TIMEOUT: number = 10000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_MAX_RETRIES: number = 2;
 }
 
 export const validateConfig = (

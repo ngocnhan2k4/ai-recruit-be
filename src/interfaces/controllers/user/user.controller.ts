@@ -1,11 +1,25 @@
+import { RESPONSE_CODE } from "@/common/constants";
 import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiBearerAuth,
-  ApiConsumes,
-  ApiBody,
-} from "@nestjs/swagger";
+  AllowedUserStatuses,
+  GetUser,
+  UploadFileAndBody,
+} from "@/common/decorators";
+import { type TokenPayload } from "@/common/types";
+import { ProviderEnum, UserSkillResponse, UserStatusEnum } from "@/core";
+import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
+import { CasbinGuard, JwtAuthGuard } from "@/frameworks/auth-services/guards";
+import {
+  CreateUserEducationDto,
+  CreateUserExperienceRequestDto,
+  CreateUserSkillRequestDto,
+  DeleteUserSkillResponseDto,
+  UpdateUserEducationDto,
+  UserEducationResponseDto,
+  UserExperiencesResponseDto,
+  UserSkillDto,
+} from "@/interfaces/dtos";
+import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
+import { type MultipartFile } from "@fastify/multipart";
 import {
   BadRequestException,
   Body,
@@ -13,52 +27,36 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   ParseEnumPipe,
+  ParseIntPipe,
   Patch,
   Post,
   Put,
   UseGuards,
 } from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from "@nestjs/swagger";
 import { UserUseCases } from "src/use-cases/user/user.use-case";
-import { JwtAuthGuard, CasbinGuard } from "@/frameworks/auth-services/guards";
-import { CasbinPermission } from "@/frameworks/auth-services/casbin/casbin.decorator";
 import {
   ApiResponse,
   ApiResponseDto,
   CheckUsernameResponseDto,
+  GetUserResponseDto,
+  RespondToInvitationDto,
   UpdateUserRequestDto,
+  UpdatePreferredLanguageRequestDto,
   UserAvatarUpdateRequestDto,
   UserDto,
-  UserPublicResponseDto,
   UserOnboardingDto,
-  GetUserResponseDto,
+  UserPublicResponseDto,
   UserSeoPublicResponseDto,
-  RespondToInvitationDto,
 } from "../../dtos";
-import { AllowedUserStatuses, GetUser } from "@/common/decorators";
-import { type TokenPayload } from "@/common/types";
-import {
-  CreateUserExperienceRequestDto,
-  UserExperiencesResponseDto,
-} from "@/interfaces/dtos";
-import {
-  CreateUserSkillRequestDto,
-  DeleteUserSkillResponseDto,
-  UserSkillDto,
-} from "@/interfaces/dtos";
-import { Skill } from "@/core/entities";
-import { RESPONSE_CODE } from "@/common/constants";
-import { UploadFileAndBody } from "@/common/decorators";
-import { type MultipartFile } from "@fastify/multipart";
-import {
-  CreateUserEducationDto,
-  UpdateUserEducationDto,
-  UserEducationResponseDto,
-} from "@/interfaces/dtos";
-import { OrganizationInvitationUseCase } from "@/use-cases/organization-invitation/organization-intivation.use-case";
-import { ProviderEnum } from "@/core";
-import { UserStatusEnum } from "@/core";
 
 @ApiTags("Users")
 @Controller("users")
@@ -105,6 +103,32 @@ export class UserController {
   @Get("me/features")
   getMyFeatures(@GetUser() user: TokenPayload) {
     return this.userUseCases.getMyFeatures(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Link a new login provider",
+    description:
+      "After linking a provider on Firebase client-side, call this endpoint with the resulting idToken to persist the identity in the database. Also restores a previously unlinked provider.",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["idToken"],
+      properties: {
+        idToken: {
+          type: "string",
+          description: "Firebase ID token of the linked provider session",
+        },
+      },
+    },
+  })
+  @Post("me/providers/link")
+  linkProvider(
+    @GetUser() user: TokenPayload,
+    @Body("idToken") idToken: string,
+  ): Promise<ApiResponse<void>> {
+    return this.userUseCases.linkProvider(user.userId, idToken);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -197,6 +221,20 @@ export class UserController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Update preferred language" })
+  @ApiBody({ type: UpdatePreferredLanguageRequestDto })
+  @Patch("preferences/language")
+  async updatePreferredLanguage(
+    @GetUser() user: TokenPayload,
+    @Body() body: UpdatePreferredLanguageRequestDto,
+  ): Promise<ApiResponse<void>> {
+    return this.userUseCases.updatePreferredLanguage(
+      user.userId,
+      body.preferredLanguage,
+    );
+  }
+
   @ApiOperation({ summary: "Get user experience" })
   @ApiResponseDto(UserExperiencesResponseDto, { isArray: true })
   @Get("user-experiences/:username")
@@ -251,14 +289,15 @@ export class UserController {
     return this.userUseCases.deleteUserExperience(user.userId, id);
   }
 
+  @UseGuards(JwtAuthGuard, CasbinGuard)
   @ApiOperation({ summary: "Get user skills" })
   @CasbinPermission("/user-skills", "GET")
   @Get("user-skills")
   @ApiResponseDto(UserSkillDto, { isArray: true })
   async getUserSkills(
-    @Param("userName") userName: string,
-  ): Promise<ApiResponse<Skill[]>> {
-    return this.userUseCases.getUserSkills(userName);
+    @GetUser() user: TokenPayload,
+  ): Promise<ApiResponse<UserSkillResponse[]>> {
+    return this.userUseCases.getUserSkills(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)

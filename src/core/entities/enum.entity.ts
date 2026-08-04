@@ -57,11 +57,12 @@ export enum NotificationType {
   PROFILE_VIEWED = "profile_viewed",
   CV_APPROVED = "cv_approved",
   CV_REJECTED = "cv_rejected",
-  ORGANIZATION_INVITED = "organization_invited",
+  ORGANIZATION_INVITATION = "organization_invitation",
   SYSTEM = "system",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   BLOG_COMMENT = "blog_comment",
   BLOG_COMMENT_REPLY = "blog_comment_reply",
+  SKILL_READY = "skill_ready",
 }
 export enum NotificationStatusEnum {
   READ = "read",
@@ -132,6 +133,11 @@ export enum SkillLevelEnum {
   ADVANCED = "advanced",
 }
 
+/** How a row in user_skills was created. */
+export enum UserSkillSourceEnum {
+  EXAM = "exam",
+}
+
 export enum SkillResolutionStatusEnum {
   MATCHED = "matched",
   PENDING = "pending",
@@ -169,6 +175,13 @@ export enum EmailJobType {
   JOB_RECOMMENDATIONS = "job_recommendations",
   FEEDBACK_ASSIGNED = "feedback_assigned",
   FEEDBACK_RESOLVED = "feedback_resolved",
+  ADMIN_BULK = "admin_bulk",
+}
+
+export enum AdminEmailTemplateId {
+  SYSTEM_ANNOUNCEMENT = "system_announcement",
+  SUBSCRIPTION_PROMO = "subscription_promo",
+  RENEWAL_REMINDER = "renewal_reminder",
 }
 
 export enum OtpPurpose {
@@ -186,6 +199,12 @@ export enum PhaseStatusEnum {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",
   COMPLETED = "completed",
+}
+
+export enum RoadmapGenerationStatusEnum {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
 }
 export enum FeatureCodeEnum {
   LEARNING_PATH = "learning_path",
@@ -221,6 +240,7 @@ export enum TaskStatusEnum {
 export enum TaskTypeEnum {
   LEARNING_PATH_GENERATION = "learning_path_generation",
   CV_GENERATION = "cv_generation",
+  CV_GENERATION_V2 = "cv_generation_v2",
 }
 
 export enum ExperienceLevelEnum {

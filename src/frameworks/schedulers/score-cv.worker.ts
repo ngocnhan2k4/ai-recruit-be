@@ -7,7 +7,12 @@ import {
   ICvSearchService,
   IJobSearchService,
   ICvService,
+  IUserOnboardingRepository,
 } from "@/core/abstracts";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type ScoreCvApplyData = {
   applyId: string;
@@ -26,12 +31,20 @@ export class ScoreCvWorker extends WorkerHost {
     private readonly cvSearchService: ICvSearchService,
     private readonly jobSearchService: IJobSearchService,
     private readonly cvService: ICvService,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {
     super();
   }
 
   async process(job: Job) {
-    return this.processCvScoring(job.data as ScoreCvApplyData);
+    return runJobWithContext(job, async () => {
+      try {
+        return await this.processCvScoring(job.data as ScoreCvApplyData);
+      } catch (error) {
+        this.logger.error(formatWorkerErrorLog("score-cv.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processCvScoring(data: ScoreCvApplyData): Promise<void> {
@@ -50,15 +63,24 @@ export class ScoreCvWorker extends WorkerHost {
       throw new Error(`Job ${jobId} not found in ES`);
     }
 
+    const [onboarding] = await this.userOnboardingRepository.getByField({
+      userId: cvResult.userId,
+    });
+
     const { score, criteria } = this.cvService.calculateMatchingScore(
-      cvResult,
+      {
+        ...cvResult,
+        expectedSalary: onboarding?.expectedSalary,
+        experienceYears:
+          cvResult.experienceYears ?? onboarding?.experienceYears,
+      },
       jobResult,
     );
 
     await this.jobRepository.updateMatchingScore(applyId, score, criteria);
 
     this.logger.log(
-      `[processCvScoring] done applyId=${applyId} score=${score.toFixed(2)}`,
+      `[processCvScoring] done applyId=${applyId} score=${score === null ? "null" : score.toFixed(2)}`,
     );
   }
 }

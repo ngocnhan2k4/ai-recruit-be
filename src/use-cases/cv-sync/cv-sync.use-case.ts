@@ -3,7 +3,12 @@ import { ConfigService } from "@nestjs/config";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { Environment } from "@/common/config";
-import { ICvRepository, ICvService, ISearchService } from "@/core/abstracts";
+import {
+  ICvRepository,
+  ICvService,
+  ISearchService,
+  IUserOnboardingRepository,
+} from "@/core/abstracts";
 import {
   getCvIndexMapping,
   transformCvToDocument,
@@ -19,6 +24,7 @@ export class CvSyncUseCases {
     private readonly configService: ConfigService,
     private readonly cvRepository: ICvRepository,
     private readonly cvService: ICvService,
+    private readonly userOnboardingRepository: IUserOnboardingRepository,
   ) {}
 
   private indexName(): string {
@@ -75,7 +81,10 @@ export class CvSyncUseCases {
         async (cv) => {
           const cvId = cv.id;
 
-          const extractedData = await this.cvService.extractCv(cv);
+          const [extractedData, [onboarding]] = await Promise.all([
+            this.cvService.extractCv(cv),
+            this.userOnboardingRepository.getByField({ userId: cv.userId }),
+          ]);
 
           const document = transformCvToDocument({
             id: cv.id,
@@ -88,7 +97,10 @@ export class CvSyncUseCases {
             skillIds: extractedData.skillIds || [],
             provinceIds: extractedData.provinceIds || [],
             categoryIds: extractedData.categoryIds || [],
-            experienceYears: extractedData.experienceYears ?? undefined,
+            experienceYears:
+              extractedData.experienceYears ??
+              onboarding?.experienceYears ??
+              null,
             skillNames: extractedData.skillNames || [],
             provinceNames: extractedData.provinceNames || [],
             categoryNames: extractedData.categoryNames || [],

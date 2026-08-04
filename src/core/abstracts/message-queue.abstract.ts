@@ -15,6 +15,11 @@ export abstract class IMessageQueueService {
   abstract addEmail(name: string, data: any, opts?: any): Promise<void>;
 
   /**
+   * Add an item to the translation queue.
+   */
+  abstract addTranslation(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
    * Add an item to the CV extraction/index queue.
    */
   abstract addCv(name: string, data: any, opts?: any): Promise<void>;

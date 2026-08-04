@@ -1,12 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
   ValidateNested,
 } from "class-validator";
+import { CvLanguageEnum } from "@/core";
 import { OptimizedCvDataDto } from "../res/ai-cv-base.dto";
 
 export class CvFieldContextDto {
@@ -86,4 +89,73 @@ export class CvFieldSuggestionRequestDto {
   @IsString()
   @IsOptional()
   jobDescription?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      "The CV's own content language; suggested text must be written in this language",
+    enum: CvLanguageEnum,
+  })
+  @IsEnum(CvLanguageEnum)
+  @IsOptional()
+  cvLanguage?: CvLanguageEnum;
+
+  @ApiPropertyOptional({
+    description:
+      "Language for the reasoning/explanation text (independent of cvLanguage); usually the frontend's current UI language",
+    enum: CvLanguageEnum,
+  })
+  @IsEnum(CvLanguageEnum)
+  @IsOptional()
+  reasoningLanguage?: CvLanguageEnum;
+}
+
+export class LogSuggestionDecisionDto {
+  @ApiProperty({
+    example: "summary",
+    description: "The field the suggestion was for",
+  })
+  @IsString()
+  @IsNotEmpty()
+  targetField: string;
+
+  @ApiProperty({
+    example: "update",
+    description: "'update' (replace) or 'add' (append new item)",
+    enum: ["update", "add"],
+  })
+  @IsIn(["update", "add"])
+  action: "update" | "add";
+
+  @ApiPropertyOptional({
+    example: "Junior Developer with 1 year of experience.",
+    description: "Current value; null for 'add' actions",
+    nullable: true,
+  })
+  @IsOptional()
+  originalText?: string | null;
+
+  @ApiProperty({
+    example:
+      "Experienced Full-Stack Developer with 3+ years of expertise in React and Node.js...",
+    description: "The candidate value/item that was reviewed",
+  })
+  @IsString()
+  @IsNotEmpty()
+  suggestedText: string;
+
+  @ApiProperty({
+    example:
+      "Emphasizes leadership and quantified impact, matching the JD's seniority level.",
+    description: "Why this candidate was suggested",
+  })
+  @IsString()
+  reasoning: string;
+
+  @ApiProperty({
+    example: "accepted",
+    description: "The user's decision on this suggestion",
+    enum: ["accepted", "rejected"],
+  })
+  @IsIn(["accepted", "rejected"])
+  decision: "accepted" | "rejected";
 }

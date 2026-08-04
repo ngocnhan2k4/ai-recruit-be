@@ -1,14 +1,43 @@
 import { type AppConfigProps } from "@/common/config";
 import { ApiResponse } from "@/interfaces/dtos";
-import { Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common";
+import {
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from "@nestjs/common";
 import type { ArgumentsHost } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { assign } from "lodash";
-import { RESPONSE_CODE } from "@/common/constants";
+import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
 import { ILoggerServices } from "@/core/abstracts/logger-services.abstract";
 import { Environment } from "@/common/config";
 import { DrizzleQueryError } from "drizzle-orm";
+import * as Sentry from "@sentry/nestjs";
 import { SentryExceptionCaptured } from "@sentry/nestjs";
+import {
+  extractDbErrorInfo,
+  formatDbErrorMessage,
+  isDbQueryError,
+} from "@/common/utils/db-error";
+import {
+  REQUEST_ID_HEADER,
+  createRequestId,
+  serializeRequestHeaders,
+  serializeRequestPayload,
+  setResponseHeader,
+  truncateStack,
+} from "@/common/utils/request-log";
+import { extractExternalErrorInfo } from "@/common/utils/external-error";
+import { getRequestId } from "../utils";
+
+type RequestWithMeta = FastifyRequest & {
+  requestId?: string;
+  user?: { sub?: string; userId?: string };
+  params?: Record<string, unknown>;
+  cookies?: Record<string, unknown>;
+};
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -23,15 +52,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<FastifyReply>();
-    const request = ctx.getRequest<FastifyRequest>();
+    const request = ctx.getRequest<RequestWithMeta>();
 
     let code: string;
     let message: string;
 
     const { method, originalUrl } = request;
+    const requestId =
+      getRequestId() ||
+      request.requestId ||
+      createRequestId(request.headers[REQUEST_ID_HEADER]);
+    request.requestId = requestId;
+    const userId = request.user?.sub || request.user?.userId || "anonymous";
+    const query = serializeRequestPayload(request.query);
+    const params = serializeRequestPayload(request.params);
+    const body = serializeRequestPayload(request.body);
+    const headers = serializeRequestHeaders(
+      request.headers as Record<string, unknown>,
+    );
 
-    const name = (exception as any).name;
+    const name = (exception as Error)?.name ?? "Error";
     let resContent: ApiResponse<any>;
+    let dbErrorInfo: Record<string, unknown> | undefined;
+    const externalErrorInfo = extractExternalErrorInfo(exception);
 
     if (exception instanceof HttpException) {
       message =
@@ -44,12 +87,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: message,
         code: code,
       };
-    } else if (exception instanceof DrizzleQueryError) {
-      code = RESPONSE_CODE.BAD_REQUEST;
-      message = exception.cause?.message || "Bad request";
+    } else if (
+      exception instanceof DrizzleQueryError ||
+      isDbQueryError(exception)
+    ) {
+      code = RESPONSE_CODE.SERVER_ERROR;
+      message = formatDbErrorMessage(exception);
+      dbErrorInfo = extractDbErrorInfo(exception);
 
       resContent = {
-        message: message,
+        message: RESPONSE_MESSAGE.SERVER_ERROR,
         code: code,
       };
     } else {
@@ -62,38 +109,91 @@ export class HttpExceptionFilter implements ExceptionFilter {
       };
     }
 
-    const stack = (exception as any).stack || "";
-
-    this.logger.error(
-      `${method} ${originalUrl} -> ${name}: ${resContent.message || resContent.code}`,
-      stack,
+    const stack = truncateStack((exception as any)?.stack || "");
+    const causeStack = truncateStack(
+      (exception as any)?.cause instanceof Error
+        ? (exception as any).cause.stack
+        : undefined,
     );
+    const httpStatus =
+      exception instanceof HttpException ? exception.getStatus() : 500;
 
-    if (this.appConfigs.nodeEnv === Environment.Local) {
-      assign(resContent, { stack });
-    }
+    const logPayload = {
+      requestId,
+      method,
+      url: originalUrl,
+      userId,
+      statusCode: httpStatus,
+      errorCode: code,
+      errorName: name,
+      message: typeof message === "string" ? message : message?.["message"],
+      query,
+      params,
+      body,
+      headers,
+      ip: request.ip,
+      stack,
+      causeStack,
+      ...(dbErrorInfo?.params
+        ? { sqlParams: dbErrorInfo.params, sqlQuery: dbErrorInfo.query }
+        : {}),
+      ...(dbErrorInfo ? { dbError: dbErrorInfo } : {}),
+      ...(externalErrorInfo ? { externalError: externalErrorInfo } : {}),
+    };
 
-    const stackLines = (exception as any).stack.split("\n") || [];
-    const moduleLine =
-      stackLines.find((line: string) => line.includes("src/")) ||
-      "Unknown module";
-    const moduleName = moduleLine.match(/src\/(.*?):/)?.[1] || "Unknown Module";
+    if (httpStatus === (HttpStatus.TOO_MANY_REQUESTS as number)) {
+      this.logger.warn(
+        `[RATE LIMIT] IP: ${request.ip} | User: ${userId} | Path: ${method} ${originalUrl}`,
+      );
+    } else {
+      // Single-arg: Nest Logger.error(msg, stack) treats 2nd arg as stack only.
+      this.logger.error(
+        `[ERROR] API Request ${method} ${originalUrl} -> ${name}: ${logPayload.message} | ${JSON.stringify(logPayload)}`,
+      );
 
-    const userId = request["user"]?.sub || "Unknown User";
-    this.loggerService.logError({
-      type: moduleName,
-      content: JSON.stringify({
+      Sentry.setTag("requestId", requestId);
+      Sentry.setUser({ id: userId === "anonymous" ? undefined : userId });
+      Sentry.setContext("request", {
+        requestId,
         method,
         url: originalUrl,
-        statusCode: code,
-        message: message["message"] || message,
-        stack,
-      }),
-      note: `User: ${userId}`,
-    });
+        userId,
+        query,
+        params,
+        body,
+        headers,
+        ip: request.ip,
+      });
+      if (dbErrorInfo) {
+        Sentry.setContext("dbError", dbErrorInfo);
+      }
+      if (externalErrorInfo) {
+        Sentry.setContext("externalError", externalErrorInfo);
+      }
 
-    response
-      .status(exception instanceof HttpException ? exception.getStatus() : 500)
-      .send(resContent);
+      const stackLines = (stack || "").split("\n");
+      const moduleLine =
+        stackLines.find((line: string) => line.includes("src/")) ||
+        "Unknown module";
+      const moduleName =
+        moduleLine.match(/src\/(.*?):/)?.[1] || "Unknown Module";
+
+      void this.loggerService.logError({
+        type: moduleName,
+        content: JSON.stringify(logPayload),
+        note: `User: ${userId} | requestId: ${requestId}`,
+      });
+    }
+
+    // Local-only debug fields; requestId is header-only.
+    if (this.appConfigs.nodeEnv === Environment.Local) {
+      assign(resContent, {
+        stack,
+        ...(dbErrorInfo ? { dbError: dbErrorInfo } : {}),
+      });
+    }
+
+    setResponseHeader(response, REQUEST_ID_HEADER, requestId);
+    response.status(httpStatus).send(resContent);
   }
 }

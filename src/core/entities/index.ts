@@ -1,68 +1,77 @@
 import {
-  companies,
-  categories,
-  jobs,
-  provinces,
-  refreshTokens,
-  users,
-  skills,
-  userExperiences,
-  userSkills,
-  cvs,
-  userOnboardings,
-  organizationMembers,
-  schools,
-  userEducations,
-  feedbacks,
-  jobProvinces,
-  areas,
-  questions,
-  userTests,
-  userAnswers,
+  aiCvs,
   applyJobs,
+  areas,
+  candidateBriefs,
+  categories,
+  comments,
+  companies,
+  cvs,
+  features,
+  feedbacks,
+  jobCopilotDrafts,
+  jobCopilotConversations,
+  jobCopilotMessages,
+  jobProvinces,
+  jobs,
+  notifications,
   organizationInvitations,
   organizationLocations,
+  organizationMembers,
   organizations,
-  notifications,
-  userNotifications,
-  features,
-  subscriptions,
-  userSubscriptions,
+  provinces,
+  questions,
+  refreshTokens,
+  schools,
+  skillNotes,
+  skills,
+  skillsSynonyms,
   subscriptionFeatures,
+  subscriptions,
+  tasks,
+  userActions,
+  userAnswers,
+  userEducations,
+  userExperiences,
   userFeatureUsages,
   userIdentities,
-  aiCvs,
-  skillsSynonyms,
-  tasks,
-  comments,
-  userActions,
-  skillNotes,
+  userNotifications,
+  userOnboardings,
+  users,
+  userSkills,
+  userSubscriptions,
+  userTests,
 } from "@/frameworks/data-services/postgres/models";
-import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { SchoolTypeEnum } from "./enum.entity";
-import { OptimizedCvData } from "./ai-cv.entity";
 import {
+  blogCategories,
   blogPosts,
   blogPostTags,
-  blogCategories,
   tags,
 } from "@/frameworks/data-services/postgres/models/blog.model";
-export * from "./enum.entity";
-export * from "./learning-path.entity";
-export * from "./otp.entity";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { OptimizedCvData } from "./ai-cv.entity";
+import { SchoolTypeEnum } from "./enum.entity";
 export * from "./ai-cv.entity";
-export * from "./user.entity";
-export * from "./job.entity";
-export * from "./organization.entity";
+export * from "./blog.entity";
+export * from "./candidate-brief.entity";
+export * from "./comment.entity";
+export * from "./cv.entity";
+export * from "./email.entity";
+export * from "./enum.entity";
 export * from "./feedback.entity";
+export * from "./job-copilot-draft.entity";
+export * from "./job-copilot.entity";
+export * from "./job-copilot-conversation.entity";
+export * from "./job-salary-insight.entity";
+export * from "./job.entity";
+export * from "./learning-path.entity";
+export * from "./organization.entity";
+export * from "./otp.entity";
 export * from "./skill.entity";
 export * from "./subscription.entity";
-export * from "./email.entity";
-export * from "./cv.entity";
-export * from "./comment.entity";
-export * from "./blog.entity";
 export * from "./task.entity";
 export * from "./payment.entity";
+export * from "./user.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema
 // This way, we ensure that our types are always in sync with the database schema
@@ -74,6 +83,13 @@ export type NewJob = InferInsertModel<typeof jobs>;
 export type Job = InferSelectModel<typeof jobs> & {
   questions?: string[];
 };
+
+export type NewJobCopilotDraft = InferInsertModel<typeof jobCopilotDrafts>;
+export type NewJobCopilotConversation = InferInsertModel<
+  typeof jobCopilotConversations
+>;
+export type NewJobCopilotMessage = InferInsertModel<typeof jobCopilotMessages>;
+export type NewCandidateBrief = InferInsertModel<typeof candidateBriefs>;
 
 export type NewProvince = InferInsertModel<typeof provinces>;
 export type Province = InferSelectModel<typeof provinces>;
@@ -126,6 +142,7 @@ export type UserNotification = InferSelectModel<typeof userNotifications>;
 export type NewNotification = InferInsertModel<typeof notifications>;
 export type Notification = InferSelectModel<typeof notifications> &
   UserNotification & {
+    displayLanguage?: string | null;
     task?: Pick<Task, "id" | "status" | "type" | "result"> | null;
     sender?: {
       name?: string | null;
@@ -160,6 +177,8 @@ export type OrganizationWithDetails = Organization & {
   schoolType?: SchoolTypeEnum | null;
   culture?: string | null;
   locations?: OrganizationLocation[];
+  activeJobsCount?: number;
+  totalMembersCount?: number;
 };
 
 export type NewOrganizationWithDetails = NewOrganization & {

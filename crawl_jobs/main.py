@@ -39,7 +39,8 @@ def main():
         description="Job crawler with anti-restriction features"
     )
     parser.add_argument(
-        "--db-url",
+        "--db-urls",
+        nargs="+",
         required=True,
     )
     parser.add_argument("--gha-output", help="Path to GitHub Actions output file")
@@ -91,6 +92,12 @@ def main():
         help="Keywords to search for on LinkedIn (default: Web Development)",
     )
     parser.add_argument(
+        "--linkedin-limit",
+        type=int,
+        default=None,
+        help="Limit number of jobs to crawl on LinkedIn",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=["skip", "update"],
@@ -103,10 +110,10 @@ def main():
         help="Enable enqueueing job index upsert events to BullMQ",
     )
     parser.add_argument(
-        "--queue-redis-url",
-        type=str,
-        default=None,
-        help="Redis URL for job index queue, e.g. redis://:password@host:6379/0",
+        "--queue-redis-urls",
+        nargs="*",
+        default=[],
+        help="List of Redis URLs for job index queue, e.g. redis://:password@host:6379/0",
     )
     parser.add_argument(
         "--queue-redis-host",
@@ -141,25 +148,26 @@ def main():
 
     args = parser.parse_args()
 
-    if not is_safe_db_url(args.db_url):
-        exit(1)
+    for url in args.db_urls:
+        if not is_safe_db_url(url):
+            exit(1)
 
     update_mode = args.mode == "update"
-    queue_producer = None
+    queue_producers = []
 
     if args.queue_index_enabled:
-        redis_host = args.queue_redis_host
-        redis_port = args.queue_redis_port
-        redis_password = args.queue_redis_password
-        redis_db = args.queue_redis_db
+        for redis_url in args.queue_redis_urls:
+            redis_host = args.queue_redis_host
+            redis_port = args.queue_redis_port
+            redis_password = args.queue_redis_password
+            redis_db = args.queue_redis_db
 
-        if args.queue_redis_url:
             (
                 url_host,
                 url_port,
                 url_password,
                 url_db,
-            ) = parse_redis_url(args.queue_redis_url)
+            ) = parse_redis_url(redis_url)
             redis_host = redis_host or url_host
             redis_port = redis_port if redis_port is not None else url_port
             redis_password = (
@@ -167,20 +175,35 @@ def main():
             )
             redis_db = redis_db if redis_db is not None else url_db
 
-        if not redis_host:
-            raise ValueError(
-                "Provide --queue-redis-url or --queue-redis-host when --queue-index-enabled is set"
+            if not redis_host:
+                raise ValueError(
+                    "Provide --queue-redis-urls or --queue-redis-host when --queue-index-enabled is set"
+                )
+
+            queue_producers.append(
+                JobIndexQueueProducer(
+                    QueueConfig(
+                        redis_host=redis_host,
+                        redis_port=redis_port if redis_port is not None else 6379,
+                        redis_password=redis_password,
+                        redis_db=redis_db if redis_db is not None else 0,
+                        node_script_path=args.queue_node_script_path,
+                    )
+                )
             )
 
-        queue_producer = JobIndexQueueProducer(
-            QueueConfig(
-                redis_host=redis_host,
-                redis_port=redis_port if redis_port is not None else 6379,
-                redis_password=redis_password,
-                redis_db=redis_db if redis_db is not None else 0,
-                node_script_path=args.queue_node_script_path,
+        if not args.queue_redis_urls and args.queue_redis_host:
+            queue_producers.append(
+                JobIndexQueueProducer(
+                    QueueConfig(
+                        redis_host=args.queue_redis_host,
+                        redis_port=args.queue_redis_port if args.queue_redis_port is not None else 6379,
+                        redis_password=args.queue_redis_password,
+                        redis_db=args.queue_redis_db if args.queue_redis_db is not None else 0,
+                        node_script_path=args.queue_node_script_path,
+                    )
+                )
             )
-        )
 
     # Handle page counts explicitly (allow 0 to skip)
     def get_pages(val):
@@ -206,7 +229,7 @@ def main():
     print(
         f"   Pages: ITViec={itviec_pages}, LinkedIn={linkedin_pages}, TopCV={topcv_pages}, JobsGO={jobsgo_pages}, VietnamWorks={vietnamworks_pages}"
     )
-    print(f"   Queue index: {'ENABLED' if queue_producer else 'DISABLED'}")
+    print(f"   Queue index: {'ENABLED' if queue_producers else 'DISABLED'}")
 
     total_queue_enqueued = 0
     total_queue_failed = 0
@@ -225,20 +248,22 @@ def main():
         if page <= itviec_pages:
             print(f"\n🔄 ITViec (page {page}/{itviec_pages})")
             itviec_companies = itviec_crawl(pages=1, start_page=page)
-            result = (
-                insert_to_db(
-                    args.db_url,
-                    itviec_companies,
-                    update_mode=update_mode,
-                    index_queue_producer=queue_producer,
+            for i, db_url in enumerate(args.db_urls):
+                producer = queue_producers[i] if i < len(queue_producers) else None
+                result = (
+                    insert_to_db(
+                        db_url,
+                        itviec_companies,
+                        update_mode=update_mode,
+                        index_queue_producer=producer,
+                    )
+                    or {}
                 )
-                or {}
-            )
-            if isinstance(result, dict):
-                for key in stats["itviec"]:
-                    stats["itviec"][key] += result.get(key, 0)
-                total_queue_enqueued += result.get("queue_enqueued", 0)
-                total_queue_failed += result.get("queue_failed", 0)
+                if isinstance(result, dict) and i == 0:
+                    for key in stats["itviec"]:
+                        stats["itviec"][key] += result.get(key, 0)
+                    total_queue_enqueued += result.get("queue_enqueued", 0)
+                    total_queue_failed += result.get("queue_failed", 0)
 
         # LinkedIn - page by page
         if page <= linkedin_pages:
@@ -249,80 +274,89 @@ def main():
                 pages=1,
                 start_page=page - 1,
                 keywords=args.linkedin_keywords,
+                limit=args.linkedin_limit,
             )
-            result = (
-                insert_to_db(
-                    args.db_url,
-                    linkedin_companies,
-                    update_mode=update_mode,
-                    index_queue_producer=queue_producer,
+            for i, db_url in enumerate(args.db_urls):
+                producer = queue_producers[i] if i < len(queue_producers) else None
+                result = (
+                    insert_to_db(
+                        db_url,
+                        linkedin_companies,
+                        update_mode=update_mode,
+                        index_queue_producer=producer,
+                    )
+                    or {}
                 )
-                or {}
-            )
-            if isinstance(result, dict):
-                for key in stats["linkedin"]:
-                    stats["linkedin"][key] += result.get(key, 0)
-                total_queue_enqueued += result.get("queue_enqueued", 0)
-                total_queue_failed += result.get("queue_failed", 0)
+                if isinstance(result, dict) and i == 0:
+                    for key in stats["linkedin"]:
+                        stats["linkedin"][key] += result.get(key, 0)
+                    total_queue_enqueued += result.get("queue_enqueued", 0)
+                    total_queue_failed += result.get("queue_failed", 0)
 
         # TopCV - page by page (max 10 jobs per page)
         if page <= topcv_pages:
-            print(f"\n🔄 TopCV (page {page}/{topcv_pages}, max 10 jobs)")
+            print(f"\n🔄 TopCV (page {page}/{topcv_pages}, max 5 jobs)")
             topcv_companies = topcv_crawl(
-                pages=1, start_page=page, max_jobs_per_page=10
+                pages=1, start_page=page, max_jobs_per_page=5
             )
-            result = (
-                insert_to_db(
-                    args.db_url,
-                    topcv_companies,
-                    update_mode=update_mode,
-                    index_queue_producer=queue_producer,
+            for i, db_url in enumerate(args.db_urls):
+                producer = queue_producers[i] if i < len(queue_producers) else None
+                result = (
+                    insert_to_db(
+                        db_url,
+                        topcv_companies,
+                        update_mode=update_mode,
+                        index_queue_producer=producer,
+                    )
+                    or {}
                 )
-                or {}
-            )
-            if isinstance(result, dict):
-                for key in stats["topcv"]:
-                    stats["topcv"][key] += result.get(key, 0)
-                total_queue_enqueued += result.get("queue_enqueued", 0)
-                total_queue_failed += result.get("queue_failed", 0)
+                if isinstance(result, dict) and i == 0:
+                    for key in stats["topcv"]:
+                        stats["topcv"][key] += result.get(key, 0)
+                    total_queue_enqueued += result.get("queue_enqueued", 0)
+                    total_queue_failed += result.get("queue_failed", 0)
 
         # JobsGO - page by page
         if page <= jobsgo_pages:
             print(f"\n🔄 JobsGO (page {page}/{jobsgo_pages})")
             jobsgo_companies = jobsgo_crawl(pages=1, start_page=page)
-            result = (
-                insert_to_db(
-                    args.db_url,
-                    jobsgo_companies,
-                    update_mode=update_mode,
-                    index_queue_producer=queue_producer,
+            for i, db_url in enumerate(args.db_urls):
+                producer = queue_producers[i] if i < len(queue_producers) else None
+                result = (
+                    insert_to_db(
+                        db_url,
+                        jobsgo_companies,
+                        update_mode=update_mode,
+                        index_queue_producer=producer,
+                    )
+                    or {}
                 )
-                or {}
-            )
-            if isinstance(result, dict):
-                for key in stats["jobsgo"]:
-                    stats["jobsgo"][key] += result.get(key, 0)
-                total_queue_enqueued += result.get("queue_enqueued", 0)
-                total_queue_failed += result.get("queue_failed", 0)
+                if isinstance(result, dict) and i == 0:
+                    for key in stats["jobsgo"]:
+                        stats["jobsgo"][key] += result.get(key, 0)
+                    total_queue_enqueued += result.get("queue_enqueued", 0)
+                    total_queue_failed += result.get("queue_failed", 0)
 
         # VietnamWorks - page by page
         if page <= vietnamworks_pages:
             print(f"\n🔄 VietnamWorks (page {page}/{vietnamworks_pages})")
             vietnamworks_companies = vietnamworks_crawl(pages=1, start_page=page)
-            result = (
-                insert_to_db(
-                    args.db_url,
-                    vietnamworks_companies,
-                    update_mode=update_mode,
-                    index_queue_producer=queue_producer,
+            for i, db_url in enumerate(args.db_urls):
+                producer = queue_producers[i] if i < len(queue_producers) else None
+                result = (
+                    insert_to_db(
+                        db_url,
+                        vietnamworks_companies,
+                        update_mode=update_mode,
+                        index_queue_producer=producer,
+                    )
+                    or {}
                 )
-                or {}
-            )
-            if isinstance(result, dict):
-                for key in stats["vietnamworks"]:
-                    stats["vietnamworks"][key] += result.get(key, 0)
-                total_queue_enqueued += result.get("queue_enqueued", 0)
-                total_queue_failed += result.get("queue_failed", 0)
+                if isinstance(result, dict) and i == 0:
+                    for key in stats["vietnamworks"]:
+                        stats["vietnamworks"][key] += result.get(key, 0)
+                    total_queue_enqueued += result.get("queue_enqueued", 0)
+                    total_queue_failed += result.get("queue_failed", 0)
 
     # Calculate totals
     total_inserted = sum(s["inserted"] for s in stats.values())
@@ -337,7 +371,7 @@ def main():
     print(f"   ✓ Inserted: {total_inserted}")
     print(f"   ↻ Updated: {total_updated}")
     print(f"   ⊘ Skipped: {total_skipped}")
-    if queue_producer:
+    if queue_producers:
         print(f"   📨 Queue enqueued: {total_queue_enqueued}")
         print(f"   ⚠ Queue failed: {total_queue_failed}")
 

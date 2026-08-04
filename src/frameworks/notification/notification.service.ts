@@ -1,8 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Notification, NewNotification } from "@/core";
+import { getRequestLanguage, normalizeLanguageCode } from "@/common/utils";
+import { NewNotification, Notification, NotificationType } from "@/core";
+import { INotificationService } from "@/core/abstracts/notification.abstract";
 import { INotificationRepository } from "@/core/abstracts/repositories/notification-repository.abstract";
 import { IWebSocketGateway } from "@/core/abstracts/websocket.abstract";
-import { INotificationService } from "@/core/abstracts/notification.abstract";
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -21,9 +22,15 @@ export class NotificationService implements INotificationService {
     },
   ): Promise<{ success: boolean; notification?: Notification }> {
     try {
+      const snapshotLanguageCode =
+        newNotification.snapshotLanguageCode ??
+        normalizeLanguageCode(getRequestLanguage());
       const [notification] =
         await this.notificationRepository.createNotificationWithRecipients(
-          newNotification,
+          {
+            ...newNotification,
+            snapshotLanguageCode,
+          },
           [
             {
               receiverId: recipient.userId,
@@ -32,7 +39,7 @@ export class NotificationService implements INotificationService {
           ],
         );
 
-      this.sendNotification(notification);
+      await this.sendNotification(notification);
 
       return { success: true, notification };
     } catch (error) {
@@ -44,7 +51,42 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  sendNotification(notification: Notification): boolean {
+  async upsertAggregatedAndSendToUser(params: {
+    recipientId: string;
+    senderId: string;
+    objectId: string;
+    type: NotificationType;
+    title: string;
+    buildMessage: (actorNames: string[], actorCount: number) => string;
+    templateKey?: string;
+    buildTemplateData?: (
+      actorNames: string[],
+      actorCount: number,
+    ) => Record<string, any>;
+    payload: Record<string, any>;
+  }): Promise<{ success: boolean }> {
+    try {
+      const notification =
+        await this.notificationRepository.upsertAggregatedNotification(params);
+
+      if (notification) {
+        await this.sendNotification({
+          ...notification,
+          receiverId: params.recipientId,
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Error upserting aggregated notification for user ${params.recipientId}:`,
+        error,
+      );
+      return { success: false };
+    }
+  }
+
+  sendNotification(notification: Notification): Promise<boolean> {
     const sent = this.webSocketGateway.sendToUser(
       {
         userId: notification.receiverId,
@@ -63,6 +105,6 @@ export class NotificationService implements INotificationService {
       );
     }
 
-    return sent;
+    return Promise.resolve(sent);
   }
 }

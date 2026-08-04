@@ -7,6 +7,7 @@ export interface BlogPostFilters extends GeneralQuery {
   status?: BlogPostStatus;
   excludeStatus?: BlogPostStatus;
   sourceType?: BlogSourceType;
+  skillIds?: string[];
 }
 
 export interface BlogPostSource {
@@ -15,13 +16,35 @@ export interface BlogPostSource {
   platform?: string | null;
 }
 
+export interface BlogLocalizedContent {
+  title?: string;
+  summary?: string;
+  content?: string;
+}
+
+export interface BlogLocaleMap {
+  [languageCode: string]: BlogLocalizedContent | undefined;
+}
+
+export interface BlogGeneratedLocaleContent {
+  title: string;
+  summary: string;
+  content: string;
+}
+
+export type BlogGeneratedLocaleMap = Partial<
+  Record<"vi" | "en", BlogGeneratedLocaleContent>
+>;
+
 export interface BlogPostListItem {
   id: string;
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   status: BlogPostStatus;
   sourceType: BlogSourceType;
   source: BlogPostSource | null;
@@ -52,9 +75,11 @@ export interface BlogPostDetailBase {
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   viewCount: number;
   author: BlogPostAuthor | null;
   status: BlogPostStatus;
@@ -69,9 +94,11 @@ export interface BlogPostDetail {
   title: string;
   slug: string;
   summary: string;
+  locales?: BlogLocaleMap;
   thumbnail: string | null;
   content: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   viewCount: number;
   author: BlogPostAuthor | null;
   likes: number;
@@ -107,12 +134,14 @@ export interface BlogPostTagInput {
 
 export interface GenerateJobBlogPostRequest {
   rangeDays: number;
+  asOf?: string;
 }
 
 export interface GenerateJobBlogPostResponse {
   title: string;
   summary: string;
-  category: string;
+  categoryId?: string;
+  category?: string;
   tags?: string[];
   tagInputs?: Array<{
     tagId?: string | null;
@@ -121,5 +150,6 @@ export interface GenerateJobBlogPostResponse {
   }>;
   thumbnail?: string | null;
   content: string;
+  locales?: BlogGeneratedLocaleMap;
   generatedAt?: string;
 }

@@ -35,6 +35,9 @@ import {
   ITaskRepository,
   IUserActionRepository,
   ICommentRepository,
+  IJobCopilotDraftRepository,
+  IJobCopilotConversationRepository,
+  ICandidateBriefRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -85,10 +88,25 @@ import { IBlogRepository } from "@/core/abstracts/repositories/blog-repository.a
 import { BlogRepository } from "./repositories/blog.repository";
 import { UserActionRepository } from "./repositories/user-action.repository";
 import { CommentRepository } from "./repositories/comment.repository";
+import { JobCopilotDraftRepository } from "./repositories/job-copilot-draft.repository";
+import { JobCopilotConversationRepository } from "./repositories/job-copilot-conversation.repository";
+import { CandidateBriefRepository } from "./repositories/candidate-brief.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
+import { RoadmapChatMessageRepository } from "./repositories/roadmap-chat-message.repository";
+import { IRoadmapChatMessageRepository } from "@/core/abstracts/repositories/roadmap-chat-message-repository.abstract";
+import {
+  ISubpathRepository,
+  IOptionResourceCompletionRepository,
+  ISubpathModuleQuizResultRepository,
+} from "@/core/abstracts";
+import {
+  SubpathRepository,
+  OptionResourceCompletionRepository,
+  SubpathModuleQuizResultRepository,
+} from "./repositories/subpath.repository";
 import { RedisModule } from "@/frameworks/redis/redis.module";
-import { createLoggerQuery } from "@/common/utils";
+import { createLoggerQuery, retry } from "@/common/utils";
 
 @Global()
 @Module({
@@ -99,45 +117,44 @@ import { createLoggerQuery } from "@/common/utils";
       useFactory: async (configService: ConfigService): Promise<DBDrizzle> => {
         const logger = new Logger("PostgresDataServicesModule");
         try {
+          const poolMax = configService.get<number>("DATABASE_POOL_MAX") ?? 10;
+          const poolMin = configService.get<number>("DATABASE_POOL_MIN") ?? 2;
+          const connectionTimeoutMillis =
+            configService.get<number>("DATABASE_POOL_CONNECTION_TIMEOUT_MS") ??
+            10000;
+
           const pool = new Pool({
             connectionString: configService.get<string>("DATABASE_URL"),
-            ssl:
-              process.env.NODE_ENV === "production"
-                ? { rejectUnauthorized: false }
-                : false,
-            max: 20, // Maximum number of connections in the pool
-            min: 5, // Minimum number of connections in the pool
-            idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-            connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
+            ssl: { rejectUnauthorized: false },
+            // Keep max modest so multiple replicas/workers don't exhaust DO slots
+            max: poolMax,
+            min: poolMin,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis,
           });
 
           (pool as any).query = createLoggerQuery(pool, { logger });
 
-          // Wrap pool để log SQL queries
-          const maxRetries = 3;
           let attempt = 0;
-          let connected = false;
-
-          while (!connected && attempt < maxRetries) {
-            attempt++;
-            try {
-              await pool.query("SELECT 1");
-              connected = true;
-              logger.log(
-                `Database connection established successfully (attempt ${attempt}).`,
-              );
-            } catch (err) {
-              logger.error(
-                `Database connection attempt ${attempt} failed:`,
-                err,
-              );
-              if (attempt < maxRetries) {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-              } else {
-                throw err; // hết retry thì throw
+          await retry(
+            async () => {
+              attempt++;
+              try {
+                await pool.query("SELECT 1");
+              } catch (err) {
+                logger.error(
+                  `Database connection attempt ${attempt} failed:`,
+                  err,
+                );
+                throw err;
               }
-            }
-          }
+            },
+            { retries: 3, interval: 1000 },
+          );
+          logger.log(
+            `Database connection established successfully (attempt ${attempt}, pool max=${poolMax}, min=${poolMin}, timeout=${connectionTimeoutMillis}ms).`,
+          );
+
           const db = drizzle(pool, {
             casing: "snake_case",
             // logger: true,
@@ -177,6 +194,18 @@ import { createLoggerQuery } from "@/common/utils";
     {
       provide: IJobRepository,
       useClass: JobRepository,
+    },
+    {
+      provide: IJobCopilotDraftRepository,
+      useClass: JobCopilotDraftRepository,
+    },
+    {
+      provide: IJobCopilotConversationRepository,
+      useClass: JobCopilotConversationRepository,
+    },
+    {
+      provide: ICandidateBriefRepository,
+      useClass: CandidateBriefRepository,
     },
     {
       provide: IProvinceRepository,
@@ -314,6 +343,22 @@ import { createLoggerQuery } from "@/common/utils";
       provide: ISkillNoteRepository,
       useClass: SkillNoteRepository,
     },
+    {
+      provide: ISubpathRepository,
+      useClass: SubpathRepository,
+    },
+    {
+      provide: IOptionResourceCompletionRepository,
+      useClass: OptionResourceCompletionRepository,
+    },
+    {
+      provide: ISubpathModuleQuizResultRepository,
+      useClass: SubpathModuleQuizResultRepository,
+    },
+    {
+      provide: IRoadmapChatMessageRepository,
+      useClass: RoadmapChatMessageRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -322,6 +367,9 @@ import { createLoggerQuery } from "@/common/utils";
     ICasbinRepository,
     ICvRepository,
     IJobRepository,
+    IJobCopilotDraftRepository,
+    IJobCopilotConversationRepository,
+    ICandidateBriefRepository,
     IProvinceRepository,
     ISkillRepository,
     ISkillsSynonymsRepository,
@@ -358,6 +406,10 @@ import { createLoggerQuery } from "@/common/utils";
     IUserActionRepository,
     ICommentRepository,
     ISkillNoteRepository,
+    ISubpathRepository,
+    IOptionResourceCompletionRepository,
+    ISubpathModuleQuizResultRepository,
+    IRoadmapChatMessageRepository,
   ],
 })
 export class PostgresDataServicesModule {}

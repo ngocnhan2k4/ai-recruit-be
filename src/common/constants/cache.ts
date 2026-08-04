@@ -12,9 +12,10 @@ export const CACHE_KEYS = {
   job: {
     patternDetail: (jobId: string) => `job:${jobId}:*`,
     get: (jobId: string) => `job:${jobId}:get`,
-    getWithDetail: (jobId: string) => `job:${jobId}:getWithDetail`,
-    getWithDetailByUser: (jobId: string, userId: string) =>
-      `job:${jobId}:getWithDetail:user:${userId}`,
+    getWithDetail: (jobId: string, statuses = "all") =>
+      `job:${jobId}:getWithDetail:statuses:${statuses}`,
+    getWithDetailByUser: (jobId: string, userId: string, statuses = "all") =>
+      `job:${jobId}:getWithDetail:user:${userId}:statuses:${statuses}`,
   },
   skillSynonym: {
     getAll: () => `skillSynonym:getAll`,
@@ -28,6 +29,7 @@ export const CACHE_KEYS = {
   },
   user: {
     get: (userId: string) => `user:${userId}:get`,
+    getUserProfile: (userId: string) => `user:${userId}:getUserProfile`,
   },
   cv: {
     get: (cvId: string) => `cv:${cvId}:get`,
@@ -40,9 +42,20 @@ export const CACHE_KEYS = {
   },
   blog: {
     patternDetail: (postId: string) => `blog:${postId}:*`,
+    patternSlugDetail: (slug: string) => `blog:slug:${slug}:*`,
     get: (postId: string) => `blog:${postId}:get`,
-    getPostBaseById: (postId: string) => `blog:${postId}:getPostBaseById`,
-    getPostBaseBySlug: (slug: string) => `blog:slug:${slug}:getPostBaseBySlug`,
+    getPostBaseById: (
+      postId: string,
+      requestLanguage = "vi",
+      fallbackLanguage = "vi",
+    ) =>
+      `blog:${postId}:getPostBaseById:v2:${requestLanguage}:${fallbackLanguage}`,
+    getPostBaseBySlug: (
+      slug: string,
+      requestLanguage = "vi",
+      fallbackLanguage = "vi",
+    ) =>
+      `blog:slug:${slug}:getPostBaseBySlug:v2:${requestLanguage}:${fallbackLanguage}`,
     viewCount: (postId: string) => `blog:${postId}:view`,
     viewDirty: () => `blog:view:dirty`,
     topBlogs: () => `blog:top`,

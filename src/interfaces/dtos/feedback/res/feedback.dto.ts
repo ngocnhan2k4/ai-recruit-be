@@ -31,6 +31,9 @@ export class FeedbackDto {
   @ApiProperty({ type: "string" })
   message: string;
 
+  @ApiProperty({ type: "string", example: "vi" })
+  languageCode: string;
+
   @ApiProperty({ type: [String], nullable: true })
   images: string[] | null;
 
@@ -64,6 +67,9 @@ export class CreateFeedbackResponseDto {
 export class GetFeedbacksResponseDto extends FeedbackDto {
   @ApiProperty({ type: RelatedEntityDto, nullable: true })
   assignedToUser?: RelatedEntityDto | null;
+
+  @ApiProperty({ type: "boolean" })
+  canTranslate: boolean;
 }
 
 export class GetSubmittedSurveysResponseDto {

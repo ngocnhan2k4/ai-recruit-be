@@ -2,7 +2,7 @@ export enum RoleEnum {
   // System-level roles
   SUPER_ADMIN = "SUPER_ADMIN",
   ADMIN = "ADMIN",
-  // MODERATOR = "MODERATOR",
+  MODERATOR = "MODERATOR",
   USER = "USER",
 }
 

@@ -1,5 +1,6 @@
 import { ValidationPipe } from "@nestjs/common";
 import { getAppConfigs } from "@/common/config";
+
 import fastifyCompress from "@fastify/compress";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
@@ -7,25 +8,24 @@ import fastifyCors from "@fastify/cors";
 import fastifyMultipart, { FastifyMultipartOptions } from "@fastify/multipart";
 import { NestFastifyApplication } from "@nestjs/platform-fastify";
 
-import { type FastifyRequest, type FastifyReply } from "fastify";
-import { LoggerMiddleware } from "./logger.middleware";
-import { ConfigService } from "@nestjs/config";
-
-export const enableAppMiddleware = (app: NestFastifyApplication) => {
+export const enableAppMiddleware = async (app: NestFastifyApplication) => {
   const appConfigs = getAppConfigs(app);
-  app.register(fastifyCors, {
+  await app.register(fastifyCors, {
     origin: appConfigs.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-    exposedHeaders: ["Set-Cookie"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie", "x-request-id"],
+    exposedHeaders: ["Set-Cookie", "x-request-id"],
   });
 
   app.setGlobalPrefix(appConfigs.globalPrefix);
 
-  // Use Fastify-native compression to avoid response/body issues in browsers
-  app.register(fastifyCompress, { global: true });
-  app.register(fastifyCookie);
+  await app.register(fastifyCompress, {
+    global: true,
+    threshold: 1024,
+    encodings: ["gzip", "deflate", "br"],
+  });
+  await app.register(fastifyCookie);
 
   // Register multipart support for file uploads
   const multipartOptions: FastifyMultipartOptions = {
@@ -33,13 +33,7 @@ export const enableAppMiddleware = (app: NestFastifyApplication) => {
       fileSize: 10 * 1024 * 1024, // 10MB
     },
   };
-  app.register(fastifyMultipart, multipartOptions);
-
-  // Add logger middleware
-  const loggerMiddleware = new LoggerMiddleware(new ConfigService());
-  app.use((req: FastifyRequest, res: FastifyReply, next: () => void) => {
-    loggerMiddleware.use(req, res, next);
-  });
+  await app.register(fastifyMultipart, multipartOptions);
 
   app.useGlobalPipes(
     new ValidationPipe({

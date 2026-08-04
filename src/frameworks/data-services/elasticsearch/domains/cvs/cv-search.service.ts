@@ -69,8 +69,6 @@ export class CvSearchService implements ICvSearchService {
       categoryId,
       experienceMin,
       experienceMax,
-      salaryMin,
-      salaryMax,
       sortBy,
       sortDirection,
     } = filters;
@@ -110,18 +108,8 @@ export class CvSearchService implements ICvSearchService {
       );
     }
 
-    const normalizedJobSalaryMax =
-      typeof salaryMax === "number"
-        ? salaryMax
-        : salaryMax != null
-          ? Number(salaryMax)
-          : null;
-    const normalizedJobSalaryMin =
-      typeof salaryMin === "number"
-        ? salaryMin
-        : salaryMin != null
-          ? Number(salaryMin)
-          : null;
+    const hasExperienceRequirement =
+      experienceMin != null && experienceMax != null;
 
     const functions: any[] = [
       ...(skillIds && skillIds.length > 0
@@ -149,17 +137,20 @@ export class CvSearchService implements ICvSearchService {
             },
           ]
         : []),
-      {
-        weight: 0.25,
-        script_score: {
-          script: {
-            source: `
+      ...(hasExperienceRequirement
+        ? [
+            {
+              weight: 0.25,
+              script_score: {
+                script: {
+                  source: `
+              if (!doc.containsKey('experienceYears') || doc['experienceYears'].size() == 0) {
+                return 0;
+              }
+
               long expMin = params.jobExpMin;
               long expMax = params.jobExpMax;
-              long cvExp = 0;
-              if (doc.containsKey('experienceYears') && doc['experienceYears'].size() > 0) {
-                cvExp = doc['experienceYears'].value;
-              }
+              long cvExp = doc['experienceYears'].value;
 
               if (cvExp >= expMax) {
                 return 1;
@@ -171,16 +162,18 @@ export class CvSearchService implements ICvSearchService {
                 return 0.2;
               }
             `,
-            params: {
-              jobExpMin: Math.max(0, experienceMin ?? 0),
-              jobExpMax: Math.max(
-                experienceMin ?? 0,
-                experienceMax ?? experienceMin ?? 0,
-              ),
+                  params: {
+                    jobExpMin: Math.max(0, experienceMin ?? 0),
+                    jobExpMax: Math.max(
+                      experienceMin ?? 0,
+                      experienceMax ?? experienceMin ?? 0,
+                    ),
+                  },
+                },
+              },
             },
-          },
-        },
-      },
+          ]
+        : []),
       ...(provinceIds && provinceIds.length > 0
         ? [
             {
@@ -209,7 +202,7 @@ export class CvSearchService implements ICvSearchService {
       ...(categoryId
         ? [
             {
-              weight: 0.1,
+              weight: 0.2,
               script_score: {
                 script: {
                   source: `
@@ -226,38 +219,6 @@ export class CvSearchService implements ICvSearchService {
             },
           ]
         : []),
-      {
-        weight: 0.1,
-        script_score: {
-          script: {
-            source: `
-              double cvExpected = 0;
-              if (doc.containsKey('expectedSalary') && doc['expectedSalary'].size() > 0) {
-                cvExpected = doc['expectedSalary'].value;
-              } else {
-                return 1;
-              }
-
-              double jobMax = params.jobSalaryMax;
-              if (jobMax <= 0) {
-                return 1;
-              }
-
-              if (cvExpected <= jobMax * 1.2) {
-                return 1;
-              } else if (cvExpected <= jobMax * 1.5) {
-                return 0.7;
-              } else {
-                return 0.3;
-              }
-            `,
-            params: {
-              jobSalaryMax:
-                normalizedJobSalaryMax ?? normalizedJobSalaryMin ?? 0,
-            },
-          },
-        },
-      },
     ];
 
     return {
@@ -301,7 +262,6 @@ export class CvSearchService implements ICvSearchService {
             "categoryIds",
             "categoryNames",
             "experienceYears",
-            "expectedSalary",
             "updatedAt",
           ],
         },

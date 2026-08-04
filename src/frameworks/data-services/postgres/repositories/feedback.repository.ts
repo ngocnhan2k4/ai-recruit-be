@@ -22,6 +22,7 @@ import {
   or,
 } from "drizzle-orm";
 import { FeedbackFilter, FeedbackTrends, FeedbackTrendsQuery } from "@/core";
+import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
 import { PaginatedResult, RelatedEntity } from "@/common/types";
 import { convertDateToStr } from "@/common/utils";
 import { users } from "../models";
@@ -74,7 +75,7 @@ export class FeedbackRepository
       );
     }
 
-    const [feedbacksResult, total] = await Promise.all([
+    const [feedbacksResult, total, summaryRows] = await Promise.all([
       this.db
         .select({
           id: feedbacks.id,
@@ -82,6 +83,7 @@ export class FeedbackRepository
           email: feedbacks.email,
           message: feedbacks.message,
           subject: feedbacks.subject,
+          languageCode: feedbacks.languageCode,
           images: feedbacks.images,
           type: feedbacks.type,
           metadata: feedbacks.metadata,
@@ -109,11 +111,31 @@ export class FeedbackRepository
         .where(
           whereConditions.length > 0 ? and(...whereConditions) : undefined,
         ),
+      this.db
+        .select({
+          status: feedbacks.status,
+          count: count(),
+        })
+        .from(feedbacks)
+        .where(isNull(feedbacks.deletedAt))
+        .groupBy(feedbacks.status),
     ]);
+
+    const statusCounts = Object.fromEntries(
+      summaryRows.map((row) => [row.status, Number(row.count)]),
+    ) as Record<string, number>;
+
+    const summary: Record<string, number> = {
+      total: Object.values(statusCounts).reduce((sum, n) => sum + n, 0),
+      pending: statusCounts[FeedbackStatusEnum.PENDING] ?? 0,
+      read: statusCounts[FeedbackStatusEnum.READ] ?? 0,
+      resolved: statusCounts[FeedbackStatusEnum.RESOLVED] ?? 0,
+    };
 
     return {
       data: feedbacksResult,
       pagination: { total: Number(total[0]?.count ?? 0) },
+      summary,
     };
   }
 

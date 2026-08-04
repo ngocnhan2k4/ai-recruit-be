@@ -1,15 +1,15 @@
 import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import {
-  IJobRepository,
-  ILoggerServices,
-  ISearchService,
-} from "@/core/abstracts";
+import { IJobRepository, ISearchService, IAIService } from "@/core/abstracts";
 import { transformJobToDocument } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { JOB_INDEX_QUEUE } from "@/common/constants";
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
-import { JobEventType } from "@/core";
+import { JobEventType, JobStatusEnum } from "@/core";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type JobIndexData = {
   jobId: string;
@@ -26,30 +26,24 @@ export class JobIndexWorker extends WorkerHost {
   constructor(
     private readonly searchService: ISearchService,
     private readonly configService: ConfigService,
-    private readonly loggerService: ILoggerServices,
     private readonly jobRepository: IJobRepository,
+    private readonly aiService: IAIService,
   ) {
     super();
   }
 
   async process(job: Job) {
-    try {
-      await this.processEvent(
-        job.name as JobEventType,
-        job.data as JobIndexData,
-      );
-    } catch (error: any) {
-      this.logger.error(
-        `[process] Failed to process job ${job.id}: ${error}`,
-        error.stack,
-      );
-      await this.loggerService.logError({
-        type: "error",
-        content: `[process] Failed to process job ${job.id}: ${error}`,
-        note: error.stack,
-      });
-      throw error;
-    }
+    return runJobWithContext(job, async () => {
+      try {
+        await this.processEvent(
+          job.name as JobEventType,
+          job.data as JobIndexData,
+        );
+      } catch (error: any) {
+        this.logger.error(formatWorkerErrorLog("job-index.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processEvent(
@@ -82,7 +76,32 @@ export class JobIndexWorker extends WorkerHost {
           this.logger.warn(`[processEvent] Job ${data.jobId} not found`);
           throw new Error(`[processEvent] Job ${data.jobId} not found`);
         }
-        const document = transformJobToDocument(job);
+
+        if (!job.category?.id) {
+          this.logger.warn(`[processEvent] Job ${data.jobId} has no category`);
+          return;
+        }
+
+        let embedding = (job.job as any).embedding as number[] | undefined;
+
+        if (job.job.status === (JobStatusEnum.ACTIVE as string)) {
+          try {
+            const textToEmbed = `${job.job.title} ${job.job.description || ""} ${(job.skills || []).map((s: any) => s.name).join(" ")} ${job.category?.name || ""}`;
+            embedding = await this.aiService.generateEmbedding(textToEmbed);
+
+            // Save the new embedding back to the database
+            await this.jobRepository.updateJob(job.job.id, { embedding });
+          } catch (e: any) {
+            this.logger.warn(
+              `[processEvent] Failed to generate embedding for job ${data.jobId}: ${e.message}`,
+            );
+          }
+        }
+
+        const document = transformJobToDocument({
+          ...job,
+          embedding,
+        });
 
         const res = await this.searchService.indexDocument(
           indexName,

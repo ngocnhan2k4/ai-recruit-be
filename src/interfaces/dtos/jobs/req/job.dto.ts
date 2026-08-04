@@ -67,15 +67,6 @@ export class QueryJobDto extends GeneralQueryDto {
   provinceId?: string;
 
   @ApiProperty({
-    example: "uuid-company-id",
-    required: false,
-    description: "Company ID to filter by",
-  })
-  @IsOptional()
-  @IsString()
-  companyId?: string;
-
-  @ApiProperty({
     example: "uuid-category-id",
     required: false,
     description: "Category ID to filter by",
@@ -138,6 +129,77 @@ export class QueryJobDto extends GeneralQueryDto {
   @IsArray()
   @IsUUID("4", { each: true })
   skillIds?: string[];
+}
+
+export class SalaryInsightPreviewQueryDto {
+  @ApiProperty({
+    example: "uuid-category-id",
+    required: false,
+    description: "Category ID to match comparable jobs",
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: "Minimum years of experience",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  experienceMin?: number;
+
+  @ApiProperty({
+    example: 5,
+    required: false,
+    description: "Maximum years of experience",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  experienceMax?: number;
+
+  @ApiProperty({
+    example: 15000000,
+    required: false,
+    description: "Salary min currently entered in the job form",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  salaryMin?: number;
+
+  @ApiProperty({
+    example: 20000000,
+    required: false,
+    description: "Salary max currently entered in the job form",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  salaryMax?: number;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    description: "Province IDs currently selected in the job form",
+  })
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  @IsArray()
+  @IsUUID("4", { each: true })
+  provinceIds?: string[];
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Job ID to exclude from comparison — set when editing an existing job",
+  })
+  @IsOptional()
+  @IsUUID()
+  jobId?: string;
 }
 
 export class CreateJobDto {

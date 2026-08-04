@@ -43,8 +43,8 @@ export class BlogService {
 
     if (post.status === (BlogPostStatus.DRAFT as string)) {
       throw new BadRequestException({
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_IS_DRAFT,
+        code: RESPONSE_CODE.BLOG_POST_IS_DRAFT,
       });
     }
 
@@ -56,8 +56,8 @@ export class BlogService {
 
     if (post.status !== (BlogPostStatus.PUBLISHED as string)) {
       throw new BadRequestException({
-        message: RESPONSE_MESSAGE.BLOG_POST_NOT_FOUND,
-        code: RESPONSE_CODE.BLOG_POST_NOT_FOUND,
+        message: RESPONSE_MESSAGE.BLOG_POST_NOT_PUBLISHED,
+        code: RESPONSE_CODE.BLOG_POST_NOT_PUBLISHED,
       });
     }
 
@@ -65,7 +65,7 @@ export class BlogService {
   }
 
   calculateTopBlogs(posts: BlogPostListItemDto[]): BlogPostListItemDto[] {
-    const now = new Date().getTime();
+    const now = Date.now();
     const scoredPosts = posts.map((post) => {
       const createdAtTime = new Date(post.createdAt).getTime();
       const ageInHours = Math.max(0, (now - createdAtTime) / (1000 * 60 * 60));
@@ -78,7 +78,7 @@ export class BlogService {
   }
 
   calculateRelatedPosts(
-    currentPost: { category: string; sourceType?: string },
+    currentPost: { categoryId: string; sourceType?: string },
     candidates: BlogPostListItemDto[],
     currentTags: { name: string }[],
     limit = 4,
@@ -88,7 +88,7 @@ export class BlogService {
     const scored = candidates.map((post) => {
       let score = 0;
 
-      if (post.category === currentPost.category) {
+      if (post.categoryId === currentPost.categoryId) {
         score += 5;
       }
 
