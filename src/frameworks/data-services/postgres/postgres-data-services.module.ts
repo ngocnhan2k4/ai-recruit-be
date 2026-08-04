@@ -38,6 +38,7 @@ import {
   IJobCopilotDraftRepository,
   IJobCopilotConversationRepository,
   ICandidateBriefRepository,
+  IActivityRepository,
 } from "@/core";
 
 import { AuthRepository } from "./repositories/auth.repository";
@@ -91,6 +92,7 @@ import { CommentRepository } from "./repositories/comment.repository";
 import { JobCopilotDraftRepository } from "./repositories/job-copilot-draft.repository";
 import { JobCopilotConversationRepository } from "./repositories/job-copilot-conversation.repository";
 import { CandidateBriefRepository } from "./repositories/candidate-brief.repository";
+import { ActivityRepository } from "./repositories/activity.repository";
 import { SkillNoteRepository } from "./repositories/skill-note.repository";
 import { ISkillNoteRepository } from "@/core/abstracts";
 import { RoadmapChatMessageRepository } from "./repositories/roadmap-chat-message.repository";
@@ -359,6 +361,10 @@ import { createLoggerQuery, retry } from "@/common/utils";
       provide: IRoadmapChatMessageRepository,
       useClass: RoadmapChatMessageRepository,
     },
+    {
+      provide: IActivityRepository,
+      useClass: ActivityRepository,
+    },
   ],
   exports: [
     "DRIZZLE",
@@ -410,6 +416,7 @@ import { createLoggerQuery, retry } from "@/common/utils";
     IOptionResourceCompletionRepository,
     ISubpathModuleQuizResultRepository,
     IRoadmapChatMessageRepository,
+    IActivityRepository,
   ],
 })
 export class PostgresDataServicesModule {}

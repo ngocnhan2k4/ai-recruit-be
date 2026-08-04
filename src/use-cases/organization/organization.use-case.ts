@@ -6,6 +6,7 @@ import {
 } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
 import { generateSlug } from "@/common/utils";
+import { setAuditContext } from "@/common/audit/set-audit-context";
 import {
   EmailJobType,
   ICompanyRepository,
@@ -248,6 +249,11 @@ export class OrganizationUseCase {
       `Added Casbin g2 role: ${userId} -> ${OrganizationRoleEnum.ORGANIZATION_OWNER} -> ${result.id}`,
     );
 
+    setAuditContext({
+      targetId: result.id,
+      organizationId: result.id,
+    });
+
     return {
       data: result,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -297,21 +303,32 @@ export class OrganizationUseCase {
       phone?: string;
     },
   ): Promise<ApiResponse<OrganizationWithDetails>> {
+    const org = await this.organizationRepository.getOrganizationById(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
     // If request body is empty, get and return existing organization
     if (Object.keys(data).length === 0) {
-      const org = await this.organizationRepository.getOrganizationById(orgId);
-      if (!org) {
-        throw new NotFoundException({
-          message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
-          code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
-        });
-      }
       return {
         data: org,
         message: "Cập nhật thông tin cơ bản thành công",
         code: RESPONSE_CODE.SUCCESS,
       };
     }
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        description: org.description,
+        websiteUrl: org.websiteUrl,
+        phone: org.phone,
+      },
+    });
 
     // Update organization table with only provided fields
     const updatedOrg = await this.organizationRepository.updateOrganizationById(
@@ -359,9 +376,25 @@ export class OrganizationUseCase {
       });
     }
 
+    const previousLocations =
+      await this.organizationLocationRepository.getByField({
+        organizationId: orgId,
+      });
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        locations: previousLocations,
+        updated: { locations },
+      },
+    });
+
     const updatedLocations =
       await this.organizationRepository.executeWithTransaction(async (tx) => {
         // Delete all existing locations for this organization
+        // [TODO]: Fix this, only delete locations that are not in the new list, and update existing ones if needed
         await this.organizationLocationRepository.deletePermanently(
           { organizationId: orgId },
           tx,
@@ -428,6 +461,19 @@ export class OrganizationUseCase {
       };
     }
 
+    const company =
+      await this.companyRepository.getCompanyByOrganizationId(orgId);
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        culture: company?.culture,
+        benefits: company?.benefits,
+      },
+    });
+
     const updatedCompany = await this.companyRepository.update(
       { organizationId: orgId },
       {
@@ -464,6 +510,15 @@ export class OrganizationUseCase {
 
     // Check permission: only owner can update email
     await this.checkIsOwner(orgId, actorId);
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        email: org.email,
+      },
+    });
 
     // If email is already verified, require OTP verification before changing
     if (org.verifiedAt !== null) {
@@ -558,6 +613,15 @@ export class OrganizationUseCase {
       });
     }
 
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        email: org.email,
+      },
+    });
+
     // Update organization email and reset verifiedAt to null
     const updated = await this.organizationRepository.update(
       { id: orgId },
@@ -647,6 +711,11 @@ export class OrganizationUseCase {
       `Email verification OTP sent to ${email} for organization ${orgId}`,
     );
 
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+    });
+
     return {
       data: {
         message: `Verification code has been sent to ${email}`,
@@ -705,8 +774,18 @@ export class OrganizationUseCase {
       });
     }
 
-    // Update organization with verified timestamp
     const verifiedAt = new Date();
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        email,
+        verifiedAt: org.verifiedAt,
+      },
+    });
+
     const updated = await this.organizationRepository.update(
       { id: orgId },
       { verifiedAt },
@@ -754,6 +833,11 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NAME_CONFIRMATION_NOT_MATCH,
       });
     }
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+    });
 
     // Soft delete
     await this.organizationRepository.delete({
@@ -972,10 +1056,23 @@ export class OrganizationUseCase {
       };
     }
 
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        description: org.description,
+        websiteUrl: org.websiteUrl,
+        phone: org.phone,
+        verifiedAt: org.verifiedAt,
+      },
+    });
+
     const updated = await this.organizationRepository.updateOrganizationById(
       orgId,
       updatePayload,
     );
+
     return {
       data: updated,
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -993,6 +1090,11 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
       });
     }
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+    });
 
     await this.organizationRepository.delete({ id: orgId });
     return {
@@ -1040,6 +1142,14 @@ export class OrganizationUseCase {
     orgId: string,
     file: MultipartFile,
   ): Promise<ApiResponse<{ logoUrl: string }>> {
+    const org = await this.organizationRepository.get(orgId);
+    if (!org) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.ORGANIZATION_NOT_FOUND,
+        code: RESPONSE_CODE.ORGANIZATION_NOT_FOUND,
+      });
+    }
+
     // Validate file (images only, max 5MB)
     await this.cloudinaryService.validateFile(file, {
       maxSize: 5 * 1024 * 1024, // 5MB
@@ -1057,6 +1167,15 @@ export class OrganizationUseCase {
         code: RESPONSE_CODE.ERROR_UPLOADING_FILE,
       });
     }
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        name: org.name,
+        logoUrl: org.logoUrl,
+      },
+    });
 
     // Update organization logo URL
     const updated = await this.organizationRepository.update(

@@ -106,10 +106,14 @@ import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { TranslationUseCasesModule } from "@/use-cases/translation/translation-use-cases.module";
 import { TaskUseCasesModule } from "@/use-cases/task/task.module";
 import { SubscriptionController } from "./interfaces/controllers/subscription/subscription.controller";
+import { AuditInterceptor } from "./common/audit/audit.interceptor";
 import { ContextMiddleware } from "./common/middlewares/context.middleware";
+import { MessageQueueModule } from "@/frameworks/message-queue/message-queue.module";
 import { EventTrackingModule } from "./use-cases/event-tracking/event-tracking.module";
 import { HomeUseCasesModule } from "./use-cases/home/home-use-cases.module";
 import { HomeController } from "./interfaces/controllers/home/home.controller";
+import { AuditUseCasesModule } from "./use-cases/activity/activity.use-cases.module";
+import { AdminActivityController } from "./interfaces/controllers/activity/admin-activity.controller";
 
 @Module({
   imports: [
@@ -125,6 +129,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
       // load: [envConfig],
       validate: validateConfig,
     }),
+    MessageQueueModule,
     ScheduleModule.forRoot(),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -189,6 +194,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
     TaskUseCasesModule,
     EventTrackingModule,
     HomeUseCasesModule,
+    AuditUseCasesModule,
   ],
   controllers: [
     UserController,
@@ -232,6 +238,7 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
     CommentController,
     TranslationController,
     TaskAdminController,
+    AdminActivityController,
   ],
   providers: [
     JwtStrategy,
@@ -265,6 +272,11 @@ import { HomeController } from "./interfaces/controllers/home/home.controller";
       provide: APP_INTERCEPTOR,
       useClass: PrometheusMetricsInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+    ContextMiddleware,
   ],
 })
 export class AppModule implements NestModule {

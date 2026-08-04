@@ -1,4 +1,5 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { setAuditContext } from "@/common/audit/set-audit-context";
 import { OrganizationRoleEnum } from "@/core";
 import { IOrganizationMembersRepository } from "@/core/abstracts/repositories/organization-members-repository.abstract";
 import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
@@ -147,6 +148,15 @@ export class OrganizationMemberUseCase {
       `Removed Casbin g2 role: ${userId} -> ${targetMember.role} -> ${orgId}`,
     );
 
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        userId,
+        role: targetMember.role,
+      },
+    });
+
     return await this.organizationMemberRepository.delete({
       organizationId: orgId,
       userId,
@@ -208,6 +218,15 @@ export class OrganizationMemberUseCase {
     this.logger.log(
       `Removed Casbin g2 role: ${kickedMemberId} -> ${kickedMember.role} -> ${orgId}`,
     );
+
+    setAuditContext({
+      targetId: orgId,
+      organizationId: orgId,
+      data: {
+        userId: kickedMemberId,
+        role: kickedMember.role,
+      },
+    });
 
     await this.organizationMemberRepository.delete({
       organizationId: orgId,
@@ -288,6 +307,15 @@ export class OrganizationMemberUseCase {
         code: RESPONSE_CODE.BAD_REQUEST,
       });
     }
+
+    setAuditContext({
+      targetId: organizationId,
+      organizationId,
+      data: {
+        userId: data.userId,
+        role: targetCurrentRole,
+      },
+    });
 
     const updated = await this.organizationMemberRepository.update(
       {

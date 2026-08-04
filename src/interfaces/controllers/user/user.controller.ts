@@ -13,6 +13,7 @@ import {
   CreateUserExperienceRequestDto,
   CreateUserSkillRequestDto,
   DeleteUserSkillResponseDto,
+  GeneralQueryDto,
   UpdateUserEducationDto,
   UserEducationResponseDto,
   UserExperiencesResponseDto,
@@ -32,6 +33,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -56,7 +58,10 @@ import {
   UserOnboardingDto,
   UserPublicResponseDto,
   UserSeoPublicResponseDto,
+  UserAuditItemDto,
+  PaginatedResultDto,
 } from "../../dtos";
+import { ActivityUseCase } from "@/use-cases/activity/activity.use-case";
 
 @ApiTags("Users")
 @Controller("users")
@@ -64,6 +69,7 @@ export class UserController {
   constructor(
     private readonly userUseCases: UserUseCases,
     private readonly organizationInvitationUseCases: OrganizationInvitationUseCase,
+    private readonly auditUseCase: ActivityUseCase,
   ) {}
 
   @UseGuards(JwtAuthGuard, CasbinGuard)
@@ -103,6 +109,21 @@ export class UserController {
   @Get("me/features")
   getMyFeatures(@GetUser() user: TokenPayload) {
     return this.userUseCases.getMyFeatures(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Get my activity history",
+    description:
+      "User-facing audit trail with message + marks (UTF-16 indexes, styles=bold). Cursor pagination via `cursor` + `limit`.",
+  })
+  @ApiResponseDto(UserAuditItemDto, { isArray: true })
+  @Get("me/activities")
+  getMyActivities(
+    @GetUser() user: TokenPayload,
+    @Query() query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<UserAuditItemDto>>> {
+    return this.auditUseCase.getMyActivities(user.userId, query);
   }
 
   @UseGuards(JwtAuthGuard)

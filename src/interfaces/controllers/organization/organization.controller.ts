@@ -43,11 +43,16 @@ import {
   UpdateOrganizationLocationDto,
   VerifyOrganizationEmailDto,
 } from "../../dtos";
+import { ActivityUseCase } from "@/use-cases/activity/activity.use-case";
+import { UserAuditItemDto } from "@/interfaces/dtos/activity";
 
 @ApiTags("Organization")
 @Controller("organizations")
 export class OrganizationController {
-  constructor(private readonly organizationUseCase: OrganizationUseCase) {}
+  constructor(
+    private readonly organizationUseCase: OrganizationUseCase,
+    private readonly auditUseCase: ActivityUseCase,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get("/me")
@@ -65,6 +70,26 @@ export class OrganizationController {
   ) {
     return await this.organizationUseCase.getOrganizationsByOwner(
       user?.userId,
+      query,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, OrganizationAuthorizeGuard)
+  @Get("/:orgId/activities")
+  @ApiOperation({
+    summary: "Get organization activity history",
+    description:
+      "Org-member-facing audit trail with message + marks (UTF-16 indexes, styles=bold). Cursor pagination via `cursor` + `limit`.",
+  })
+  @ApiResponseDto(UserAuditItemDto, { isArray: true })
+  async getOrganizationActivities(
+    @GetUser() user: TokenPayload,
+    @Param("orgId") orgId: string,
+    @Query() query: GeneralQueryDto,
+  ): Promise<ApiResponse<PaginatedResultDto<UserAuditItemDto>>> {
+    return this.auditUseCase.getOrganizationActivities(
+      orgId,
+      user.userId,
       query,
     );
   }
