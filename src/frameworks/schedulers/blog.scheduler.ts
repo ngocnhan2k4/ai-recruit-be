@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { IBlogRepository, ICacheService } from "@/core";
 import { CACHE_KEYS } from "@/common/constants";
+import { BlogUseCases } from "@/use-cases/blog/blog.use-case";
 
 @Injectable()
 export class BlogScheduler {
@@ -10,6 +11,7 @@ export class BlogScheduler {
   constructor(
     private readonly cacheService: ICacheService,
     private readonly blogRepository: IBlogRepository,
+    private readonly blogUseCases: BlogUseCases,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -45,7 +47,6 @@ export class BlogScheduler {
         ...keys,
       );
 
-      // 3. build updates
       const updates: { postId: string; viewCount: number }[] = [];
 
       for (let i = 0; i < postIds.length; i++) {
@@ -58,12 +59,10 @@ export class BlogScheduler {
         }
       }
 
-      // 4. update DB (batch)
       if (updates.length > 0) {
         await this.blogRepository.incrementViewCount(updates);
       }
 
-      // 5. remove post ids from dirty set
       await this.cacheService.removeFromSet(
         CACHE_KEYS.blog.viewDirty(),
         ...postIds,
@@ -73,7 +72,28 @@ export class BlogScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to sync blog view counts: ${err.message}`,
+        `[scheduler.syncBlogViewCount] Failed to sync blog view counts: ${err.message}`,
+        err.stack,
+      );
+    }
+  }
+
+  @Cron("0 0 0 * * 0", {
+    timeZone: process.env.TIMEZONE || "Asia/Ho_Chi_Minh",
+  })
+  async generateWeeklyAiBlog(): Promise<void> {
+    try {
+      this.logger.log(
+        "[scheduler.generateWeeklyAiBlog] Running scheduled weekly AI blog generation...",
+      );
+      const result = await this.blogUseCases.generateWeeklyAiBlog();
+      this.logger.log(
+        `[scheduler.generateWeeklyAiBlog] Done: ${JSON.stringify(result.data)}`,
+      );
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `[scheduler.generateWeeklyAiBlog] Failed to generate AI blog: ${err.message}`,
         err.stack,
       );
     }

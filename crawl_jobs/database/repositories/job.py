@@ -11,6 +11,9 @@ def get_or_create_job_raw(cur, title, jdata, company_raw_id):
         cur.execute("SELECT id FROM job_raws WHERE title = %s AND company_id = %s LIMIT 1", (title, company_raw_id))
         row = cur.fetchone()
         if row: return row[0]
+    
+    date_posted = jdata.get("date_posted") or jdata.get("crawled_at")
+    
     query = """
         INSERT INTO job_raws
             (title, description, url, date_posted, skills, crawled_at,
@@ -19,7 +22,7 @@ def get_or_create_job_raw(cur, title, jdata, company_raw_id):
         RETURNING id;
     """
     cur.execute(query, (
-        title, jdata.get("description") or "", jdata.get("job_url"), jdata.get("date_posted"), jdata.get("skills"),
+        title, jdata.get("description") or "", jdata.get("job_url"), date_posted, jdata.get("skills"),
         jdata.get("crawled_at"), company_raw_id, jdata.get("salary_min"), jdata.get("salary_max"),
         jdata.get("locations"), jdata.get("category"), jdata.get("source"),
     ))
@@ -53,13 +56,14 @@ def update_job(cur, job_id, jdata, category_id=None):
         ))
 
 def insert_job(cur, title, jdata, organization_id, job_raw_id, category_id=None):
+    date_posted = jdata.get("date_posted") or jdata.get("crawled_at")
     cur.execute("""
         INSERT INTO jobs
             (title, description, date_posted, organization_id, created_at, 
              salary_min, salary_max, experience_min, experience_max, end_date, job_raw_id, status, work_type, category_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         """, (
-            title, jdata.get("description") or "", jdata.get("date_posted"), organization_id,
+            title, jdata.get("description") or "", date_posted, organization_id,
             jdata.get("crawled_at"), jdata.get("salary_min"), jdata.get("salary_max"),
             jdata.get("experience_min"), jdata.get("experience_max"), jdata.get("end_date"),
             job_raw_id, JobStatus.ACTIVE, WorkType.ONSITE, category_id,

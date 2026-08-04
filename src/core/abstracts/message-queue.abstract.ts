@@ -13,4 +13,27 @@ export abstract class IMessageQueueService {
    * Add an item to the email queue.
    */
   abstract addEmail(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Add an item to the translation queue.
+   */
+  abstract addTranslation(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Add an item to the CV extraction/index queue.
+   */
+  abstract addCv(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Add an item to the CV scoring queue.
+   */
+  abstract addScoreCv(name: string, data: any, opts?: any): Promise<void>;
+
+  /**
+   * Index a CV then score it — cv_index job must complete before score_cv runs.
+   */
+  abstract addCvThenScore(
+    cvData: { cvId: string },
+    scoreData: { applyId: string; jobId: string; cvId: string },
+  ): Promise<void>;
 }

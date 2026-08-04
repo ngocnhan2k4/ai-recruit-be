@@ -32,11 +32,30 @@ export class EnvironmentVariables {
   @IsString()
   GLOBAL_PREFIX: string = "/api/v1";
 
+  @IsOptional()
+  @IsString()
+  TIMEZONE: string = "Asia/Ho_Chi_Minh";
+
   @IsString()
   DATABASE_URL: string;
 
   @IsString()
   DATABASE_ADAPTER_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MAX: number = 10;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_MIN: number = 2;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  DATABASE_POOL_CONNECTION_TIMEOUT_MS: number = 10000;
 
   @IsString()
   JWT_SECRET: string;
@@ -94,6 +113,19 @@ export class EnvironmentVariables {
   @IsNumber()
   AI_SERVICE_MAX_RETRIES: number;
 
+  @IsOptional()
+  @IsString()
+  AI_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  AI_BLOG_AUTHOR_ID: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  AI_BLOG_RANGE_DAYS: number = 7;
+
   @IsString()
   FRONTEND_URL: string;
 
@@ -123,6 +155,13 @@ export class EnvironmentVariables {
   @IsString()
   ELASTICSEARCH_INDEX_JOBS: string;
 
+  @IsString()
+  ELASTICSEARCH_INDEX_CVS: string;
+
+  @IsOptional()
+  @IsString()
+  ELASTICSEARCH_INDEX_EVENT_TRACKING: string;
+
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
@@ -136,14 +175,24 @@ export class EnvironmentVariables {
   CORS_ORIGINS: string[];
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      return !["false", "0", "off", "no"].includes(value.toLowerCase());
+    }
+    return true;
+  })
+  RATE_LIMIT_ENABLED: boolean = true;
+
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
-  RATE_LIMIT_CAPACITY: number = 60;
+  RATE_LIMIT_CAPACITY: number;
 
   @IsOptional()
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
-  RATE_LIMIT_REFILL_RATE: number = 1;
+  RATE_LIMIT_REFILL_RATE: number;
 
   @IsOptional()
   @IsString()
@@ -195,6 +244,24 @@ export class EnvironmentVariables {
   @IsNumber()
   @Transform(({ value }: { value: string }) => parseFloat(value))
   TIME_TO_DELETE_ACCOUNT_DAYS: number = 30;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_API_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_TRANSLATE_BASE_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_TIMEOUT: number = 10000;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }: { value: string }) => parseInt(value, 10))
+  GOOGLE_TRANSLATE_MAX_RETRIES: number = 2;
 }
 
 export const validateConfig = (

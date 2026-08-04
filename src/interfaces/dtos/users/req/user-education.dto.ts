@@ -35,6 +35,11 @@ export class CreateUserEducationDto {
   @IsOptional()
   @IsString()
   gpa?: string;
+
+  @ApiProperty({ required: false, example: "vi" })
+  @IsOptional()
+  @IsString()
+  languageCode?: string;
 }
 
 export class UpdateUserEducationDto {

@@ -18,7 +18,7 @@ export class UserScheduler {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `Failed to send job recommendations: ${err.message}`,
+        `[scheduler.user] Failed to clean up pending deletion users: ${err.message}`,
         err.stack,
       );
     }

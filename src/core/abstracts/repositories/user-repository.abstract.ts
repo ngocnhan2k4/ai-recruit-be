@@ -1,6 +1,5 @@
 import { IGenericRepository } from "./generic-repository.abstract";
 import {
-  NewUser,
   User,
   UserTrends,
   UserTrendsQuery,
@@ -19,31 +18,10 @@ export abstract class IUserRepository extends IGenericRepository<User> {
     query: GetUserQuery,
   ): Promise<PaginatedResult<GetAllUserResponse>>;
 
-  abstract createUser(user: NewUser, tx: DBDrizzleTransaction): Promise<User>;
-
-  abstract getAllAdminUsers(
+  abstract getEmailRecipients(
     query: GetUserQuery,
-  ): Promise<
-    PaginatedResult<
-      Pick<
-        User,
-        | "id"
-        | "email"
-        | "name"
-        | "username"
-        | "emailVerified"
-        | "phone"
-        | "phoneVerified"
-        | "roles"
-        | "status"
-        | "deletionRequestedAt"
-        | "purgeAfterAt"
-        | "createdAt"
-        | "updatedAt"
-        | "deletedAt"
-      >
-    >
-  >;
+    limit: number,
+  ): Promise<{ id: string; email: string | null; name: string | null }[]>;
 
   abstract getUserProfile(userId: string): Promise<UserProfile | null>;
   abstract getUserCvData(userId: string): Promise<UserCvData | null>;

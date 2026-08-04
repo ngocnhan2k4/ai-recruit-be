@@ -84,7 +84,7 @@ export class GenericRepository<T, TTable extends object>
   }
 
   async create(item: Partial<T>, tx?: DBDrizzleTransaction): Promise<T> {
-    const dbClient = tx ?? this.db;
+    const dbClient = tx ?? this.getExecutor();
     const result = await dbClient
       .insert(this._table as any)
       .values(
@@ -102,7 +102,7 @@ export class GenericRepository<T, TTable extends object>
   ): Promise<T[]> {
     if (item.length === 0) return [];
 
-    const dbClient = tx ?? this.db;
+    const dbClient = tx ?? this.getExecutor();
     const result = await dbClient
       .insert(this._table as any)
       .values(
@@ -123,7 +123,7 @@ export class GenericRepository<T, TTable extends object>
       eq((this._table as any)[key], value),
     );
 
-    const dbClient = tx ?? this.db;
+    const dbClient = tx ?? this.getExecutor();
 
     const cleanItem = Object.fromEntries(
       Object.entries(item).filter(([_, v]) => v !== undefined),

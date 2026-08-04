@@ -1,17 +1,26 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { BlogPostSourceTypeEnum, BlogPostStatusEnum } from "./enums";
+import { timestamps } from "./helpers";
 import { skills } from "./skill.model";
 import { users } from "./user.model";
-import { timestamps } from "./helpers";
-import { BlogPostStatusEnum } from "./enums";
+
+export type BlogLocalizedContent = Partial<{
+  title: string;
+  summary: string;
+  content: string;
+}>;
+
+export type BlogLocaleMap = Partial<Record<string, BlogLocalizedContent>>;
 
 export const blogPosts = pgTable(
   "blog_posts",
@@ -20,20 +29,25 @@ export const blogPosts = pgTable(
     title: varchar("title", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull().unique(),
     summary: text("summary").notNull(),
-    thumbnail: varchar("thumbnail", { length: 255 }),
+    thumbnail: text("thumbnail"),
     content: text("content").notNull(),
+    locales: jsonb("locales")
+      .$type<BlogLocaleMap>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     status: BlogPostStatusEnum("status").notNull().default("DRAFT"),
+    sourceType: BlogPostSourceTypeEnum("source_type").notNull().default("USER"),
+    source: jsonb("source"),
     categoryId: uuid("category_id")
       .notNull()
       .references(() => blogCategories.id),
-    authorId: uuid("author_id")
-      .notNull()
-      .references(() => users.id),
+    authorId: uuid("author_id").references(() => users.id),
     viewCount: integer("view_count").notNull().default(0),
     ...timestamps,
   },
   (table) => [
     index("idx_blog_posts_status").on(table.status),
+    index("idx_blog_posts_source_type").on(table.sourceType),
     index("idx_blog_posts_category").on(table.categoryId),
     index("idx_blog_posts_author").on(table.authorId),
     index("idx_blog_posts_created_at").on(table.createdAt),

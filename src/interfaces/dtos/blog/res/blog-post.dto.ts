@@ -14,20 +14,6 @@ export class BlogAuthorDto {
   avatarUrl?: string | null;
 }
 
-export class BlogCommentDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  content: string;
-
-  @ApiProperty()
-  createdAt: Date;
-
-  @ApiProperty({ type: BlogAuthorDto })
-  author: BlogAuthorDto;
-}
-
 export class BlogTagItemDto {
   @ApiProperty()
   name: string;
@@ -39,12 +25,47 @@ export class BlogTagItemDto {
   tagId: string | null;
 }
 
+export class BlogPostSourceDto {
+  @ApiPropertyOptional({ nullable: true })
+  url?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  author?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  platform?: string | null;
+}
+
+export class BlogLocaleContentResponseDto {
+  @ApiPropertyOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  summary?: string;
+
+  @ApiPropertyOptional({
+    description: "Present on detail endpoints only; omitted from list payloads",
+  })
+  content?: string;
+}
+
+export class BlogLocalesResponseDto {
+  @ApiPropertyOptional({ type: BlogLocaleContentResponseDto })
+  vi?: BlogLocaleContentResponseDto;
+
+  @ApiPropertyOptional({ type: BlogLocaleContentResponseDto })
+  en?: BlogLocaleContentResponseDto;
+}
+
 export class BlogPostListItemDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
   title: string;
+
+  @ApiPropertyOptional({ type: BlogLocalesResponseDto })
+  locales?: BlogLocalesResponseDto;
 
   @ApiProperty()
   slug: string;
@@ -55,17 +76,29 @@ export class BlogPostListItemDto {
   @ApiPropertyOptional({ nullable: true })
   thumbnail?: string | null;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   createdAt: Date;
+
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
 
   @ApiProperty()
   likes: number;
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ enum: ["USER", "AI", "CRAWLED"] })
+  sourceType?: string;
+
+  @ApiPropertyOptional({ type: BlogPostSourceDto, nullable: true })
+  source?: BlogPostSourceDto | null;
 
   @ApiProperty({ type: [BlogTagItemDto] })
   tags: BlogTagItemDto[];
@@ -100,6 +133,9 @@ export class BlogPostDetailDto {
   @ApiProperty()
   title: string;
 
+  @ApiPropertyOptional({ type: BlogLocalesResponseDto })
+  locales?: BlogLocalesResponseDto;
+
   @ApiProperty()
   slug: string;
 
@@ -112,8 +148,11 @@ export class BlogPostDetailDto {
   @ApiProperty()
   content: string;
 
-  @ApiProperty()
-  category: string;
+  @ApiProperty({ description: "Category UUID" })
+  categoryId: string;
+
+  @ApiProperty({ description: "Category display name" })
+  categoryName: string;
 
   @ApiProperty()
   viewCount: number;
@@ -121,8 +160,11 @@ export class BlogPostDetailDto {
   @ApiProperty()
   createdAt: Date;
 
-  @ApiProperty({ type: BlogAuthorDto })
-  author: BlogAuthorDto;
+  @ApiPropertyOptional({ nullable: true })
+  updatedAt?: Date | null;
+
+  @ApiPropertyOptional({ type: BlogAuthorDto, nullable: true })
+  author?: BlogAuthorDto | null;
 
   @ApiProperty()
   likes: number;
@@ -135,6 +177,12 @@ export class BlogPostDetailDto {
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ enum: ["USER", "AI", "CRAWLED"] })
+  sourceType?: string;
+
+  @ApiPropertyOptional({ type: BlogPostSourceDto, nullable: true })
+  source?: BlogPostSourceDto | null;
 
   @ApiProperty({ type: [BlogTagItemDto] })
   tags: BlogTagItemDto[];

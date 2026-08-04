@@ -18,6 +18,10 @@ export interface GetUserQuery extends GeneralQuery {
   subscriptionId?: string;
   statusSubscription?: UserSubscriptionStatusEnum;
   roles?: RoleEnum[];
+  fields?: string[];
+  userIds?: string[];
+  skipCount?: boolean;
+  isSeekingJob?: boolean;
 }
 
 export class CreateUserExperience {
@@ -28,6 +32,7 @@ export class CreateUserExperience {
   startDate: Date;
   endDate?: Date;
   description: string;
+  languageCode?: string;
   skillIds?: Skill["id"][];
   skillNames?: Skill["name"][];
 }
@@ -40,6 +45,8 @@ export interface UserProfile {
   categoryIds: Category["id"][];
   expectedSalary?: number;
   isSeekingJob?: boolean;
+  skillNames?: string[];
+  categoryNames?: string[];
 }
 
 export interface UserCvExperience {
@@ -98,6 +105,7 @@ export interface GetAllUserResponse
     | "createdAt"
     | "updatedAt"
     | "deletedAt"
+    | "avatarUrl"
   > {
   subscription?: Pick<
     Subscription,
@@ -107,4 +115,6 @@ export interface GetAllUserResponse
     UserSubscription,
     "id" | "startedAt" | "expiredAt" | "status" | "createdAt"
   >;
+  expectedSalary?: number | null;
+  experienceYears?: number | null;
 }

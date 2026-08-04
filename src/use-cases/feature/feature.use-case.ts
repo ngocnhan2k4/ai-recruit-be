@@ -82,7 +82,7 @@ export class FeatureUseCases {
   }
 
   async getFeatureById(id: number): Promise<ApiResponse<Feature>> {
-    const existing = await this.featureRepo.get(id);
+    const existing = await this.featureRepo.getFeatureById(id);
     if (!existing) {
       throw new NotFoundException({
         code: RESPONSE_CODE.FEATURE_NOT_FOUND,

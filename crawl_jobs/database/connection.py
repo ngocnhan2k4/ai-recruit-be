@@ -29,6 +29,9 @@ def insert_to_db(
         valid_categories = job.get_all_categories(cur)
 
         for name, cdata in companies.items():
+            if not name or name == "N/A":
+                print("\n Skipping invalid/unresolved company: N/A")
+                continue
             company_upsert_job_ids: list[str] = []
             try:
                 cur.execute("SAVEPOINT company_savepoint")
@@ -42,6 +45,13 @@ def insert_to_db(
                 )
 
                 for title, jdata in cdata.get("jobs", {}).items():
+                    if not title or title == "N/A":
+                        print("   Skipping invalid job title: N/A")
+                        continue
+                    desc = jdata.get("description", "")
+                    if not desc or len(desc.strip()) < 2:
+                        print(f'   Skipping "{title}" due to empty description')
+                        continue
                     # 2. Job Raw record
                     job_raw_id = job.get_or_create_job_raw(
                         cur, title, jdata, company_raw_id
@@ -84,6 +94,8 @@ def insert_to_db(
                                 (existing_id,),
                             )
                             for s_name in jdata.get("skills", []):
+                                if not s_name or s_name == "N/A":
+                                    continue
                                 s_id = skill.get_or_create_skill(cur, s_name)
                                 skill.link_job_to_skill(cur, existing_id, s_id)
 
@@ -101,6 +113,8 @@ def insert_to_db(
                         )
                         province.link_job_to_provinces(cur, job_id, province_ids)
                         for s_name in jdata.get("skills", []):
+                            if not s_name or s_name == "N/A":
+                                continue
                             s_id = skill.get_or_create_skill(cur, s_name)
                             skill.link_job_to_skill(cur, job_id, s_id)
 

@@ -58,6 +58,9 @@ export class UserPublicResponseDto {
 
   @ApiProperty({ required: false, type: String, nullable: true })
   phone?: string | null;
+
+  @ApiProperty({ required: false, type: String, nullable: true })
+  preferredLanguage?: string | null;
 }
 
 export class UserSeoPublicResponseDto {
@@ -130,6 +133,10 @@ export class GetUserResponseDto {
 
   @Expose()
   provider: ProviderEnum;
+
+  @Expose()
+  @ApiProperty({ type: String, example: "vi" })
+  preferredLanguage: string;
 
   @Expose()
   @ApiProperty({

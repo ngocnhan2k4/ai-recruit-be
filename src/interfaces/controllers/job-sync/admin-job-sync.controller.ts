@@ -5,15 +5,12 @@ import {
   Delete,
   Param,
   UseGuards,
-  Body,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiResponse, ApiResponseDto } from "@/interfaces/dtos";
 import { JwtAuthGuard } from "@/frameworks/auth-services/guards/jwt-auth.guard";
 import { SystemAuthorizeGuard } from "@/frameworks/auth-services/guards";
 import { JobSyncUseCases } from "@/use-cases/job-sync/job-sync.use-case";
-import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
-import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @ApiTags("Job Sync Admin")
 @ApiBearerAuth()
@@ -87,15 +84,15 @@ export class AdminJobSyncController {
   }
 
   @ApiOperation({
-    summary: "Sync data from another Elasticsearch instance",
+    summary: "Sync all active jobs' embeddings",
     description:
-      "Sync data from a remote Elasticsearch instance to the current one. ",
+      "Manually trigger a sync of embeddings for all active jobs. Only jobs missing embeddings in Elasticsearch will be processed.",
   })
-  @ApiResponseDto(SyncFromElasticsearchResponseDto)
-  @Post("sync-from-es")
-  async syncFromElasticsearch(
-    @Body() dto: SyncFromElasticsearchRequestDto,
-  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
-    return await this.jobSyncUseCases.syncFromElasticsearch(dto);
+  @ApiResponseDto("string")
+  @Post("sync-all-embeddings")
+  async syncAllJobEmbeddings(): Promise<
+    ApiResponse<{ totalSynced: number; message: string }>
+  > {
+    return await this.jobSyncUseCases.syncAllJobEmbeddings();
   }
 }

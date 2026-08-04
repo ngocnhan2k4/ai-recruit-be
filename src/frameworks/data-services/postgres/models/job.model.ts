@@ -74,6 +74,7 @@ export const jobs = pgTable(
     rejectReason: text("reject_reason"),
     categoryId: uuid("category_id").references(() => categories.id),
     recruitCount: integer("recruit_count"),
+    embedding: jsonb("embedding"),
     ...timestamps,
   },
   (table) => [
@@ -137,11 +138,14 @@ export const jobSkills = pgTable(
   ],
 );
 
+// [TODO]: Migrate using user action
 export const userInteractions = pgTable(
   "user_interactions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
     jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id),
@@ -176,9 +180,9 @@ export const applyJobs = pgTable(
       .references(() => jobs.id),
     status: ApplyStatusEnum("status").default("pending"),
     cvId: uuid("cv_id").references(() => cvs.id),
+    userId: uuid("user_id").references(() => users.id),
     answers: jsonb("answers"),
     matchingScore: numeric("matching_score", { precision: 7, scale: 2 }),
-    matchingRank: integer("matching_rank"),
     matchingCriteria: jsonb("matching_criteria"),
     scoredAt: timestamp("scored_at"),
 
@@ -186,6 +190,7 @@ export const applyJobs = pgTable(
   },
   (table) => [
     uniqueIndex("idx_apply_jobs_cv_job").on(table.cvId, table.jobId),
+    uniqueIndex("idx_apply_jobs_user_job").on(table.userId, table.jobId),
     index("idx_apply_jobs_job_id_created").on(
       table.jobId,
       desc(table.createdAt),
@@ -206,6 +211,5 @@ export const cvs = pgTable("cvs", {
   fileName: varchar("file_name", { length: 255 }).notNull(),
   mimeType: varchar("mime_type", { length: 255 }).notNull(),
   lastUsed: timestamp("last_used_at").defaultNow(),
-  extractedData: jsonb("extracted_data"),
   ...timestamps,
 });

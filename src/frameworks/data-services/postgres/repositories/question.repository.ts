@@ -1,5 +1,6 @@
 import {
   IQuestionRepository,
+  QuestionTranslationRecord,
   Question,
   QuestionFilters,
   NewQuestion,
@@ -7,9 +8,24 @@ import {
 import { GenericRepository } from "./generic-repository";
 import { Inject, Injectable } from "@nestjs/common";
 import { type DBDrizzle } from "../types";
-import { questions } from "../models";
+import { questionTranslation, questions } from "../models";
 import { GeneralQuery, PaginatedResult } from "@/common/types";
-import { count, ilike, and, SQL, eq, ne, inArray, sql } from "drizzle-orm";
+import {
+  count,
+  ilike,
+  and,
+  SQL,
+  eq,
+  ne,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
+import {
+  buildLanguagePriority,
+  getFallbackLanguage,
+  getRequestLanguage,
+} from "@/common/utils";
 
 @Injectable()
 export class QuestionRepository
@@ -75,11 +91,18 @@ export class QuestionRepository
       .from(questions)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
     const total = Number(totalRow[0]?.count ?? 0);
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const translatedItems = await this.applyQuestionTranslations(
+      items,
+      requestLanguage,
+      fallbackLanguage,
+    );
 
     const hasNext = offset + items.length < total;
 
     return {
-      data: items,
+      data: translatedItems,
       pagination: {
         hasNextPage: hasNext,
         total,
@@ -91,6 +114,8 @@ export class QuestionRepository
     skillIds: string[],
     difficultyLevels?: string[],
   ): Promise<Question[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
     const whereConditions: SQL[] = [
       eq(questions.isActive, true),
       inArray(questions.skillId, skillIds),
@@ -108,10 +133,16 @@ export class QuestionRepository
       );
     }
 
-    return await this.db
+    const items = await this.db
       .select()
       .from(questions)
       .where(and(...whereConditions));
+
+    return this.applyQuestionTranslations(
+      items,
+      requestLanguage,
+      fallbackLanguage,
+    );
   }
 
   async createMany(questionValues: Partial<Question>[]): Promise<Question[]> {
@@ -131,5 +162,204 @@ export class QuestionRepository
       .returning();
 
     return result[0];
+  }
+
+  async getQuestionByIdWithLanguage(id: string): Promise<Question | null> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    const [question] = await this.db
+      .select()
+      .from(questions)
+      .where(eq(questions.id, id))
+      .limit(1);
+
+    if (!question) {
+      return null;
+    }
+
+    const [translated] = await this.applyQuestionTranslations(
+      [question],
+      requestLanguage,
+      fallbackLanguage,
+    );
+
+    return translated || null;
+  }
+
+  async getQuestionsByIdsWithLanguage(ids: string[]): Promise<Question[]> {
+    const requestLanguage = getRequestLanguage();
+    const fallbackLanguage = getFallbackLanguage();
+    if (!ids.length) {
+      return [];
+    }
+
+    const rows = await this.db
+      .select()
+      .from(questions)
+      .where(inArray(questions.id, ids));
+
+    const translatedRows = await this.applyQuestionTranslations(
+      rows,
+      requestLanguage,
+      fallbackLanguage,
+    );
+
+    const byId = new Map(translatedRows.map((item) => [item.id, item]));
+    return ids.map((id) => byId.get(id)).filter((item) => !!item) as Question[];
+  }
+
+  async getQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+  ): Promise<QuestionTranslationRecord | null> {
+    const [row] = await this.db
+      .select({
+        id: questionTranslation.id,
+        questionId: questionTranslation.questionId,
+        languageCode: questionTranslation.languageCode,
+        questionText: questionTranslation.questionText,
+        options: questionTranslation.options,
+        correctAnswer: questionTranslation.correctAnswer,
+      })
+      .from(questionTranslation)
+      .where(
+        and(
+          eq(questionTranslation.questionId, questionId),
+          eq(questionTranslation.languageCode, languageCode),
+        ),
+      )
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      ...row,
+      options: row.options,
+    };
+  }
+
+  async upsertQuestionTranslation(
+    questionId: string,
+    languageCode: string,
+    data: Pick<
+      QuestionTranslationRecord,
+      "questionText" | "options" | "correctAnswer"
+    >,
+  ): Promise<QuestionTranslationRecord> {
+    const [row] = await this.db
+      .insert(questionTranslation)
+      .values({
+        questionId,
+        languageCode,
+        questionText: data.questionText,
+        options: data.options,
+        correctAnswer: data.correctAnswer,
+      })
+      .onConflictDoUpdate({
+        target: [
+          questionTranslation.questionId,
+          questionTranslation.languageCode,
+        ],
+        set: {
+          questionText: data.questionText,
+          options: data.options,
+          correctAnswer: data.correctAnswer,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({
+        id: questionTranslation.id,
+        questionId: questionTranslation.questionId,
+        languageCode: questionTranslation.languageCode,
+        questionText: questionTranslation.questionText,
+        options: questionTranslation.options,
+        correctAnswer: questionTranslation.correctAnswer,
+      });
+
+    return {
+      ...row,
+      options: row.options,
+    };
+  }
+
+  private async applyQuestionTranslations(
+    questionRows: Question[],
+    requestLanguage: string,
+    fallbackLanguage: string,
+  ): Promise<Question[]> {
+    if (!questionRows.length) {
+      return questionRows;
+    }
+
+    const questionIds = questionRows.map((item) => item.id);
+    const languagePriority = buildLanguagePriority(
+      requestLanguage,
+      fallbackLanguage,
+    );
+    if (!languagePriority.length) {
+      return questionRows;
+    }
+
+    const rows = await this.db
+      .select({
+        questionId: questionTranslation.questionId,
+        languageCode: questionTranslation.languageCode,
+        questionText: questionTranslation.questionText,
+        options: questionTranslation.options,
+        correctAnswer: questionTranslation.correctAnswer,
+      })
+      .from(questionTranslation)
+      .where(
+        and(
+          inArray(questionTranslation.questionId, questionIds),
+          inArray(questionTranslation.languageCode, languagePriority),
+          isNull(questionTranslation.deletedAt),
+        ),
+      );
+
+    return questionRows.map((item) => {
+      const found = rows.find(
+        (row) =>
+          row.questionId === item.id &&
+          row.languageCode === languagePriority[0],
+      );
+      const fallback = rows.find(
+        (row) =>
+          row.questionId === item.id &&
+          row.languageCode === languagePriority[1],
+      );
+      const translation = found || fallback;
+
+      if (!translation) {
+        return item;
+      }
+
+      return {
+        ...item,
+        questionText: translation.questionText || item.questionText,
+        options: translation.options || item.options,
+        correctAnswer: translation.correctAnswer || item.correctAnswer,
+      };
+    });
+  }
+
+  async checkDuplicate(
+    skillId: string,
+    questionText: string,
+  ): Promise<boolean> {
+    const normalized = questionText.trim().toLowerCase();
+    const rows = await this.db
+      .select({ id: questions.id })
+      .from(questions)
+      .where(
+        and(
+          eq(questions.skillId, skillId),
+          sql`LOWER(TRIM(${questions.questionText})) = ${normalized}`,
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
   }
 }

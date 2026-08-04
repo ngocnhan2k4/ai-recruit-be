@@ -3,13 +3,19 @@ import {
   BlogCategoryItem,
   BlogPostDetailBase,
   BlogPostFilters,
+  BlogLocaleMap,
   BlogPostListItem,
   BlogPostTagItem,
   BlogTagCursorItem,
 } from "@/core/entities/blog.entity";
-import { BlogPost, NewBlogPost } from "@/core/entities";
+import {
+  BlogPost,
+  NewBlogPost,
+  BlogCategory,
+  Tag,
+  BlogPostStatus,
+} from "@/core/entities";
 import { IGenericRepository } from "./generic-repository.abstract";
-import { DBDrizzleTransaction } from "@/frameworks/data-services/postgres/types";
 
 export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract getCategories(): Promise<BlogCategoryItem[]>;
@@ -29,11 +35,17 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
     filters: BlogPostFilters,
   ): Promise<PaginatedResult<BlogPostListItem>>;
 
+  abstract getSavedBlogs(
+    userId: string,
+    filters: BlogPostFilters,
+  ): Promise<PaginatedResult<BlogPostListItem>>;
+
   abstract getPostsTags(
     postIds: string[],
   ): Promise<Record<string, BlogPostTagItem[]>>;
 
   abstract getPostBaseBySlug(slug: string): Promise<BlogPostDetailBase | null>;
+  abstract getPostBaseById(id: string): Promise<BlogPostDetailBase | null>;
 
   abstract getPostTagsByPostId(postId: string): Promise<BlogPostTagItem[]>;
 
@@ -42,21 +54,67 @@ export abstract class IBlogRepository extends IGenericRepository<BlogPost> {
   abstract createPost(data: NewBlogPost): Promise<BlogPost>;
 
   abstract saveDraft(
+    authorId: string,
     data: {
       title?: string;
       summary?: string;
       content?: string;
-      category?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
       thumbnail?: string | null;
       tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+    },
+    postId?: string,
+  ): Promise<BlogPost>;
+
+  abstract resolveCategoryId(categoryId?: string): Promise<string>;
+
+  abstract updatePost(
+    postId: string,
+    data: {
+      title?: string;
+      summary?: string;
+      content?: string;
+      locales?: BlogLocaleMap;
+      categoryId?: string;
+      thumbnail?: string | null;
+      tags?: Array<{ tagId?: string | null; skillId?: string | null }>;
+      status?: BlogPostStatus;
       slug?: string;
     },
-    authorId: string,
-    postId?: string,
-    tx?: DBDrizzleTransaction,
   ): Promise<BlogPost>;
+
+  abstract deletePost(postId: string): Promise<void>;
 
   abstract incrementViewCount(
     data: { postId: string; viewCount: number }[],
   ): Promise<void>;
+
+  abstract updatePostTags(
+    postId: string,
+    tags: Array<{ tagId?: string | null; skillId?: string | null }>,
+  ): Promise<void>;
+
+  abstract getCategoriesPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<BlogCategory>>;
+
+  abstract getTagsPaginated(filters: {
+    keyword?: string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedResult<Tag>>;
+
+  abstract createCategory(data: {
+    name: string;
+    description?: string;
+  }): Promise<BlogCategory>;
+
+  abstract createTag(data: { name: string; slug: string }): Promise<Tag>;
+
+  abstract getCategoryByName(name: string): Promise<BlogCategory | null>;
+
+  abstract getTagByNameOrSlug(name: string, slug: string): Promise<Tag | null>;
 }

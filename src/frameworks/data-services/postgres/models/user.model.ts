@@ -24,6 +24,7 @@ import {
   EducationLevelEnum,
   ProviderEnum,
   UserStatusEnum,
+  LanguageEnum,
 } from "./enums";
 
 export const userIdentities = pgTable(
@@ -75,6 +76,9 @@ export const users = pgTable(
     gender: GenderEnum("gender"),
     provider: ProviderEnum("provider").notNull().default("email"),
     status: UserStatusEnum("status").notNull().default("active"),
+    preferredLanguage: LanguageEnum("preferred_language")
+      .notNull()
+      .default("vi"),
     deletionRequestedAt: timestamp("deletion_requested_at"),
     purgeAfterAt: timestamp("purge_after_at"),
     ...timestamps,
@@ -112,6 +116,9 @@ export const userExperiences = pgTable(
     endDate: date("end_date"),
     jobTitle: varchar("job_title", { length: 255 }).notNull(),
     description: text("description"),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
     ...timestamps,
   },
   (table) => [
@@ -137,6 +144,8 @@ export const userSkills = pgTable(
       .notNull()
       .references(() => skills.id),
     organizationId: uuid("organization_id").references(() => organizations.id),
+    /** Origin of the skill link, e.g. "exam" when added from a passed skill test. */
+    source: varchar("source", { length: 50 }),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.skillId] }),
@@ -161,6 +170,9 @@ export const userOnboardings = pgTable(
     categoryIds: uuid("category_ids").array(),
     expectedSalary: numeric("expected_salary", { precision: 12, scale: 2 }),
     isSeekingJob: boolean("is_seeking_job").notNull().default(false),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
   },
   (table) => [
     index("idx_user_onboardings_skills_gin").using("gin", table.skills),
@@ -191,6 +203,9 @@ export const userEducations = pgTable(
     major: varchar("major", { length: 255 }),
     gpa: varchar("gpa", { length: 10 }),
     description: text("description"),
+    languageCode: varchar("language_code", { length: 5 })
+      .notNull()
+      .default("vi"),
     ...timestamps,
   },
   (table) => [

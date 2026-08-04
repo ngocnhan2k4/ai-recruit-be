@@ -1,15 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ApiResponse } from "@/interfaces/dtos";
 import { RESPONSE_MESSAGE, RESPONSE_CODE } from "@/common/constants";
-import { IJobRepository, ISearchService, JobStatusEnum } from "@/core";
+import {
+  IJobRepository,
+  ISearchService,
+  JobStatusEnum,
+  IAIService,
+} from "@/core";
 import {
   getJobIndexMapping,
   transformJobToDocument,
 } from "@/frameworks/data-services/elasticsearch/indices/job.index";
 import { ConfigService } from "@nestjs/config";
 import { Environment } from "@/common/config";
-import { SyncFromElasticsearchRequestDto } from "@/interfaces/dtos";
-import { SyncFromElasticsearchResponseDto } from "@/interfaces/dtos";
 
 @Injectable()
 export class JobSyncUseCases {
@@ -19,16 +22,14 @@ export class JobSyncUseCases {
     private readonly searchService: ISearchService,
     private readonly jobRepository: IJobRepository,
     private readonly configService: ConfigService,
+    private readonly aiService: IAIService,
   ) {}
 
   private async ensureIndex(): Promise<void> {
-    const client = this.searchService.getClient();
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
-    const exists = await client.indices.exists({
-      index: indexName,
-    });
+    const exists = await this.searchService.existsIndex(indexName);
     if (!exists) {
       const indexMapping = getJobIndexMapping({
         env: this.configService.get<Environment>("NODE_ENV")!,
@@ -38,33 +39,18 @@ export class JobSyncUseCases {
     }
   }
 
-  private async getSyncableJobsBatch(page: number, limit: number) {
-    const result = await this.jobRepository.getJobsByAdmin({
-      limit,
-      page,
-      status: JobStatusEnum.ACTIVE,
-    });
-    return result.data.filter((item) => item.category != null);
-  }
-
   /**
    * Initialize Elasticsearch index
    */
   async initializeIndex(): Promise<ApiResponse<{ message: string }>> {
-    try {
-      await this.ensureIndex();
-      this.logger.log("Elasticsearch index initialized successfully");
-      return {
-        message: RESPONSE_MESSAGE.SUCCESS,
-        code: RESPONSE_CODE.SUCCESS,
-        data: {
-          message: "Elasticsearch index initialized successfully",
-        },
-      };
-    } catch (error) {
-      this.logger.error("Failed to initialize index", error);
-      throw error;
-    }
+    await this.ensureIndex();
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+      data: {
+        message: "Elasticsearch index initialized successfully",
+      },
+    };
   }
 
   /**
@@ -75,23 +61,78 @@ export class JobSyncUseCases {
   > {
     this.logger.log("Starting manual sync of all active jobs...");
 
-    const batchSize = 100;
+    // Keep page size modest: each doc includes dense_vector (1536 dims) + description
+    const batchSize = 20;
     let page = 1;
     let hasMore = true;
     let totalSynced = 0;
 
     while (hasMore) {
-      const data = await this.getSyncableJobsBatch(page, batchSize);
+      const result = await this.jobRepository.getJobsByAdmin({
+        limit: batchSize,
+        page,
+        status: JobStatusEnum.ACTIVE,
+        includeEmbedding: true,
+      });
+      const data = result.data.filter((item) => item.category != null);
 
       if (data.length === 0) {
         hasMore = false;
         break;
       }
 
-      const documents = data.map((item) => ({
-        id: item.job.id,
-        document: transformJobToDocument(item),
-      }));
+      const textsToEmbed: string[] = [];
+      const jobsToEmbed: any[] = [];
+      const existingEmbeddingsMap = new Map<string, number[]>();
+
+      for (const item of data) {
+        const jobId = item.job.id;
+        const embedding = (item.job as any).embedding as number[] | undefined;
+
+        if (embedding && embedding.length > 0) {
+          existingEmbeddingsMap.set(jobId, embedding);
+        } else {
+          textsToEmbed.push(
+            `${item.job.title} ${item.job.description || ""} ${item.skills.map((s: any) => s.name).join(" ")} ${item.category.name || ""}`,
+          );
+          jobsToEmbed.push(item);
+        }
+      }
+
+      let newEmbeddings: number[][] = [];
+      if (textsToEmbed.length > 0) {
+        try {
+          newEmbeddings = await this.aiService.generateEmbeddings(textsToEmbed);
+          // Optional: Save newly generated embeddings to DB if applicable
+          for (let i = 0; i < jobsToEmbed.length; i++) {
+            await this.jobRepository.updateJob(jobsToEmbed[i].job.id, {
+              embedding: newEmbeddings[i],
+            });
+          }
+        } catch (e: any) {
+          this.logger.warn(
+            `Failed to generate embeddings for batch: ${e.message}`,
+          );
+        }
+      }
+
+      const documents = data.map((item) => {
+        const jobId = item.job.id;
+        let finalEmbedding = existingEmbeddingsMap.get(jobId);
+
+        if (!finalEmbedding && jobsToEmbed.includes(item)) {
+          const idx = jobsToEmbed.indexOf(item);
+          finalEmbedding = newEmbeddings[idx];
+        }
+
+        return {
+          id: jobId,
+          document: transformJobToDocument({
+            ...item,
+            embedding: finalEmbedding,
+          }),
+        };
+      });
 
       if (documents.length > 0) {
         const result = await this.searchService.bulkIndex(
@@ -124,14 +165,12 @@ export class JobSyncUseCases {
       dbCount: number;
     }>
   > {
-    const client = this.searchService.getClient();
     const indexName = this.configService.get<string>(
       "ELASTICSEARCH_INDEX_JOBS",
     )!;
-
-    const exists = await client.indices.exists({ index: indexName });
+    const exists = await this.searchService.existsIndex(indexName);
     const esCount = exists
-      ? Number((await client.count({ index: indexName })).count ?? 0)
+      ? Number(await this.searchService.countDocuments(indexName))
       : 0;
     const dbCount = await this.jobRepository.count({ isCategoryNotNull: true });
 
@@ -186,50 +225,106 @@ export class JobSyncUseCases {
   }
 
   /**
-   * Sync data from another Elasticsearch instance
+   * Sync all active jobs' embeddings to Elasticsearch
    */
-  async syncFromElasticsearch(
-    dto: SyncFromElasticsearchRequestDto,
-  ): Promise<ApiResponse<SyncFromElasticsearchResponseDto>> {
-    this.logger.log(
-      `Starting sync from remote ES: ${dto.sourceNode}/${dto.sourceIndex}`,
-    );
+  async syncAllJobEmbeddings(): Promise<
+    ApiResponse<{ totalSynced: number; message: string }>
+  > {
+    this.logger.log("Starting manual sync of all active jobs' embeddings...");
 
-    // Ensure target index exists
-    const targetIndex =
-      dto.targetIndex ||
-      this.configService.get<string>("ELASTICSEARCH_INDEX_JOBS")!;
-    await this.ensureIndex();
+    const batchSize = 20;
+    let page = 1;
+    let hasMore = true;
+    let totalSynced = 0;
+    const indexName = this.configService.get<string>(
+      "ELASTICSEARCH_INDEX_JOBS",
+    )!;
 
-    const sourceAuth =
-      dto.sourceUsername && dto.sourcePassword
-        ? {
-            username: dto.sourceUsername,
-            password: dto.sourcePassword,
+    while (hasMore) {
+      const result = await this.jobRepository.getJobsByAdmin({
+        limit: batchSize,
+        page,
+        status: JobStatusEnum.ACTIVE,
+        includeEmbedding: true,
+      });
+      const data = result.data.filter((item) => item.category != null);
+
+      if (data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const jobsToSyncToEs: { item: any; embedding: number[] }[] = [];
+      const jobsToGenerateEmbedding: any[] = [];
+
+      for (const item of data) {
+        const embedding = (item.job as any).embedding as number[] | undefined;
+
+        if (!embedding || embedding.length === 0) {
+          jobsToGenerateEmbedding.push(item);
+        } else {
+          jobsToSyncToEs.push({ item, embedding });
+        }
+      }
+
+      // 2. Batch generate missing embeddings
+      if (jobsToGenerateEmbedding.length > 0) {
+        const textsToEmbed = jobsToGenerateEmbedding.map(
+          (item) =>
+            `${item.job.title} ${item.job.description || ""} ${(item.skills || []).map((s: any) => s.name).join(" ")} ${item.category?.name || ""}`,
+        );
+        try {
+          const embeddings =
+            await this.aiService.generateEmbeddings(textsToEmbed);
+
+          // Update DB and prepare for ES
+          for (let i = 0; i < jobsToGenerateEmbedding.length; i++) {
+            const item = jobsToGenerateEmbedding[i];
+            const embedding = embeddings[i];
+            await this.jobRepository.updateJob(item.job.id, { embedding });
+            jobsToSyncToEs.push({ item, embedding });
           }
-        : undefined;
+          this.logger.log(
+            `Generated and updated embeddings for ${jobsToGenerateEmbedding.length} jobs in DB`,
+          );
+        } catch (e: any) {
+          this.logger.error(`Failed to generate embeddings: ${e.message}`);
+        }
+      }
 
-    const reindexResult = await this.searchService.reindexFromRemote(
-      dto.sourceNode,
-      dto.sourceIndex,
-      targetIndex,
-      sourceAuth,
-      dto.query,
-    );
-    const result = {
-      total: reindexResult.total,
-      took: reindexResult.took,
-      message: `Successfully synced ${reindexResult.total} documents from ${dto.sourceIndex} to ${targetIndex}`,
-    };
+      // 3. Bulk index to ES
+      const documentsToIndex = jobsToSyncToEs.map(({ item, embedding }) => ({
+        id: item.job.id,
+        document: transformJobToDocument({
+          ...item,
+          embedding,
+        }),
+      }));
+
+      if (documentsToIndex.length > 0) {
+        const bulkResult = await this.searchService.bulkIndex(
+          indexName,
+          documentsToIndex,
+        );
+        totalSynced += bulkResult.success;
+        this.logger.log(
+          `Synced embedding batch: ${bulkResult.success} jobs (total: ${totalSynced})`,
+        );
+      }
+
+      page += 1;
+    }
 
     this.logger.log(
-      `Sync completed: ${result.total} documents synced to ${targetIndex}`,
+      `Full embedding sync completed: ${totalSynced} jobs synced`,
     );
-
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
       code: RESPONSE_CODE.SUCCESS,
-      data: result,
+      data: {
+        totalSynced,
+        message: "All active jobs' embeddings synced successfully",
+      },
     };
   }
 }

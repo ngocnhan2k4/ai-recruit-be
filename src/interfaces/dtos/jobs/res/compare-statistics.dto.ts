@@ -84,6 +84,9 @@ export class CompareStatisticsResponseDto {
 // --- TopInMarket (independent groups) ---
 
 class TopInMarketDto {
+  @ApiProperty({ example: "uuid", required: false })
+  id: string;
+
   @ApiProperty({ example: "Frontend Developer" })
   name: string;
 

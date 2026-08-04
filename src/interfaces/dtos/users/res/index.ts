@@ -5,3 +5,4 @@ export * from "./user-skill.dto";
 export * from "./user-onboarding.dto";
 export * from "./user-education.dto";
 export * from "./user-trends.dto";
+export * from "./admin-send-email.dto";

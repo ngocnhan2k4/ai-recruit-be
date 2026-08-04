@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
-import cloudscraper
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 from helpers.date import vn_parse_posted_date
 from helpers.extraction import (
@@ -35,22 +35,8 @@ TOPCV_USER_AGENTS = [
 
 
 def create_stealth_scraper():
-    """Create a cloudscraper with enhanced anti-detection settings."""
-    browser_configs = [
-        {"browser": "chrome", "platform": "windows", "mobile": False, "desktop": True},
-        {"browser": "chrome", "platform": "darwin", "mobile": False, "desktop": True},
-        {"browser": "firefox", "platform": "windows", "mobile": False, "desktop": True},
-    ]
-
-    config = random.choice(browser_configs)
-
-    scraper = cloudscraper.create_scraper(
-        browser=config,
-        delay=random.uniform(5, 10),  # Random delay for JS challenges
-        interpreter="native",  # Use native JS interpreter
-    )
-
-    return scraper
+    """Create a curl_cffi Session instance configured for job crawling."""
+    return requests.Session(impersonate="chrome")
 
 
 def get_stealth_headers(referer=None, host="www.topcv.vn"):
@@ -158,10 +144,10 @@ def fetch_with_retry(scraper, url, headers=None, max_retries=5, base_delay=5):
                 )
                 continue
 
-            # Check for captcha
-            if "captcha" in resp.text.lower() or "hcaptcha" in resp.text.lower():
+            # Check for Cloudflare challenge
+            if "cf-challenge" in resp.text or "ray id:" in resp.text.lower():
                 print(
-                    f"[!] Captcha detected on {url}, retrying ({attempt + 1}/{max_retries})..."
+                    f"[!] Cloudflare challenge detected on {url}, retrying ({attempt + 1}/{max_retries})..."
                 )
                 continue
 
@@ -193,15 +179,22 @@ def scrape_job_detail(
 
     print(f"  📄 {job_url}")
 
-    job_title = safe_text(card.select_one("h3.title"))
-    company_name = safe_text(card.select_one("a.company"))
+    job_title_elem = card.select_one("h3.title a") or card.select_one("h3.title")
+    job_title = safe_text(job_title_elem, normalize_camel_case=False)
+    company_name = safe_text(card.select_one("a.company"), normalize_camel_case=False)
 
     # salary
     salary = safe_text(card.select_one("label.title-salary"))
     salary_min, salary_max = extract_salary(salary)
 
     # date_posted
-    date_posted = vn_parse_posted_date(safe_text(card.select_one("label.deadline")))
+    date_posted_elem = card.select_one("label.deadline") or card.select_one("label.label-update")
+    date_posted = None
+    if date_posted_elem:
+        try:
+            date_posted = vn_parse_posted_date(safe_text(date_posted_elem))
+        except Exception:
+            pass
 
     # logo
     logo = None
@@ -216,7 +209,7 @@ def scrape_job_detail(
     if skill_wrap:
         skill_items = skill_wrap.select("label.item")
         for item in skill_items:
-            skill = safe_text(item)
+            skill = safe_text(item, normalize_camel_case=False)
             if skill:
                 if not re.fullmatch(r"^\d+\+$", skill):
                     skills.append(skill)
@@ -246,7 +239,7 @@ def scrape_job_detail(
     human_delay(2, 3)
 
     # Get into job page with referer
-    detail_headers = get_stealth_headers(referer=base_url)
+    detail_headers = {"Referer": base_url}
     resp_text = fetch_with_retry(
         scraper, job_url, headers=detail_headers, max_retries=3, base_delay=3
     )
@@ -302,7 +295,30 @@ def scrape_job_detail(
             form_div.decompose()
         description = html_to_mixed_content(description_wrap)
     else:
-        description = ""
+        # Support new TopCV layout with box-job-information-detail-item blocks
+        detail_items = soup.select("div.box-job-information-detail-item")
+        if detail_items:
+            EXCLUDE_KEYWORDS = {"địa điểm", "thời gian", "cách thức", "dia diem", "thoi gian", "cach thuc"}
+            combined_html = []
+            for item in detail_items:
+                title_elem = item.select_one(".box-job-information-detail-item__title--title, h2, h3")
+                if title_elem:
+                    title_text = title_elem.get_text(strip=True)
+                    if any(kw in title_text.lower() for kw in EXCLUDE_KEYWORDS):
+                        continue
+                    
+                    content_div = item.select_one(".box-job-information-detail-item__text")
+                    if content_div:
+                        combined_html.append(f"<h3>{title_text}</h3>")
+                        combined_html.append(str(content_div))
+            
+            if combined_html:
+                temp_soup = BeautifulSoup("".join(combined_html), "html.parser")
+                description = html_to_mixed_content(temp_soup)
+            else:
+                description = ""
+        else:
+            description = ""
 
     # experiences
     exp_elem = soup.select_one("div#job-detail-info-experience")
@@ -326,7 +342,7 @@ def scrape_job_detail(
         if skill_container:
             skill_items = skill_container.find_all(["a", "span", "label"])
             for item in skill_items:
-                skill_text = safe_text(item)
+                skill_text = safe_text(item, normalize_camel_case=False)
                 if (
                     skill_text
                     and len(skill_text) > 1
@@ -354,7 +370,7 @@ def scrape_job_detail(
 
         human_delay(2, 3)
 
-        comp_headers = get_stealth_headers(referer=job_url)
+        comp_headers = {"Referer": job_url}
         comp_text = fetch_with_retry(
             scraper, company_url, headers=comp_headers, max_retries=2, base_delay=3
         )
@@ -414,13 +430,13 @@ def scrape_job_detail(
 
 def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     """Scrape TopCV listing page."""
-    base_url = "https://www.topcv.vn/viec-lam-it"
-    listing_url = f"{base_url}?page={page_num}"
+    base_url = "https://www.topcv.vn/tim-viec-lam-cong-nghe-thong-tin-cr257"
+    listing_url = f"{base_url}?type_keyword=1&sba=1&category_family=r257&page={page_num}"
 
     print(f"\n--- TopCV listing page {page_num} ---")
 
     # Use stealth headers for listing page
-    listing_headers = get_stealth_headers(host="www.topcv.vn")
+    listing_headers = None
 
     html = fetch_with_retry(
         scraper, listing_url, headers=listing_headers, max_retries=5, base_delay=5
@@ -432,7 +448,7 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     soup = BeautifulSoup(html, "html.parser")
     companies = {}
 
-    job_cards = soup.find_all("div", class_="job-item-2")
+    job_cards = soup.find_all("div", class_="job-item-search-result")
     print(f"Found {len(job_cards)} job cards")
 
     if max_jobs_per_page:
@@ -461,7 +477,7 @@ def scrape_page(scraper, page_num, headers, max_jobs_per_page=None):
     return companies
 
 
-def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 10):
+def topcv_crawl(pages: int = 1, start_page: int = 1, max_jobs_per_page: int = 5):
     """Crawl TopCV listing pages with enhanced anti-detection.
 
     Args:

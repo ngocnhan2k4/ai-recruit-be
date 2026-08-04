@@ -61,14 +61,15 @@ export class JobAdminController {
 
   @ApiOperation({
     summary: "Get job by ID",
-    description: "Retrieve a specific job by its ID",
+    description:
+      "Retrieve a specific job by its ID for admin review (includes pending_approval and rejected).",
   })
   @ApiResponseDto(JobResponseDto)
   @Get(":id")
   async getJobById(
     @Param("id") jobId: string,
   ): Promise<ApiResponse<JobResponseDto>> {
-    return await this.jobUseCases.getJobById(jobId);
+    return await this.jobUseCases.adminGetJobById(jobId);
   }
 
   @ApiOperation({

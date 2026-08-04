@@ -7,6 +7,7 @@ import {
   FeedbackAssignedEmailData,
   FeedbackResolvedEmailData,
   OrganizationChangeEmailData,
+  AdminBulkEmailData,
 } from "@/core";
 import { EmailService } from "@/frameworks/email-services/email.service";
 import {
@@ -14,6 +15,10 @@ import {
   OrganizationInvitationEmailData,
   OrganizationVerificationEmailData,
 } from "@/core";
+import {
+  formatWorkerErrorLog,
+  runJobWithContext,
+} from "@/common/utils/job-context";
 
 type EmailJobDataMap = {
   [EmailJobType.ORGANIZATION_INVITATION]: OrganizationInvitationEmailData;
@@ -22,6 +27,7 @@ type EmailJobDataMap = {
   [EmailJobType.ORGANIZATION_CHANGE_EMAIL]: OrganizationChangeEmailData;
   [EmailJobType.FEEDBACK_ASSIGNED]: FeedbackAssignedEmailData;
   [EmailJobType.FEEDBACK_RESOLVED]: FeedbackResolvedEmailData;
+  [EmailJobType.ADMIN_BULK]: AdminBulkEmailData;
 };
 
 type EmailJobData = EmailJobDataMap[keyof EmailJobDataMap];
@@ -37,99 +43,112 @@ export class EmailWorker extends WorkerHost {
   }
 
   async process(job: Job<EmailJobData, void, EmailJobType>) {
-    return this.processEmailTask(job.name, job.data);
+    console.log("job", job);
+    return runJobWithContext(job, async () => {
+      try {
+        return await this.processEmailTask(job.name, job.data);
+      } catch (error) {
+        this.logger.error(formatWorkerErrorLog("email.worker", job, error));
+        throw error;
+      }
+    });
   }
 
   private async processEmailTask(type: EmailJobType, data: EmailJobData) {
-    try {
-      switch (type) {
-        case EmailJobType.ORGANIZATION_INVITATION: {
-          const orgInvite = data as OrganizationInvitationEmailData;
-          await this.emailService.sendOrganizationInvitationEmail(
-            orgInvite.to,
-            orgInvite.organizationName,
-            orgInvite.inviterName,
-            orgInvite.invitationLink,
-            orgInvite.role,
-          );
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent organization invitation email to ${orgInvite.to} for organization ${orgInvite.organizationName}`,
-          );
-          return;
-        }
-        case EmailJobType.JOB_RECOMMENDATIONS: {
-          const jobRec = data as JobRecommendationsEmailData;
-          await this.emailService.sendJobRecommendationsEmail(
-            jobRec.to,
-            jobRec.userName,
-            jobRec.jobs,
-          );
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent job recommendations email to ${jobRec.to} for user ${jobRec.userName}`,
-          );
-          return;
-        }
-        case EmailJobType.ORGANIZATION_VERIFICATION: {
-          const orgVerify = data as OrganizationVerificationEmailData;
-          await this.emailService.sendVerifyOrganizationEmailOtp(
-            orgVerify.to,
-            orgVerify.organizationName,
-            orgVerify.otpCode,
-          );
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent organization verification email to ${orgVerify.to} for organization ${orgVerify.organizationName}`,
-          );
-          return;
-        }
-        case EmailJobType.ORGANIZATION_CHANGE_EMAIL: {
-          const orgChange = data as OrganizationChangeEmailData;
-          await this.emailService.sendChangeOrganizationEmailOtp(
-            orgChange.to,
-            orgChange.organizationName,
-            orgChange.otpCode,
-          );
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent organization change email to ${orgChange.to} for organization ${orgChange.organizationName}`,
-          );
-          return;
-        }
-        case EmailJobType.FEEDBACK_ASSIGNED: {
-          const feedbackAssigned = data as FeedbackAssignedEmailData;
-          await this.emailService.sendFeedbackAssignedEmail(
-            feedbackAssigned.to,
-            feedbackAssigned.recipientName ?? "bạn",
-            feedbackAssigned.feedbackSubject,
-          );
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent feedback assigned email to ${feedbackAssigned.to} for feedback ${feedbackAssigned.feedbackSubject}`,
-          );
-          return;
-        }
-        case EmailJobType.FEEDBACK_RESOLVED: {
-          const feedbackResolved = data as FeedbackResolvedEmailData;
-          await this.emailService.sendFeedbackResolvedEmail(
-            feedbackResolved.to,
-            feedbackResolved.recipientName ?? "bạn",
-            feedbackResolved.feedbackSubject,
-          );
-
-          this.logger.log(
-            `[email.worker] [processEmailTask] Sent feedback resolved email to ${feedbackResolved.to} for feedback ${feedbackResolved.feedbackSubject}`,
-          );
-          return;
-        }
-        default:
-          this.logger.warn(
-            "[email.worker] [processEmailTask] Unknown email task type",
-          );
+    switch (type) {
+      case EmailJobType.ORGANIZATION_INVITATION: {
+        const orgInvite = data as OrganizationInvitationEmailData;
+        await this.emailService.sendOrganizationInvitationEmail(
+          orgInvite.to,
+          orgInvite.organizationName,
+          orgInvite.inviterName,
+          orgInvite.invitationLink,
+          orgInvite.role,
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent organization invitation email to ${orgInvite.to} for organization ${orgInvite.organizationName}`,
+        );
+        return;
       }
-    } catch (error) {
-      this.logger.error(
-        `[email.worker] [processEmailTask] Failed to process email task of type ${type} with data ${JSON.stringify(
-          data,
-        )}. Error: ${error.message}`,
-      );
-      throw error;
+      case EmailJobType.JOB_RECOMMENDATIONS: {
+        const jobRec = data as JobRecommendationsEmailData;
+        await this.emailService.sendJobRecommendationsEmail(
+          jobRec.to,
+          jobRec.userName,
+          jobRec.jobs,
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent job recommendations email to ${jobRec.to} for user ${jobRec.userName}`,
+        );
+        return;
+      }
+      case EmailJobType.ORGANIZATION_VERIFICATION: {
+        const orgVerify = data as OrganizationVerificationEmailData;
+        await this.emailService.sendVerifyOrganizationEmailOtp(
+          orgVerify.to,
+          orgVerify.organizationName,
+          orgVerify.otpCode,
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent organization verification email to ${orgVerify.to} for organization ${orgVerify.organizationName}`,
+        );
+        return;
+      }
+      case EmailJobType.ORGANIZATION_CHANGE_EMAIL: {
+        const orgChange = data as OrganizationChangeEmailData;
+        await this.emailService.sendChangeOrganizationEmailOtp(
+          orgChange.to,
+          orgChange.organizationName,
+          orgChange.otpCode,
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent organization change email to ${orgChange.to} for organization ${orgChange.organizationName}`,
+        );
+        return;
+      }
+      case EmailJobType.FEEDBACK_ASSIGNED: {
+        const feedbackAssigned = data as FeedbackAssignedEmailData;
+        await this.emailService.sendFeedbackAssignedEmail(
+          feedbackAssigned.to,
+          feedbackAssigned.recipientName ?? "bạn",
+          feedbackAssigned.feedbackSubject,
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent feedback assigned email to ${feedbackAssigned.to} for feedback ${feedbackAssigned.feedbackSubject}`,
+        );
+        return;
+      }
+      case EmailJobType.FEEDBACK_RESOLVED: {
+        const feedbackResolved = data as FeedbackResolvedEmailData;
+        await this.emailService.sendFeedbackResolvedEmail(
+          feedbackResolved.to,
+          feedbackResolved.recipientName ?? "bạn",
+          feedbackResolved.feedbackSubject,
+          feedbackResolved.resolutionNote,
+        );
+
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent feedback resolved email to ${feedbackResolved.to} for feedback ${feedbackResolved.feedbackSubject}`,
+        );
+        return;
+      }
+      case EmailJobType.ADMIN_BULK: {
+        const adminBulk = data as AdminBulkEmailData;
+        await this.emailService.sendAdminBulkEmail(
+          adminBulk.to,
+          adminBulk.subject,
+          adminBulk.bodyHtml,
+          adminBulk.recipientName ?? "bạn",
+        );
+        this.logger.log(
+          `[email.worker] [processEmailTask] Sent admin bulk email to ${adminBulk.to}`,
+        );
+        return;
+      }
+      default:
+        this.logger.warn(
+          "[email.worker] [processEmailTask] Unknown email task type",
+        );
     }
   }
 }

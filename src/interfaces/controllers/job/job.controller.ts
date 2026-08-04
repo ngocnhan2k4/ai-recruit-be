@@ -78,6 +78,26 @@ export class JobController {
   }
 
   @ApiOperation({
+    summary: "Get all jobs (legacy)",
+    description: "Legacy implementation for getting jobs",
+  })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiResponseDto(JobPaginationResponseDto)
+  @Get("legacy")
+  async getJobsLegacy(
+    @Query() query: QueryJobDto,
+    @GetUser() user?: TokenPayload,
+  ): Promise<ApiResponse<JobPaginationResponseDto>> {
+    return this.jobUseCases.getJobsLegacy({
+      ...query,
+      user: user && {
+        ...user,
+        roles: [RoleEnum.USER],
+      },
+    });
+  }
+
+  @ApiOperation({
     summary: "Get all jobs",
     description:
       "Retrieve a list of all jobs with cursor-based pagination and filtering by salary range, experience, province, company, and work type. from database",

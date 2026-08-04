@@ -17,7 +17,6 @@ export const ProviderEnum = pgEnum("provider", [
 ]);
 export const UserStatusEnum = pgEnum("user_status", [
   "active",
-  // "inactive",
   "banned",
   "pending_deletion",
   "deleted",
@@ -66,22 +65,24 @@ export const NotificationTypeEnum = pgEnum("notification_type", [
   "organization_invitation",
   "system",
   "feedback_assigned",
+  "blog_comment",
+  "blog_comment_reply",
 ]);
 export const OrganizationRoleEnum = pgEnum("organization_role", [
   "organization_owner",
   "organization_admin",
-  "organization_editor",
+  // "organization_editor",
   "organization_viewer",
-  "organization_content_admin",
-  "organization_content_editor",
-  "organization_content_viewer",
-  "organization_recruiter_admin",
-  "organization_recruiter_editor",
-  "organization_recruiter_viewer",
-  "organization_analyst_admin",
-  "organization_analyst_editor",
-  "organization_analyst_viewer",
-  "organization_employee",
+  // "organization_content_admin",
+  // "organization_content_editor",
+  // "organization_content_viewer",
+  // "organization_recruiter_admin",
+  // "organization_recruiter_editor",
+  // "organization_recruiter_viewer",
+  // "organization_analyst_admin",
+  // "organization_analyst_editor",
+  // "organization_analyst_viewer",
+  // "organization_employee",
   "anonymously",
 ]);
 
@@ -90,6 +91,8 @@ export const FeedbackStatusEnum = pgEnum("feedback_status", [
   "read",
   "resolved",
 ]);
+
+export const FeedbackTypeEnum = pgEnum("feedback_type", ["feedback", "survey"]);
 
 export const OrganizationInviteStatusEnum = pgEnum(
   "organization_invite_status",
@@ -171,6 +174,7 @@ export const TaskStatusEnum = pgEnum("task_status", [
 export const TaskTypeEnum = pgEnum("task_type", [
   "learning_path_generation",
   "cv_generation",
+  "cv_generation_v2",
 ]);
 
 export const BlogPostStatusEnum = pgEnum("blog_post_status", [
@@ -178,6 +182,12 @@ export const BlogPostStatusEnum = pgEnum("blog_post_status", [
   "PENDING",
   "PUBLISHED",
   "REJECTED",
+]);
+
+export const BlogPostSourceTypeEnum = pgEnum("blog_post_source_type", [
+  "USER",
+  "AI",
+  "CRAWLED",
 ]);
 
 export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);

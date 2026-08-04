@@ -1,71 +1,96 @@
 import {
+  ONE_DAY_MS,
+  RESPONSE_CODE,
+  RESPONSE_MESSAGE,
+  RoleEnum,
+  SUPPORTED_LANGUAGE_CODES,
+  TASK_EVENT,
+  USER_FOLDER,
+} from "@/common/constants";
+import { PaginatedResult, TokenPayload } from "@/common/types";
+import {
+  buildDeletedEmail,
+  buildDeletedFirebaseUid,
+  buildDeletedPhone,
+  getRequestLanguage,
+  normalizeLanguageCode,
+  parseSupportedLanguageCode,
+} from "@/common/utils";
+import {
+  getFirebaseProviderKey,
+  normalizeProvider,
+} from "@/common/utils/firebase";
+import { IOrganizationRepository, UserOnboarding, UserSkill } from "@/core";
+import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
+import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
+import { GetAllUserResponse, GetUserQuery } from "@/core/entities/user.entity";
+import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
+import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
+import {
+  AdminUpdateUserRequestDto,
+  AdminSendEmailRequestDto,
+  AdminSendEmailResponseDto,
+  AdminEmailTemplateResponseDto,
+  ApiResponse,
+  CreateUserEducationDto,
+  CreateUserExperienceRequestDto,
+  GetUserResponseDto,
+  TypeAvatar,
+  UpdateUserEducationDto,
+  UpdateUserRequestDto,
+  UserEducationResponseDto,
+  UserExperiencesResponseDto,
+  UserOnboardingDto,
+  UserPublicResponseDto,
+  UserTrendsQueryDto,
+  UserTrendsResponseDto,
+} from "@/interfaces/dtos";
+import { MultipartFile } from "@fastify/multipart";
+import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
+  UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config/dist/config.service";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { addDays } from "date-fns";
 import {
   EducationLevelEnum,
+  EmailJobType,
   GenderEnum,
   GetUserFeaturesResponse,
   OrganizationTypeEnum,
   OrganizationWithDetails,
   ProviderEnum,
-  Skill,
   User,
+  UserSkillResponse,
   UserStatusEnum,
 } from "../../core";
 import {
   IAuthRepository,
-  IBloomFilterService,
-  IUserRepository,
-  IUserExperienceRepository,
-  IUserSkillRepository,
-  IUserOnboardingRepository,
   IAuthService,
+  IBloomFilterService,
+  IJobRepository,
+  IMessageQueueService,
   ISkillRepository,
+  IUserExperienceRepository,
+  IUserOnboardingRepository,
+  IUserRepository,
+  IUserSkillRepository,
 } from "../../core/abstracts";
-import { Logger, OnModuleInit } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
 import {
-  RESPONSE_CODE,
-  RESPONSE_MESSAGE,
-  USER_FOLDER,
-} from "@/common/constants";
-import {
-  ApiResponse,
-  GetUserResponseDto,
-  TypeAvatar,
-  UpdateUserRequestDto,
-  UserPublicResponseDto,
-  UserOnboardingDto,
-  AdminUpdateUserRequestDto,
-  UserTrendsResponseDto,
-  UserTrendsQueryDto,
-} from "@/interfaces/dtos";
-import { CloudinaryService } from "@/frameworks/storage/cloudinary/cloudinary.service";
-import { PaginatedResult, TokenPayload } from "@/common/types";
-import { MultipartFile } from "@fastify/multipart";
-import { IOrganizationRepository, UserSkill, UserOnboarding } from "@/core";
-import {
-  CreateUserExperienceRequestDto,
-  UserExperiencesResponseDto,
-} from "@/interfaces/dtos";
-import { GetAllUserResponse, GetUserQuery } from "@/core/entities/user.entity";
-import { CasbinService } from "@/frameworks/auth-services/casbin/casbin.service";
-import { RoleEnum } from "@/common/constants";
-import {
-  CreateUserEducationDto,
-  UpdateUserEducationDto,
-  UserEducationResponseDto,
-} from "@/interfaces/dtos";
-import { IUserEducationRepository } from "@/core/abstracts/repositories/user-education-repository.abstract";
-import { IUserFeatureUsageRepository } from "@/core/abstracts/repositories/user-feature-usage-repository.abstract";
-import { ONE_DAY_MS } from "@/common/constants";
-import { addDays } from "date-fns";
-import { buildDeletedEmail } from "@/common/utils";
-import { buildDeletedPhone } from "@/common/utils";
-import { buildDeletedFirebaseUid } from "@/common/utils";
-import { ConfigService } from "@nestjs/config/dist/config.service";
+  ADMIN_BULK_EMAIL_RECIPIENT_CAP,
+  ADMIN_EMAIL_TEMPLATES,
+  getAdminEmailTemplate,
+  plainTextBodyToHtml,
+  substitutePlaceholders,
+} from "@/frameworks/email-services/admin-email-templates";
+import { AdminBulkEmailData } from "@/core/entities/email.entity";
+type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 @Injectable()
 export class UserUseCases implements OnModuleInit {
@@ -86,6 +111,8 @@ export class UserUseCases implements OnModuleInit {
     private readonly userFeatureUsageRepository: IUserFeatureUsageRepository,
     private readonly skillRepository: ISkillRepository,
     private readonly configService: ConfigService,
+    private readonly jobRepository: IJobRepository,
+    private readonly messageQueueService: IMessageQueueService,
   ) {}
 
   // private isUserAccountAvailable(user: User): boolean {
@@ -125,6 +152,42 @@ export class UserUseCases implements OnModuleInit {
         tx,
       );
     });
+  }
+
+  private async enqueueRescoreApplicationsForUser(
+    userId: string,
+  ): Promise<void> {
+    try {
+      const targets =
+        await this.jobRepository.getApplyScoreTargetsByUserId(userId);
+      if (targets.length === 0) {
+        return;
+      }
+
+      await Promise.all(
+        targets.map((target) =>
+          this.messageQueueService.addScoreCv(
+            TASK_EVENT.SCORE_CV_APPLY,
+            {
+              applyId: target.applyId,
+              jobId: target.jobId,
+              cvId: target.cvId,
+            },
+            {
+              jobId: `score-cv-apply-${target.applyId}`,
+            },
+          ),
+        ),
+      );
+
+      this.logger.log(
+        `[enqueueRescoreApplicationsForUser] Enqueued ${targets.length} score jobs for user ${userId}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `[enqueueRescoreApplicationsForUser] Failed for user ${userId}: ${error.message}`,
+      );
+    }
   }
 
   async onModuleInit() {
@@ -176,7 +239,7 @@ export class UserUseCases implements OnModuleInit {
       const users = await this.userRepository.getAll(["username"]);
       const usernames = users.map((user) => user.username);
 
-      this.bloomFilterService.initialize(usernames);
+      this.bloomFilterService.initialize("global_usernames", usernames);
 
       this.logger.log(
         `[UserUseCases] [initializeBloomFilter] Bloom filter refreshed with ${usernames.length} usernames`,
@@ -343,6 +406,55 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
+  async linkProvider(
+    userId: string,
+    idToken: string,
+  ): Promise<ApiResponse<void>> {
+    const decode = await this.authService.verifyIdToken(idToken).catch(() => {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    });
+
+    const user = await this.userRepository.get(userId);
+    if (user?.firebaseUid !== decode.uid) {
+      throw new UnauthorizedException({
+        message: RESPONSE_MESSAGE.INVALID_CREDENTIALS,
+        code: RESPONSE_CODE.INVALID_CREDENTIALS,
+      });
+    }
+
+    const currentProvider = normalizeProvider(
+      decode.provider_id || ProviderEnum.EMAIL,
+    );
+
+    if (currentProvider === ProviderEnum.EMAIL) {
+      throw new ConflictException({
+        message: "Cannot link email/password provider this way",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const firebaseProviderKey = getFirebaseProviderKey(currentProvider);
+    const profiles = await this.authService.getUserProviderProfiles(decode.uid);
+    const profile = profiles.find((p) => p.providerId === firebaseProviderKey);
+
+    await this.userRepository.addUserIdentity({
+      userId,
+      provider: currentProvider,
+      providerUserId: profile?.providerUserId ?? undefined,
+      providerEmail: profile?.email ?? null,
+      providerName: profile?.name ?? null,
+      providerPicture: profile?.picture ?? null,
+    });
+
+    return {
+      message: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
   async getUserByUsername(
     username: string,
     currentUserId?: string,
@@ -412,6 +524,7 @@ export class UserUseCases implements OnModuleInit {
       }
       response.email = user.email || null;
       response.phone = user.phone || null;
+      response.preferredLanguage = user.preferredLanguage || "vi";
     }
 
     return {
@@ -442,11 +555,31 @@ export class UserUseCases implements OnModuleInit {
       experienceYears,
       currentGoal,
       skills,
+      preferredLanguage,
       ...userUpdateData
     } = updateUserDto;
 
+    let normalizedPreferredLanguage: SupportedLanguageCode | undefined;
+    if (preferredLanguage !== undefined) {
+      const parsedPreferredLanguage =
+        parseSupportedLanguageCode(preferredLanguage);
+      if (!parsedPreferredLanguage) {
+        throw new BadRequestException({
+          message: "Unsupported preferred language",
+          code: RESPONSE_CODE.BAD_REQUEST,
+        });
+      }
+      normalizedPreferredLanguage =
+        parsedPreferredLanguage as SupportedLanguageCode;
+    }
+
     const normalizedUserUpdateData = {
       ...userUpdateData,
+      ...(preferredLanguage !== undefined
+        ? {
+            preferredLanguage: normalizedPreferredLanguage,
+          }
+        : {}),
       ...(userUpdateData.dob !== undefined
         ? { dob: userUpdateData.dob || null }
         : {}),
@@ -471,6 +604,20 @@ export class UserUseCases implements OnModuleInit {
       }
 
       // Update preferences if provided
+      const shouldTrackMatchingPrefs =
+        expectedSalary !== undefined || experienceYears !== undefined;
+      const [previousOnboarding] = shouldTrackMatchingPrefs
+        ? await this.userOnboardingRepository.getByField({ userId })
+        : [];
+      const previousExpectedSalary =
+        previousOnboarding?.expectedSalary != null
+          ? Number(previousOnboarding.expectedSalary)
+          : null;
+      const previousExperienceYears =
+        previousOnboarding?.experienceYears != null
+          ? Number(previousOnboarding.experienceYears)
+          : null;
+
       if (
         provinceIds !== undefined ||
         categoryIds !== undefined ||
@@ -502,8 +649,42 @@ export class UserUseCases implements OnModuleInit {
         if (skills !== undefined) {
           preferencesUpdate.skills = skills;
         }
+        preferencesUpdate.languageCode = getRequestLanguage();
 
         await this.userOnboardingRepository.upsert(userId, preferencesUpdate);
+      }
+
+      const nextExpectedSalary =
+        expectedSalary === undefined
+          ? previousExpectedSalary
+          : expectedSalary == null
+            ? null
+            : Number(expectedSalary);
+      const normalizedNextExpectedSalary = Number.isFinite(
+        nextExpectedSalary as number,
+      )
+        ? nextExpectedSalary
+        : null;
+      const nextExperienceYears =
+        experienceYears === undefined
+          ? previousExperienceYears
+          : experienceYears == null
+            ? null
+            : Number(experienceYears);
+      const normalizedNextExperienceYears = Number.isFinite(
+        nextExperienceYears as number,
+      )
+        ? nextExperienceYears
+        : null;
+
+      const shouldRescore =
+        (expectedSalary !== undefined &&
+          previousExpectedSalary !== normalizedNextExpectedSalary) ||
+        (experienceYears !== undefined &&
+          previousExperienceYears !== normalizedNextExperienceYears);
+
+      if (shouldRescore) {
+        this.enqueueRescoreApplicationsForUser(userId);
       }
 
       return {
@@ -534,6 +715,39 @@ export class UserUseCases implements OnModuleInit {
       }
       throw error;
     }
+  }
+
+  async updatePreferredLanguage(
+    userId: string,
+    preferredLanguage: string,
+  ): Promise<ApiResponse<void>> {
+    const user = await this.userRepository.get(userId);
+    if (!user) {
+      throw new NotFoundException({
+        message: RESPONSE_MESSAGE.USER_NOT_FOUND,
+        code: RESPONSE_MESSAGE.USER_NOT_FOUND,
+      });
+    }
+
+    const normalized = parseSupportedLanguageCode(preferredLanguage);
+    if (!normalized) {
+      throw new BadRequestException({
+        message: "Unsupported preferred language",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    await this.userRepository.update(
+      { id: userId },
+      {
+        preferredLanguage: normalized as SupportedLanguageCode,
+      },
+    );
+
+    return {
+      message: "Preferred language updated successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
   }
 
   async getUserExperiences(
@@ -579,10 +793,11 @@ export class UserUseCases implements OnModuleInit {
     userId: string,
     createUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.createUserExperienceWithCompanyAndSkills(
         userId,
-        createUserExperienceDto,
+        { ...createUserExperienceDto, languageCode },
       );
     if (!result) {
       throw new NotFoundException({
@@ -590,6 +805,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience created successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -602,11 +818,12 @@ export class UserUseCases implements OnModuleInit {
     id: number,
     updateUserExperienceDto: CreateUserExperienceRequestDto,
   ): Promise<ApiResponse<number>> {
+    const languageCode = getRequestLanguage();
     const result =
       await this.userExperienceRepository.updateUserExperienceWithCompanyAndSkills(
         userId,
         id,
-        updateUserExperienceDto,
+        { ...updateUserExperienceDto, languageCode },
       );
 
     if (!result) {
@@ -642,6 +859,7 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_EXPERIENCE_NOT_FOUND,
       });
     }
+
     return {
       message: "User experience deleted successfully",
       code: RESPONSE_MESSAGE.SUCCESS,
@@ -649,11 +867,13 @@ export class UserUseCases implements OnModuleInit {
     };
   }
 
-  async getUserSkills(username: string): Promise<ApiResponse<Skill[]>> {
-    const userSkills = await this.userSkillRepository.getUserSkills(username);
+  async getUserSkills(
+    userId: string,
+  ): Promise<ApiResponse<UserSkillResponse[]>> {
+    const userSkills = await this.userSkillRepository.getUserSkills(userId);
     if (!userSkills) {
       throw new NotFoundException({
-        message: "[getUserSkills] - [getByUserId] User skills not found",
+        message: "[getUserSkills] - [getByUserId] User skill not found",
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
@@ -680,9 +900,10 @@ export class UserUseCases implements OnModuleInit {
         code: RESPONSE_CODE.USER_SKILL_NOT_FOUND,
       });
     }
+
     return {
       message: "User skill created successfully",
-      code: RESPONSE_MESSAGE.SUCCESS,
+      code: RESPONSE_CODE.SUCCESS,
       data: userSkill,
     };
   }
@@ -775,7 +996,10 @@ export class UserUseCases implements OnModuleInit {
     username: string,
   ): Promise<ApiResponse<{ exists: boolean }>> {
     // Step 1: check bloom filter
-    const mightExist = this.bloomFilterService.mightContain(username);
+    const mightExist = this.bloomFilterService.mightContain(
+      "global_usernames",
+      username,
+    );
     if (!mightExist) {
       return {
         data: { exists: false },
@@ -824,14 +1048,11 @@ export class UserUseCases implements OnModuleInit {
     userOnboarding: UserOnboardingDto,
     userId: string,
   ): Promise<ApiResponse<void>> {
-    const onboarding: Partial<
-      Omit<UserOnboardingDto, "name" | "gender" | "dob">
-    > = {
-      ...userOnboarding,
-    };
+    const { name, gender, dob, ...onboarding } = userOnboarding;
     const newOnboarding = {
       ...onboarding,
       userId,
+      languageCode: getRequestLanguage(),
     } as Partial<UserOnboarding>;
 
     const user = await this.userRepository.get(userId);
@@ -846,9 +1067,10 @@ export class UserUseCases implements OnModuleInit {
       userId,
       { ...newOnboarding } as UserOnboarding,
       {
-        name: userOnboarding.name!,
-        gender: userOnboarding.gender!,
-        dob: userOnboarding.dob!,
+        name: name ?? undefined,
+        gender: gender ?? undefined,
+        dob: dob ?? undefined,
+        onboardingCompleted: true,
       },
     );
     return {
@@ -864,6 +1086,113 @@ export class UserUseCases implements OnModuleInit {
     return {
       data: result,
       message: "Users retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  getAdminEmailTemplates(): ApiResponse<AdminEmailTemplateResponseDto[]> {
+    return {
+      data: ADMIN_EMAIL_TEMPLATES,
+      message: "Email templates retrieved successfully",
+      code: RESPONSE_CODE.SUCCESS,
+    };
+  }
+
+  async adminSendEmail(
+    dto: AdminSendEmailRequestDto,
+  ): Promise<ApiResponse<AdminSendEmailResponseDto>> {
+    const template = getAdminEmailTemplate(dto.templateId);
+    if (!template) {
+      throw new BadRequestException({
+        message: "Invalid email template",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const subject = dto.subject?.trim();
+    const body = dto.body?.trim();
+    if (!subject || !body) {
+      throw new BadRequestException({
+        message: "Subject and body are required",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    if (!dto.selectAllMatching && (!dto.userIds || dto.userIds.length === 0)) {
+      throw new BadRequestException({
+        message: "userIds is required when selectAllMatching is false",
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    const recipientQuery: GetUserQuery = dto.selectAllMatching
+      ? {
+          limit: ADMIN_BULK_EMAIL_RECIPIENT_CAP + 1,
+          keyword: dto.keyword,
+          subscriptionId: dto.subscriptionId,
+          statusSubscription: dto.statusSubscription,
+          isDeleted: false,
+          fields:
+            dto.subscriptionId || dto.statusSubscription
+              ? ["subscription", "userSubscription"]
+              : undefined,
+        }
+      : {
+          limit: ADMIN_BULK_EMAIL_RECIPIENT_CAP + 1,
+          userIds: dto.userIds,
+          isDeleted: false,
+        };
+
+    const recipients = await this.userRepository.getEmailRecipients(
+      recipientQuery,
+      ADMIN_BULK_EMAIL_RECIPIENT_CAP,
+    );
+
+    if (recipients.length > ADMIN_BULK_EMAIL_RECIPIENT_CAP) {
+      throw new BadRequestException({
+        message: `Too many recipients. Maximum is ${ADMIN_BULK_EMAIL_RECIPIENT_CAP}`,
+        code: RESPONSE_CODE.BAD_REQUEST,
+      });
+    }
+
+    let queued = 0;
+    let skippedNoEmail = 0;
+
+    for (const recipient of recipients) {
+      if (!recipient.email?.trim()) {
+        skippedNoEmail += 1;
+        continue;
+      }
+
+      const name = recipient.name?.trim() || "bạn";
+      const personalizedSubject = substitutePlaceholders(subject, {
+        name,
+        email: recipient.email,
+      });
+      const personalizedBody = substitutePlaceholders(body, {
+        name,
+        email: recipient.email,
+      });
+      const bodyHtml = plainTextBodyToHtml(personalizedBody);
+
+      const payload: AdminBulkEmailData = {
+        to: recipient.email,
+        subject: personalizedSubject,
+        bodyHtml,
+        recipientName: name,
+      };
+
+      await this.messageQueueService.addEmail(EmailJobType.ADMIN_BULK, payload);
+      queued += 1;
+    }
+
+    return {
+      data: {
+        queued,
+        skippedNoEmail,
+        totalRequested: recipients.length,
+      },
+      message: "Emails queued successfully",
       code: RESPONSE_CODE.SUCCESS,
     };
   }
@@ -971,9 +1300,8 @@ export class UserUseCases implements OnModuleInit {
   async getUserEducations(
     userId: string,
   ): Promise<ApiResponse<UserEducationResponseDto[]>> {
-    const userEducations = await this.userEducationRepository.getByField({
-      userId,
-    });
+    const userEducations =
+      await this.userEducationRepository.getUserEducationsByUserId(userId);
 
     const universities =
       await this.organizationRepository.getOrganizationsByTypes([
@@ -1024,6 +1352,9 @@ export class UserUseCases implements OnModuleInit {
     const newEducation = await this.userEducationRepository.create({
       ...createUserEducationDto,
       userId,
+      languageCode: createUserEducationDto.languageCode
+        ? normalizeLanguageCode(createUserEducationDto.languageCode)
+        : getRequestLanguage(),
     });
 
     return {
@@ -1047,9 +1378,11 @@ export class UserUseCases implements OnModuleInit {
     educationId: string,
     updateUserEducationDto: UpdateUserEducationDto,
   ): Promise<ApiResponse<UserEducationResponseDto>> {
+    const languageCode = getRequestLanguage();
     const userEducation = await this.userEducationRepository.getByField({
       schoolId: educationId,
       userId,
+      languageCode,
     });
 
     if (!userEducation || userEducation.length === 0) {

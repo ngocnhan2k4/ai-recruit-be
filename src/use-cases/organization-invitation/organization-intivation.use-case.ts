@@ -150,6 +150,8 @@ export class OrganizationInvitationUseCase {
       };
     }
 
+    const organization = await this.organizationRepository.get(organizationId);
+
     await this.organizationMemberInvitationRepository.executeWithTransaction(
       async (tx) => {
         // Create invitation
@@ -180,6 +182,10 @@ export class OrganizationInvitationUseCase {
             title: "Organization Invitation",
             senderId: inviterId,
             message: `You have been invited to join an organization.`,
+            templateKey: "organization_invitation",
+            templateData: {
+              organizationName: organization?.name ?? "organization",
+            },
             payload: {
               orgId: organizationId,
               userId: data.inviteeId,

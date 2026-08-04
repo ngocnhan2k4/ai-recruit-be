@@ -15,7 +15,7 @@ import {
   OrganizationWithDetails,
   JobRecommendationsEmailData,
 } from "@/core/entities";
-import { JobFilters, JobResponse } from "@/core/entities/job.entity";
+import { JobFilters } from "@/core/entities/job.entity";
 import { subDays } from "date-fns/subDays";
 import { RESPONSE_CODE } from "@/common/constants";
 import { PaginatedResult } from "@/common/types";
@@ -25,6 +25,8 @@ import {
   OrganizationWithDetailsDto,
 } from "@/interfaces/dtos";
 import { Dictionary, keyBy } from "lodash";
+import { EventTrackingService } from "../event-tracking/event-tracking.service";
+import { IBloomFilterService } from "@/core/abstracts";
 
 @Injectable()
 export class JobMatchingUseCases {
@@ -36,6 +38,8 @@ export class JobMatchingUseCases {
     private readonly userRepository: IUserRepository,
     private readonly jobSearchService: IJobSearchService,
     private readonly organizationRepository: IOrganizationRepository,
+    private readonly eventTrackingService: EventTrackingService,
+    private readonly bloomFilterService: IBloomFilterService,
   ) {}
 
   async sendJobRecommendationsToUsers(): Promise<void> {
@@ -118,7 +122,7 @@ export class JobMatchingUseCases {
     }
 
     const {
-      data: docs,
+      data: rawDocs,
       pagination: { nextCursor, hasNextPage: hasMore },
     } = await this.jobSearchService.matchJobs(userProfile, filters);
 
@@ -126,7 +130,7 @@ export class JobMatchingUseCases {
     const jobIds: string[] = [];
     const orgIds: string[] = [];
 
-    for (const doc of docs) {
+    for (const doc of rawDocs) {
       if (!doc?.id) continue;
       jobIds.push(doc.id);
       const orgId = doc.organizationId;
@@ -135,7 +139,7 @@ export class JobMatchingUseCases {
 
     const uniqueOrgIds = [...new Set<string>(orgIds)];
 
-    const [userJobStatusMap, organizations, jobInfos] = await Promise.all([
+    const [userJobStatusMap, organizations] = await Promise.all([
       jobIds.length > 0 && filters.user?.userId
         ? await this.jobRepository.getUserJobStatuses(
             filters.user?.userId,
@@ -151,21 +155,14 @@ export class JobMatchingUseCases {
         "employeesMax",
         "logoUrl",
       ]),
-      this.jobRepository.getJobsV2({
-        ids: jobIds,
-        fields: ["jobRaw"],
-        limit: 0, // No need
-      }),
     ]);
     const organizationMap = keyBy(organizations, "id");
-    const jobMap = keyBy(jobInfos.data, "job.id");
 
     // Transform ES results to JobMatchResult (extends JobResponse)
     const jobs = this.convertHitToDto(
-      docs,
+      rawDocs,
       organizationMap,
       userJobStatusMap,
-      jobMap,
     );
 
     this.logger.log(
@@ -197,7 +194,6 @@ export class JobMatchingUseCases {
         applyId: string | null;
       }
     >,
-    jobMap: Dictionary<JobResponse>,
   ): JobMatchResultDto[] {
     return actualHits.map((source: any) => {
       // Transform provinces
@@ -228,7 +224,7 @@ export class JobMatchingUseCases {
       };
 
       // Transform job - datePosted/endDate are date strings, not Date objects
-      const job: Omit<Job, "recruitCount"> = {
+      const job: Job = {
         id: source.id,
         title: source.title,
         description: source.description,
@@ -237,6 +233,12 @@ export class JobMatchingUseCases {
         salaryMax: source.salaryMax?.toString() || null,
         experienceMin: source.experienceMin,
         experienceMax: source.experienceMax,
+        recruitCount:
+          typeof source.recruitCount === "number"
+            ? source.recruitCount
+            : source.recruitCount != null
+              ? Number(source.recruitCount)
+              : null,
         workType: source.workType,
         status: source.status || "active",
         datePosted: source.datePosted || null,
@@ -252,7 +254,8 @@ export class JobMatchingUseCases {
           : new Date(),
         deletedAt: null,
         questions: source.questions,
-        applyUrl: source.applyUrl || null,
+        applyUrl: source.applyUrl ?? null,
+        embedding: null,
       };
 
       const jobStatus = userJobStatusMap.get(job.id) || {
@@ -260,7 +263,6 @@ export class JobMatchingUseCases {
         isApplied: false,
         applyStatus: null,
         applyId: null,
-        applyUrl: null,
       };
 
       return {
@@ -273,7 +275,7 @@ export class JobMatchingUseCases {
         isApplied: jobStatus.isApplied,
         applyStatus: jobStatus.applyStatus || undefined,
         applyId: jobStatus.applyId || undefined,
-        applyUrl: jobMap[job.id]?.applyUrl,
+        applyUrl: source.applyUrl ?? null,
         score: typeof source.score === "number" ? source.score : 0,
       } as JobMatchResultDto;
     });

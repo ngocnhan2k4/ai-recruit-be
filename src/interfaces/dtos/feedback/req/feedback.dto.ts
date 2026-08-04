@@ -5,13 +5,18 @@ import {
   IsEmail,
   IsEnum,
   IsDate,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateIf,
 } from "class-validator";
-import { FeedbackStatusEnum } from "@/core/entities/enum.entity";
-import { Type } from "class-transformer";
+import {
+  FeedbackStatusEnum,
+  FeedbackTypeEnum,
+} from "@/core/entities/enum.entity";
+import { Transform, Type } from "class-transformer";
 
 export class CreateFeedbackRequestDto {
   @ApiProperty({ description: "Name of the user submitting feedback" })
@@ -43,6 +48,41 @@ export class CreateFeedbackRequestDto {
   @IsArray()
   @IsString({ each: true })
   images?: string[];
+
+  @ApiProperty({
+    description:
+      "Free-form JSON payload. For UX surveys, MUST include `surveyKey` (string) to enable server-side dedupe.",
+    required: false,
+    type: Object,
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
+
+  @ApiProperty({
+    required: false,
+    enum: FeedbackTypeEnum,
+    description:
+      "Record type (`feedback` or `survey`). Defaults to `feedback`.",
+  })
+  @IsOptional()
+  @IsEnum(FeedbackTypeEnum)
+  type?: FeedbackTypeEnum;
+}
+
+export class GetSubmittedSurveysQueryDto {
+  @ApiProperty({
+    required: false,
+    description:
+      "Optional list of surveyKeys to filter on. If omitted, returns all surveyKeys this user has submitted.",
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => (typeof value === "string" ? [value] : value))
+  surveyKeys?: string[];
 }
 
 export class GetFeedbacksRequestDto extends GeneralQueryDto {
@@ -70,6 +110,15 @@ export class GetFeedbacksRequestDto extends GeneralQueryDto {
   @Type(() => Date)
   @IsDate()
   endDate?: Date;
+
+  @ApiProperty({
+    required: false,
+    enum: FeedbackTypeEnum,
+    description: "Filter records by type: `feedback` or `survey`.",
+  })
+  @IsOptional()
+  @IsEnum(FeedbackTypeEnum)
+  type?: FeedbackTypeEnum;
 }
 
 export class UpdateFeedbackRequestDto {
@@ -91,4 +140,14 @@ export class UpdateFeedbackRequestDto {
   )
   @IsUUID()
   assignedToUserId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Optional note included in the resolved email to the user. Not persisted.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  resolutionNote?: string;
 }

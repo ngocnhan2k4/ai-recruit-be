@@ -5,10 +5,12 @@ import {
   IsBoolean,
   IsDate,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  Min,
 } from "class-validator";
 import { GeneralQueryDto } from "../../common/query";
 import { Transform, Type } from "class-transformer";
@@ -53,6 +55,18 @@ export class GetSkillsQueryDto extends GeneralQueryDto {
   @IsBoolean()
   @Type(() => Boolean)
   questions?: boolean;
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description: "Minimum number of questions a skill must have",
+    example: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  minQuestionCount?: number;
 }
 
 export class GetCrawledSkillsQueryDto extends GeneralQueryDto {
@@ -101,6 +115,17 @@ export class GetTopDemandedSkillsQueryDto {
   @IsString()
   @Transform(({ value }) => value || undefined)
   provinceId?: string;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: "Filter by job category UUID",
+    example: "9f1a9d45-3a5c-4f4a-bf57-182f98244fcd",
+  })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value || undefined)
+  categoryId?: string;
 }
 
 export class BulkReviewSkillDto {

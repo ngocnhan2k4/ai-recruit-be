@@ -5,7 +5,9 @@ export abstract class IUserOnboardingRepository extends IGenericRepository<UserO
   abstract createOnboardingForUser(
     userId: string,
     onboardingData: UserOnboarding,
-    userData: Pick<User, "name" | "gender" | "dob">,
+    userData: Partial<
+      Pick<User, "name" | "gender" | "dob" | "onboardingCompleted">
+    >,
   ): Promise<void>;
 
   abstract upsert(
