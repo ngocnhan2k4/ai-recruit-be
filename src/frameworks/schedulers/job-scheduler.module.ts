@@ -20,6 +20,7 @@ import { UserScheduler } from "./user.scheduler";
 import { UserUseCasesModule } from "@/use-cases/user/user-use-cases.module";
 import { RedisModule } from "@/frameworks/redis/redis.module";
 import { BlogScheduler } from "./blog.scheduler";
+import { ActivityLogWorker } from "./activity-log.worker";
 import { TranslationModule } from "@/frameworks/translation/translation.module";
 import { NotificationModule } from "@/frameworks/notification/notification.module";
 import { BlogUseCasesModule } from "@/use-cases/blog/blog-use-cases.module";
@@ -54,6 +55,7 @@ import { FeatureModule } from "@/services";
     TranslationWorker,
     UserScheduler,
     BlogScheduler,
+    ActivityLogWorker,
   ],
 })
 export class JobMatchingSchedulerModule {}

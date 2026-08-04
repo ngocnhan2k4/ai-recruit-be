@@ -1,4 +1,5 @@
 import { RESPONSE_CODE, RESPONSE_MESSAGE } from "@/common/constants";
+import { setAuditContext } from "@/common/audit/set-audit-context";
 import {
   INotificationRepository,
   OrganizationInvitationTypeEnum,
@@ -144,6 +145,11 @@ export class OrganizationInvitationUseCase {
         );
       }
 
+      setAuditContext({
+        targetId: organizationId,
+        organizationId,
+      });
+
       return {
         message: RESPONSE_MESSAGE.SUCCESS,
         code: RESPONSE_CODE.SUCCESS,
@@ -207,6 +213,11 @@ export class OrganizationInvitationUseCase {
       organizationId,
       data.role,
     );
+
+    setAuditContext({
+      targetId: organizationId,
+      organizationId,
+    });
 
     return {
       message: RESPONSE_MESSAGE.SUCCESS,
@@ -444,6 +455,10 @@ export class OrganizationInvitationUseCase {
       }
     }
 
+    setAuditContext({
+      targetId: userId,
+    });
+
     return {
       data: true,
       message: RESPONSE_CODE.SUCCESS,
@@ -523,6 +538,15 @@ export class OrganizationInvitationUseCase {
       });
     }
 
+    setAuditContext({
+      targetId: invitation.organizationId,
+      organizationId: invitation.organizationId,
+      data: {
+        invitationId: invitation.id,
+        role: invitation.role,
+      },
+    });
+
     await this.organizationMemberInvitationRepository.update(
       { id: invitation.id },
       {
@@ -589,6 +613,16 @@ export class OrganizationInvitationUseCase {
         code: RESPONSE_CODE.FORBIDDEN,
       });
     }
+
+    setAuditContext({
+      targetId: invitation.organizationId,
+      organizationId: invitation.organizationId,
+      data: {
+        invitationId: invitation.id,
+        inviteeId: invitation.receiverId,
+        role: invitation.role,
+      },
+    });
 
     // Soft delete invitation and delete related notification in transaction
     await this.organizationMemberRepository.executeWithTransaction(

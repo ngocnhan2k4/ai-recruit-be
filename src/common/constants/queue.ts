@@ -4,6 +4,7 @@ export const EMAIL_QUEUE = "email_queue";
 export const TRANSLATION_QUEUE = "translation_queue";
 export const CV_INDEX_QUEUE = "cv_index_queue";
 export const SCORE_CV_QUEUE = "score_cv_queue";
+export const ACTIVITY_LOG_QUEUE = "activity_log_queue";
 
 export const TASK_EVENT = {
   SCORE_CV_APPLY: "score_cv_apply",

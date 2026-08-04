@@ -26,3 +26,4 @@ export * from "./skills-synonyms.model";
 export * from "./user-action.model";
 export * from "./blog.model";
 export * from "./i18n-translations.model";
+export * from "./activity.model";
