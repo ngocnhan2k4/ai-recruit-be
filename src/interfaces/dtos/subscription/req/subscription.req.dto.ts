@@ -7,9 +7,13 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
-import { BillingCycleSubscriptionEnum, SubscriptionEnum } from "@/core";
+import {
+  BillingCycleSubscriptionEnum,
+  PaymentProviderEnum,
+  SubscriptionEnum,
+} from "@/core";
 import { GeneralQueryDto } from "../../common";
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 
 export class CreateSubscriptionRequestDto {
   @ApiProperty({ example: "PRO" })
@@ -65,12 +69,19 @@ export class SubscriptionFilterDto extends GeneralQueryDto {
   @ApiProperty({ enum: SubscriptionEnum })
   @IsOptional()
   @IsEnum(SubscriptionEnum)
-  name?: SubscriptionEnum;
+  exactName?: SubscriptionEnum;
 
   @ApiProperty({ type: "boolean" })
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   skipCount?: boolean;
+
+  @ApiProperty({ type: "boolean" })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isActive?: boolean;
 
   @ApiProperty()
   @IsOptional()
@@ -80,4 +91,17 @@ export class SubscriptionFilterDto extends GeneralQueryDto {
     Array.isArray(value) ? value : [value],
   )
   fields?: string[];
+}
+
+export class RegisterUserSubscriptionRequestDto {
+  @ApiProperty({ example: "550e8400-e29b-41d4-a716-446655440000" })
+  @IsString()
+  subscriptionId: string;
+
+  @ApiProperty({
+    enum: PaymentProviderEnum,
+    example: PaymentProviderEnum.STRIPE,
+  })
+  @IsEnum(PaymentProviderEnum)
+  provider: PaymentProviderEnum;
 }

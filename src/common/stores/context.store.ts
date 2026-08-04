@@ -5,6 +5,9 @@ export const CONTEXT_KEYS = {
   FALLBACK_LANGUAGE: "fallbackLanguage",
   REQUEST_ID: "requestId",
   START_TIME: "startTime",
+  AUDIT_DATA: "data",
+  AUDIT_TARGET_ID: "targetId",
+  AUDIT_ORGANIZATION_ID: "organizationId",
 } as const;
 
 const als = new AsyncLocalStorage<Map<string, unknown>>();

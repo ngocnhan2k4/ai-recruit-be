@@ -66,6 +66,7 @@ multi_class_model/
 artifacts/
 crawl_jobs/skills/
 
+.cursor
 # blog-crawler
 /blog-crawler/dist/
 /blog-crawler/node_modules/

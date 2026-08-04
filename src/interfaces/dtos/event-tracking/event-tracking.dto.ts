@@ -1,3 +1,4 @@
+import { ObjectType } from "@/core";
 import { ApiProperty } from "@nestjs/swagger";
 import {
   IsEnum,
@@ -20,13 +21,6 @@ export enum EventTypeEnum {
   FILTER_STATISTICS = "filter_statistics",
 }
 
-export enum ObjectTypeEnum {
-  BLOG = "BLOG",
-  ORG = "ORG",
-  JOB = "JOB",
-  USER = "USER",
-}
-
 export class CreateTrackingEventRequestDto {
   @ApiProperty({ enum: EventTypeEnum })
   @IsEnum(EventTypeEnum)
@@ -38,10 +32,10 @@ export class CreateTrackingEventRequestDto {
   @IsNotEmpty()
   objectId: string;
 
-  @ApiProperty({ enum: ObjectTypeEnum })
-  @IsEnum(ObjectTypeEnum)
+  @ApiProperty({ enum: ObjectType })
+  @IsEnum(ObjectType)
   @IsNotEmpty()
-  objectType: ObjectTypeEnum;
+  objectType: ObjectType;
 
   @ApiProperty({ type: "object", additionalProperties: true })
   @IsObject()

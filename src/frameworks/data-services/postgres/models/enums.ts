@@ -143,7 +143,7 @@ export const BillingCycleSubscriptionEnum = pgEnum(
 );
 
 export const UserSubscriptionStatusEnum = pgEnum("user_subscription_status", [
-  "incomplete",
+  "pending_activation",
   "active",
   "canceled",
   // "expired",
@@ -192,4 +192,24 @@ export const BlogPostSourceTypeEnum = pgEnum("blog_post_source_type", [
 
 export const ActionTypeEnum = pgEnum("action", ["LIKE", "SAVE"]);
 
-export const ObjectTypeEnum = pgEnum("object_type", ["BLOG", "ORG"]);
+export const ObjectTypeEnum = pgEnum("object_type", [
+  "BLOG",
+  "ORG",
+  "JOB",
+  "USER",
+]);
+
+export const ActivityActionEnum = pgEnum("activity_action", [
+  "job_posted",
+  "job_updated",
+  "job_approved",
+  "admin_job_approved",
+  "admin_job_rejected",
+  "job_applied",
+  "job_matched",
+  "profile_viewed",
+  "cv_approved",
+  "cv_rejected",
+  "organization_invitation",
+  "system_notification",
+]);

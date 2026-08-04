@@ -51,6 +51,7 @@ import {
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { OptimizedCvData } from "./ai-cv.entity";
 import { SchoolTypeEnum } from "./enum.entity";
+export * from "./activity";
 export * from "./ai-cv.entity";
 export * from "./blog.entity";
 export * from "./candidate-brief.entity";
@@ -70,6 +71,7 @@ export * from "./otp.entity";
 export * from "./skill.entity";
 export * from "./subscription.entity";
 export * from "./task.entity";
+export * from "./payment.entity";
 export * from "./user.entity";
 
 // Because Drizzle ORM support type inference, we can create types based on the table schema

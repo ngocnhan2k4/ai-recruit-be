@@ -59,3 +59,14 @@ export const getJobStatus = (status: JobStatusEnum) => {
 export const normalizeString = (value: string): string => {
   return value.trim().toLowerCase();
 };
+
+export const extractName = (
+  fullName: string,
+): { firstName: string; lastName: string } => {
+  const parts = fullName.trim().split(/\s+/);
+
+  return {
+    firstName: parts.length > 1 ? parts.slice(0, -1).join(" ") : "",
+    lastName: parts.length > 0 ? (parts.at(-1) ?? "") : "",
+  };
+};

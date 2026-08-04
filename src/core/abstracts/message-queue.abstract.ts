@@ -36,4 +36,6 @@ export abstract class IMessageQueueService {
     cvData: { cvId: string },
     scoreData: { applyId: string; jobId: string; cvId: string },
   ): Promise<void>;
+
+  abstract addActivityLog(name: string, data: any, opts?: any): Promise<void>;
 }
